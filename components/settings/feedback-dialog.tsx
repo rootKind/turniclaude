@@ -42,7 +42,7 @@ export function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () =
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle>Invia segnalazione</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Select onValueChange={v => setValue('categories', v)}>
+          <Select onValueChange={v => setValue('categories', v as string)}>
             <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
             <SelectContent>
               {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}

@@ -45,7 +45,7 @@ export function SettingsPage() {
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tema</h2>
         <div className="flex items-center justify-between">
           <Label>Aspetto</Label>
-          <Select value={theme} onValueChange={setTheme}>
+          <Select value={theme} onValueChange={v => v && setTheme(v)}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="light">Chiaro</SelectItem>
