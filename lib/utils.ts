@@ -15,7 +15,7 @@ export function formatDisplayName(user: Pick<UserProfile, 'nome' | 'cognome'>): 
   const cognome = user.cognome ?? ''
   if (!cognome) return nome
   if (/^(di|de|del|della|degli|lo|la|le|d')/i.test(cognome)) {
-    return `${cognome} ${nome}`
+    return [cognome, nome].filter(Boolean).join(' ')
   }
   if (cognome.toLowerCase() === 'esposito' && nome.charAt(0).toUpperCase() === 'A') {
     return 'Esposito A'
@@ -37,9 +37,10 @@ export function formatRelativeTime(timestampStr: string): string {
   const date = new Date(timestampStr)
   const now = new Date()
   const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000)
-  if (diffDays === 0) return `oggi ${format(date, 'HH:mm')}`
-  if (diffDays === 1) return `ieri ${format(date, 'HH:mm')}`
-  return `${diffDays} gg fa`
+  const safeDiff = Math.max(0, diffDays)
+  if (safeDiff === 0) return `oggi ${format(date, 'HH:mm')}`
+  if (safeDiff === 1) return `ieri ${format(date, 'HH:mm')}`
+  return `${safeDiff} gg fa`
 }
 
 export type ShiftItemState = 'others' | 'own-empty' | 'own-interest' | 'highlight'

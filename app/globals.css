@@ -85,6 +85,7 @@
   /* Shift row backgrounds */
   --shift-others-bg: #e8e8e8;
   --shift-others-date-bg: #dcdcdc;
+  --shift-others-date-border: #cacaca;
   --shift-own-empty-bg: #e4e4f0;
   --shift-own-empty-date-bg: #d8d8ec;
   --shift-own-empty-border: #c8c8e0;
@@ -140,6 +141,7 @@
   /* Shift row backgrounds — dark */
   --shift-others-bg: #1a1a1a;
   --shift-others-date-bg: #252525;
+  --shift-others-date-border: #2e2e2e;
   --shift-own-empty-bg: #2a2a35;
   --shift-own-empty-date-bg: #32323f;
   --shift-own-empty-border: #3a3a4a;
@@ -179,7 +181,7 @@
   .shift-state-highlight    { background: var(--shift-highlight-bg); border: 1px solid var(--shift-highlight-border); }
 
   /* Date block classes */
-  .shift-date-others        { background: var(--shift-others-date-bg); border-right: 1px solid #2e2e2e; }
+  .shift-date-others        { background: var(--shift-others-date-bg); border-right: 1px solid var(--shift-others-date-border); }
   .shift-date-own-empty     { background: var(--shift-own-empty-date-bg); border-right: 1px solid var(--shift-own-empty-border); }
   .shift-date-own-interest  { background: var(--shift-own-interest-date-bg); border-right: 1px solid var(--shift-own-interest-border); }
   .shift-date-highlight     { background: var(--shift-highlight-date-bg); border-right: 1px solid rgba(245,158,11,0.4); }
