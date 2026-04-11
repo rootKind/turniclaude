@@ -14,7 +14,11 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {}
+          } catch (e) {
+            if (process.env.NODE_ENV === 'development') {
+              console.warn('[supabase/server] setAll suppressed:', e)
+            }
+          }
         },
       },
     }
