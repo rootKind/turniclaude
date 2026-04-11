@@ -26,8 +26,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: '#000000',
 }
 
@@ -39,9 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <QueryProvider>
             {children}
             <Toaster richColors position="top-center" />
-            <Analytics />
-            <SpeedInsights />
           </QueryProvider>
+          <Analytics />
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>

@@ -8,6 +8,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       defaultTheme="system"
       enableSystem
       storageKey="ui-theme"
+      disableTransitionOnChange
     >
       {children}
     </NextThemesProvider>
