@@ -81,6 +81,27 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Shift row backgrounds */
+  --shift-others-bg: #e8e8e8;
+  --shift-others-date-bg: #dcdcdc;
+  --shift-own-empty-bg: #e4e4f0;
+  --shift-own-empty-date-bg: #d8d8ec;
+  --shift-own-empty-border: #c8c8e0;
+  --shift-own-interest-bg: #dcfce7;
+  --shift-own-interest-date-bg: #bbf7d0;
+  --shift-own-interest-border: #86efac;
+  --shift-highlight-bg: #fef9e7;
+  --shift-highlight-date-bg: #fef3c7;
+  --shift-highlight-border: rgba(245,158,11,0.3);
+
+  /* Shift type pill colors */
+  --pill-mattina-bg: #dbeafe;
+  --pill-mattina-text: #1d4ed8;
+  --pill-pomeriggio-bg: #fef3c7;
+  --pill-pomeriggio-text: #b45309;
+  --pill-notte-bg: #ede9fe;
+  --pill-notte-text: #6d28d9;
 }
 
 .dark {
@@ -115,6 +136,27 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Shift row backgrounds — dark */
+  --shift-others-bg: #1a1a1a;
+  --shift-others-date-bg: #252525;
+  --shift-own-empty-bg: #2a2a35;
+  --shift-own-empty-date-bg: #32323f;
+  --shift-own-empty-border: #3a3a4a;
+  --shift-own-interest-bg: #162416;
+  --shift-own-interest-date-bg: #1a2e1a;
+  --shift-own-interest-border: rgba(34,197,94,0.25);
+  --shift-highlight-bg: #2a2000;
+  --shift-highlight-date-bg: #332800;
+  --shift-highlight-border: rgba(245,158,11,0.22);
+
+  /* Shift type pill colors — dark */
+  --pill-mattina-bg: #1e3a5f;
+  --pill-mattina-text: #60a5fa;
+  --pill-pomeriggio-bg: #3b2300;
+  --pill-pomeriggio-text: #fbbf24;
+  --pill-notte-bg: #2d1b69;
+  --pill-notte-text: #a78bfa;
 }
 
 @layer base {
@@ -127,4 +169,26 @@
   html {
     @apply font-sans;
   }
+}
+
+@layer components {
+  /* Shift row state classes — used by ShiftItem */
+  .shift-state-others       { background: var(--shift-others-bg); border: 1px solid transparent; }
+  .shift-state-own-empty    { background: var(--shift-own-empty-bg); border: 1px solid var(--shift-own-empty-border); }
+  .shift-state-own-interest { background: var(--shift-own-interest-bg); border: 1px solid var(--shift-own-interest-border); }
+  .shift-state-highlight    { background: var(--shift-highlight-bg); border: 1px solid var(--shift-highlight-border); }
+
+  /* Date block classes */
+  .shift-date-others        { background: var(--shift-others-date-bg); border-right: 1px solid #2e2e2e; }
+  .shift-date-own-empty     { background: var(--shift-own-empty-date-bg); border-right: 1px solid var(--shift-own-empty-border); }
+  .shift-date-own-interest  { background: var(--shift-own-interest-date-bg); border-right: 1px solid var(--shift-own-interest-border); }
+  .shift-date-highlight     { background: var(--shift-highlight-date-bg); border-right: 1px solid rgba(245,158,11,0.4); }
+
+  /* Shift type pill classes */
+  .pill-mattina    { background: var(--pill-mattina-bg); color: var(--pill-mattina-text); }
+  .pill-pomeriggio { background: var(--pill-pomeriggio-bg); color: var(--pill-pomeriggio-text); }
+  .pill-notte      { background: var(--pill-notte-bg); color: var(--pill-notte-text); }
+
+  /* Safe area for bottom nav */
+  .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }
