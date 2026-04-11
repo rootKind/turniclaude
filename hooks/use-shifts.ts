@@ -12,7 +12,7 @@ export function useShifts(isSecondary: boolean) {
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
-      .channel('shifts-realtime')
+      .channel(`shifts-realtime-${isSecondary}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => {
         queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
       })

@@ -16,5 +16,5 @@ export function useCurrentUser() {
     if (query.data !== undefined) setProfile(query.data)
   }, [query.data, setProfile])
 
-  return { profile: query.data ?? profile, isLoading: query.isLoading }
+  return { profile: query.data !== undefined ? query.data : profile, isLoading: query.isLoading }
 }
