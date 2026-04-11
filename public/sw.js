@@ -25,7 +25,6 @@ self.addEventListener('push', (event) => {
       return self.registration.showNotification(title, {
         body,
         icon: '/icons/icon-192.png',
-        badge: '/icons/badge.png',
         data: { url: shiftId ? `/dashboard?shift=${shiftId}` : url },
       })
     })()
