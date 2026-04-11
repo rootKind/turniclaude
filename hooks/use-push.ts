@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
@@ -53,10 +53,10 @@ export function usePush() {
     if (result === 'granted') await subscribe()
   }
 
-  async function registerServiceWorker() {
+  const registerServiceWorker = useCallback(async () => {
     if (!('serviceWorker' in navigator)) return
     await navigator.serviceWorker.register('/sw.js')
-  }
+  }, [])
 
   return { permission, isSubscribed, requestAndSubscribe, registerServiceWorker }
 }

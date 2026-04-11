@@ -11,7 +11,7 @@ import { useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { toast } from 'sonner'
 import { it } from 'date-fns/locale'
-import { format } from 'date-fns'
+import { format, startOfDay } from 'date-fns'
 import type { ShiftType } from '@/types/database'
 
 const SHIFT_TYPES: ShiftType[] = ['Mattina', 'Pomeriggio', 'Notte']
@@ -82,7 +82,7 @@ export function ShiftDialog({ open, onClose, isSecondary }: Props) {
               locale={it}
               disabled={(date) => {
                 const str = format(date, 'yyyy-MM-dd')
-                return date < new Date() || occupiedDates.has(str)
+                return date < startOfDay(new Date()) || occupiedDates.has(str)
               }}
               className="rounded-lg border"
             />
