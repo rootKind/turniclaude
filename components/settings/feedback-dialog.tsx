@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createClient } from '@/lib/supabase/client'
@@ -20,7 +20,7 @@ const CATEGORIES = ['Assistenza', 'Bug', 'Modifica', 'Feature', 'Altro']
 
 export function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
@@ -42,12 +42,18 @@ export function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () =
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle>Invia segnalazione</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Select onValueChange={v => setValue('categories', v as string)}>
-            <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
-            <SelectContent>
-              {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <Controller
+            name="categories"
+            control={control}
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          />
           <Textarea placeholder="Descrivi il problema..." rows={4} {...register('message')} />
           {errors.message && <p className="text-destructive text-xs">{errors.message.message}</p>}
           <Button type="submit" disabled={isSubmitting} className="w-full">
