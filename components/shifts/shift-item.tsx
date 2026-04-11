@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Pencil, Trash2, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatShiftDate, formatRelativeTime, getShiftItemState, SHIFT_STATE_CLASSES, SHIFT_DATE_CLASSES, SHIFT_PILL_CLASSES } from '@/lib/utils'
+import { formatShiftDate, formatRelativeTime, formatDisplayName, getShiftItemState, SHIFT_STATE_CLASSES, SHIFT_DATE_CLASSES, SHIFT_PILL_CLASSES } from '@/lib/utils'
 import { isAdmin, isTurnista } from '@/types/database'
 import type { Shift, ShiftType } from '@/types/database'
 import { toggleInterest, deleteShift, toggleHighlight } from '@/lib/queries/shifts'
@@ -22,6 +22,7 @@ interface Props {
 
 export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevious = false, onEdit }: Props) {
   const [expanded, setExpanded] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const queryClient = useQueryClient()
 
   const isOwn = shift.user_id === currentUserId
@@ -56,7 +57,8 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
 
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation()
-    if (!confirm('Eliminare questo turno?')) return
+    if (!confirmDelete) { setConfirmDelete(true); return }
+    setConfirmDelete(false)
     try {
       await deleteShift(shift.id)
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
@@ -76,23 +78,18 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
     }
   }
 
-  const displayName = isOwn
-    ? 'Il mio turno'
-    : (() => {
-        const nome = shift.user.nome
-        const cognome = shift.user.cognome
-        if (!cognome) return nome ?? ''
-        if (/^(di|de|del|della|lo|la)/i.test(cognome)) return `${cognome} ${nome}`
-        if (cognome.toLowerCase() === 'esposito' && nome?.charAt(0).toUpperCase() === 'A') return 'Esposito A'
-        return cognome
-      })()
+  const displayName = isOwn ? 'Il mio turno' : formatDisplayName(shift.user)
 
   return (
     <div className="mb-0.5 last:mb-0">
       {/* Main row */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
         className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius)}
         onClick={() => setExpanded(v => !v)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
       >
         {/* Date block */}
         <div className={cn('w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
@@ -134,7 +131,7 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
             ) : (
               <span className={isInterested ? 'text-green-400' : 'text-muted-foreground'}>
                 {(shift.shift_interested_users?.length ?? 0) > 0
-                  ? `${shift.shift_interested_users!.length} ❤️`
+                  ? `${shift.shift_interested_users!.filter(i => i.user_id !== currentUserId).length + (isInterested ? 1 : 0)} ❤️`
                   : '0 ♡'}
               </span>
             )}
@@ -154,9 +151,9 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
           >
             <div className={cn(
               'px-3 py-3 rounded-b-[10px] border-t border-white/5',
-              isOwn && hasInterest ? 'bg-[#0c180c] dark:bg-[#0c180c] bg-[#f0fdf4]' :
-              isOwn ? 'bg-[#22223a] dark:bg-[#22223a] bg-[#dcdcf0]' :
-              'bg-[#111] dark:bg-[#111] bg-[#e0e0e0]'
+              isOwn && hasInterest ? 'bg-[#f0fdf4] dark:bg-[#0c180c]' :
+              isOwn ? 'bg-[#dcdcf0] dark:bg-[#22223a]' :
+              'bg-[#e0e0e0] dark:bg-[#111]'
             )}>
               {isOwn ? (
                 <>
@@ -183,9 +180,20 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
                     <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); onEdit?.(shift) }}>
                       <Pencil size={13} className="mr-1" /> Modifica
                     </Button>
-                    <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
-                      <Trash2 size={13} className="mr-1" /> Elimina
-                    </Button>
+                    {confirmDelete ? (
+                      <>
+                        <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
+                          Conferma
+                        </Button>
+                        <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setConfirmDelete(false) }}>
+                          Annulla
+                        </Button>
+                      </>
+                    ) : (
+                      <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
+                        <Trash2 size={13} className="mr-1" /> Elimina
+                      </Button>
+                    )}
                     {canSeeHighlight && (
                       <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={handleHighlightToggle}>
                         <Zap size={13} className={isHighlight ? 'text-yellow-400' : ''} />
