@@ -29,7 +29,7 @@ export function usePush() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      await fetch('/api/push/subscribe', {
+      const res = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -39,6 +39,7 @@ export function usePush() {
           platform: 'web',
         }),
       })
+      if (!res.ok) throw new Error('Subscribe API failed')
       setIsSubscribed(true)
       toast.success('Notifiche attivate')
     } catch {
