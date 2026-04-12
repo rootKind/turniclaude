@@ -1,15 +1,16 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, Palmtree, Bell, Settings, Plus } from 'lucide-react'
+import { LayoutGrid, Palmtree, Bell, Settings, Plus, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
 
 interface Props {
   feedbackUnread?: number
+  isAdmin?: boolean
 }
 
-export function BottomNav({ feedbackUnread = 0 }: Props) {
+export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   const pathname = usePathname()
   const { unreadCount } = useNotificationHistory()
 
@@ -29,13 +30,23 @@ export function BottomNav({ feedbackUnread = 0 }: Props) {
 
         {/* FAB center button */}
         <div className="flex-1 flex items-center justify-center">
-          <Link
-            href="/dashboard?new=1"
-            className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-            aria-label="Nuovo turno"
-          >
-            <Plus size={22} />
-          </Link>
+          {isAdmin ? (
+            <Link
+              href="/admin"
+              className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+              aria-label="Pannello admin"
+            >
+              <Lock size={20} />
+            </Link>
+          ) : (
+            <Link
+              href="/dashboard?new=1"
+              className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+              aria-label="Nuovo turno"
+            >
+              <Plus size={22} />
+            </Link>
+          )}
         </div>
 
         {links.slice(2).map(({ href, icon: Icon, label, badge }) => (

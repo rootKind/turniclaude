@@ -40,10 +40,8 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
     : SHIFT_DATE_CLASSES[state]
 
   const borderRadius = isSameDateAsPrevious
-    ? 'rounded-t-[4px] rounded-b-[10px]'
-    : expanded
-    ? 'rounded-t-[10px]'
-    : 'rounded-[10px]'
+    ? expanded ? 'rounded-t-[4px]' : 'rounded-t-[4px] rounded-b-[10px]'
+    : expanded ? 'rounded-t-[10px]' : 'rounded-[10px]'
 
   async function handleInterestToggle(e: React.MouseEvent) {
     e.stopPropagation()
@@ -81,7 +79,7 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
   const displayName = isOwn ? 'Il mio turno' : formatDisplayName(shift.user)
 
   return (
-    <div className="mb-0.5 last:mb-0">
+    <div className={cn(isSameDateAsPrevious ? 'mt-0.5' : 'mt-3', 'first:mt-0')}>
       {/* Main row */}
       <div
         role="button"
@@ -116,8 +114,11 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
             <div className="flex items-center gap-1 flex-wrap">
               <ShiftPill type={shift.offered_shift} />
               <span className="text-muted-foreground text-[11px]">→</span>
-              {shift.requested_shifts.map(r => (
-                <ShiftPill key={r} type={r as ShiftType} />
+              {shift.requested_shifts.map((r, i) => (
+                <span key={r} className="flex items-center gap-1">
+                  {i > 0 && <span className="text-muted-foreground text-[11px]">o</span>}
+                  <ShiftPill type={r as ShiftType} />
+                </span>
               ))}
             </div>
           </div>
@@ -129,11 +130,15 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
                 {hasInterest ? `${shift.shift_interested_users!.length} ❤️` : '0 ♡'}
               </span>
             ) : (
-              <span className={isInterested ? 'text-green-400' : 'text-muted-foreground'}>
+              <button
+                className={cn('leading-none', isInterested ? 'text-red-500' : 'text-muted-foreground')}
+                onClick={handleInterestToggle}
+                aria-label={isInterested ? 'Rimuovi interesse' : 'Sono interessato'}
+              >
                 {(shift.shift_interested_users?.length ?? 0) > 0
-                  ? `${shift.shift_interested_users!.filter(i => i.user_id !== currentUserId).length + (isInterested ? 1 : 0)} ❤️`
-                  : '0 ♡'}
-              </span>
+                  ? `${shift.shift_interested_users!.filter(i => i.user_id !== currentUserId).length + (isInterested ? 1 : 0)} ${isInterested ? '❤️' : '♡'}`
+                  : `0 ${isInterested ? '❤️' : '♡'}`}
+              </button>
             )}
           </div>
         </div>

@@ -22,7 +22,7 @@ export function ShiftList() {
 
   return (
     <>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-0">
         {shifts.map((shift, index) => {
           const prev = shifts[index - 1]
           const isSameDateAsPrevious = !!prev && prev.shift_date === shift.shift_date
