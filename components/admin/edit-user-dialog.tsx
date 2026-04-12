@@ -54,13 +54,18 @@ export function EditUserDialog({ open, onClose }: Props) {
 
   async function onSubmit(values: FormData) {
     setIsLoading(true)
-    const supabase = createClient()
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ nome: values.nome, cognome: values.cognome })
-        .eq('id', values.userId)
-      if (error) throw error
+      const res = await fetch('/api/admin/update-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: values.userId,
+          nome: values.nome,
+          cognome: values.cognome,
+          ...(values.password ? { password: values.password } : {}),
+        }),
+      })
+      if (!res.ok) throw new Error()
       toast.success('Utente aggiornato')
       onClose()
     } catch {

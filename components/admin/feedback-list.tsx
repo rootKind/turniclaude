@@ -22,8 +22,12 @@ type FeedbackItem = {
 
 const CATEGORIES = ['Tutti', 'Assistenza', 'Bug', 'Modifica', 'Feature', 'Altro']
 
-export function FeedbackList() {
-  const [open, setOpen] = useState(false)
+interface FeedbackListProps {
+  open: boolean
+  onClose: () => void
+}
+
+export function FeedbackList({ open, onClose }: FeedbackListProps) {
   const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState('Tutti')
   const [selected, setSelected] = useState<FeedbackItem | null>(null)
@@ -69,11 +73,7 @@ export function FeedbackList() {
 
   return (
     <>
-      <Button variant="outline" className="w-full" onClick={() => setOpen(true)}>
-        Leggi feedback
-      </Button>
-
-      <Dialog open={open} onOpenChange={v => !v && setOpen(false)}>
+      <Dialog open={open} onOpenChange={v => !v && onClose()}>
         <DialogContent className="max-w-md h-[80vh] flex flex-col p-0">
           <DialogHeader className="px-4 py-3 border-b shrink-0">
             <DialogTitle>Feedback ricevuti</DialogTitle>
@@ -130,7 +130,7 @@ export function FeedbackList() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
+      <Dialog open={!!selected} onOpenChange={v => !v && setSelected(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>{selected?.categories}</DialogTitle></DialogHeader>
           <div className="space-y-3">

@@ -6,15 +6,21 @@ import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { cn } from '@/lib/utils'
 import { createShift } from '@/lib/queries/shifts'
-import { SHIFTS_QUERY_KEY } from '@/hooks/use-shifts'
-import { useShifts } from '@/hooks/use-shifts'
+import { SHIFTS_QUERY_KEY, useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { toast } from 'sonner'
 import { it } from 'date-fns/locale'
 import { format, startOfDay } from 'date-fns'
+import { ArrowRight } from 'lucide-react'
 import type { ShiftType } from '@/types/database'
 
 const SHIFT_TYPES: ShiftType[] = ['Mattina', 'Pomeriggio', 'Notte']
+
+const SHIFT_STYLES: Record<ShiftType, { base: string; active: string }> = {
+  Mattina:    { base: 'border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300', active: 'bg-blue-100 border-blue-400 dark:bg-blue-900/40 dark:border-blue-500' },
+  Pomeriggio: { base: 'border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-300', active: 'bg-amber-100 border-amber-400 dark:bg-amber-900/40 dark:border-amber-500' },
+  Notte:      { base: 'border-purple-200 text-purple-700 dark:border-purple-800 dark:text-purple-300', active: 'bg-purple-100 border-purple-400 dark:bg-purple-900/40 dark:border-purple-500' },
+}
 
 interface Props {
   open: boolean
@@ -42,6 +48,13 @@ export function ShiftDialog({ open, onClose, isSecondary }: Props) {
     )
   }
 
+  function handleClose() {
+    onClose()
+    setSelectedDate(undefined)
+    setOfferedShift(null)
+    setRequestedShifts([])
+  }
+
   async function handleSubmit() {
     if (!selectedDate || !offeredShift || requestedShifts.length === 0) {
       toast.error('Compila tutti i campi')
@@ -56,8 +69,7 @@ export function ShiftDialog({ open, onClose, isSecondary }: Props) {
       })
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
       toast.success('Turno pubblicato')
-      onClose()
-      setSelectedDate(undefined); setOfferedShift(null); setRequestedShifts([])
+      handleClose()
     } catch {
       toast.error('Errore pubblicazione')
     } finally {
@@ -65,16 +77,19 @@ export function ShiftDialog({ open, onClose, isSecondary }: Props) {
     }
   }
 
+  const canSubmit = !!selectedDate && !!offeredShift && requestedShifts.length > 0
+
   return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-sm mx-auto">
-        <DialogHeader>
-          <DialogTitle>Nuovo scambio turno</DialogTitle>
+    <Dialog open={open} onOpenChange={v => !v && handleClose()}>
+      <DialogContent className="max-w-sm w-full p-0 overflow-hidden">
+        <DialogHeader className="px-5 pt-5 pb-0">
+          <DialogTitle className="text-base">Nuovo scambio turno</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="overflow-y-auto max-h-[80vh] px-5 pb-5 pt-4 space-y-5">
+          {/* Date picker */}
           <div>
-            <p className="text-sm font-medium mb-2">Seleziona data</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Data</p>
             <Calendar
               mode="single"
               selected={selectedDate}
@@ -84,50 +99,86 @@ export function ShiftDialog({ open, onClose, isSecondary }: Props) {
                 const str = format(date, 'yyyy-MM-dd')
                 return date < startOfDay(new Date()) || occupiedDates.has(str)
               }}
-              className="rounded-lg border"
+              className="rounded-xl border w-full"
             />
           </div>
 
+          {/* Offered shift */}
           <div>
-            <p className="text-sm font-medium mb-2">Turno che offri</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Turno che offri</p>
             <div className="flex gap-2">
               {SHIFT_TYPES.map(type => (
-                <button
+                <ShiftTypeBtn
                   key={type}
-                  onClick={() => { setOfferedShift(type); setRequestedShifts(prev => prev.filter(t => t !== type)) }}
-                  className={cn(
-                    'flex-1 py-2 rounded-lg text-sm font-medium border transition-all',
-                    offeredShift === type ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-accent'
-                  )}
-                >{type}</button>
+                  type={type}
+                  selected={offeredShift === type}
+                  disabled={false}
+                  onClick={() => {
+                    setOfferedShift(type)
+                    setRequestedShifts(prev => prev.filter(t => t !== type))
+                  }}
+                />
               ))}
             </div>
           </div>
 
+          {/* Requested shifts */}
           <div>
-            <p className="text-sm font-medium mb-1">Turni che accetti (max 2)</p>
-            <p className="text-xs text-muted-foreground mb-2">Seleziona quali turni vorresti in cambio</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Turni che accetti</p>
+              <span className="text-[10px] text-muted-foreground">max 2</span>
+            </div>
             <div className="flex gap-2">
               {SHIFT_TYPES.map(type => (
-                <button
+                <ShiftTypeBtn
                   key={type}
-                  onClick={() => toggleRequested(type)}
+                  type={type}
+                  selected={requestedShifts.includes(type)}
                   disabled={type === offeredShift}
-                  className={cn(
-                    'flex-1 py-2 rounded-lg text-sm font-medium border transition-all',
-                    requestedShifts.includes(type) ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-accent',
-                    type === offeredShift && 'opacity-30 cursor-not-allowed'
-                  )}
-                >{type}</button>
+                  onClick={() => toggleRequested(type)}
+                />
               ))}
             </div>
           </div>
 
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full">
+          {/* Summary */}
+          {canSubmit && (
+            <div className="rounded-xl bg-muted px-4 py-3 flex items-center gap-2 text-sm">
+              <span className="font-medium">{format(selectedDate!, 'd MMM', { locale: it })}</span>
+              <span className="text-muted-foreground text-xs">·</span>
+              <span className={cn('text-xs font-semibold', SHIFT_STYLES[offeredShift!].base.split(' ')[1])}>{offeredShift}</span>
+              <ArrowRight size={13} className="text-muted-foreground flex-shrink-0" />
+              <span className="text-xs font-semibold text-muted-foreground">
+                {requestedShifts.join(' o ')}
+              </span>
+            </div>
+          )}
+
+          <Button onClick={handleSubmit} disabled={isSubmitting || !canSubmit} className="w-full">
             {isSubmitting ? 'Pubblicazione...' : 'Pubblica'}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function ShiftTypeBtn({ type, selected, disabled, onClick }: {
+  type: ShiftType; selected: boolean; disabled: boolean; onClick: () => void
+}) {
+  const { base, active } = SHIFT_STYLES[type]
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'flex-1 py-2.5 rounded-xl text-[13px] font-semibold border-2 transition-all',
+        base,
+        selected ? active : 'bg-transparent',
+        disabled && 'opacity-25 cursor-not-allowed'
+      )}
+    >
+      {type}
+    </button>
   )
 }
