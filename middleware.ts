@@ -13,7 +13,9 @@ const PUBLIC_ROUTES = [
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request })
   const supabase = createMiddlewareClient(request, response)
-  const { data: { user } } = await supabase.auth.getUser()
+  // supabase-js narrows auth type for publishable keys; cast to access getUser
+  const auth = supabase.auth as unknown as { getUser(): Promise<{ data: { user: { id: string } | null } }> }
+  const { data: { user } } = await auth.getUser()
 
   const { pathname } = request.nextUrl
 
