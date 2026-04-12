@@ -8,6 +8,11 @@ export function usePush() {
   const [isSubscribed, setIsSubscribed] = useState(false)
 
   useEffect(() => {
+    // Always register SW so push is available regardless of which page the user lands on
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    }
+
     if (typeof Notification === 'undefined') return
     setPermission(Notification.permission)
     checkSubscription()
@@ -63,15 +68,15 @@ export function usePush() {
   }
 
   async function requestAndSubscribe() {
+    if (typeof Notification === 'undefined') {
+      toast.error('Le notifiche non sono supportate su questo dispositivo')
+      return
+    }
     try {
-      // Use callback form to preserve user-gesture context on Android Chrome
-      const result = await new Promise<NotificationPermission>((resolve) => {
-        const p = Notification.requestPermission((r) => resolve(r))
-        if (p) p.then(resolve).catch(() => resolve('denied'))
-      })
+      const result = await Notification.requestPermission()
       setPermission(result)
       if (result === 'granted') await subscribe()
-      else if (result === 'denied') toast.error('Permesso notifiche negato — abilitalo dalle impostazioni del browser')
+      else if (result === 'denied') toast.error('Permesso negato — abilitalo nelle impostazioni del browser')
     } catch {
       toast.error('Impossibile richiedere il permesso notifiche')
     }
