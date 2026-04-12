@@ -9,7 +9,7 @@ const PUBLIC_ROUTES = [
   '/confirm-email',
 ]
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Derive the Supabase project ref from the URL env var to find the auth cookie.
