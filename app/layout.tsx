@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
+import { ThemeColor } from '@/components/providers/theme-color'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
   title: 'Turni Sala C.C.C.',
   description: 'Gestione scambi turni',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Turni' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Turni' },
   icons: {
     icon: [
       { url: '/icons/icon-192.png', sizes: '192x192' },
@@ -27,10 +28,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#252525' },
-  ],
+  themeColor: '#ffffff',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -38,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="it" suppressHydrationWarning>
       <body className={geist.className}>
         <ThemeProvider>
+          <ThemeColor />
           <QueryProvider>
             {children}
             <Toaster richColors position="top-center" />
