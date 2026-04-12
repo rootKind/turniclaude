@@ -9,7 +9,11 @@ export function ThemeColor() {
   const { resolvedTheme } = useTheme()
 
   useEffect(() => {
-    const color = resolvedTheme === 'dark' ? DARK_COLOR : LIGHT_COLOR
+    // Fallback to html class if resolvedTheme not yet resolved (avoids white flash on navigation)
+    const isDark = resolvedTheme
+      ? resolvedTheme === 'dark'
+      : document.documentElement.classList.contains('dark')
+    const color = isDark ? DARK_COLOR : LIGHT_COLOR
     document.querySelectorAll('meta[name="theme-color"]').forEach(el => {
       el.setAttribute('content', color)
     })

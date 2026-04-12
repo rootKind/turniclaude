@@ -30,7 +30,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
 
         {/* FAB center button */}
         <div className="flex-1 flex items-center justify-center">
-          {isAdmin ? (
+          {isAdmin && pathname === '/impostazioni' ? (
             <Link
               href="/admin"
               className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"

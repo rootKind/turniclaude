@@ -169,7 +169,11 @@
     @apply bg-background text-foreground;
   }
   html {
-    @apply font-sans;
+    @apply font-sans bg-background;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
 }
 
@@ -193,4 +197,8 @@
 
   /* Safe area for bottom nav */
   .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+  /* Hide scrollbar while keeping scroll functionality */
+  .no-scrollbar { scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 }
