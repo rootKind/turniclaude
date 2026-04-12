@@ -8,26 +8,40 @@ export function usePush() {
   const [isSubscribed, setIsSubscribed] = useState(false)
 
   useEffect(() => {
-    // Always register SW so push is available regardless of which page the user lands on
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {})
     }
 
     if (typeof Notification === 'undefined') return
+
     setPermission(Notification.permission)
     checkSubscription()
 
-    // Listen for permission changes dynamically
-    if (!('permissions' in navigator)) return
-    let status: PermissionStatus | null = null
-    navigator.permissions.query({ name: 'notifications' }).then(s => {
-      status = s
-      s.onchange = () => {
-        setPermission(s.state as NotificationPermission)
-        if (s.state === 'granted') checkSubscription()
+    // Resync cuando el usuario vuelve en la app después de haber cambiado impostaciones OS
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        setPermission(Notification.permission)
+        checkSubscription()
       }
-    }).catch(() => {})
-    return () => { if (status) status.onchange = null }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // Listen for permission changes dynamically
+    let status: PermissionStatus | null = null
+    if ('permissions' in navigator) {
+      navigator.permissions.query({ name: 'notifications' }).then(s => {
+        status = s
+        s.onchange = () => {
+          setPermission(s.state as NotificationPermission)
+          if (s.state === 'granted') checkSubscription()
+        }
+      }).catch(() => {})
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (status) status.onchange = null
+    }
   }, [])
 
   async function checkSubscription() {
@@ -75,8 +89,12 @@ export function usePush() {
     try {
       const result = await Notification.requestPermission()
       setPermission(result)
-      if (result === 'granted') await subscribe()
-      else if (result === 'denied') toast.error('Permesso negato — abilitalo nelle impostazioni del browser')
+      if (result === 'granted') {
+        await subscribe()
+        await checkSubscription()
+      } else if (result === 'denied') {
+        toast.error('Permesso negato — abilitalo nelle impostazioni del dispositivo')
+      }
     } catch {
       toast.error('Impossibile richiedere il permesso notifiche')
     }
