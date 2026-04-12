@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { motion, type PanInfo } from 'framer-motion'
+import { motion, useMotionValue, useTransform, animate, type PanInfo } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { Check, Trash } from 'lucide-react'
 
@@ -21,6 +21,86 @@ type FeedbackItem = {
 }
 
 const CATEGORIES = ['Tutti', 'Assistenza', 'Bug', 'Modifica', 'Feature', 'Altro']
+
+function FeedbackCard({
+  f,
+  onMarkRead,
+  onDelete,
+  onClick,
+}: {
+  f: FeedbackItem
+  onMarkRead: (id: string) => void
+  onDelete: (id: string) => void
+  onClick: () => void
+}) {
+  const x = useMotionValue(0)
+  const bg = useTransform(
+    x,
+    [-60, -1, 0, 1, 60],
+    [
+      'rgba(239,68,68,0.18)',
+      'rgba(239,68,68,0.04)',
+      'transparent',
+      'rgba(34,197,94,0.04)',
+      'rgba(34,197,94,0.18)',
+    ]
+  )
+  const checkOpacity = useTransform(x, [0, 60], [0, 1])
+  const trashOpacity = useTransform(x, [-60, 0], [1, 0])
+
+  async function handleDragEnd(_: unknown, info: PanInfo) {
+    if (info.offset.x > 40) {
+      await animate(x, 320, { duration: 0.18 })
+      onMarkRead(f.id)
+    } else if (info.offset.x < -40) {
+      await animate(x, -320, { duration: 0.18 })
+      onDelete(f.id)
+    } else {
+      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 })
+    }
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-lg">
+      <motion.div
+        className="absolute inset-y-0 right-0 flex items-center justify-center w-14 text-destructive z-0"
+        style={{ opacity: trashOpacity }}
+      >
+        <Trash size={16} />
+      </motion.div>
+      <motion.div
+        className="absolute inset-y-0 left-0 flex items-center justify-center w-14 text-green-500 z-0"
+        style={{ opacity: checkOpacity }}
+      >
+        <Check size={16} />
+      </motion.div>
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -60, right: 60 }}
+        dragElastic={0.08}
+        dragMomentum={false}
+        style={{ x, background: bg }}
+        onDragEnd={handleDragEnd}
+        className={cn(
+          'relative z-10 p-3 border rounded-lg cursor-pointer',
+          !f.read && 'border-primary'
+        )}
+        onClick={onClick}
+      >
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="text-sm font-medium">{f.user?.cognome ?? ''} {f.user?.nome ?? ''}</p>
+            <p className="text-xs text-muted-foreground">{f.categories}</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {new Date(f.created_at).toLocaleDateString('it-IT')}
+          </p>
+        </div>
+        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{f.message}</p>
+      </motion.div>
+    </div>
+  )
+}
 
 interface FeedbackListProps {
   open: boolean
@@ -64,11 +144,6 @@ export function FeedbackList({ open, onClose }: FeedbackListProps) {
     setFeedbacks(prev => prev.filter(f => f.id !== id))
   }
 
-  function handleSwipe(id: string, info: PanInfo) {
-    if (info.offset.x > 50) markRead(id)
-    else if (info.offset.x < -50) deleteFeedback(id)
-  }
-
   const filtered = feedbacks.filter(f => selectedCategory === 'Tutti' || f.categories === selectedCategory)
 
   return (
@@ -92,38 +167,13 @@ export function FeedbackList({ open, onClose }: FeedbackListProps) {
                 <p className="text-sm text-muted-foreground text-center py-8">Nessun feedback</p>
               )}
               {filtered.map(f => (
-                <div key={f.id} className="relative overflow-hidden rounded-lg">
-                  <div className="absolute inset-y-0 right-0 flex items-center justify-center w-14 text-destructive z-0">
-                    <Trash size={16} />
-                  </div>
-                  <div className="absolute inset-y-0 left-0 flex items-center justify-center w-14 text-green-500 z-0">
-                    <Check size={16} />
-                  </div>
-                  <motion.div
-                    drag="x"
-                    dragConstraints={{ left: -56, right: 56 }}
-                    dragElastic={0.1}
-                    dragMomentum={false}
-                    animate={{ x: 0 }}
-                    onDragEnd={(_, info) => { if (Math.abs(info.offset.x) > 40) handleSwipe(f.id, info) }}
-                    className={cn(
-                      'relative z-10 p-3 border rounded-lg bg-background cursor-pointer',
-                      !f.read && 'border-primary bg-primary/5'
-                    )}
-                    onClick={() => setSelected(f)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm font-medium">{f.user?.cognome ?? ''} {f.user?.nome ?? ''}</p>
-                        <p className="text-xs text-muted-foreground">{f.categories}</p>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(f.created_at).toLocaleDateString('it-IT')}
-                      </p>
-                    </div>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{f.message}</p>
-                  </motion.div>
-                </div>
+                <FeedbackCard
+                  key={f.id}
+                  f={f}
+                  onMarkRead={markRead}
+                  onDelete={deleteFeedback}
+                  onClick={() => setSelected(f)}
+                />
               ))}
             </div>
           </ScrollArea>
