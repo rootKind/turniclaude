@@ -79,15 +79,19 @@ function FeedbackCard({
         dragConstraints={{ left: -60, right: 60 }}
         dragElastic={0.08}
         dragMomentum={false}
-        style={{ x, background: bg }}
+        style={{ x }}
         onDragEnd={handleDragEnd}
         className={cn(
-          'relative z-10 p-3 border rounded-lg cursor-pointer',
-          !f.read && 'border-primary'
+          'relative z-10 p-3 border rounded-lg bg-background cursor-pointer',
+          !f.read && 'border-primary bg-primary/5'
         )}
         onClick={onClick}
       >
-        <div className="flex justify-between items-start">
+        <motion.div
+          className="absolute inset-0 rounded-lg pointer-events-none"
+          style={{ backgroundColor: bg }}
+        />
+        <div className="relative flex justify-between items-start">
           <div>
             <p className="text-sm font-medium">{f.user?.cognome ?? ''} {f.user?.nome ?? ''}</p>
             <p className="text-xs text-muted-foreground">{f.categories}</p>
@@ -96,7 +100,7 @@ function FeedbackCard({
             {new Date(f.created_at).toLocaleDateString('it-IT')}
           </p>
         </div>
-        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{f.message}</p>
+        <p className="relative text-sm text-muted-foreground line-clamp-2 mt-1">{f.message}</p>
       </motion.div>
     </div>
   )
