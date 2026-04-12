@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -45,8 +44,8 @@ function FeedbackCard({
       'rgba(34,197,94,0.18)',
     ]
   )
-  const checkOpacity = useTransform(x, [0, 60], [0, 1])
-  const trashOpacity = useTransform(x, [-60, 0], [1, 0])
+  const checkOpacity = useTransform(x, [0, 40], [0, 1])
+  const trashOpacity = useTransform(x, [-40, 0], [1, 0])
 
   async function handleDragEnd(_: unknown, info: PanInfo) {
     if (info.offset.x > 40) {
@@ -63,13 +62,13 @@ function FeedbackCard({
   return (
     <div className="relative overflow-hidden rounded-lg">
       <motion.div
-        className="absolute inset-y-0 right-0 flex items-center justify-center w-14 text-destructive z-0"
+        className="absolute inset-y-0 left-0 flex items-center justify-center w-14 text-destructive z-0"
         style={{ opacity: trashOpacity }}
       >
         <Trash size={16} />
       </motion.div>
       <motion.div
-        className="absolute inset-y-0 left-0 flex items-center justify-center w-14 text-green-500 z-0"
+        className="absolute inset-y-0 right-0 flex items-center justify-center w-14 text-green-500 z-0"
         style={{ opacity: checkOpacity }}
       >
         <Check size={16} />
