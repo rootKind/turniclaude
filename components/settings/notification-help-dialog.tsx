@@ -1,4 +1,5 @@
 'use client'
+import { useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -13,7 +14,7 @@ interface NotificationHelpDialogProps {
 }
 
 export function NotificationHelpDialog({ open, onClose }: NotificationHelpDialogProps) {
-  const defaultTab = detectOS()
+  const defaultTab = useMemo(() => detectOS(), [])
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
