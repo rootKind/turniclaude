@@ -21,7 +21,7 @@ export function PwaGuard({ children }: { children: React.ReactNode }) {
       return
     }
     setReady(true)
-  }, [pathname, router])
+  }, []) // runs once on mount — isPWA is stable for the lifetime of the session
 
   if (!ready) return <div className="min-h-screen bg-background" />
   return <>{children}</>

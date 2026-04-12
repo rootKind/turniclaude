@@ -62,13 +62,13 @@ function FeedbackCard({
   return (
     <div className="relative overflow-hidden rounded-lg">
       <motion.div
-        className="absolute inset-y-0 left-0 flex items-center justify-center w-14 text-destructive z-0"
+        className="absolute inset-y-0 right-0 flex items-center justify-center w-14 text-destructive z-0"
         style={{ opacity: trashOpacity }}
       >
         <Trash size={16} />
       </motion.div>
       <motion.div
-        className="absolute inset-y-0 right-0 flex items-center justify-center w-14 text-green-500 z-0"
+        className="absolute inset-y-0 left-0 flex items-center justify-center w-14 text-green-500 z-0"
         style={{ opacity: checkOpacity }}
       >
         <Check size={16} />
@@ -137,7 +137,7 @@ export function FeedbackList({ open, onClose }: FeedbackListProps) {
     const supabase = createClient()
     const { error } = await supabase.from('feedback').update({ read: true }).eq('id', id)
     if (error) { toast.error('Errore'); return }
-    setFeedbacks(prev => prev.map(f => f.id === id ? { ...f, read: true } : f))
+    setFeedbacks(prev => prev.filter(f => f.id !== id))
   }
 
   async function deleteFeedback(id: string) {

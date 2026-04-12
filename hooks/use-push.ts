@@ -7,6 +7,13 @@ export function usePush() {
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isSubscribed, setIsSubscribed] = useState(false)
 
+  const checkSubscription = useCallback(async () => {
+    if (!('serviceWorker' in navigator)) return
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    setIsSubscribed(!!sub)
+  }, [])
+
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {})
@@ -17,7 +24,7 @@ export function usePush() {
     setPermission(Notification.permission)
     checkSubscription()
 
-    // Resync cuando el usuario vuelve en la app después de haber cambiado impostaciones OS
+    // Risincronizza quando l'utente torna nell'app dopo aver cambiato le impostazioni OS
     function handleVisibilityChange() {
       if (document.visibilityState === 'visible') {
         setPermission(Notification.permission)
@@ -45,14 +52,7 @@ export function usePush() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       if (status) status.onchange = null
     }
-  }, [])
-
-  const checkSubscription = useCallback(async () => {
-    if (!('serviceWorker' in navigator)) return
-    const reg = await navigator.serviceWorker.ready
-    const sub = await reg.pushManager.getSubscription()
-    setIsSubscribed(!!sub)
-  }, [])
+  }, [checkSubscription])
 
   async function subscribe() {
     try {
@@ -94,6 +94,7 @@ export function usePush() {
       setPermission(result)
       if (result === 'granted') {
         await subscribe()
+        await checkSubscription()
       } else if (result === 'denied') {
         toast.error('Permesso negato — abilitalo nelle impostazioni del dispositivo')
       }
