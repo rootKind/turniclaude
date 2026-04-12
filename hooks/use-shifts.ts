@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { fetchShifts } from '@/lib/queries/shifts'
@@ -8,11 +8,12 @@ export const SHIFTS_QUERY_KEY = (isSecondary: boolean) => ['shifts', isSecondary
 
 export function useShifts(isSecondary: boolean) {
   const queryClient = useQueryClient()
+  const channelId = useRef(`shifts-realtime-${isSecondary}-${Math.random().toString(36).slice(2)}`)
 
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
-      .channel(`shifts-realtime-${isSecondary}`)
+      .channel(channelId.current)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, () => {
         queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
       })
