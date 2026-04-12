@@ -60,11 +60,29 @@ export function SettingsPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Notifiche</h2>
-        {permission !== 'granted' ? (
+
+        {permission === 'denied' && (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 space-y-1">
+            <p className="text-sm font-medium text-destructive">Notifiche bloccate</p>
+            <p className="text-xs text-muted-foreground">
+              Hai negato il permesso. Per abilitarle vai nelle impostazioni del browser e consenti le notifiche per questo sito.
+            </p>
+          </div>
+        )}
+
+        {permission === 'default' && (
           <Button variant="outline" onClick={requestAndSubscribe} className="w-full">
             Abilita notifiche push
           </Button>
-        ) : (
+        )}
+
+        {permission === 'granted' && !isSubscribed && (
+          <Button variant="outline" onClick={requestAndSubscribe} className="w-full">
+            Attiva notifiche push
+          </Button>
+        )}
+
+        {permission === 'granted' && isSubscribed && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label htmlFor="notif-enabled">Notifiche attive</Label>

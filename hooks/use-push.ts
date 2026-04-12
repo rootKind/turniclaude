@@ -8,8 +8,21 @@ export function usePush() {
   const [isSubscribed, setIsSubscribed] = useState(false)
 
   useEffect(() => {
-    if (typeof Notification !== 'undefined') setPermission(Notification.permission)
+    if (typeof Notification === 'undefined') return
+    setPermission(Notification.permission)
     checkSubscription()
+
+    // Listen for permission changes dynamically
+    if (!('permissions' in navigator)) return
+    let status: PermissionStatus | null = null
+    navigator.permissions.query({ name: 'notifications' }).then(s => {
+      status = s
+      s.onchange = () => {
+        setPermission(s.state as NotificationPermission)
+        if (s.state === 'granted') checkSubscription()
+      }
+    }).catch(() => {})
+    return () => { if (status) status.onchange = null }
   }, [])
 
   async function checkSubscription() {
