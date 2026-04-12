@@ -215,7 +215,6 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
                       </p>
                       <div className="flex flex-col gap-0.5">
                         {shift.shift_interested_users!
-                          .filter(i => i.user_id !== currentUserId)
                           .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
                           .map(i => (
                             <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
