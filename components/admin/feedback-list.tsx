@@ -35,16 +35,16 @@ export function FeedbackList({ open, onClose }: FeedbackListProps) {
   useEffect(() => {
     if (!open) return
     const supabase = createClient()
-    supabase
-      .from('feedback')
-      .select('id, created_at, categories, message, user_id, read, users:user_id(id, nome, cognome)')
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
+    Promise.all([
+      supabase.from('feedback').select('id, created_at, categories, message, user_id, read').order('created_at', { ascending: false }),
+      supabase.from('users').select('id, nome, cognome'),
+    ]).then(([{ data: fbData, error }, { data: usersData }]) => {
         if (error) { toast.error('Errore caricamento feedback'); return }
+        const usersMap = new Map((usersData ?? []).map(u => [u.id, u] as const))
         setFeedbacks(
-          (data ?? []).map(f => ({
+          (fbData ?? []).map(f => ({
             ...f,
-            user: Array.isArray(f.users) ? (f.users[0] ?? null) : (f.users as FeedbackItem['user'] ?? null),
+            user: usersMap.get(f.user_id) ?? null,
           }))
         )
       })

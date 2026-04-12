@@ -34,10 +34,12 @@ export function usePush() {
 
   async function subscribe() {
     try {
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      if (!vapidKey) throw new Error('VAPID key non configurata')
       const reg = await navigator.serviceWorker.ready
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
       })
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -61,9 +63,18 @@ export function usePush() {
   }
 
   async function requestAndSubscribe() {
-    const result = await Notification.requestPermission()
-    setPermission(result)
-    if (result === 'granted') await subscribe()
+    try {
+      // Use callback form to preserve user-gesture context on Android Chrome
+      const result = await new Promise<NotificationPermission>((resolve) => {
+        const p = Notification.requestPermission((r) => resolve(r))
+        if (p) p.then(resolve).catch(() => resolve('denied'))
+      })
+      setPermission(result)
+      if (result === 'granted') await subscribe()
+      else if (result === 'denied') toast.error('Permesso notifiche negato — abilitalo dalle impostazioni del browser')
+    } catch {
+      toast.error('Impossibile richiedere il permesso notifiche')
+    }
   }
 
   const registerServiceWorker = useCallback(async () => {
