@@ -27,9 +27,11 @@ export function usePush() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     // Listen for permission changes dynamically
+    let cancelled = false
     let status: PermissionStatus | null = null
     if ('permissions' in navigator) {
       navigator.permissions.query({ name: 'notifications' }).then(s => {
+        if (cancelled) return
         status = s
         s.onchange = () => {
           setPermission(s.state as NotificationPermission)
@@ -39,17 +41,18 @@ export function usePush() {
     }
 
     return () => {
+      cancelled = true
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       if (status) status.onchange = null
     }
   }, [])
 
-  async function checkSubscription() {
+  const checkSubscription = useCallback(async () => {
     if (!('serviceWorker' in navigator)) return
     const reg = await navigator.serviceWorker.ready
     const sub = await reg.pushManager.getSubscription()
     setIsSubscribed(!!sub)
-  }
+  }, [])
 
   async function subscribe() {
     try {
@@ -91,7 +94,6 @@ export function usePush() {
       setPermission(result)
       if (result === 'granted') {
         await subscribe()
-        await checkSubscription()
       } else if (result === 'denied') {
         toast.error('Permesso negato — abilitalo nelle impostazioni del dispositivo')
       }
