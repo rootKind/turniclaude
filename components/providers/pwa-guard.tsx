@@ -23,6 +23,6 @@ export function PwaGuard({ children }: { children: React.ReactNode }) {
     setReady(true)
   }, [pathname, router])
 
-  if (!ready) return null
+  if (!ready) return <div className="min-h-screen bg-background" />
   return <>{children}</>
 }
