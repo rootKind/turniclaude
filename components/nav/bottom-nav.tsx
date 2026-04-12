@@ -61,7 +61,7 @@ function NavItem({ href, icon: Icon, label, badge = 0, active }: {
   href: string; icon: React.ElementType; label: string; badge?: number; active: boolean
 }) {
   return (
-    <Link href={href} className={cn(
+    <Link href={href} prefetch={true} className={cn(
       'flex-1 flex flex-col items-center justify-center gap-0.5 relative',
       active ? 'text-foreground' : 'text-muted-foreground'
     )}>
