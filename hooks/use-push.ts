@@ -76,11 +76,13 @@ export function usePush() {
           platform: 'web',
         }),
       })
-      if (!res.ok) throw new Error('Subscribe API failed')
+      if (!res.ok) throw new Error(`Subscribe API failed: ${res.status}`)
       setIsSubscribed(true)
       toast.success('Notifiche attivate')
-    } catch {
-      toast.error('Errore attivazione notifiche')
+    } catch (err) {
+      console.error('[push] subscribe error:', err)
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(`Errore notifiche: ${msg}`)
     }
   }
 
