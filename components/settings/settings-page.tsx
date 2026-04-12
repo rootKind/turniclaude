@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FeedbackDialog } from './feedback-dialog'
+import { NotificationHelpDialog } from './notification-help-dialog'
 import { toast } from 'sonner'
 import { useState } from 'react'
 
@@ -22,6 +23,7 @@ export function SettingsPage() {
   const { profile } = useCurrentUser()
   const { permission, isSubscribed, requestAndSubscribe } = usePush()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   async function handleToggle(field: 'notify_on_interest' | 'notify_on_new_shift' | 'notification_enabled', value: boolean) {
     try {
@@ -62,11 +64,14 @@ export function SettingsPage() {
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Notifiche</h2>
 
         {permission === 'denied' && (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 space-y-1">
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 space-y-2">
             <p className="text-sm font-medium text-destructive">Notifiche bloccate</p>
             <p className="text-xs text-muted-foreground">
-              Hai negato il permesso. Per abilitarle vai nelle impostazioni del browser e consenti le notifiche per questo sito.
+              Hai negato il permesso. Devi abilitarle manualmente dalle impostazioni del dispositivo.
             </p>
+            <Button variant="outline" size="sm" className="w-full" onClick={() => setHelpOpen(true)}>
+              Come abilitare le notifiche
+            </Button>
           </div>
         )}
 
@@ -129,6 +134,7 @@ export function SettingsPage() {
         </Button>
       </section>
 
+      <NotificationHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </main>
   )
