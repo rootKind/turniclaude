@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createMiddlewareClient } from '@/lib/supabase/middleware-client'
+import { createServerClient } from '@supabase/ssr'
 
 const PUBLIC_ROUTES = [
   '/login',
@@ -12,8 +12,24 @@ const PUBLIC_ROUTES = [
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({ request })
-  const supabase = createMiddlewareClient(request, response)
-  // supabase-js narrows auth type for publishable keys; cast to access getUser
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll() },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // supabase-js narrows auth type for publishable keys; cast to restore getUser
   const auth = supabase.auth as unknown as { getUser(): Promise<{ data: { user: { id: string } | null } }> }
   const { data: { user } } = await auth.getUser()
 
