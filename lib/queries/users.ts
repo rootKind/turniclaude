@@ -9,7 +9,7 @@ export async function fetchCurrentUserProfile(): Promise<UserProfile | null> {
     .from('users')
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
   if (error) return null
   return data as UserProfile
 }

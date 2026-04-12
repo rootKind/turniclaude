@@ -35,12 +35,10 @@ export function OtpForm({ type = 'password-reset' }: { type?: VerificationType }
     setIsLoading(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.functions.invoke('verify-otp', {
-        body: {
-          otp: values.otp,
-          email,
-          type,
-        },
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: values.otp,
+        type: type === 'password-reset' ? 'recovery' : 'email',
       })
       if (error) throw error
 

@@ -9,12 +9,12 @@ const SHIFTS_SELECT = `
   requested_shifts,
   highlight,
   created_at,
-  user!shifts_user_id_fkey(id, nome, cognome, is_secondary),
+  user:users!shifts_user_id_fkey(id, nome, cognome, is_secondary),
   shift_interested_users(
     shift_id,
     user_id,
     created_at,
-    user!shift_interested_users_user_id_fkey(id, nome, cognome, is_secondary)
+    user:users!shift_interested_users_user_id_fkey(id, nome, cognome, is_secondary)
   )
 `
 

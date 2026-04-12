@@ -27,11 +27,8 @@ export function ResetPasswordForm() {
     setIsLoading(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.functions.invoke('send-otp', {
-        body: {
-          email: values.email,
-          type: 'password-reset',
-        },
+      const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
+        redirectTo: `${window.location.origin}/update-password`,
       })
       if (error) throw error
       toast.success('Codice inviato — controlla la tua email')
