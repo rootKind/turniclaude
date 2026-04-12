@@ -76,7 +76,7 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
     }
   }
 
-  const displayName = isOwn ? 'Il mio turno' : formatDisplayName(shift.user)
+  const displayName = formatDisplayName(shift.user)
 
   return (
     <div className={cn(isSameDateAsPrevious ? 'mt-0.5' : 'mt-3', 'first:mt-0')}>
