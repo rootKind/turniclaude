@@ -12,15 +12,16 @@ export function StatsPage() {
   const [stats, setStats] = useState<StatsUser[]>([])
   const [totals, setTotals] = useState({ access: 0, new_shift: 0, interest: 0 })
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [filter, setFilter] = useState<'all' | 'access' | 'new_shift' | 'interest'>('all')
 
   useEffect(() => {
     fetch('/api/admin/stats')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then(({ stats, totals }) => { setStats(stats ?? []); setTotals(totals ?? {}) })
-      .catch(() => {})
+      .catch(() => setError(true))
       .finally(() => setIsLoading(false))
   }, [])
 
@@ -53,14 +54,18 @@ export function StatsPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-3">
-        <SummaryCard label="Accessi" value={totals.access} icon={<Users size={16} />} active={filter === 'access'} onClick={() => setFilter(f => f === 'access' ? 'all' : 'access')} />
-        <SummaryCard label="Turni" value={totals.new_shift} icon={<CalendarPlus size={16} />} active={filter === 'new_shift'} onClick={() => setFilter(f => f === 'new_shift' ? 'all' : 'new_shift')} />
-        <SummaryCard label="Interessi" value={totals.interest} icon={<Heart size={16} />} active={filter === 'interest'} onClick={() => setFilter(f => f === 'interest' ? 'all' : 'interest')} />
+        <SummaryCard label="Accessi" value={totals.access} icon={<Users size={16} />} active={filter === 'access'} onClick={() => { setFilter(f => f === 'access' ? 'all' : 'access'); setSortKey('name') }} />
+        <SummaryCard label="Turni" value={totals.new_shift} icon={<CalendarPlus size={16} />} active={filter === 'new_shift'} onClick={() => { setFilter(f => f === 'new_shift' ? 'all' : 'new_shift'); setSortKey('name') }} />
+        <SummaryCard label="Interessi" value={totals.interest} icon={<Heart size={16} />} active={filter === 'interest'} onClick={() => { setFilter(f => f === 'interest' ? 'all' : 'interest'); setSortKey('name') }} />
       </div>
 
       {/* Table */}
       {isLoading ? (
         <p className="text-sm text-muted-foreground text-center py-8">Caricamento...</p>
+      ) : error ? (
+        <p className="text-sm text-destructive text-center py-8">Errore nel caricamento delle statistiche.</p>
+      ) : sorted.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">Nessun dato disponibile.</p>
       ) : (
         <div className="rounded-xl border overflow-hidden">
           <table className="w-full text-sm">
@@ -104,8 +109,8 @@ function SummaryCard({ label, value, icon, active, onClick }: { label: string; v
 function SortTh({ label, sortKey, current, dir, onSort, numeric }: { label: string; sortKey: SortKey; current: SortKey; dir: SortDir; onSort: (k: SortKey) => void; numeric?: boolean }) {
   const active = current === sortKey
   return (
-    <th className={`px-3 py-2 ${numeric ? 'text-center' : 'text-left'} font-semibold text-xs text-muted-foreground`}>
-      <button onClick={() => onSort(sortKey)} className="flex items-center gap-1 hover:text-foreground transition-colors">
+    <th className={`px-3 py-2 font-semibold text-xs text-muted-foreground`}>
+      <button onClick={() => onSort(sortKey)} className={`flex items-center gap-1 hover:text-foreground transition-colors ${numeric ? 'mx-auto' : ''}`}>
         {label}
         <ArrowUpDown size={11} className={active ? 'text-primary' : 'opacity-40'} />
       </button>
