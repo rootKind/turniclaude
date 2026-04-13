@@ -1,12 +1,12 @@
 'use client'
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Pencil, Trash2, Zap } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatShiftDate, formatRelativeTime, formatDisplayName, getShiftItemState, SHIFT_STATE_CLASSES, SHIFT_DATE_CLASSES, SHIFT_PILL_CLASSES } from '@/lib/utils'
-import { isAdmin, isTurnista } from '@/types/database'
+import { isAdmin } from '@/types/database'
 import type { Shift, ShiftType } from '@/types/database'
-import { toggleInterest, deleteShift, toggleHighlight } from '@/lib/queries/shifts'
+import { toggleInterest, deleteShift } from '@/lib/queries/shifts'
 import { useQueryClient } from '@tanstack/react-query'
 import { SHIFTS_QUERY_KEY } from '@/hooks/use-shifts'
 import { toast } from 'sonner'
@@ -15,23 +15,24 @@ import { Button } from '@/components/ui/button'
 interface Props {
   shift: Shift
   currentUserId: string
+  loggedInUserId: string
   isSecondary: boolean
   isSameDateAsPrevious?: boolean
   onEdit?: (shift: Shift) => void
 }
 
-export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevious = false, onEdit }: Props) {
+export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isSameDateAsPrevious = false, onEdit }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const queryClient = useQueryClient()
 
   const isOwn = shift.user_id === currentUserId
+  const canAdminAct = isAdmin(loggedInUserId)
+  const isImpersonating = currentUserId !== loggedInUserId
   const hasInterest = (shift.shift_interested_users?.length ?? 0) > 0
-  const isHighlight = !!shift.highlight
   const isInterested = shift.shift_interested_users?.some(i => i.user_id === currentUserId) ?? false
-  const canSeeHighlight = isTurnista(currentUserId) || isAdmin(currentUserId)
 
-  const state = getShiftItemState({ isOwn, hasInterest, highlight: isHighlight && canSeeHighlight })
+  const state = getShiftItemState({ isOwn, hasInterest, highlight: false })
   const stateClass = SHIFT_STATE_CLASSES[state]
   const { day, month } = formatShiftDate(shift.shift_date)
 
@@ -46,7 +47,16 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
   async function handleInterestToggle(e: React.MouseEvent) {
     e.stopPropagation()
     try {
-      await toggleInterest(shift.id, currentUserId, isInterested)
+      if (isImpersonating) {
+        const res = await fetch('/api/admin/interests', {
+          method: isInterested ? 'DELETE' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shift_id: shift.id, user_id: currentUserId }),
+        })
+        if (!res.ok) throw new Error('Interest toggle failed')
+      } else {
+        await toggleInterest(shift.id, currentUserId, isInterested)
+      }
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
     } catch {
       toast.error('Errore')
@@ -58,21 +68,16 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
     if (!confirmDelete) { setConfirmDelete(true); return }
     setConfirmDelete(false)
     try {
-      await deleteShift(shift.id)
+      if (isOwn && !isImpersonating) {
+        await deleteShift(shift.id)
+      } else {
+        const res = await fetch(`/api/admin/shifts/${shift.id}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('Delete failed')
+      }
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
       toast.success('Turno eliminato')
     } catch {
       toast.error('Errore eliminazione')
-    }
-  }
-
-  async function handleHighlightToggle(e: React.MouseEvent) {
-    e.stopPropagation()
-    try {
-      await toggleHighlight(shift.id, isHighlight)
-      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
-    } catch {
-      toast.error('Errore')
     }
   }
 
@@ -91,7 +96,7 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
       >
         {/* Date block */}
         <div className={cn('w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
-          <span className={cn('text-[20px] font-extrabold leading-none', isOwn && hasInterest ? 'text-green-400 dark:text-green-300' : isHighlight && canSeeHighlight ? 'text-yellow-300 dark:text-yellow-200' : '')}>
+          <span className={cn('text-[20px] font-extrabold leading-none', isOwn && hasInterest ? 'text-green-400 dark:text-green-300' : '')}>
             {day}
           </span>
           <span className="text-[9px] uppercase tracking-wide text-muted-foreground mt-0.5">{month}</span>
@@ -106,9 +111,6 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
               </span>
               {isOwn && (
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground">TUO</span>
-              )}
-              {isHighlight && canSeeHighlight && (
-                <Zap size={12} className="text-yellow-400 flex-shrink-0" />
               )}
             </div>
             <div className="flex items-center gap-1 flex-wrap">
@@ -160,79 +162,81 @@ export function ShiftItem({ shift, currentUserId, isSecondary, isSameDateAsPrevi
               isOwn ? 'bg-[#dcdcf0] dark:bg-[#22223a]' :
               'bg-[#e0e0e0] dark:bg-[#111]'
             )}>
-              {isOwn ? (
-                <>
-                  {hasInterest ? (
-                    <div className="mb-3">
-                      <p className="text-[10px] font-bold text-green-400 uppercase tracking-wide mb-1.5">
-                        Interessati
-                      </p>
-                      <div className="flex flex-col gap-0.5">
-                        {shift.shift_interested_users!
-                          .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
-                          .map(i => (
-                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
-                              <span className="text-[12px]">{i.user.cognome ?? i.user.nome}</span>
-                              <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-[12px] text-muted-foreground mb-3">Nessuno interessato ancora</p>
-                  )}
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); onEdit?.(shift) }}>
-                      <Pencil size={13} className="mr-1" /> Modifica
-                    </Button>
-                    {confirmDelete ? (
-                      <>
-                        <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
-                          Conferma
-                        </Button>
-                        <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setConfirmDelete(false) }}>
-                          Annulla
-                        </Button>
-                      </>
-                    ) : (
-                      <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
-                        <Trash2 size={13} className="mr-1" /> Elimina
-                      </Button>
-                    )}
-                    {canSeeHighlight && (
-                      <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={handleHighlightToggle}>
-                        <Zap size={13} className={isHighlight ? 'text-yellow-400' : ''} />
-                      </Button>
-                    )}
+              {/* Interested users list — show for own shifts OR admin */}
+              {(isOwn || canAdminAct) && hasInterest && (
+                <div className="mb-3">
+                  <p className="text-[10px] font-bold text-green-400 uppercase tracking-wide mb-1.5">
+                    Interessati
+                  </p>
+                  <div className="flex flex-col gap-0.5">
+                    {shift.shift_interested_users!
+                      .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
+                      .map(i => (
+                        <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                          <span className="text-[12px]">{i.user.cognome ?? i.user.nome}</span>
+                          <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
+                        </div>
+                      ))}
                   </div>
-                </>
-              ) : (
-                <>
-                  {hasInterest && (
-                    <div className="mb-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-                        Anche interessati
-                      </p>
-                      <div className="flex flex-col gap-0.5">
-                        {shift.shift_interested_users!
-                          .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
-                          .map(i => (
-                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
-                              <span className="text-[12px]">{i.user.cognome ?? i.user.nome}</span>
-                              <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                  <Button
-                    className={cn('w-full h-9 text-[12px] font-semibold', isInterested && 'bg-green-600 hover:bg-green-700 text-white')}
-                    variant={isInterested ? 'default' : 'outline'}
-                    onClick={handleInterestToggle}
-                  >
-                    {isInterested ? '✓ Sono interessato' : '♡ Sono interessato'}
+                </div>
+              )}
+
+              {/* No interest yet — show for own shifts or admin */}
+              {(isOwn || canAdminAct) && !hasInterest && (
+                <p className="text-[12px] text-muted-foreground mb-3">Nessuno interessato ancora</p>
+              )}
+
+              {/* Also-interested others — show for non-own shifts when NOT admin */}
+              {!isOwn && !canAdminAct && hasInterest && (
+                <div className="mb-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+                    Anche interessati
+                  </p>
+                  <div className="flex flex-col gap-0.5">
+                    {shift.shift_interested_users!
+                      .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
+                      .map(i => (
+                        <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                          <span className="text-[12px]">{i.user.cognome ?? i.user.nome}</span>
+                          <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Modifica + Elimina — own shifts OR admin on any shift */}
+              {(isOwn || canAdminAct) && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); onEdit?.(shift) }}>
+                    <Pencil size={13} className="mr-1" /> Modifica
                   </Button>
-                </>
+                  {confirmDelete ? (
+                    <>
+                      <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
+                        Conferma
+                      </Button>
+                      <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setConfirmDelete(false) }}>
+                        Annulla
+                      </Button>
+                    </>
+                  ) : (
+                    <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
+                      <Trash2 size={13} className="mr-1" /> Elimina
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {/* Interest button — non-own shifts (users and admin can both express interest) */}
+              {!isOwn && (
+                <Button
+                  className={cn('w-full h-9 text-[12px] font-semibold mt-2', isInterested && 'bg-green-600 hover:bg-green-700 text-white')}
+                  variant={isInterested ? 'default' : 'outline'}
+                  onClick={handleInterestToggle}
+                >
+                  {isInterested ? '✓ Sono interessato' : '♡ Sono interessato'}
+                </Button>
               )}
             </div>
           </motion.div>
