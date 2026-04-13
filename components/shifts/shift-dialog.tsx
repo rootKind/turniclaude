@@ -4,13 +4,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
-import { cn } from '@/lib/utils'
+import { cn, todayRome } from '@/lib/utils'
 import { createShift } from '@/lib/queries/shifts'
 import { SHIFTS_QUERY_KEY, useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { toast } from 'sonner'
 import { it } from 'date-fns/locale'
-import { format, startOfDay } from 'date-fns'
+import { format } from 'date-fns'
 import { ArrowRight } from 'lucide-react'
 import type { ShiftType } from '@/types/database'
 
@@ -97,7 +97,7 @@ export function ShiftDialog({ open, onClose, isSecondary }: Props) {
               locale={it}
               disabled={(date) => {
                 const str = format(date, 'yyyy-MM-dd')
-                return date < startOfDay(new Date()) || occupiedDates.has(str)
+                return str < todayRome() || occupiedDates.has(str)
               }}
               className="rounded-xl border w-full"
             />
