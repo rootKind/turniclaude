@@ -41,6 +41,15 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
     [shifts, selectedMonth]
   )
 
+  const dateIndexes = useMemo(() => {
+    const count = new Map<string, number>()
+    return filtered.map(s => {
+      const idx = count.get(s.shift_date) ?? 0
+      count.set(s.shift_date, idx + 1)
+      return idx
+    })
+  }, [filtered])
+
   if (isLoading) return <ShiftListSkeleton />
   if (!shifts.length) return (
     <div className="text-center py-12 text-muted-foreground text-sm">
@@ -76,6 +85,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
               loggedInUserId={loggedInUserId}
               isSecondary={isSecondary}
               isSameDateAsPrevious={isSameDateAsPrevious}
+              dateIndex={dateIndexes[index]}
               onEdit={setEditingShift}
             />
           )
