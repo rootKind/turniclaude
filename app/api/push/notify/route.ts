@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     if (targets?.length) {
       const title = 'Nuovo turno disponibile'
       const msgBody = `${actorName} ha pubblicato un nuovo scambio turno`
-      const payload = JSON.stringify({ title, body: msgBody, type: 'new_shift', shiftId: shiftId ?? null })
+      const payload = JSON.stringify({ title, body: msgBody, type: 'new_shift' })
 
       await Promise.allSettled(
         targets.map(async (t) => {

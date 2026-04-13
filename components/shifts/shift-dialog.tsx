@@ -141,16 +141,12 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
         if (!res.ok) throw new Error('Interest failed')
       } else {
         await toggleInterest(shift.id, effectiveUserId, false)
-        queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
         const actorName = profile ? `${profile.cognome ?? ''} ${profile.nome ?? ''}`.trim() : 'Qualcuno'
         fetch('/api/push/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'interest', shiftId: shift.id, actorName }),
         }).catch(() => {})
-        toast.success('Interesse registrato')
-        handleClose()
-        return
       }
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
       toast.success('Interesse registrato')
