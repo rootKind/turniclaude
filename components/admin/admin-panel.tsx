@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Bell, Users, MessageSquare, ChevronRight } from 'lucide-react'
+import { Bell, Users, MessageSquare, ChevronRight, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { NotificationDialog } from './notification-dialog'
 import { FeedbackList } from './feedback-list'
 import { UserManagementDialog } from './user-management-dialog'
+import { ImpersonateDialog } from './impersonate-dialog'
 
 export function AdminPanel() {
   const [notifOpen, setNotifOpen] = useState(false)
@@ -13,6 +14,7 @@ export function AdminPanel() {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackUnread, setFeedbackUnread] = useState(0)
   const [userCount, setUserCount] = useState(0)
+  const [impersonateOpen, setImpersonateOpen] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -34,7 +36,12 @@ export function AdminPanel() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Utenti registrati" value={userCount} />
+        <button
+          className="text-left w-full"
+          onClick={() => setUsersOpen(true)}
+        >
+          <StatCard label="Utenti registrati" value={userCount} clickable />
+        </button>
         <StatCard label="Feedback non letti" value={feedbackUnread} highlight={feedbackUnread > 0} />
       </div>
 
@@ -53,6 +60,12 @@ export function AdminPanel() {
           onClick={() => setUsersOpen(true)}
         />
         <ActionTile
+          icon={<Eye size={18} />}
+          title="Visualizza come utente"
+          description="Accedi alla dashboard dal punto di vista di un collega"
+          onClick={() => setImpersonateOpen(true)}
+        />
+        <ActionTile
           icon={<MessageSquare size={18} />}
           title="Feedback"
           description="Leggi le segnalazioni degli utenti"
@@ -64,15 +77,19 @@ export function AdminPanel() {
       <NotificationDialog open={notifOpen} onClose={() => setNotifOpen(false)} />
       <UserManagementDialog open={usersOpen} onClose={() => setUsersOpen(false)} />
       <FeedbackList open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      <ImpersonateDialog open={impersonateOpen} onClose={() => setImpersonateOpen(false)} />
     </div>
   )
 }
 
-function StatCard({ label, value, highlight = false }: { label: string; value: number; highlight?: boolean }) {
+function StatCard({ label, value, highlight = false, clickable = false }: {
+  label: string; value: number; highlight?: boolean; clickable?: boolean
+}) {
   return (
     <div className={cn(
-      'rounded-xl border px-4 py-3 space-y-1',
-      highlight ? 'border-destructive/40 bg-destructive/5' : 'bg-muted/40'
+      'rounded-xl border px-4 py-3 space-y-1 transition-colors',
+      highlight ? 'border-destructive/40 bg-destructive/5' : 'bg-muted/40',
+      clickable && 'hover:bg-accent/60 cursor-pointer'
     )}>
       <p className={cn('text-2xl font-bold', highlight && 'text-destructive')}>{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
