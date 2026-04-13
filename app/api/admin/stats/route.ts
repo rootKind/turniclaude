@@ -33,10 +33,13 @@ export async function GET() {
     .order('cognome')
   if (usersError) return NextResponse.json({ error: usersError.message }, { status: 500 })
 
-  // Get all events (service role bypasses RLS)
+  // Get all events (service role bypasses RLS).
+  // Explicit high limit to avoid Supabase's default 1000-row truncation.
+  // For this team size (tens of users) this is safe for years of data.
   const { data: events, error: eventsError } = await adminSupabase
     .from('app_events')
     .select('user_id, event_type')
+    .limit(100000)
   if (eventsError) return NextResponse.json({ error: eventsError.message }, { status: 500 })
 
   // Aggregate counts per user

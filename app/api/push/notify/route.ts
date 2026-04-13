@@ -20,6 +20,10 @@ export async function POST(req: Request) {
 
   const { type, shiftId, actorName, isSecondary } = body as Record<string, unknown>
 
+  if (type === 'new_shift' && typeof isSecondary !== 'boolean') {
+    return NextResponse.json({ error: 'isSecondary must be boolean' }, { status: 400 })
+  }
+
   if (type === 'new_shift') {
     // Notify all users in same category who have notify_on_new_shift = true, excluding the actor
     const { data: targets } = await supabase
