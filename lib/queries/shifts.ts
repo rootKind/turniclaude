@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { Shift } from '@/types/database'
+import type { Shift, ShiftType } from '@/types/database'
 
 const SHIFTS_SELECT = `
   id,
@@ -83,4 +83,19 @@ export async function toggleHighlight(shiftId: number, current: boolean) {
     .update({ highlight: !current })
     .eq('id', shiftId)
   if (error) throw error
+}
+
+export function findCompatibleShifts(
+  shifts: Shift[],
+  date: string,
+  offeredShift: ShiftType,
+  requestedShifts: ShiftType[],
+  excludeUserId: string
+): Shift[] {
+  return shifts.filter(s =>
+    s.shift_date === date &&
+    s.user_id !== excludeUserId &&
+    s.requested_shifts.includes(offeredShift) &&
+    requestedShifts.includes(s.offered_shift)
+  )
 }
