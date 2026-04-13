@@ -10,14 +10,15 @@ import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Sun, Moon } from 'lucide-react'
 import { FeedbackDialog } from './feedback-dialog'
 import { NotificationHelpDialog } from './notification-help-dialog'
 import { toast } from 'sonner'
 import { useState } from 'react'
+import { cn } from '@/lib/utils'
 
 export function SettingsPage() {
-  const { theme, setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
   const router = useRouter()
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
@@ -47,14 +48,32 @@ export function SettingsPage() {
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tema</h2>
         <div className="flex items-center justify-between">
           <Label>Aspetto</Label>
-          <Select value={theme} onValueChange={v => v && setTheme(v)}>
-            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="light">Chiaro</SelectItem>
-              <SelectItem value="dark">Scuro</SelectItem>
-              <SelectItem value="system">Sistema</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center rounded-full border p-1 gap-0.5">
+            <button
+              onClick={() => setTheme('light')}
+              aria-label="Tema chiaro"
+              className={cn(
+                'flex items-center justify-center w-8 h-8 rounded-full transition-colors',
+                resolvedTheme === 'light'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Sun className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setTheme('dark')}
+              aria-label="Tema scuro"
+              className={cn(
+                'flex items-center justify-center w-8 h-8 rounded-full transition-colors',
+                resolvedTheme === 'dark'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Moon className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </section>
 
