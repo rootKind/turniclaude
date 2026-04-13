@@ -24,7 +24,7 @@ export function AdminPanel() {
     // Use admin API to get user count — browser client RLS only returns own row
     fetch('/api/admin/users')
       .then(r => r.json())
-      .then(({ users }: { users: { id: string }[] }) => setUserCount(users?.length ?? 0))
+      .then(({ users }: { users: { id: string; nome: string | null; cognome: string | null; is_secondary: boolean }[] }) => setUserCount(users?.length ?? 0))
       .catch(() => setUserCount(0))
   }, [])
 

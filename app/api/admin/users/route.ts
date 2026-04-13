@@ -15,7 +15,7 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data, error } = await adminSupabase.from('users').select('id')
+  const { data, error } = await adminSupabase.from('users').select('id, nome, cognome, is_secondary').order('cognome')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ users: data ?? [] })
