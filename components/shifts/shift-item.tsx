@@ -18,10 +18,11 @@ interface Props {
   loggedInUserId: string
   isSecondary: boolean
   isSameDateAsPrevious?: boolean
+  dateIndex?: number
   onEdit?: (shift: Shift) => void
 }
 
-export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isSameDateAsPrevious = false, onEdit }: Props) {
+export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isSameDateAsPrevious = false, dateIndex = 0, onEdit }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const queryClient = useQueryClient()
@@ -96,10 +97,16 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
       >
         {/* Date block */}
         <div className={cn('w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
-          <span className={cn('text-[20px] font-extrabold leading-none', isOwn && hasInterest ? 'text-green-400 dark:text-green-300' : '')}>
-            {day}
-          </span>
-          <span className="text-[9px] uppercase tracking-wide text-muted-foreground mt-0.5">{month}</span>
+          {dateIndex > 0 ? (
+            <span className="text-[16px] font-extrabold leading-none text-muted-foreground">{dateIndex + 1}°</span>
+          ) : (
+            <>
+              <span className={cn('text-[20px] font-extrabold leading-none', isOwn && hasInterest ? 'text-green-400 dark:text-green-300' : '')}>
+                {day}
+              </span>
+              <span className="text-[9px] uppercase tracking-wide text-muted-foreground mt-0.5">{month}</span>
+            </>
+          )}
         </div>
 
         {/* Content */}
