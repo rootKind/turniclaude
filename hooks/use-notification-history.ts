@@ -1,18 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import type { NotificationEntry } from '@/types/database'
-
-const KEY = 'notification-history'
-const MAX = 50
-
-function readHistory(): NotificationEntry[] {
-  if (typeof window === 'undefined') return []
-  try { return JSON.parse(localStorage.getItem(KEY) ?? '[]') } catch { return [] }
-}
-
-function writeHistory(entries: NotificationEntry[]) {
-  localStorage.setItem(KEY, JSON.stringify(entries.slice(0, MAX)))
-}
+import { readHistory, writeHistory } from '@/lib/notification-storage'
 
 export function useNotificationHistory() {
   const [history, setHistory] = useState<NotificationEntry[]>([])
@@ -24,7 +13,7 @@ export function useNotificationHistory() {
       if (event.data?.type !== 'PUSH_RECEIVED') return
       const entry: NotificationEntry = event.data.entry
       setHistory(prev => {
-        const updated = [entry, ...prev].slice(0, MAX)
+        const updated = [entry, ...prev].slice(0, 50)
         writeHistory(updated)
         return updated
       })
@@ -41,7 +30,20 @@ export function useNotificationHistory() {
     })
   }, [])
 
+  const deleteEntry = useCallback((id: string) => {
+    setHistory(prev => {
+      const updated = prev.filter(e => e.id !== id)
+      writeHistory(updated)
+      return updated
+    })
+  }, [])
+
+  const clearAll = useCallback(() => {
+    writeHistory([])
+    setHistory([])
+  }, [])
+
   const unreadCount = history.filter(e => !e.read).length
 
-  return { history, markAllRead, unreadCount }
+  return { history, markAllRead, deleteEntry, clearAll, unreadCount }
 }

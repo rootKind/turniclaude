@@ -62,6 +62,7 @@ export interface NotificationEntry {
   timestamp: number                 // Date.now()
   shiftId?: number
   read: boolean
+  type?: 'system' | 'interest' | 'new_shift'
 }
 
 export const ADMIN_ID = 'fdd6c008-7a22-42d5-a75b-c44d9edfef12'
