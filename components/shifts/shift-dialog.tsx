@@ -26,9 +26,10 @@ interface Props {
   open: boolean
   onClose: () => void
   isSecondary: boolean
+  impersonatingUserId?: string  // if set, create shift on behalf of this user
 }
 
-export function ShiftDialog({ open, onClose, isSecondary }: Props) {
+export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [offeredShift, setOfferedShift] = useState<ShiftType | null>(null)
   const [requestedShifts, setRequestedShifts] = useState<ShiftType[]>([])
@@ -38,7 +39,9 @@ export function ShiftDialog({ open, onClose, isSecondary }: Props) {
   const { data: shifts = [] } = useShifts(isSecondary)
 
   const occupiedDates = new Set(
-    shifts.filter(s => s.user_id === profile?.id).map(s => s.shift_date)
+    shifts
+      .filter(s => s.user_id === (impersonatingUserId ?? profile?.id))
+      .map(s => s.shift_date)
   )
 
   function toggleRequested(type: ShiftType) {
@@ -62,11 +65,25 @@ export function ShiftDialog({ open, onClose, isSecondary }: Props) {
     }
     setIsSubmitting(true)
     try {
-      await createShift({
-        offered_shift: offeredShift,
-        shift_date: format(selectedDate, 'yyyy-MM-dd'),
-        requested_shifts: requestedShifts,
-      })
+      if (impersonatingUserId) {
+        const res = await fetch('/api/admin/shifts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            offered_shift: offeredShift,
+            shift_date: format(selectedDate, 'yyyy-MM-dd'),
+            requested_shifts: requestedShifts,
+            user_id: impersonatingUserId,
+          }),
+        })
+        if (!res.ok) throw new Error('Admin shift create failed')
+      } else {
+        await createShift({
+          offered_shift: offeredShift,
+          shift_date: format(selectedDate, 'yyyy-MM-dd'),
+          requested_shifts: requestedShifts,
+        })
+      }
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
       toast.success('Turno pubblicato')
       handleClose()
