@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -22,8 +21,10 @@ export function NotificationDialog({ open, onClose }: Props) {
     if (!title || !message) return
     setIsLoading(true)
     try {
-      const supabase = createClient()
-      const { data: users } = await supabase.from('users').select('id')
+      // Fetch all user IDs via admin API route (bypasses RLS using service role)
+      const res = await fetch('/api/admin/users')
+      if (!res.ok) throw new Error('Failed to fetch users')
+      const { users } = await res.json() as { users: { id: string }[] }
       if (users?.length) {
         await Promise.allSettled(
           users.map(u =>

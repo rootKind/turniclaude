@@ -21,10 +21,11 @@ export function AdminPanel() {
       .select('*', { count: 'exact', head: true })
       .eq('read', false)
       .then(({ count }) => setFeedbackUnread(count ?? 0))
-    supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .then(({ count }) => setUserCount(count ?? 0))
+    // Use admin API to get user count — browser client RLS only returns own row
+    fetch('/api/admin/users')
+      .then(r => r.json())
+      .then(({ users }: { users: { id: string }[] }) => setUserCount(users?.length ?? 0))
+      .catch(() => setUserCount(0))
   }, [])
 
   return (
