@@ -85,10 +85,10 @@ export function NotificationList() {
                 key={entry.id}
                 className={cn(
                   'py-3 px-3 bg-background transition-all duration-200',
-                  swipingOut.has(entry.id) && 'translate-x-full opacity-0'
+                  swipingOut.has(entry.id) && 'translate-x-full opacity-0 pointer-events-none'
                 )}
-                onTouchStart={e => handleTouchStart(entry.id, e.touches[0].clientX)}
-                onTouchEnd={e => handleTouchEnd(entry.id, e.changedTouches[0].clientX)}
+                onTouchStart={e => handleTouchStart(entry.id, e.touches?.[0]?.clientX ?? 0)}
+                onTouchEnd={e => handleTouchEnd(entry.id, e.changedTouches?.[0]?.clientX ?? 0)}
               >
                 <div className="flex items-start gap-3">
                   <Icon size={15} className="mt-0.5 flex-shrink-0 text-muted-foreground" />
