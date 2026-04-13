@@ -33,7 +33,6 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   const [selectedFilter, setSelectedFilter] = useState<FilterValue>(null)
 
   const touchStartX = useRef<number>(0)
-  const chipBarRef = useRef<HTMLDivElement>(null)
   const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
 
   const months = useMemo(() => {
@@ -51,6 +50,9 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
     if (!selectedFilter) return shifts
     return shifts.filter(s => s.shift_date.startsWith(selectedFilter))
   }, [shifts, selectedFilter, effectiveUserId])
+
+  const hasOwnShifts = useMemo(() => shifts.some(s => s.user_id === effectiveUserId), [shifts, effectiveUserId])
+  const showChipBar = months.length > 1 || hasOwnShifts
 
   const dateIndexes = useMemo(() => {
     const count = new Map<string, number>()
@@ -103,9 +105,13 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   )
 
   return (
-    <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      {/* Filter chip bar — shown whenever there are shifts */}
-      <div ref={chipBarRef} className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar">
+    <div>
+      {/* Filter chip bar */}
+      {showChipBar && <div
+        className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {/* Solo miei */}
         <button
           ref={el => { if (el) chipRefs.current.set('mine', el); else chipRefs.current.delete('mine') }}
@@ -155,7 +161,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
             </button>
           )
         })}
-      </div>
+      </div>}
 
       <div className="flex flex-col gap-0">
         {filtered.map((shift, index) => {
