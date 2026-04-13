@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
   if (!subs?.length) return NextResponse.json({ sent: 0 })
 
-  const payload = JSON.stringify({ title, body: msgBody, shiftId: shiftId ?? null })
+  const payload = JSON.stringify({ title, body: msgBody, type: 'system', shiftId: shiftId ?? null })
   const staleEndpoints: string[] = []
   let sent = 0
 

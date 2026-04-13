@@ -92,6 +92,21 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
         })
       }
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      if (!impersonatingUserId) {
+        // Fire-and-forget push notification
+        const actorName = profile ? `${profile.cognome ?? ''} ${profile.nome ?? ''}`.trim() : 'Qualcuno'
+        fetch('/api/push/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'new_shift', isSecondary, actorName }),
+        }).catch(() => {})
+        // Track event
+        fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event_type: 'new_shift' }),
+        }).catch(() => {})
+      }
       toast.success('Turno pubblicato')
       handleClose()
     } catch {
@@ -132,6 +147,18 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
         if (!res.ok) throw new Error('Interest failed')
       } else {
         await toggleInterest(shift.id, effectiveUserId, false)
+        const actorName = profile ? `${profile.cognome ?? ''} ${profile.nome ?? ''}`.trim() : 'Qualcuno'
+        fetch('/api/push/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'interest', shiftId: shift.id, actorName }),
+        }).catch(() => {})
+        // Track event
+        fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event_type: 'interest', metadata: { shift_id: shift.id } }),
+        }).catch(() => {})
       }
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
       toast.success('Interesse registrato')

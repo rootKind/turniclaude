@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { saveNotificationEntry } from '@/lib/notification-storage'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -36,6 +37,14 @@ export function NotificationDialog({ open, onClose }: Props) {
           )
         )
       }
+      saveNotificationEntry({
+        id: crypto.randomUUID(),
+        title,
+        body: message,
+        timestamp: Date.now(),
+        read: true,
+        type: 'system',
+      })
       toast.success('Notifica inviata')
       setTitle('')
       setMessage('')

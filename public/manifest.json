@@ -4,8 +4,8 @@
   "description": "Gestione scambi turni",
   "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#f0f7fc",
+  "theme_color": "#f0f7fc",
   "orientation": "portrait",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
