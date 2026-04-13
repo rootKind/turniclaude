@@ -18,10 +18,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
+  const numId = parseInt(id, 10)
+  if (isNaN(numId) || numId <= 0) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
+
   const { requested_shifts } = await req.json()
   if (!requested_shifts) return NextResponse.json({ error: 'Missing requested_shifts' }, { status: 400 })
 
-  const { error } = await admin.from('shifts').update({ requested_shifts }).eq('id', Number(id))
+  const { error } = await admin.from('shifts').update({ requested_shifts }).eq('id', numId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
@@ -31,7 +34,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  const { error } = await admin.from('shifts').delete().eq('id', Number(id))
+  const numId = parseInt(id, 10)
+  if (isNaN(numId) || numId <= 0) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
+
+  const { error } = await admin.from('shifts').delete().eq('id', numId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

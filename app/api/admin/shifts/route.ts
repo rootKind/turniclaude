@@ -10,7 +10,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { offered_shift, shift_date, requested_shifts, user_id } = await req.json()
+  let body: { offered_shift?: unknown; shift_date?: unknown; requested_shifts?: unknown; user_id?: unknown }
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+  const { offered_shift, shift_date, requested_shifts, user_id } = body
   if (!offered_shift || !shift_date || !requested_shifts || !user_id) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
