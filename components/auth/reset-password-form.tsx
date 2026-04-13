@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -16,8 +15,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export function ResetPasswordForm() {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [sent, setSent] = useState(false)
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { email: '' },
@@ -28,16 +27,31 @@ export function ResetPasswordForm() {
     try {
       const supabase = createClient()
       const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
-        redirectTo: `${window.location.origin}/update-password`,
+        redirectTo: `${window.location.origin}/auth/confirm?next=/update-password`,
       })
       if (error) throw error
-      toast.success('Codice inviato — controlla la tua email')
-      router.push(`/verify-password-otp?email=${encodeURIComponent(values.email)}`)
+      setSent(true)
     } catch {
       toast.error('Non è stato possibile inviare il codice')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (sent) {
+    return (
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Email inviata</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Controlla la tua casella di posta e clicca il link per reimpostare la password.
+          </p>
+        </div>
+        <p className="text-center text-sm">
+          <a href="/login" className="text-muted-foreground hover:underline">Torna al login</a>
+        </p>
+      </div>
+    )
   }
 
   return (

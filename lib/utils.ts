@@ -9,6 +9,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Returns today's date in Europe/Rome timezone as YYYY-MM-DD string */
+export function todayRome(): string {
+  return new Intl.DateTimeFormat('sv', { timeZone: 'Europe/Rome' }).format(new Date())
+}
+
 /** Handles duplicate surnames: "Esposito A", compound "Di Napoli Nome" */
 export function formatDisplayName(user: Pick<UserProfile, 'nome' | 'cognome'>): string {
   const nome = user.nome ?? ''
