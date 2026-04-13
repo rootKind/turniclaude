@@ -54,6 +54,18 @@ function DashboardContent() {
     }
   }, [searchParams, router])
 
+  // Track app access once per session (skip when admin is impersonating)
+  useEffect(() => {
+    if (!profile?.id || isImpersonating) return
+    if (sessionStorage.getItem('access-tracked')) return
+    sessionStorage.setItem('access-tracked', '1')
+    fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: 'access' }),
+    }).catch(() => {})
+  }, [profile?.id, isImpersonating])
+
   // Effective values
   const effectiveUserId = isImpersonating && impersonatedUser
     ? impersonatedUser.id

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Bell, Users, MessageSquare, ChevronRight, Eye } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { NotificationDialog } from './notification-dialog'
@@ -9,6 +10,7 @@ import { UserManagementDialog } from './user-management-dialog'
 import { ImpersonateDialog } from './impersonate-dialog'
 
 export function AdminPanel() {
+  const router = useRouter()
   const [notifOpen, setNotifOpen] = useState(false)
   const [usersOpen, setUsersOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
@@ -64,6 +66,12 @@ export function AdminPanel() {
           title="Visualizza come utente"
           description="Accedi alla dashboard dal punto di vista di un collega"
           onClick={() => setImpersonateOpen(true)}
+        />
+        <ActionTile
+          icon={<BarChart2 size={18} />}
+          title="Statistiche"
+          description="Accessi, turni pubblicati, interessi per utente"
+          onClick={() => router.push('/admin/statistiche')}
         />
         <ActionTile
           icon={<MessageSquare size={18} />}

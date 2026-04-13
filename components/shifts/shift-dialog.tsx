@@ -100,6 +100,12 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'new_shift', isSecondary, actorName }),
         }).catch(() => {})
+        // Track event
+        fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event_type: 'new_shift' }),
+        }).catch(() => {})
       }
       toast.success('Turno pubblicato')
       handleClose()
@@ -146,6 +152,12 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ type: 'interest', shiftId: shift.id, actorName }),
+        }).catch(() => {})
+        // Track event
+        fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event_type: 'interest', metadata: { shift_id: shift.id } }),
         }).catch(() => {})
       }
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
