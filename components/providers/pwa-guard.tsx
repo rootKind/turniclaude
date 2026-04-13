@@ -7,12 +7,14 @@ export function PwaGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [ready, setReady] = useState(false)
 
+  const AUTH_BYPASS = ['/installa', '/auth/confirm', '/update-password']
+
   useEffect(() => {
     const isPWA =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true
 
-    if (!isPWA && pathname !== '/installa') {
+    if (!isPWA && !AUTH_BYPASS.includes(pathname)) {
       router.replace('/installa')
       return
     }
@@ -21,7 +23,7 @@ export function PwaGuard({ children }: { children: React.ReactNode }) {
       return
     }
     setReady(true)
-  }, []) // runs once on mount — isPWA is stable for the lifetime of the session
+  }, [pathname]) // pathname as dep fixes the black screen bug when redirect happens
 
   if (!ready) return <div className="min-h-screen bg-background" />
   return <>{children}</>
