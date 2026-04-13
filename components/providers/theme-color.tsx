@@ -2,7 +2,7 @@
 import { useEffect } from 'react'
 import { useTheme } from 'next-themes'
 
-const LIGHT_COLOR = '#ffffff'
+const LIGHT_COLOR = '#f0f7fc'
 const DARK_COLOR = '#0a0a0a'
 
 export function ThemeColor() {
