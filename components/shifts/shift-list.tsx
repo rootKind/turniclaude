@@ -14,9 +14,17 @@ const MONTH_LABELS: Record<string, string> = {
   '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic',
 }
 
-export function ShiftList({ isSecondary: isSecondaryProp }: { isSecondary?: boolean } = {}) {
+interface ShiftListProps {
+  isSecondary?: boolean
+  effectiveUserId?: string
+  loggedInUserId?: string
+}
+
+export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effectiveUserIdProp, loggedInUserId: loggedInUserIdProp }: ShiftListProps = {}) {
   const { profile } = useCurrentUser()
   const isSecondary = isSecondaryProp !== undefined ? isSecondaryProp : (profile?.is_secondary ?? false)
+  const effectiveUserId = effectiveUserIdProp ?? profile?.id ?? ''
+  const loggedInUserId = loggedInUserIdProp ?? profile?.id ?? ''
   const { data: shifts = [], isLoading } = useShifts(isSecondary)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
@@ -64,7 +72,8 @@ export function ShiftList({ isSecondary: isSecondaryProp }: { isSecondary?: bool
             <ShiftItem
               key={shift.id}
               shift={shift}
-              currentUserId={profile?.id ?? ''}
+              currentUserId={effectiveUserId}
+              loggedInUserId={loggedInUserId}
               isSecondary={isSecondary}
               isSameDateAsPrevious={isSameDateAsPrevious}
               onEdit={setEditingShift}
@@ -78,6 +87,7 @@ export function ShiftList({ isSecondary: isSecondaryProp }: { isSecondary?: bool
           open={!!editingShift}
           onClose={() => setEditingShift(null)}
           isSecondary={isSecondary}
+          useAdminRoute={loggedInUserId !== editingShift.user_id && loggedInUserId !== ''}
         />
       )}
     </>
