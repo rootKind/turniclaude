@@ -1,0 +1,32 @@
+-- Cleanup shifts scheduled cron job
+--
+-- Automatically deletes shifts where shift_date is in the past (Europe/Rome timezone).
+-- Deletion happens at 23:00 UTC (mezzanotte CET in winter, 22:00 UTC = mezzanotte CEST in summer).
+--
+-- NOTE: pg_cron must be enabled in Supabase Dashboard > Extensions before this works.
+-- After enabling, run this migration or paste the SELECT statement in the SQL editor.
+
+-- OPTION A: pg_cron via SQL (requires pg_cron extension enabled)
+-- Uncomment and run in Supabase SQL editor:
+--
+-- SELECT cron.schedule(
+--   'cleanup-past-shifts',
+--   '0 23 * * *',
+--   $$DELETE FROM public.shifts WHERE shift_date < (NOW() AT TIME ZONE 'Europe/Rome')::date$$
+-- );
+--
+-- To view scheduled jobs:
+-- SELECT * FROM cron.job;
+--
+-- To unschedule:
+-- SELECT cron.unschedule('cleanup-past-shifts');
+
+-- OPTION B: Supabase Dashboard UI (Recommended)
+-- 1. Navigate to: Edge Functions > cleanup-shifts
+-- 2. Click the "Schedule" button in the function details
+-- 3. Cron expression: 0 23 * * *
+-- 4. Time zone: UTC
+-- 5. Save
+--
+-- This invokes the Edge Function (supabase/functions/cleanup-shifts/index.ts)
+-- which has the same logic but runs as an authenticated Edge Function.
