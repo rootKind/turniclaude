@@ -1,9 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { toast } from 'sonner'
+import { Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -27,6 +29,7 @@ interface Props {
 }
 
 export function EditUserDialog({ open, onClose }: Props) {
+  const router = useRouter()
   const [users, setUsers] = useState<UserOption[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -119,6 +122,21 @@ export function EditUserDialog({ open, onClose }: Props) {
                 <FormMessage />
               </FormItem>
             )} />
+            {form.watch('userId') && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full flex items-center gap-2"
+                onClick={() => {
+                  onClose()
+                  router.push(`/dashboard?as=${form.getValues('userId')}`)
+                }}
+              >
+                <Eye size={14} />
+                Vedi dashboard di questo utente
+              </Button>
+            )}
             <FormField control={form.control} name="nome" render={({ field }) => (
               <FormItem>
                 <FormLabel>Nome</FormLabel>
