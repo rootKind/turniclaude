@@ -6,7 +6,7 @@ self.addEventListener('push', (event) => {
   let payload
   try { payload = event.data.json() } catch { payload = { title: 'Turni', body: event.data.text() } }
 
-  const { title = 'Turni', body = '', shiftId, url = '/dashboard', type } = payload
+  const { title = 'Turni', body = '', shiftId, url = '/dashboard', type = 'system' } = payload
 
   event.waitUntil(
     (async () => {
@@ -18,7 +18,7 @@ self.addEventListener('push', (event) => {
         timestamp: Date.now(),
         shiftId: shiftId ?? null,
         read: false,
-        type: payload.type ?? 'system',
+        type,
       }
       // Broadcast to open tabs so they can persist to localStorage
       clients.forEach(client => client.postMessage({ type: 'PUSH_RECEIVED', entry }))

@@ -1,7 +1,7 @@
 import type { NotificationEntry } from '@/types/database'
 
 const KEY = 'notification-history'
-const MAX = 50
+export const MAX = 50
 
 export function readHistory(): NotificationEntry[] {
   if (typeof window === 'undefined') return []
@@ -9,6 +9,7 @@ export function readHistory(): NotificationEntry[] {
 }
 
 export function writeHistory(entries: NotificationEntry[]) {
+  if (typeof window === 'undefined') return
   localStorage.setItem(KEY, JSON.stringify(entries.slice(0, MAX)))
 }
 

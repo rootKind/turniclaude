@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import type { NotificationEntry } from '@/types/database'
-import { readHistory, writeHistory } from '@/lib/notification-storage'
+import { readHistory, writeHistory, MAX } from '@/lib/notification-storage'
 
 export function useNotificationHistory() {
   const [history, setHistory] = useState<NotificationEntry[]>([])
@@ -13,7 +13,7 @@ export function useNotificationHistory() {
       if (event.data?.type !== 'PUSH_RECEIVED') return
       const entry: NotificationEntry = event.data.entry
       setHistory(prev => {
-        const updated = [entry, ...prev].slice(0, 50)
+        const updated = [entry, ...prev].slice(0, MAX)
         writeHistory(updated)
         return updated
       })
