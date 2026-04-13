@@ -14,9 +14,9 @@ const MONTH_LABELS: Record<string, string> = {
   '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic',
 }
 
-export function ShiftList() {
+export function ShiftList({ isSecondary: isSecondaryProp }: { isSecondary?: boolean } = {}) {
   const { profile } = useCurrentUser()
-  const isSecondary = profile?.is_secondary ?? false
+  const isSecondary = isSecondaryProp !== undefined ? isSecondaryProp : (profile?.is_secondary ?? false)
   const { data: shifts = [], isLoading } = useShifts(isSecondary)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
