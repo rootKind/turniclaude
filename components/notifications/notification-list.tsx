@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useState } from 'react'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
-import { BellOff, Megaphone, Heart, CalendarPlus, Check } from 'lucide-react'
+import { BellOff, Megaphone, Heart, CalendarPlus, Check, Trash2 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { NotificationEntry } from '@/types/database'
@@ -15,7 +15,8 @@ interface Section {
 }
 
 export function NotificationList() {
-  const { history, markEntryRead } = useNotificationHistory()
+  const { history, markEntryRead, deleteEntry } = useNotificationHistory()
+  const [swipingOut, setSwipingOut] = useState<Set<string>>(new Set())
   const [liveOffsets, setLiveOffsets] = useState<Map<string, number>>(new Map())
   const touchStartX = useRef<Map<string, number>>(new Map())
 
@@ -26,9 +27,7 @@ export function NotificationList() {
   function handleTouchMove(id: string, x: number) {
     const startX = touchStartX.current.get(id) ?? x
     const delta = x - startX
-    if (delta < 0) {
-      setLiveOffsets(prev => new Map(prev).set(id, delta))
-    }
+    setLiveOffsets(prev => new Map(prev).set(id, delta))
   }
 
   function handleTouchEnd(id: string, x: number) {
@@ -41,6 +40,9 @@ export function NotificationList() {
       return next
     })
     if (delta < -80) {
+      setSwipingOut(prev => new Set([...prev, id]))
+      setTimeout(() => deleteEntry(id), 300)
+    } else if (delta > 80) {
       markEntryRead(id)
     }
   }
@@ -80,16 +82,25 @@ export function NotificationList() {
           <div className="flex flex-col divide-y divide-border overflow-hidden rounded-md border border-border">
             {entries.map(entry => {
               const offset = liveOffsets.get(entry.id) ?? 0
-              const hintOpacity = Math.min(1, Math.abs(offset) / 80)
+              const isSwipingOut = swipingOut.has(entry.id)
+              const leftHintOpacity = offset < 0 ? Math.min(1, Math.abs(offset) / 80) : 0
+              const rightHintOpacity = offset > 0 ? Math.min(1, offset / 80) : 0
               return (
                 <div
                   key={entry.id}
                   className="relative overflow-hidden"
                 >
-                  {/* Blue mark-as-read hint revealed behind */}
+                  {/* Red delete hint — revealed on left swipe */}
                   <div
-                    className="absolute inset-0 bg-primary flex items-center justify-end pr-4"
-                    style={{ opacity: hintOpacity }}
+                    className="absolute inset-0 bg-destructive flex items-center justify-end pr-4"
+                    style={{ opacity: leftHintOpacity }}
+                  >
+                    <Trash2 size={18} className="text-white" />
+                  </div>
+                  {/* Blue mark-as-read hint — revealed on right swipe */}
+                  <div
+                    className="absolute inset-0 bg-primary flex items-center justify-start pl-4"
+                    style={{ opacity: rightHintOpacity }}
                   >
                     <Check size={18} className="text-primary-foreground" />
                   </div>
@@ -97,9 +108,11 @@ export function NotificationList() {
                   <div
                     className={cn(
                       'relative py-3 px-3 bg-background',
-                      offset !== 0 ? '' : 'transition-transform duration-200'
+                      isSwipingOut
+                        ? 'transition-all duration-300 -translate-x-full opacity-0 pointer-events-none'
+                        : offset !== 0 ? '' : 'transition-transform duration-200'
                     )}
-                    style={{ transform: `translateX(${offset}px)` }}
+                    style={!isSwipingOut ? { transform: `translateX(${offset}px)` } : undefined}
                     onTouchStart={e => handleTouchStart(entry.id, e.touches?.[0]?.clientX ?? 0)}
                     onTouchMove={e => handleTouchMove(entry.id, e.changedTouches?.[0]?.clientX ?? 0)}
                     onTouchEnd={e => handleTouchEnd(entry.id, e.changedTouches?.[0]?.clientX ?? 0)}
