@@ -17,6 +17,7 @@ interface Section {
 export function NotificationList() {
   const { history, markAllRead, deleteEntry, clearAll } = useNotificationHistory()
   const [swipingOut, setSwipingOut] = useState<Set<string>>(new Set())
+  const [liveOffsets, setLiveOffsets] = useState<Map<string, number>>(new Map())
   const touchStartX = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
@@ -27,14 +28,27 @@ export function NotificationList() {
     touchStartX.current.set(id, x)
   }
 
+  function handleTouchMove(id: string, x: number) {
+    const startX = touchStartX.current.get(id) ?? x
+    const delta = x - startX
+    if (delta < 0) {
+      setLiveOffsets(prev => new Map(prev).set(id, delta))
+    }
+  }
+
   function handleTouchEnd(id: string, x: number) {
     const startX = touchStartX.current.get(id) ?? x
     const delta = x - startX
-    if (delta < -60) {
-      setSwipingOut(prev => new Set([...prev, id]))
-      setTimeout(() => deleteEntry(id), 220)
-    }
     touchStartX.current.delete(id)
+    setLiveOffsets(prev => {
+      const next = new Map(prev)
+      next.delete(id)
+      return next
+    })
+    if (delta < -80) {
+      setSwipingOut(prev => new Set([...prev, id]))
+      setTimeout(() => deleteEntry(id), 300)
+    }
   }
 
   if (!history.length) {
@@ -80,28 +94,49 @@ export function NotificationList() {
           </div>
 
           <div className="flex flex-col divide-y divide-border overflow-hidden rounded-md border border-border">
-            {entries.map(entry => (
-              <div
-                key={entry.id}
-                className={cn(
-                  'py-3 px-3 bg-background transition-all duration-200',
-                  swipingOut.has(entry.id) && 'translate-x-full opacity-0 pointer-events-none'
-                )}
-                onTouchStart={e => handleTouchStart(entry.id, e.touches?.[0]?.clientX ?? 0)}
-                onTouchEnd={e => handleTouchEnd(entry.id, e.changedTouches?.[0]?.clientX ?? 0)}
-              >
-                <div className="flex items-start gap-3">
-                  <Icon size={15} className="mt-0.5 flex-shrink-0 text-muted-foreground" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{entry.title}</p>
-                    <p className="text-sm text-muted-foreground">{entry.body}</p>
+            {entries.map(entry => {
+              const offset = liveOffsets.get(entry.id) ?? 0
+              const isSwipingOut = swipingOut.has(entry.id)
+              const deleteHintOpacity = Math.min(1, Math.abs(offset) / 80)
+              return (
+                <div
+                  key={entry.id}
+                  className="relative overflow-hidden"
+                >
+                  {/* Red delete hint revealed behind */}
+                  <div
+                    className="absolute inset-0 bg-destructive flex items-center justify-end pr-4"
+                    style={{ opacity: deleteHintOpacity }}
+                  >
+                    <Trash2 size={18} className="text-white" />
                   </div>
-                  <span className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5">
-                    {formatRelativeTime(new Date(entry.timestamp).toISOString())}
-                  </span>
+                  {/* Swipeable row */}
+                  <div
+                    className={cn(
+                      'relative py-3 px-3 bg-background',
+                      isSwipingOut
+                        ? 'transition-all duration-300 translate-x-full opacity-0 pointer-events-none'
+                        : offset !== 0 ? '' : 'transition-transform duration-100'
+                    )}
+                    style={!isSwipingOut ? { transform: `translateX(${offset}px)` } : undefined}
+                    onTouchStart={e => handleTouchStart(entry.id, e.touches?.[0]?.clientX ?? 0)}
+                    onTouchMove={e => handleTouchMove(entry.id, e.changedTouches?.[0]?.clientX ?? 0)}
+                    onTouchEnd={e => handleTouchEnd(entry.id, e.changedTouches?.[0]?.clientX ?? 0)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Icon size={15} className="mt-0.5 flex-shrink-0 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{entry.title}</p>
+                        <p className="text-sm text-muted-foreground">{entry.body}</p>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5">
+                        {formatRelativeTime(new Date(entry.timestamp).toISOString())}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       ))}
