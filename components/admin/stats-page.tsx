@@ -67,8 +67,8 @@ export function StatsPage() {
       ) : sorted.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">Nessun dato disponibile.</p>
       ) : (
-        <div className="rounded-xl border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-xl border overflow-x-auto">
+          <table className="min-w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
                 <SortTh label="Utente" sortKey="name" current={sortKey} dir={sortDir} onSort={toggleSort} />
