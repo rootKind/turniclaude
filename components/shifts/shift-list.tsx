@@ -33,6 +33,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   const [selectedFilter, setSelectedFilter] = useState<FilterValue>(null)
 
   const touchStartX = useRef<number>(0)
+  const touchStartY = useRef<number>(0)
   const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
 
   const months = useMemo(() => {
@@ -73,16 +74,19 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
-    const delta = e.changedTouches[0].clientX - touchStartX.current
-    if (Math.abs(delta) <= 50) return
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current
+    // Don't trigger if the motion is more vertical than horizontal
+    if (Math.abs(deltaX) <= 50 || Math.abs(deltaY) > Math.abs(deltaX)) return
 
     const currentIndex = navSequence.findIndex(v => v === selectedFilter)
     let nextIndex: number
 
-    if (delta > 0) {
+    if (deltaX > 0) {
       // swipe right → previous
       nextIndex = Math.max(0, currentIndex - 1)
     } else {
@@ -105,12 +109,13 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   )
 
   return (
-    <div>
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Filter chip bar */}
       {showChipBar && <div
         className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
       >
         {/* Solo miei */}
         <button
