@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useState } from 'react'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
-import { BellOff, Megaphone, Heart, CalendarPlus, Trash2 } from 'lucide-react'
+import { BellOff, Megaphone, Heart, CalendarPlus, Check } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { NotificationEntry } from '@/types/database'
@@ -15,8 +15,7 @@ interface Section {
 }
 
 export function NotificationList() {
-  const { history, deleteEntry, clearAll } = useNotificationHistory()
-  const [swipingOut, setSwipingOut] = useState<Set<string>>(new Set())
+  const { history, markEntryRead } = useNotificationHistory()
   const [liveOffsets, setLiveOffsets] = useState<Map<string, number>>(new Map())
   const touchStartX = useRef<Map<string, number>>(new Map())
 
@@ -42,8 +41,7 @@ export function NotificationList() {
       return next
     })
     if (delta < -80) {
-      setSwipingOut(prev => new Set([...prev, id]))
-      setTimeout(() => deleteEntry(id), 300)
+      markEntryRead(id)
     }
   }
 
@@ -70,16 +68,6 @@ export function NotificationList() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <button
-          onClick={clearAll}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
-        >
-          <Trash2 size={13} />
-          Cancella tutte
-        </button>
-      </div>
-
       {sections.map(({ key, label, Icon, entries }) => (
         <div key={key} className="flex flex-col">
           <div className="flex items-center gap-2 mb-1 px-1">
@@ -92,29 +80,26 @@ export function NotificationList() {
           <div className="flex flex-col divide-y divide-border overflow-hidden rounded-md border border-border">
             {entries.map(entry => {
               const offset = liveOffsets.get(entry.id) ?? 0
-              const isSwipingOut = swipingOut.has(entry.id)
-              const deleteHintOpacity = Math.min(1, Math.abs(offset) / 80)
+              const hintOpacity = Math.min(1, Math.abs(offset) / 80)
               return (
                 <div
                   key={entry.id}
                   className="relative overflow-hidden"
                 >
-                  {/* Red delete hint revealed behind */}
+                  {/* Blue mark-as-read hint revealed behind */}
                   <div
-                    className="absolute inset-0 bg-destructive flex items-center justify-end pr-4"
-                    style={{ opacity: deleteHintOpacity }}
+                    className="absolute inset-0 bg-primary flex items-center justify-end pr-4"
+                    style={{ opacity: hintOpacity }}
                   >
-                    <Trash2 size={18} className="text-white" />
+                    <Check size={18} className="text-primary-foreground" />
                   </div>
                   {/* Swipeable row */}
                   <div
                     className={cn(
                       'relative py-3 px-3 bg-background',
-                      isSwipingOut
-                        ? 'transition-all duration-300 -translate-x-full opacity-0 pointer-events-none'
-                        : offset !== 0 ? '' : 'transition-transform duration-100'
+                      offset !== 0 ? '' : 'transition-transform duration-200'
                     )}
-                    style={!isSwipingOut ? { transform: `translateX(${offset}px)` } : undefined}
+                    style={{ transform: `translateX(${offset}px)` }}
                     onTouchStart={e => handleTouchStart(entry.id, e.touches?.[0]?.clientX ?? 0)}
                     onTouchMove={e => handleTouchMove(entry.id, e.changedTouches?.[0]?.clientX ?? 0)}
                     onTouchEnd={e => handleTouchEnd(entry.id, e.changedTouches?.[0]?.clientX ?? 0)}
@@ -122,12 +107,17 @@ export function NotificationList() {
                     <div className="flex items-start gap-3">
                       <Icon size={15} className="mt-0.5 flex-shrink-0 text-muted-foreground" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{entry.title}</p>
+                        <p className={cn('text-sm', entry.read ? 'font-normal text-muted-foreground' : 'font-medium')}>{entry.title}</p>
                         <p className="text-sm text-muted-foreground">{entry.body}</p>
                       </div>
-                      <span className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5">
-                        {formatRelativeTime(new Date(entry.timestamp).toISOString())}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
+                        {!entry.read && (
+                          <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                        )}
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatRelativeTime(new Date(entry.timestamp).toISOString())}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

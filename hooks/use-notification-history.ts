@@ -43,12 +43,8 @@ export function useNotificationHistory() {
         const newEntries = pending.filter(e => !existingIds.has(e.id))
         loaded = [...newEntries, ...current].slice(0, MAX)
       }
-      // Mark all as read atomically with the load — avoids the race where
-      // markAllRead() fires with empty state and wipes localStorage before
-      // drainIDB resolves.
-      const markedRead = loaded.map(e => ({ ...e, read: true }))
-      writeHistory(markedRead)
-      setHistory(markedRead)
+      writeHistory(loaded)
+      setHistory(loaded)
     })
 
     const handler = (event: MessageEvent) => {
@@ -81,6 +77,14 @@ export function useNotificationHistory() {
     })
   }, [])
 
+  const markEntryRead = useCallback((id: string) => {
+    setHistory(prev => {
+      const updated = prev.map(e => e.id === id ? { ...e, read: true } : e)
+      writeHistory(updated)
+      return updated
+    })
+  }, [])
+
   const deleteEntry = useCallback((id: string) => {
     setHistory(prev => {
       const updated = prev.filter(e => e.id !== id)
@@ -94,5 +98,5 @@ export function useNotificationHistory() {
     setHistory([])
   }, [])
 
-  return { history, markAllRead, deleteEntry, clearAll, unreadCount }
+  return { history, markAllRead, markEntryRead, deleteEntry, clearAll, unreadCount }
 }

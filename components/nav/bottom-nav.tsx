@@ -1,9 +1,10 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, Palmtree, Bell, Settings, Plus, Lock } from 'lucide-react'
+import { LayoutGrid, Palmtree, Bell, Settings, Plus, Lock, Trash2, CheckCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
+import { useState } from 'react'
 
 interface Props {
   feedbackUnread?: number
@@ -12,7 +13,9 @@ interface Props {
 
 export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   const pathname = usePathname()
-  const { unreadCount } = useNotificationHistory()
+  const { unreadCount, clearAll, markAllRead } = useNotificationHistory()
+  const [fabOpen, setFabOpen] = useState(false)
+  const isNotifiche = pathname === '/notifiche'
 
   const links = [
     { href: '/dashboard',    icon: LayoutGrid, label: 'Turni' },
@@ -22,38 +25,105 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-area-pb">
-      <div className="flex items-stretch h-16 max-w-lg mx-auto">
-        {links.slice(0, 2).map(({ href, icon: Icon, label, badge }) => (
-          <NavItem key={href} href={href} icon={Icon} label={label} badge={badge} active={pathname === href} />
-        ))}
+    <>
+      {/* Speed-dial backdrop */}
+      {isNotifiche && fabOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setFabOpen(false)}
+        />
+      )}
 
-        {/* FAB center button */}
-        <div className="flex-1 flex items-center justify-center">
-          {isAdmin && pathname === '/impostazioni' ? (
-            <Link
-              href="/admin"
-              className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-              aria-label="Pannello admin"
-            >
-              <Lock size={20} />
-            </Link>
-          ) : (
-            <Link
-              href="/dashboard?new=1"
-              className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-              aria-label="Nuovo turno"
-            >
-              <Plus size={22} />
-            </Link>
-          )}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-area-pb">
+        <div className="flex items-stretch h-16 max-w-lg mx-auto relative">
+          {links.slice(0, 2).map(({ href, icon: Icon, label, badge }) => (
+            <NavItem key={href} href={href} icon={Icon} label={label} badge={badge} active={pathname === href} />
+          ))}
+
+          {/* FAB center button */}
+          <div className="flex-1 flex items-center justify-center">
+            {isAdmin && pathname === '/impostazioni' ? (
+              <Link
+                href="/admin"
+                className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+                aria-label="Pannello admin"
+              >
+                <Lock size={20} />
+              </Link>
+            ) : isNotifiche ? (
+              <div className="relative flex items-center justify-center">
+                {/* Speed-dial actions */}
+                <div
+                  className={cn(
+                    'absolute bottom-14 flex flex-col items-center gap-3 transition-all duration-200',
+                    fabOpen ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-2 pointer-events-none'
+                  )}
+                >
+                  <SpeedDialItem
+                    icon={Trash2}
+                    label="Elimina tutte"
+                    variant="destructive"
+                    onClick={() => { clearAll(); setFabOpen(false) }}
+                  />
+                  <SpeedDialItem
+                    icon={CheckCheck}
+                    label="Segna lette"
+                    variant="primary"
+                    onClick={() => { markAllRead(); setFabOpen(false) }}
+                  />
+                </div>
+                <button
+                  onClick={() => setFabOpen(v => !v)}
+                  className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg transition-transform duration-200"
+                  style={{ transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)' }}
+                  aria-label="Azioni notifiche"
+                >
+                  <Plus size={22} />
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/dashboard?new=1"
+                className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+                aria-label="Nuovo turno"
+              >
+                <Plus size={22} />
+              </Link>
+            )}
+          </div>
+
+          {links.slice(2).map(({ href, icon: Icon, label, badge }) => (
+            <NavItem key={href} href={href} icon={Icon} label={label} badge={badge} active={pathname === href} />
+          ))}
         </div>
+      </nav>
+    </>
+  )
+}
 
-        {links.slice(2).map(({ href, icon: Icon, label, badge }) => (
-          <NavItem key={href} href={href} icon={Icon} label={label} badge={badge} active={pathname === href} />
-        ))}
-      </div>
-    </nav>
+function SpeedDialItem({ icon: Icon, label, variant, onClick }: {
+  icon: React.ElementType
+  label: string
+  variant: 'destructive' | 'primary'
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 group"
+    >
+      <span className="text-xs text-foreground bg-background border border-border rounded-md px-2 py-1 shadow-sm whitespace-nowrap">
+        {label}
+      </span>
+      <span className={cn(
+        'w-10 h-10 rounded-full flex items-center justify-center shadow-md',
+        variant === 'destructive'
+          ? 'bg-destructive text-destructive-foreground'
+          : 'bg-primary text-primary-foreground'
+      )}>
+        <Icon size={18} />
+      </span>
+    </button>
   )
 }
 
