@@ -155,6 +155,10 @@ export function SettingsPage() {
 
       <NotificationHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+
+      <p className="text-center text-xs text-muted-foreground pb-2">
+        v1.125 — ultimo aggiornamento: 14/04/2026
+      </p>
     </main>
   )
 }

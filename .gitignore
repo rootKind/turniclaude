@@ -45,3 +45,10 @@ next-env.d.ts
 
 # superpowers brainstorm sessions
 .superpowers/
+
+# graphify generated output
+graphify-out/
+
+# temp/local files
+ferie.pdf
+supabase/.temp/

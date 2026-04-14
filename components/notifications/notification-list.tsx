@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
 import { BellOff, Megaphone, Heart, CalendarPlus, Trash2 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
@@ -15,14 +15,10 @@ interface Section {
 }
 
 export function NotificationList() {
-  const { history, markAllRead, deleteEntry, clearAll } = useNotificationHistory()
+  const { history, deleteEntry, clearAll } = useNotificationHistory()
   const [swipingOut, setSwipingOut] = useState<Set<string>>(new Set())
   const [liveOffsets, setLiveOffsets] = useState<Map<string, number>>(new Map())
   const touchStartX = useRef<Map<string, number>>(new Map())
-
-  useEffect(() => {
-    markAllRead()
-  }, [markAllRead])
 
   function handleTouchStart(id: string, x: number) {
     touchStartX.current.set(id, x)
@@ -115,7 +111,7 @@ export function NotificationList() {
                     className={cn(
                       'relative py-3 px-3 bg-background',
                       isSwipingOut
-                        ? 'transition-all duration-300 translate-x-full opacity-0 pointer-events-none'
+                        ? 'transition-all duration-300 -translate-x-full opacity-0 pointer-events-none'
                         : offset !== 0 ? '' : 'transition-transform duration-100'
                     )}
                     style={!isSwipingOut ? { transform: `translateX(${offset}px)` } : undefined}

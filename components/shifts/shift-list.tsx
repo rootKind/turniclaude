@@ -130,10 +130,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   )
 
   return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div>
       {/* Filter chip bar */}
       {showChipBar && <div
         className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar"
@@ -189,7 +186,11 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
         })}
       </div>}
 
-      <div className="overflow-hidden">
+      <div
+        className="overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <AnimatePresence mode="wait" custom={swipeDirection.current}>
           <motion.div
             key={selectedFilter ?? '__tutti__'}

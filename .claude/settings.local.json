@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git:*)",
+      "Bash(ls -d .worktrees)",
+      "Bash(ls -d worktrees)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(grep -l \"ResetPasswordForm\\\\|UpdatePasswordForm\" components/auth/*.tsx)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Bash(npx --prefix \"/c/Users/david/Downloads/pwa-v2/.worktrees/feature-sprint\" tsc --noEmit --project \"/c/Users/david/Downloads/pwa-v2/.worktrees/feature-sprint/tsconfig.json\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(cd C:\\\\\\\\Users\\\\\\\\david\\\\\\\\Downloads\\\\\\\\pwa-v2\\\\\\\\.worktrees\\\\\\\\feature-sprint)",
+      "Skill(update-config)",
+      "Bash(powershell -c \"[System.Media.SystemSounds]::Asterisk.Play\\(\\); Start-Sleep -Milliseconds 800\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(bash:*)",
+      "Bash(powershell -c \"[System.Media.SystemSounds]::Exclamation.Play\\(\\); Start-Sleep -Milliseconds 800\")",
+      "Bash(cat \"C:/Users/david/Downloads/pwa-v2/.superpowers/brainstorm/\"*/state/server-info)",
+      "Bash(powershell:*)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(grep -i \"worktree.*director\" CLAUDE.md)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(gh auth:*)",
+      "Bash(claude plugin:*)"
+    ]
+  }
+}

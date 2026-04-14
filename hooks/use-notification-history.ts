@@ -35,15 +35,20 @@ export function useNotificationHistory() {
     // Drain any notifications saved by SW while app was closed (iOS)
     drainIDB().then(pending => {
       const current = readHistory()
+      let loaded: NotificationEntry[]
       if (pending.length === 0) {
-        setHistory(current)
-        return
+        loaded = current
+      } else {
+        const existingIds = new Set(current.map(e => e.id))
+        const newEntries = pending.filter(e => !existingIds.has(e.id))
+        loaded = [...newEntries, ...current].slice(0, MAX)
       }
-      const existingIds = new Set(current.map(e => e.id))
-      const newEntries = pending.filter(e => !existingIds.has(e.id))
-      const merged = [...newEntries, ...current].slice(0, MAX)
-      writeHistory(merged)
-      setHistory(merged)
+      // Mark all as read atomically with the load — avoids the race where
+      // markAllRead() fires with empty state and wipes localStorage before
+      // drainIDB resolves.
+      const markedRead = loaded.map(e => ({ ...e, read: true }))
+      writeHistory(markedRead)
+      setHistory(markedRead)
     })
 
     const handler = (event: MessageEvent) => {
