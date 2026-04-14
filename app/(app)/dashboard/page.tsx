@@ -19,6 +19,10 @@ function DashboardContent() {
   const [viewSecondary, setViewSecondary] = useState(false)
   const [allUsers, setAllUsers] = useState<UserOption[]>([])
   const [impersonatedUser, setImpersonatedUser] = useState<UserOption | null>(null)
+  const [highlightShiftId, setHighlightShiftId] = useState<number | undefined>(() => {
+    const p = searchParams.get('shift')
+    return p ? Number(p) : undefined
+  })
 
   const { profile } = useCurrentUser()
   const { registerServiceWorker } = usePush()
@@ -53,6 +57,18 @@ function DashboardContent() {
       router.replace('/dashboard')
     }
   }, [searchParams, router])
+
+  // Clear highlight after 4s and clean URL
+  useEffect(() => {
+    if (!highlightShiftId) return
+    const t = setTimeout(() => {
+      setHighlightShiftId(undefined)
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('shift')
+      router.replace(params.size > 0 ? `/dashboard?${params.toString()}` : '/dashboard')
+    }, 4000)
+    return () => clearTimeout(t)
+  }, [highlightShiftId, router, searchParams])
 
   // Track app access once per session (skip when admin is impersonating)
   useEffect(() => {
@@ -139,6 +155,7 @@ function DashboardContent() {
         isSecondary={effectiveIsSecondary}
         effectiveUserId={effectiveUserId}
         loggedInUserId={loggedInUserId}
+        highlightShiftId={highlightShiftId}
       />
 
       <ShiftDialog

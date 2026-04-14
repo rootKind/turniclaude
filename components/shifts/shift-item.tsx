@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Pencil, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -21,11 +21,22 @@ interface Props {
   isSameDateAsPrevious?: boolean
   dateIndex?: number
   onEdit?: (shift: Shift) => void
+  isHighlighted?: boolean
 }
 
-export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isSameDateAsPrevious = false, dateIndex = 0, onEdit }: Props) {
+export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isSameDateAsPrevious = false, dateIndex = 0, onEdit, isHighlighted = false }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showRing, setShowRing] = useState(isHighlighted)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isHighlighted) return
+    setShowRing(true)
+    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const t = setTimeout(() => setShowRing(false), 3000)
+    return () => clearTimeout(t)
+  }, [isHighlighted])
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
 
@@ -96,7 +107,14 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
   const displayName = formatDisplayName(shift.user)
 
   return (
-    <div className={cn(isSameDateAsPrevious ? 'mt-0.5' : 'mt-3', 'first:mt-0')}>
+    <div
+      ref={cardRef}
+      className={cn(
+        isSameDateAsPrevious ? 'mt-0.5' : 'mt-3',
+        'first:mt-0 rounded-[10px] transition-shadow duration-700',
+        showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+      )}
+    >
       {/* Main row */}
       <div
         role="button"

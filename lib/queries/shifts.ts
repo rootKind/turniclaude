@@ -40,8 +40,9 @@ export async function createShift(payload: {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
-  const { error } = await supabase.from('shifts').insert({ ...payload, user_id: user.id })
+  const { data, error } = await supabase.from('shifts').insert({ ...payload, user_id: user.id }).select('id').single()
   if (error) throw error
+  return (data as { id: number }).id
 }
 
 export async function updateShiftRequested(shiftId: number, requestedShifts: string[]) {

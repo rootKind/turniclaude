@@ -72,22 +72,26 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
     setCompatibleMatches([])
     setIsSubmitting(true)
     try {
+      const shiftDate = format(selectedDate!, 'yyyy-MM-dd')
+      let newShiftId: number | null = null
       if (impersonatingUserId) {
         const res = await fetch('/api/admin/shifts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             offered_shift: offeredShift,
-            shift_date: format(selectedDate!, 'yyyy-MM-dd'),
+            shift_date: shiftDate,
             requested_shifts: requestedShifts,
             user_id: impersonatingUserId,
           }),
         })
         if (!res.ok) throw new Error('Admin shift create failed')
+        const json = await res.json()
+        newShiftId = json.id ?? null
       } else {
-        await createShift({
+        newShiftId = await createShift({
           offered_shift: offeredShift!,
-          shift_date: format(selectedDate!, 'yyyy-MM-dd'),
+          shift_date: shiftDate,
           requested_shifts: requestedShifts,
         })
       }
@@ -98,7 +102,15 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
         fetch('/api/push/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'new_shift', isSecondary, actorName }),
+          body: JSON.stringify({
+            type: 'new_shift',
+            isSecondary,
+            actorName,
+            shiftId: newShiftId,
+            offeredShift,
+            requestedShifts,
+            shiftDate,
+          }),
         }).catch(() => {})
         // Track event
         fetch('/api/events', {
@@ -191,7 +203,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
               {/* Date picker */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Data</p>
-                <div className="relative overflow-x-hidden rounded-xl">
+                <div className="relative rounded-xl">
                   <Calendar
                     mode="single"
                     selected={selectedDate}

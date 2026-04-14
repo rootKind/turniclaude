@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { User } from 'lucide-react'
 import { useShifts } from '@/hooks/use-shifts'
@@ -22,6 +22,7 @@ interface ShiftListProps {
   isSecondary?: boolean
   effectiveUserId?: string
   loggedInUserId?: string
+  highlightShiftId?: number
 }
 
 const slideVariants = {
@@ -30,7 +31,7 @@ const slideVariants = {
   exit: (dir: number) => ({ x: dir > 0 ? 32 : -32, opacity: 0 }),
 }
 
-export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effectiveUserIdProp, loggedInUserId: loggedInUserIdProp }: ShiftListProps = {}) {
+export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effectiveUserIdProp, loggedInUserId: loggedInUserIdProp, highlightShiftId }: ShiftListProps = {}) {
   const { profile } = useCurrentUser()
   const isSecondary = isSecondaryProp !== undefined ? isSecondaryProp : (profile?.is_secondary ?? false)
   const effectiveUserId = effectiveUserIdProp ?? profile?.id ?? ''
@@ -63,6 +64,11 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
 
   const hasOwnShifts = useMemo(() => shifts.some(s => s.user_id === effectiveUserId), [shifts, effectiveUserId])
   const showChipBar = months.length > 1 || hasOwnShifts
+
+  // Show all shifts so the highlighted one is visible
+  useEffect(() => {
+    if (highlightShiftId) setSelectedFilter(null)
+  }, [highlightShiftId])
 
   const dateIndexes = useMemo(() => {
     const count = new Map<string, number>()
@@ -187,7 +193,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
       </div>}
 
       <div
-        className="overflow-hidden"
+        className="overflow-hidden min-h-[60vh]"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -215,6 +221,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
                   isSameDateAsPrevious={isSameDateAsPrevious}
                   dateIndex={dateIndexes[index]}
                   onEdit={setEditingShift}
+                  isHighlighted={highlightShiftId === shift.id}
                 />
               )
             })}
