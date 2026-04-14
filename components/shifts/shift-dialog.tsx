@@ -173,12 +173,12 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
 
   return (
     <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-      <DialogContent className="max-w-sm w-full p-0 overflow-hidden">
-        <DialogHeader className="px-5 pt-5 pb-0">
+      <DialogContent className="max-w-sm w-full p-0 overflow-hidden flex flex-col" style={{ maxHeight: '85svh' }}>
+        <DialogHeader className="px-5 pt-5 pb-0 flex-shrink-0">
           <DialogTitle className="text-base">Nuovo scambio turno</DialogTitle>
         </DialogHeader>
 
-        <div className="overflow-y-auto max-h-[80vh] px-5 pb-5 pt-4 space-y-5">
+        <div className="overflow-y-auto flex-1 px-5 pb-5 pt-4 space-y-5">
           {compatibleMatches.length > 0 ? (
             <CompatibilityPanel
               matches={compatibleMatches}
