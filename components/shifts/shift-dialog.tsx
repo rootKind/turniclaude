@@ -191,17 +191,19 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
               {/* Date picker */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Data</p>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  locale={it}
-                  disabled={(date) => {
-                    const str = format(date, 'yyyy-MM-dd')
-                    return str <= todayRome() || occupiedDates.has(str)
-                  }}
-                  className="rounded-xl border w-full"
-                />
+                <div className="relative">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    locale={it}
+                    disabled={(date) => {
+                      const str = format(date, 'yyyy-MM-dd')
+                      return str <= todayRome() || occupiedDates.has(str)
+                    }}
+                    className="rounded-xl border w-full"
+                  />
+                </div>
               </div>
 
               {/* Offered shift */}

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useMemo, useRef } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { User } from 'lucide-react'
 import { useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -23,6 +24,12 @@ interface ShiftListProps {
   loggedInUserId?: string
 }
 
+const slideVariants = {
+  enter: (dir: number) => ({ x: dir > 0 ? -32 : 32, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir > 0 ? 32 : -32, opacity: 0 }),
+}
+
 export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effectiveUserIdProp, loggedInUserId: loggedInUserIdProp }: ShiftListProps = {}) {
   const { profile } = useCurrentUser()
   const isSecondary = isSecondaryProp !== undefined ? isSecondaryProp : (profile?.is_secondary ?? false)
@@ -35,6 +42,8 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   const touchStartX = useRef<number>(0)
   const touchStartY = useRef<number>(0)
   const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
+  // 1 = going to previous (swipe right), -1 = going to next (swipe left)
+  const swipeDirection = useRef<1 | -1>(-1)
 
   const months = useMemo(() => {
     const seen = new Set<string>()
@@ -72,6 +81,14 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
     }
   }
 
+  function navigateTo(newFilter: FilterValue) {
+    const newIndex = navSequence.findIndex(v => v === newFilter)
+    const currentIndex = navSequence.findIndex(v => v === selectedFilter)
+    swipeDirection.current = newIndex > currentIndex ? -1 : 1
+    setSelectedFilter(newFilter)
+    scrollChipIntoView(newFilter)
+  }
+
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
@@ -95,9 +112,13 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
     }
 
     if (nextIndex !== currentIndex) {
+      swipeDirection.current = deltaX > 0 ? 1 : -1
       const nextFilter = navSequence[nextIndex]
       setSelectedFilter(nextFilter)
       scrollChipIntoView(nextFilter)
+    } else {
+      // At boundary — ensure the chip is still scrolled into view
+      scrollChipIntoView(selectedFilter)
     }
   }
 
@@ -120,7 +141,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
         {/* Solo miei */}
         <button
           ref={el => { if (el) chipRefs.current.set('mine', el); else chipRefs.current.delete('mine') }}
-          onClick={() => setSelectedFilter('mine')}
+          onClick={() => navigateTo('mine')}
           className={cn(
             'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
             selectedFilter === 'mine'
@@ -135,7 +156,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
         {/* Tutti */}
         <button
           ref={el => { if (el) chipRefs.current.set('__tutti__', el); else chipRefs.current.delete('__tutti__') }}
-          onClick={() => setSelectedFilter(null)}
+          onClick={() => navigateTo(null)}
           className={cn(
             'flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
             selectedFilter === null
@@ -154,7 +175,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
             <button
               key={m}
               ref={el => { if (el) chipRefs.current.set(m, el); else chipRefs.current.delete(m) }}
-              onClick={() => setSelectedFilter(m)}
+              onClick={() => navigateTo(m)}
               className={cn(
                 'flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
                 selectedFilter === m
@@ -168,23 +189,36 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
         })}
       </div>}
 
-      <div className="flex flex-col gap-0">
-        {filtered.map((shift, index) => {
-          const prev = filtered[index - 1]
-          const isSameDateAsPrevious = !!prev && prev.shift_date === shift.shift_date
-          return (
-            <ShiftItem
-              key={shift.id}
-              shift={shift}
-              currentUserId={effectiveUserId}
-              loggedInUserId={loggedInUserId}
-              isSecondary={isSecondary}
-              isSameDateAsPrevious={isSameDateAsPrevious}
-              dateIndex={dateIndexes[index]}
-              onEdit={setEditingShift}
-            />
-          )
-        })}
+      <div className="overflow-hidden">
+        <AnimatePresence mode="wait" custom={swipeDirection.current}>
+          <motion.div
+            key={selectedFilter ?? '__tutti__'}
+            custom={swipeDirection.current}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="flex flex-col gap-0"
+          >
+            {filtered.map((shift, index) => {
+              const prev = filtered[index - 1]
+              const isSameDateAsPrevious = !!prev && prev.shift_date === shift.shift_date
+              return (
+                <ShiftItem
+                  key={shift.id}
+                  shift={shift}
+                  currentUserId={effectiveUserId}
+                  loggedInUserId={loggedInUserId}
+                  isSecondary={isSecondary}
+                  isSameDateAsPrevious={isSameDateAsPrevious}
+                  dateIndex={dateIndexes[index]}
+                  onEdit={setEditingShift}
+                />
+              )
+            })}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {editingShift && (

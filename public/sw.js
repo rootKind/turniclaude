@@ -43,13 +43,11 @@ self.addEventListener('push', (event) => {
         type,
       }
 
-      if (clients.length > 0) {
-        // Broadcast to open tabs so they can persist to localStorage
-        clients.forEach(client => client.postMessage({ type: 'PUSH_RECEIVED', entry }))
-      } else {
-        // No open tabs (iOS background) — save to IndexedDB for next app open
-        await saveToIDB(entry).catch(() => {})
-      }
+      // Always persist to IndexedDB — drainIDB() on mount is the guaranteed recovery path
+      // (handles the race where the tab exists but the message listener isn't registered yet)
+      await saveToIDB(entry).catch(() => {})
+      // Also broadcast to any open tabs for immediate in-app update (they dedup by id)
+      clients.forEach(client => client.postMessage({ type: 'PUSH_RECEIVED', entry }))
 
       return self.registration.showNotification(title, {
         body,
