@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import type { NotificationEntry } from '@/types/database'
-import { readHistory, writeHistory, MAX } from '@/lib/notification-storage'
+import { readHistory, writeHistory, MAX, HISTORY_CHANGED_EVENT } from '@/lib/notification-storage'
 
 const DB_NAME = 'turni-notifications'
 const STORE_NAME = 'pending'
@@ -57,7 +57,14 @@ export function useNotificationHistory() {
       })
     }
     navigator.serviceWorker?.addEventListener('message', handler)
-    return () => navigator.serviceWorker?.removeEventListener('message', handler)
+
+    const syncHandler = () => setHistory(readHistory())
+    window.addEventListener(HISTORY_CHANGED_EVENT, syncHandler)
+
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handler)
+      window.removeEventListener(HISTORY_CHANGED_EVENT, syncHandler)
+    }
   }, [])
 
   useEffect(() => {

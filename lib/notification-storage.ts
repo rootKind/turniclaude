@@ -8,9 +8,12 @@ export function readHistory(): NotificationEntry[] {
   try { return JSON.parse(localStorage.getItem(KEY) ?? '[]') } catch { return [] }
 }
 
+export const HISTORY_CHANGED_EVENT = 'notification-history-changed'
+
 export function writeHistory(entries: NotificationEntry[]) {
   if (typeof window === 'undefined') return
   localStorage.setItem(KEY, JSON.stringify(entries.slice(0, MAX)))
+  window.dispatchEvent(new CustomEvent(HISTORY_CHANGED_EVENT))
 }
 
 export function saveNotificationEntry(entry: NotificationEntry) {
