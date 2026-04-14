@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { cn, todayRome, formatDisplayName, formatRelativeTime, SHIFT_PILL_CLASSES } from '@/lib/utils'
@@ -186,11 +186,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
   return (
     <Dialog open={open} onOpenChange={v => !v && handleClose()}>
       <DialogContent className="max-w-sm w-full p-0 overflow-hidden flex flex-col" style={{ maxHeight: '85svh' }}>
-        <DialogHeader className="px-5 pt-5 pb-0 flex-shrink-0">
-          <DialogTitle className="text-base">Nuovo scambio turno</DialogTitle>
-        </DialogHeader>
-
-        <div className="overflow-y-auto flex-1 px-5 pb-5 pt-4 space-y-5">
+        <div className="overflow-y-auto flex-1 px-5 pb-5 pt-5 space-y-5">
           {compatibleMatches.length > 0 ? (
             <CompatibilityPanel
               matches={compatibleMatches}
