@@ -191,7 +191,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
               {/* Date picker */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Data</p>
-                <div className="relative">
+                <div className="relative overflow-hidden rounded-xl">
                   <Calendar
                     mode="single"
                     selected={selectedDate}
