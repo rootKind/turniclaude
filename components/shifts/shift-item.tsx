@@ -142,7 +142,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         <div className="flex items-center gap-2 px-3 py-2.5 flex-1 min-w-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1">
-              <span className={cn('font-semibold text-[13px] leading-none', isOwn ? 'text-yellow-300 dark:text-yellow-200' : '')}>
+              <span className={cn('font-semibold text-[13px] leading-none', isOwn ? 'text-yellow-700 dark:text-yellow-200' : '')}>
                 {displayName}
               </span>
               {isOwn && (
