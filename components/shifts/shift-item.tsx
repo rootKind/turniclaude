@@ -9,6 +9,7 @@ import type { Shift, ShiftType } from '@/types/database'
 import { toggleInterest, deleteShift } from '@/lib/queries/shifts'
 import { useQueryClient } from '@tanstack/react-query'
 import { SHIFTS_QUERY_KEY } from '@/hooks/use-shifts'
+import { useCurrentUser } from '@/hooks/use-current-user'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 
@@ -26,6 +27,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const queryClient = useQueryClient()
+  const { profile } = useCurrentUser()
 
   const isOwn = shift.user_id === currentUserId
   const canAdminAct = isAdmin(loggedInUserId)
@@ -57,6 +59,15 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         if (!res.ok) throw new Error('Interest toggle failed')
       } else {
         await toggleInterest(shift.id, currentUserId, isInterested)
+        if (!isInterested) {
+          // Notify shift owner when adding interest (not removing)
+          const actorName = profile ? `${profile.cognome ?? ''} ${profile.nome ?? ''}`.trim() : 'Qualcuno'
+          fetch('/api/push/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'interest', shiftId: shift.id, actorName }),
+          }).catch(() => {})
+        }
       }
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
     } catch {
