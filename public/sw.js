@@ -1,5 +1,27 @@
 // public/sw.js
-// Handles Web Push notifications and saves them to open tabs via postMessage
+// Handles Web Push notifications and saves them to open tabs via postMessage.
+// Falls back to IndexedDB when no clients are available (iOS background).
+
+const DB_NAME = 'turni-notifications'
+const STORE_NAME = 'pending'
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1)
+    req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME, { keyPath: 'id' })
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function saveToIDB(entry) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    tx.objectStore(STORE_NAME).put(entry)
+    tx.oncomplete = resolve
+    tx.onerror = () => reject(tx.error)
+  }))
+}
 
 self.addEventListener('push', (event) => {
   if (!event.data) return
@@ -20,8 +42,14 @@ self.addEventListener('push', (event) => {
         read: false,
         type,
       }
-      // Broadcast to open tabs so they can persist to localStorage
-      clients.forEach(client => client.postMessage({ type: 'PUSH_RECEIVED', entry }))
+
+      if (clients.length > 0) {
+        // Broadcast to open tabs so they can persist to localStorage
+        clients.forEach(client => client.postMessage({ type: 'PUSH_RECEIVED', entry }))
+      } else {
+        // No open tabs (iOS background) — save to IndexedDB for next app open
+        await saveToIDB(entry).catch(() => {})
+      }
 
       return self.registration.showNotification(title, {
         body,
