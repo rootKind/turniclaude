@@ -198,7 +198,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
                   locale={it}
                   disabled={(date) => {
                     const str = format(date, 'yyyy-MM-dd')
-                    return str < todayRome() || occupiedDates.has(str)
+                    return str <= todayRome() || occupiedDates.has(str)
                   }}
                   className="rounded-xl border w-full"
                 />
