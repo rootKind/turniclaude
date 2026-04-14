@@ -7,7 +7,7 @@ export function PwaGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [ready, setReady] = useState(false)
 
-  const AUTH_BYPASS = ['/installa', '/login', '/reset-password', '/update-password', '/auth/confirm', '/confirm-email']
+  const AUTH_BYPASS = ['/installa', '/login', '/reset-password', '/update-password', '/auth/confirm', '/confirm-email', '/verify-otp']
 
   useEffect(() => {
     const isPWA =
