@@ -1,18 +1,24 @@
 'use client'
 import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isAdmin } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getMyVacationAssignment } from '@/lib/queries/vacations'
 import { VACATION_PERIOD_LABELS } from '@/lib/vacations'
 import { VacationRequestList } from '@/components/vacanze/vacation-request-list'
+import { VacationRequestDialog } from '@/components/vacanze/vacation-request-dialog'
 import type { VacationPeriod } from '@/types/database'
 
 function VacanzeContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const { profile } = useCurrentUser()
   const [viewSecondary, setViewSecondary] = useState(false)
   const [myPeriodThisYear, setMyPeriodThisYear] = useState<VacationPeriod | null>(null)
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   const adminUser = profile ? isAdmin(profile.id) : false
   const loggedInUserId = profile?.id ?? ''
@@ -30,6 +36,13 @@ function VacanzeContent() {
       })
       .catch(() => {})
   }, [loggedInUserId, currentYear])
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setDialogOpen(true)
+      router.replace('/vacanze')
+    }
+  }, [searchParams, router])
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
@@ -73,6 +86,14 @@ function VacanzeContent() {
           myPeriodThisYear={myPeriodThisYear}
         />
       )}
+
+      <VacationRequestDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        isSecondary={effectiveIsSecondary}
+        userId={loggedInUserId}
+        myPeriodThisYear={myPeriodThisYear}
+      />
     </main>
   )
 }

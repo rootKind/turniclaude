@@ -16,6 +16,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   const { unreadCount, clearAll, markAllRead } = useNotificationHistory()
   const [fabOpen, setFabOpen] = useState(false)
   const isNotifiche = pathname === '/notifiche'
+  const isVacanze   = pathname === '/vacanze'
 
   const links = [
     { href: '/dashboard',    icon: LayoutGrid, label: 'Turni' },
@@ -80,6 +81,14 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                   <Ellipsis size={22} />
                 </button>
               </div>
+            ) : isVacanze ? (
+              <Link
+                href="/vacanze?new=1"
+                className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+                aria-label="Nuova richiesta ferie"
+              >
+                <Plus size={22} />
+              </Link>
             ) : (
               <Link
                 href="/dashboard?new=1"
