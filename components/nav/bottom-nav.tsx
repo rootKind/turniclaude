@@ -111,12 +111,15 @@ function SpeedDialItem({ icon: Icon, label, variant, onClick }: {
       onClick={onClick}
       className="flex flex-col items-center gap-1"
     >
-      <span className={cn(
-        'w-10 h-10 rounded-full flex items-center justify-center shadow-md',
-        variant === 'destructive'
-          ? 'bg-destructive text-destructive-foreground'
-          : 'bg-primary text-primary-foreground'
-      )}>
+      <span
+        className={cn(
+          'w-10 h-10 rounded-full flex items-center justify-center shadow-md',
+          variant === 'destructive'
+            ? 'text-white'
+            : 'bg-primary text-primary-foreground'
+        )}
+        style={variant === 'destructive' ? { backgroundColor: 'oklch(0.704 0.191 22.216)' } : undefined}
+      >
         <Icon size={18} />
       </span>
       <span className="text-[10px] text-foreground whitespace-nowrap">

@@ -57,7 +57,11 @@ Dopo ogni feature o bug fix completato:
 git commit -m "tipo: descrizione concisa"```
 Usa Conventional Commits: `feat:`, `fix:`, `refactor:`, `style:`, `chore:`.
 Non chiedere conferma per il commit — vai avanti automaticamente.
-Dopo il commit, aggiorna la checklist nel file del piano e passa al prossimo step.
+Dopo il commit:
+1. Leggi lo short hash dell'ultimo commit con `git rev-parse --short HEAD`
+2. Aggiorna la versione mostrata nella pagina `/impostazioni` con quel valore
+   (cerca la stringa di versione nel componente della pagina impostazioni e sostituiscila)
+3. Aggiorna la checklist nel file del piano e passa al prossimo step.
 ---
 
 # Turni Sala C.C.C. — PWA
