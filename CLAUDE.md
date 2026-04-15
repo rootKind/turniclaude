@@ -59,9 +59,11 @@ Usa Conventional Commits: `feat:`, `fix:`, `refactor:`, `style:`, `chore:`.
 Non chiedere conferma per il commit — vai avanti automaticamente.
 Dopo il commit:
 1. Leggi lo short hash dell'ultimo commit con `git rev-parse --short HEAD`
-2. Aggiorna la versione mostrata nella pagina `/impostazioni` con quel valore
-   (cerca la stringa di versione nel componente della pagina impostazioni e sostituiscila)
-3. Aggiorna la checklist nel file del piano e passa al prossimo step.
+2. Leggi data e ora del commit con `git log -1 --format="%ci" HEAD` (formato: `YYYY-MM-DD HH:MM:SS +TZ`)
+3. Aggiorna la versione mostrata nella pagina `/impostazioni` con hash, data e ora nel formato:
+   `vX.YYY · <hash> — ultimo aggiornamento: DD/MM/YYYY HH:MM`
+   (usa ora locale dal campo `+TZ`, tronca ai minuti)
+4. Aggiorna la checklist nel file del piano e passa al prossimo step.
 ---
 
 # Turni Sala C.C.C. — PWA
