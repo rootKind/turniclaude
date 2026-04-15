@@ -78,14 +78,12 @@ function VacanzeContent() {
         </div>
       )}
 
-      {profile && (
-        <VacationRequestList
-          isSecondary={effectiveIsSecondary}
-          effectiveUserId={loggedInUserId}
-          loggedInUserId={loggedInUserId}
-          myPeriodThisYear={myPeriodThisYear}
-        />
-      )}
+      <VacationRequestList
+        isSecondary={effectiveIsSecondary}
+        effectiveUserId={loggedInUserId}
+        loggedInUserId={loggedInUserId}
+        myPeriodThisYear={myPeriodThisYear}
+      />
 
       <VacationRequestDialog
         open={dialogOpen}

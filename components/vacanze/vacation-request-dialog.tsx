@@ -99,7 +99,7 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, myPe
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="max-w-sm mx-4 rounded-2xl p-5">
+      <DialogContent className="max-w-sm rounded-2xl p-5">
         {/* Header */}
         <div className="mb-5">
           <h2 className="text-base font-bold mb-1">Nuova richiesta ferie</h2>
