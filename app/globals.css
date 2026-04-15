@@ -202,3 +202,10 @@
   .no-scrollbar { scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
 }
+
+/* iOS Safari only: fix calendar clipping in shift dialog */
+@supports (-webkit-touch-callout: none) {
+  .shift-dialog {
+    max-height: 85dvh !important;
+  }
+}

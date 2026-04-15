@@ -185,8 +185,8 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
 
   return (
     <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-      <DialogContent className="max-w-sm w-full p-0 overflow-hidden flex flex-col" style={{ maxHeight: '85svh' }}>
-        <div className="overflow-y-auto flex-1 px-5 pb-5 pt-5 space-y-5">
+      <DialogContent className="max-w-sm w-full p-0 overflow-hidden flex flex-col shift-dialog" style={{ maxHeight: '85svh' }}>
+        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-5 pt-5 space-y-5">
           {compatibleMatches.length > 0 ? (
             <CompatibilityPanel
               matches={compatibleMatches}
