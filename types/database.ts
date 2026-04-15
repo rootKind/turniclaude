@@ -84,6 +84,19 @@ export interface VacationRequest {
   created_at: string
 }
 
+export interface VacationRequestInterest {
+  request_id: number
+  user_id: string
+  created_at: string
+  user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
+  period_this_year: VacationPeriod   // calcolato da vacation_assignments + rotazione
+}
+
+export interface VacationRequestWithInterests extends VacationRequest {
+  user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
+  vacation_request_interests: VacationRequestInterest[]
+}
+
 // ── Costanti ─────────────────────────────────────────────────────────────────
 
 export const ADMIN_ID = 'fdd6c008-7a22-42d5-a75b-c44d9edfef12'

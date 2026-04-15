@@ -1,5 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { VacationAssignment, VacationRequest, VacationPeriod } from '@/types/database'
+import type {
+  VacationAssignment,
+  VacationRequest,
+  VacationRequestWithInterests,
+  VacationRequestInterest,
+  VacationPeriod,
+} from '@/types/database'
 import { getVacationPeriodForYear } from '@/lib/vacations'
 
 // ── Read ─────────────────────────────────────────────────────────────────────
@@ -52,6 +58,57 @@ export async function getVacationRequests(
   return (data ?? []) as VacationRequest[]
 }
 
+/**
+ * Fetch tutte le richieste ferie di una categoria (DCO o Noni)
+ * per l'anno corrente, con utente richiedente e lista interessati
+ * (incluso il loro vacation_assignment per calcolare il periodo dell'anno).
+ */
+export async function getVacationRequestsWithInterests(
+  supabase: SupabaseClient,
+  isSecondary: boolean,
+  year: number = new Date().getFullYear(),
+): Promise<VacationRequestWithInterests[]> {
+  const { data, error } = await supabase
+    .from('vacation_requests')
+    .select(`
+      *,
+      user:users!vacation_requests_user_id_fkey(id, nome, cognome, is_secondary),
+      vacation_request_interests(
+        request_id,
+        user_id,
+        created_at,
+        user:users!vacation_request_interests_user_id_fkey(id, nome, cognome, is_secondary),
+        vacation_assignment:vacation_assignments!vacation_request_interests_user_id_fkey(base_period)
+      )
+    `)
+    .eq('year', year)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+
+  // Filtra per categoria del richiedente e calcola period_this_year per ogni interessato
+  return ((data ?? []) as any[])
+    .filter((r: any) => r.user?.is_secondary === isSecondary)
+    .map((r: any): VacationRequestWithInterests => ({
+      id:             r.id,
+      user_id:        r.user_id,
+      offered_period: r.offered_period,
+      target_periods: r.target_periods,
+      year:           r.year,
+      created_at:     r.created_at,
+      user:           r.user,
+      vacation_request_interests: (r.vacation_request_interests ?? []).map((i: any): VacationRequestInterest => ({
+        request_id:      i.request_id,
+        user_id:         i.user_id,
+        created_at:      i.created_at,
+        user:            i.user,
+        period_this_year: i.vacation_assignment?.base_period != null
+          ? getVacationPeriodForYear(i.vacation_assignment.base_period as VacationPeriod, year)
+          : (1 as VacationPeriod),
+      })),
+    }))
+}
+
 // ── Write ────────────────────────────────────────────────────────────────────
 
 export interface CreateVacationRequestInput {
@@ -78,4 +135,25 @@ export async function createVacationRequest(
 
   if (error) throw error
   return data as VacationRequest
+}
+
+export async function toggleVacationInterest(
+  supabase: SupabaseClient,
+  requestId: number,
+  userId: string,
+  isInterested: boolean,
+): Promise<void> {
+  if (isInterested) {
+    const { error } = await supabase
+      .from('vacation_request_interests')
+      .delete()
+      .eq('request_id', requestId)
+      .eq('user_id', userId)
+    if (error) throw error
+  } else {
+    const { error } = await supabase
+      .from('vacation_request_interests')
+      .insert({ request_id: requestId, user_id: userId })
+    if (error) throw error
+  }
 }
