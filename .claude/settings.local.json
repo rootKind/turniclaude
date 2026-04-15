@@ -1,5 +1,4 @@
 {
-
   "permissions": {
     "allow": [
       "Bash(git add:*)",
@@ -30,7 +29,10 @@
       "Bash(claude plugin:*)",
       "mcp__supabase__list_projects",
       "mcp__supabase__list_tables",
-      "mcp__supabase__apply_migration"
+      "mcp__supabase__apply_migration",
+      "Bash(python3 *)",
+      "Bash(python *)",
+      "mcp__supabase__execute_sql"
     ]
   }
 }
