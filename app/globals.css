@@ -211,3 +211,7 @@
    Force block display so all week rows stack correctly without clipping. */
 .ios-dialog-fix .rdp-month_grid,
 .ios-dialog-fix .rdp-weeks { display: block !important; }
+/* iOS Safari ignores display:flex on <tr> — weekday headers collapse into one string.
+   Force flex on the weekdays row and block on each <th> so flex-1 works. */
+.ios-dialog-fix .rdp-weekdays { display: flex !important; }
+.ios-dialog-fix .rdp-weekday { display: block !important; flex: 1; text-align: center; }

@@ -32,7 +32,12 @@
       "mcp__supabase__apply_migration",
       "Bash(python3 *)",
       "Bash(python *)",
-      "mcp__supabase__execute_sql"
+      "mcp__supabase__execute_sql",
+      "Bash(xargs ls *)",
+      "Bash(grep -r \"vacation\" /c/Users/david/Downloads/pwa-v2/supabase/migrations/*.sql)",
+      "Bash(grep *)",
+      "mcp__supabase__deploy_edge_function",
+      "mcp__supabase__get_publishable_keys"
     ]
   }
 }
