@@ -65,6 +65,27 @@ export interface NotificationEntry {
   type?: 'system' | 'interest' | 'new_shift'
 }
 
+// ── Vacanze ─────────────────────────────────────────────────────────────────
+
+export type VacationPeriod = 1 | 2 | 3 | 4 | 5 | 6
+
+export interface VacationAssignment {
+  user_id: string
+  base_period: VacationPeriod
+  created_at: string
+}
+
+export interface VacationRequest {
+  id: number
+  user_id: string
+  offered_period: VacationPeriod
+  target_periods: VacationPeriod[]   // 1–5 items
+  year: number
+  created_at: string
+}
+
+// ── Costanti ─────────────────────────────────────────────────────────────────
+
 export const ADMIN_ID = 'fdd6c008-7a22-42d5-a75b-c44d9edfef12'
 export const TURNISTA_ID = '45406410-cf22-4f79-b493-b6ee766fd3d8'
 
