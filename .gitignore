@@ -45,6 +45,7 @@ next-env.d.ts
 
 # superpowers brainstorm sessions
 .superpowers/
+docs/
 
 # graphify generated output
 graphify-out/
@@ -52,3 +53,5 @@ graphify-out/
 # temp/local files
 ferie.pdf
 supabase/.temp/
+android.png
+iphone.jpg

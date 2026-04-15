@@ -204,8 +204,6 @@
 }
 
 /* iOS Safari only: fix calendar clipping in shift dialog */
-@supports (-webkit-touch-callout: none) {
-  .shift-dialog {
-    max-height: 85dvh !important;
-  }
-}
+.ios-dialog-fix { overflow: visible !important; }
+.ios-dialog-fix .scroll-area { -webkit-overflow-scrolling: touch; }
+.ios-dialog-fix .rdp { flex-shrink: 0; }

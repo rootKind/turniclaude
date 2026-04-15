@@ -29,6 +29,10 @@ interface Props {
   impersonatingUserId?: string
 }
 
+const isIOS =
+  typeof window !== 'undefined' &&
+  /iPad|iPhone|iPod/.test(navigator.userAgent)
+
 export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [offeredShift, setOfferedShift] = useState<ShiftType | null>(null)
@@ -185,8 +189,14 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
 
   return (
     <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-      <DialogContent className="max-w-sm w-full p-0 overflow-hidden flex flex-col shift-dialog" style={{ maxHeight: '85svh' }}>
-        <div className="overflow-y-auto flex-1 min-h-0 px-5 pb-5 pt-5 space-y-5">
+      <DialogContent
+        className={cn(
+          'max-w-sm w-full p-0 flex flex-col shift-dialog',
+          isIOS && 'ios-dialog-fix'
+        )}
+        style={{ maxHeight: isIOS ? '85dvh' : '85svh' }}
+      >
+        <div className="scroll-area overflow-y-auto flex-1 min-h-0 px-5 pb-5 pt-5 space-y-5">
           {compatibleMatches.length > 0 ? (
             <CompatibilityPanel
               matches={compatibleMatches}
@@ -199,7 +209,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
               {/* Date picker */}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Data</p>
-                <div className="relative rounded-xl">
+                <div className="relative rounded-xl flex-shrink-0">
                   <Calendar
                     mode="single"
                     selected={selectedDate}
