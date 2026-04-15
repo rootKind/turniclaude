@@ -77,8 +77,10 @@ export async function getVacationRequestsWithInterests(
         request_id,
         user_id,
         created_at,
-        user:users!vacation_request_interests_user_id_fkey(id, nome, cognome, is_secondary),
-        vacation_assignment:vacation_assignments!vacation_request_interests_user_id_fkey(base_period)
+        user:users!vacation_request_interests_user_id_fkey(
+          id, nome, cognome, is_secondary,
+          vacation_assignments(base_period)
+        )
       )
     `)
     .eq('year', year)
@@ -102,8 +104,8 @@ export async function getVacationRequestsWithInterests(
         user_id:         i.user_id,
         created_at:      i.created_at,
         user:            i.user,
-        period_this_year: i.vacation_assignment?.base_period != null
-          ? getVacationPeriodForYear(i.vacation_assignment.base_period as VacationPeriod, year)
+        period_this_year: i.user?.vacation_assignments?.[0]?.base_period != null
+          ? getVacationPeriodForYear(i.user.vacation_assignments[0].base_period as VacationPeriod, year)
           : (1 as VacationPeriod),
       })),
     }))
