@@ -12,6 +12,8 @@ export interface UserProfile {
   notification_enabled: boolean | null
   notify_on_interest: boolean | null
   notify_on_new_shift: boolean | null
+  notify_on_vacation_interest: boolean | null
+  notify_on_new_vacation: boolean | null
   created_at: string
   updated_at: string
 }
@@ -62,7 +64,7 @@ export interface NotificationEntry {
   timestamp: number                 // Date.now()
   shiftId?: number
   read: boolean
-  type?: 'system' | 'interest' | 'new_shift'
+  type?: 'system' | 'interest' | 'new_shift' | 'vacation_interest' | 'new_vacation'
 }
 
 // ── Vacanze ─────────────────────────────────────────────────────────────────

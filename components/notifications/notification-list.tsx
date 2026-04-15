@@ -1,7 +1,7 @@
 'use client'
 import { useRef, useState } from 'react'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
-import { BellOff, Megaphone, Heart, CalendarPlus, Check, Trash2 } from 'lucide-react'
+import { BellOff, Megaphone, Heart, CalendarPlus, Check, Trash2, Umbrella } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { NotificationEntry } from '@/types/database'
@@ -57,15 +57,19 @@ export function NotificationList() {
   }
 
   const groups = {
-    system: history.filter(e => !e.type || e.type === 'system'),
-    interest: history.filter(e => e.type === 'interest'),
-    new_shift: history.filter(e => e.type === 'new_shift'),
+    system:            history.filter(e => !e.type || e.type === 'system'),
+    interest:          history.filter(e => e.type === 'interest'),
+    new_shift:         history.filter(e => e.type === 'new_shift'),
+    vacation_interest: history.filter(e => e.type === 'vacation_interest'),
+    new_vacation:      history.filter(e => e.type === 'new_vacation'),
   }
 
   const sections: Section[] = [
-    { key: 'system', label: 'Notifiche di sistema', Icon: Megaphone, entries: groups.system },
-    { key: 'interest', label: 'Interessi ai tuoi turni', Icon: Heart, entries: groups.interest },
-    { key: 'new_shift', label: 'Nuove richieste', Icon: CalendarPlus, entries: groups.new_shift },
+    { key: 'system',            label: 'Notifiche di sistema',              Icon: Megaphone,  entries: groups.system },
+    { key: 'interest',          label: 'Interessi ai tuoi turni',           Icon: Heart,      entries: groups.interest },
+    { key: 'new_shift',         label: 'Nuove richieste turni',             Icon: CalendarPlus, entries: groups.new_shift },
+    { key: 'vacation_interest', label: 'Interessi al tuo scambio ferie',    Icon: Heart,      entries: groups.vacation_interest },
+    { key: 'new_vacation',      label: 'Nuovi scambi ferie',                Icon: Umbrella,   entries: groups.new_vacation },
   ].filter(s => s.entries.length > 0)
 
   return (

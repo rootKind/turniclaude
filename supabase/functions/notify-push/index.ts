@@ -5,7 +5,13 @@
 // 2. Database → Webhooks → Create webhook on table "shifts" (INSERT event)
 //    URL: {SUPABASE_URL}/functions/v1/notify-push
 //    Headers: Authorization: Bearer {SUPABASE_ANON_KEY}
-// 3. Edge Functions → notify-push → Secrets:
+// 3. Database → Webhooks → Create webhook on table "vacation_request_interests" (INSERT event)
+//    URL: {SUPABASE_URL}/functions/v1/notify-push
+//    Headers: Authorization: Bearer {SUPABASE_ANON_KEY}
+// 4. Database → Webhooks → Create webhook on table "vacation_requests" (INSERT event)
+//    URL: {SUPABASE_URL}/functions/v1/notify-push
+//    Headers: Authorization: Bearer {SUPABASE_ANON_KEY}
+// 5. Edge Functions → notify-push → Secrets:
 //    NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -96,6 +102,10 @@ serve(async (req) => {
       await handleInterestInsert(supabase, payload.record)
     } else if (payload.table === 'shifts') {
       await handleShiftInsert(supabase, payload.record)
+    } else if (payload.table === 'vacation_request_interests') {
+      await handleVacationInterestInsert(supabase, payload.record)
+    } else if (payload.table === 'vacation_requests') {
+      await handleVacationRequestInsert(supabase, payload.record)
     } else {
       return new Response(JSON.stringify({ skipped: true, reason: 'unknown table' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -253,6 +263,131 @@ async function handleShiftInsert(
         notifPayload,
         recipient.id
       )
+    })
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Handler: someone marked interest in a vacation swap → notify the request owner
+// ---------------------------------------------------------------------------
+async function handleVacationInterestInsert(
+  supabase: ReturnType<typeof createClient>,
+  record: Record<string, unknown>
+) {
+  const requestId    = record['request_id'] as number
+  const interestedId = record['user_id'] as string
+
+  // 1. Find vacation request owner and offered/target periods
+  const { data: req, error: reqErr } = await supabase
+    .from('vacation_requests')
+    .select('user_id, offered_period, target_periods')
+    .eq('id', requestId)
+    .single()
+
+  if (reqErr || !req) { console.error('Vacation request not found', requestId, reqErr); return }
+
+  const ownerId = req.user_id as string
+
+  // 2. Check owner's notification preferences
+  const { data: owner, error: ownerErr } = await supabase
+    .from('users')
+    .select('notification_enabled, notify_on_vacation_interest')
+    .eq('id', ownerId)
+    .single()
+
+  if (ownerErr || !owner) { console.error('Owner not found', ownerId, ownerErr); return }
+  if (!owner.notification_enabled || !owner.notify_on_vacation_interest) return
+
+  // 3. Get interested user's name
+  const { data: intUser, error: iuErr } = await supabase
+    .from('users')
+    .select('nome, cognome')
+    .eq('id', interestedId)
+    .single()
+
+  if (iuErr || !intUser) { console.error('Interested user not found', interestedId, iuErr); return }
+
+  // 4. Get owner's push subscriptions
+  const { data: subs, error: subsErr } = await supabase
+    .from('push_subscriptions')
+    .select('id, endpoint, subscription')
+    .eq('user_id', ownerId)
+
+  if (subsErr || !subs?.length) return
+
+  const periodLabels: Record<number, string> = {
+    1: '16–30 Giu', 2: '01–15 Lug', 3: '16–31 Lug',
+    4: '01–15 Ago', 5: '16–31 Ago', 6: '01–15 Set',
+  }
+  const offered = periodLabels[req.offered_period as number] ?? `Periodo ${req.offered_period}`
+  const targets = (req.target_periods as number[]).map(p => periodLabels[p] ?? `P${p}`).join(', ')
+
+  const notifPayload = JSON.stringify({
+    title: 'Qualcuno è interessato al tuo scambio ferie',
+    body: `${intUser.nome} ${intUser.cognome} vuole scambiare ${offered} con ${targets}`,
+    type: 'vacation_interest',
+    requestId,
+  })
+
+  await sendToSubscriptions(supabase, subs as PushSubscriptionRecord[], notifPayload, ownerId)
+}
+
+// ---------------------------------------------------------------------------
+// Handler: a new vacation swap was posted → notify all users in same category
+// ---------------------------------------------------------------------------
+async function handleVacationRequestInsert(
+  supabase: ReturnType<typeof createClient>,
+  record: Record<string, unknown>
+) {
+  const requestId  = record['id'] as number
+  const posterUserId = record['user_id'] as string
+  const offeredPeriod = record['offered_period'] as number
+  const targetPeriods = record['target_periods'] as number[]
+
+  // 1. Get poster's profile
+  const { data: poster, error: posterErr } = await supabase
+    .from('users')
+    .select('nome, cognome, is_secondary')
+    .eq('id', posterUserId)
+    .single()
+
+  if (posterErr || !poster) { console.error('Poster not found', posterUserId, posterErr); return }
+
+  // 2. Find all users in same category with new-vacation notifications enabled
+  const { data: recipients, error: recipErr } = await supabase
+    .from('users')
+    .select('id')
+    .eq('is_secondary', poster.is_secondary)
+    .eq('notification_enabled', true)
+    .eq('notify_on_new_vacation', true)
+    .neq('id', posterUserId)
+
+  if (recipErr) { console.error('Error fetching recipients', recipErr); return }
+  if (!recipients?.length) return
+
+  const periodLabels: Record<number, string> = {
+    1: '16–30 Giu', 2: '01–15 Lug', 3: '16–31 Lug',
+    4: '01–15 Ago', 5: '16–31 Ago', 6: '01–15 Set',
+  }
+  const offered = periodLabels[offeredPeriod] ?? `Periodo ${offeredPeriod}`
+  const targets = (targetPeriods ?? []).map(p => periodLabels[p] ?? `P${p}`).join(', ')
+
+  const notifPayload = JSON.stringify({
+    title: 'Nuovo scambio ferie disponibile',
+    body: `${poster.nome} ${poster.cognome} offre ${offered} in cambio di ${targets}`,
+    type: 'new_vacation',
+    requestId,
+  })
+
+  await Promise.allSettled(
+    recipients.map(async (recipient: { id: string }) => {
+      const { data: subs, error: subsErr } = await supabase
+        .from('push_subscriptions')
+        .select('id, endpoint, subscription')
+        .eq('user_id', recipient.id)
+
+      if (subsErr || !subs?.length) return
+      await sendToSubscriptions(supabase, subs as PushSubscriptionRecord[], notifPayload, recipient.id)
     })
   )
 }

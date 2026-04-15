@@ -15,7 +15,11 @@ export async function fetchCurrentUserProfile(): Promise<UserProfile | null> {
 }
 
 export async function updateUserProfile(updates: Partial<Pick<UserProfile,
-  'notification_enabled' | 'notify_on_interest' | 'notify_on_new_shift'
+  | 'notification_enabled'
+  | 'notify_on_interest'
+  | 'notify_on_new_shift'
+  | 'notify_on_vacation_interest'
+  | 'notify_on_new_vacation'
 >>) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()

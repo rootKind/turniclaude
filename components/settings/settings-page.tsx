@@ -26,7 +26,7 @@ export function SettingsPage() {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
 
-  async function handleToggle(field: 'notify_on_interest' | 'notify_on_new_shift' | 'notification_enabled', value: boolean) {
+  async function handleToggle(field: 'notify_on_interest' | 'notify_on_new_shift' | 'notify_on_vacation_interest' | 'notify_on_new_vacation' | 'notification_enabled', value: boolean) {
     try {
       await updateUserProfile({ [field]: value })
       queryClient.invalidateQueries({ queryKey: ['current-user'] })
@@ -131,6 +131,26 @@ export function SettingsPage() {
                 id="notif-new"
                 checked={profile?.notify_on_new_shift ?? false}
                 onCheckedChange={v => handleToggle('notify_on_new_shift', v)}
+                disabled={!profile?.notification_enabled}
+              />
+            </div>
+
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-1">Ferie</p>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="notif-vacation-interest">Qualcuno è interessato al mio scambio ferie</Label>
+              <Switch
+                id="notif-vacation-interest"
+                checked={profile?.notify_on_vacation_interest ?? true}
+                onCheckedChange={v => handleToggle('notify_on_vacation_interest', v)}
+                disabled={!profile?.notification_enabled}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="notif-vacation-new">Nuovo scambio ferie disponibile</Label>
+              <Switch
+                id="notif-vacation-new"
+                checked={profile?.notify_on_new_vacation ?? false}
+                onCheckedChange={v => handleToggle('notify_on_new_vacation', v)}
                 disabled={!profile?.notification_enabled}
               />
             </div>
