@@ -1,4 +1,5 @@
 {
+
   "permissions": {
     "allow": [
       "Bash(git add:*)",
@@ -26,7 +27,10 @@
       "Bash(grep -i \"worktree.*director\" CLAUDE.md)",
       "Bash(echo \"Exit: $?\")",
       "Bash(gh auth:*)",
-      "Bash(claude plugin:*)"
+      "Bash(claude plugin:*)",
+      "mcp__supabase__list_projects",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__apply_migration"
     ]
   }
 }
