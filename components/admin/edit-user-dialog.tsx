@@ -12,6 +12,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
+import { VACATION_PERIOD_LABELS } from '@/lib/vacations'
+import type { VacationPeriod } from '@/types/database'
+
+const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
 
 const formSchema = z.object({
   userId: z.string().min(1, 'Seleziona un utente'),
@@ -33,6 +38,7 @@ export function EditUserDialog({ open, onClose }: Props) {
   const [users, setUsers] = useState<UserOption[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [basePeriod, setBasePeriod] = useState<VacationPeriod | null>(null)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -40,19 +46,27 @@ export function EditUserDialog({ open, onClose }: Props) {
   })
 
   useEffect(() => {
-    if (!open) { setConfirmDelete(false); form.reset(); return }
+    if (!open) { setConfirmDelete(false); setBasePeriod(null); form.reset(); return }
     const supabase = createClient()
     supabase.from('users').select('id, nome, cognome').order('cognome').then(({ data }) => {
       setUsers(data ?? [])
     })
   }, [open, form])
 
-  function onUserSelect(userId: string) {
+  async function onUserSelect(userId: string) {
     const u = users.find(u => u.id === userId)
     if (u) {
       form.setValue('nome', u.nome ?? '')
       form.setValue('cognome', u.cognome ?? '')
     }
+    setBasePeriod(null)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('vacation_assignments')
+      .select('base_period')
+      .eq('user_id', userId)
+      .maybeSingle()
+    setBasePeriod(data?.base_period ?? null)
   }
 
   async function onSubmit(values: FormData) {
@@ -69,6 +83,16 @@ export function EditUserDialog({ open, onClose }: Props) {
         }),
       })
       if (!res.ok) throw new Error()
+
+      // Upsert vacation_assignment se un periodo è selezionato
+      if (basePeriod !== null) {
+        const supabase = createClient()
+        const { error } = await supabase
+          .from('vacation_assignments')
+          .upsert({ user_id: values.userId, base_period: basePeriod }, { onConflict: 'user_id' })
+        if (error) throw error
+      }
+
       toast.success('Utente aggiornato')
       onClose()
     } catch {
@@ -158,6 +182,35 @@ export function EditUserDialog({ open, onClose }: Props) {
                 <FormMessage />
               </FormItem>
             )} />
+
+            {/* Periodo ferie base */}
+            {form.watch('userId') && (
+              <div>
+                <p className="text-sm font-medium mb-2">Periodo ferie base (2026)</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {ALL_PERIODS.map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setBasePeriod(prev => prev === p ? null : p)}
+                      className={cn(
+                        'text-left px-2.5 py-2 rounded-lg border text-[11px] font-medium transition-colors leading-snug',
+                        basePeriod === p
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'border-border text-foreground hover:bg-muted/60'
+                      )}
+                    >
+                      <span className="opacity-50 mr-1">{p}</span>
+                      {VACATION_PERIOD_LABELS[p].label}
+                    </button>
+                  ))}
+                </div>
+                {basePeriod === null && (
+                  <p className="text-[11px] text-muted-foreground mt-1">Nessun periodo assegnato</p>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-2">
               {confirmDelete ? (
                 <>
