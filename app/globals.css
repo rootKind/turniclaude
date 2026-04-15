@@ -207,3 +207,7 @@
 .ios-dialog-fix { overflow: visible !important; }
 .ios-dialog-fix .scroll-area { -webkit-overflow-scrolling: touch; }
 .ios-dialog-fix .rdp { flex-shrink: 0; }
+/* iOS Safari table height bug: <table> with flex <tr> rows reports wrong height.
+   Force block display so all week rows stack correctly without clipping. */
+.ios-dialog-fix .rdp-month_grid,
+.ios-dialog-fix .rdp-weeks { display: block !important; }
