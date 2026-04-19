@@ -50,17 +50,13 @@ function VacanzeContent() {
         <h1 className="text-lg font-bold">Ferie Sala C.C.C.</h1>
         {profile && (
           <div className="flex items-center gap-2">
-            {adminUser ? (
+            {adminUser && (
               <button
                 onClick={() => setViewSecondary(v => !v)}
                 className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
               >
                 {viewSecondary ? 'Noni' : 'DCO'}
               </button>
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                {profile.is_secondary ? 'Noni' : 'DCO'}
-              </span>
             )}
           </div>
         )}

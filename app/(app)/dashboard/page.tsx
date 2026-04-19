@@ -115,18 +115,14 @@ function DashboardContent() {
         {profile && (
           <div className="flex items-center gap-2">
             {/* Category toggle — hidden when impersonating (category is from impersonated user) */}
-            {adminUser && !isImpersonating ? (
+            {adminUser && !isImpersonating && (
               <button
                 onClick={() => setViewSecondary(v => !v)}
                 className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
               >
                 {viewSecondary ? 'Noni' : 'DCO'}
               </button>
-            ) : !isImpersonating ? (
-              <span className="text-xs text-muted-foreground">
-                {profile.is_secondary ? 'Noni' : 'DCO'}
-              </span>
-            ) : null}
+            )}
 
             {/* User switcher — admin only */}
             {adminUser && allUsers.length > 0 && (

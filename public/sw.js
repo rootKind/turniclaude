@@ -28,7 +28,7 @@ self.addEventListener('push', (event) => {
   let payload
   try { payload = event.data.json() } catch { payload = { title: 'Turni', body: event.data.text() } }
 
-  const { title = 'Turni', body = '', shiftId, url = '/dashboard', type = 'system' } = payload
+  const { title = 'Turni', body = '', shiftId, url, type = 'system' } = payload
 
   event.waitUntil(
     (async () => {
@@ -52,7 +52,13 @@ self.addEventListener('push', (event) => {
       return self.registration.showNotification(title, {
         body,
         icon: '/icons/icon-192.png',
-        data: { url: shiftId ? `/dashboard?shift=${shiftId}` : url },
+        data: {
+          url: shiftId
+            ? `/dashboard?shift=${shiftId}`
+            : (type === 'vacation_interest' || type === 'new_vacation')
+              ? '/vacanze'
+              : (url ?? '/dashboard'),
+        },
       })
     })()
   )
