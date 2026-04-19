@@ -1,71 +1,61 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { createVacationRequest } from '@/lib/queries/vacations'
+import { createVacationRequest, getVacationRequests } from '@/lib/queries/vacations'
 import { VACATION_REQUESTS_QUERY_KEY } from '@/hooks/use-vacation-requests'
-import { VACATION_PERIOD_LABELS, ROTATION_SEQ } from '@/lib/vacations'
+import { VACATION_PERIOD_LABELS, getVacationPeriodForYear } from '@/lib/vacations'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { VacationPeriod } from '@/types/database'
 
 const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
+const MIN_YEAR = 2026
+const MAX_YEAR = 2031
 
 interface Props {
   open: boolean
   onClose: () => void
   isSecondary: boolean
   userId: string
-  myPeriodThisYear: VacationPeriod | null   // periodo da non mostrare tra i target
+  basePeriod: VacationPeriod | null
+  defaultYear: number
 }
 
-export function VacationRequestDialog({ open, onClose, isSecondary, userId, myPeriodThisYear }: Props) {
-  // I 5 periodi selezionabili (escludi quello già assegnato)
-  const selectablePeriods = ALL_PERIODS.filter(p => p !== myPeriodThisYear)
-
+export function VacationRequestDialog({ open, onClose, isSecondary, userId, basePeriod, defaultYear }: Props) {
+  const [year, setYear] = useState(defaultYear)
   const [selected, setSelected] = useState<VacationPeriod[]>([])
   const [qualsiasi, setQualsiasi] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const queryClient = useQueryClient()
 
-  // Reset all'apertura
+  const myPeriodThisYear = basePeriod != null ? getVacationPeriodForYear(basePeriod, year) : null
+  const selectablePeriods = ALL_PERIODS.filter(p => p !== myPeriodThisYear)
+
   useEffect(() => {
-    if (open) { setSelected([]); setQualsiasi(false) }
-  }, [open])
+    if (open) { setYear(defaultYear); setSelected([]); setQualsiasi(false) }
+  }, [open, defaultYear])
+
+  // Reset selezione quando cambia anno (offeredPeriod potrebbe cambiare)
+  useEffect(() => {
+    setSelected([])
+    setQualsiasi(false)
+  }, [year])
 
   function togglePeriod(p: VacationPeriod) {
-    if (qualsiasi) {
-      // Qualsiasi era attivo: deselezionalo e seleziona solo questo
-      setQualsiasi(false)
-      setSelected([p])
-      return
-    }
-
+    if (qualsiasi) { setQualsiasi(false); setSelected([p]); return }
     const isSelected = selected.includes(p)
-    if (isSelected) {
-      setSelected(prev => prev.filter(x => x !== p))
-      return
-    }
-
+    if (isSelected) { setSelected(prev => prev.filter(x => x !== p)); return }
     const next = [...selected, p]
-    // Se raggiungiamo tutti e 5 i periodi selezionabili → qualsiasi
-    if (next.length === selectablePeriods.length) {
-      setSelected([])
-      setQualsiasi(true)
-    } else {
-      setSelected(next)
-    }
+    if (next.length === selectablePeriods.length) { setSelected([]); setQualsiasi(true) }
+    else { setSelected(next) }
   }
 
   function toggleQualsiasi() {
-    if (qualsiasi) {
-      setQualsiasi(false)
-    } else {
-      setSelected([])
-      setQualsiasi(true)
-    }
+    if (qualsiasi) { setQualsiasi(false) } else { setSelected([]); setQualsiasi(true) }
   }
 
   async function handleSubmit() {
@@ -76,13 +66,18 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, myPe
     setIsSubmitting(true)
     try {
       const supabase = createClient()
+      const existing = await getVacationRequests(supabase, userId, year)
+      if (existing.length > 0) {
+        toast.error(`Hai già una richiesta per il ${year}`)
+        return
+      }
       await createVacationRequest(supabase, {
         userId,
         offeredPeriod: myPeriodThisYear,
         targetPeriods,
-        year: new Date().getFullYear(),
+        year,
       })
-      queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
       toast.success('Richiesta inviata')
       onClose()
     } catch {
@@ -92,20 +87,39 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, myPe
     }
   }
 
-  if (!myPeriodThisYear) return null
+  if (!basePeriod) return null
 
-  const offeredLabel = VACATION_PERIOD_LABELS[myPeriodThisYear].label
+  const offeredLabel = myPeriodThisYear ? VACATION_PERIOD_LABELS[myPeriodThisYear].label : '—'
   const canSubmit = qualsiasi || selected.length > 0
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="max-w-sm rounded-2xl p-5">
         {/* Header */}
-        <div className="mb-5">
+        <div className="mb-4">
           <h2 className="text-base font-bold mb-1">Nuova richiesta ferie</h2>
           <p className="text-[12px] text-muted-foreground">
             Scegli i periodi che accetteresti in cambio
           </p>
+        </div>
+
+        {/* Anno */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setYear(y => Math.max(MIN_YEAR, y - 1))}
+            disabled={year <= MIN_YEAR}
+            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <span className="text-sm font-semibold">{year}</span>
+          <button
+            onClick={() => setYear(y => Math.min(MAX_YEAR, y + 1))}
+            disabled={year >= MAX_YEAR}
+            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
 
         {/* Periodo offerto */}
@@ -144,7 +158,6 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, myPe
               )
             })}
 
-            {/* Qualsiasi */}
             <button
               onClick={toggleQualsiasi}
               className={cn(
@@ -158,7 +171,6 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, myPe
             </button>
           </div>
 
-          {/* Hint contatore */}
           {!qualsiasi && selected.length > 0 && (
             <p className="text-[11px] text-muted-foreground mt-2 text-right">
               {selected.length} selezionati

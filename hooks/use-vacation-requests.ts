@@ -4,10 +4,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getVacationRequestsWithInterests } from '@/lib/queries/vacations'
 
-export const VACATION_REQUESTS_QUERY_KEY = (isSecondary: boolean) =>
-  ['vacation_requests', isSecondary]
+export const VACATION_REQUESTS_QUERY_KEY = (isSecondary: boolean, year: number) =>
+  ['vacation_requests', isSecondary, year]
 
-export function useVacationRequests(isSecondary: boolean) {
+export function useVacationRequests(isSecondary: boolean, year: number) {
   const queryClient = useQueryClient()
   const channelId = useRef(
     `vacanze-realtime-${isSecondary}-${Math.random().toString(36).slice(2)}`
@@ -18,21 +18,21 @@ export function useVacationRequests(isSecondary: boolean) {
     const channel = supabase
       .channel(channelId.current)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vacation_requests' }, () => {
-        queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary) })
+        queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vacation_request_interests' }, () => {
-        queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary) })
+        queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [isSecondary, queryClient])
+  }, [isSecondary, year, queryClient])
 
   return useQuery({
-    queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary),
+    queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year),
     queryFn: () => {
       const supabase = createClient()
-      return getVacationRequestsWithInterests(supabase, isSecondary)
+      return getVacationRequestsWithInterests(supabase, isSecondary, year)
     },
     staleTime: 15_000,
   })

@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { userId, nome, cognome, password } = body as Record<string, unknown>
+  const { userId, nome, cognome, password, isSecondary } = body as Record<string, unknown>
   if (typeof userId !== 'string' || !userId) {
     return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
   }
@@ -25,10 +25,11 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  if (typeof nome === 'string' || typeof cognome === 'string') {
-    const updates: Record<string, string> = {}
+  if (typeof nome === 'string' || typeof cognome === 'string' || typeof isSecondary === 'boolean') {
+    const updates: Record<string, unknown> = {}
     if (typeof nome === 'string') updates.nome = nome
     if (typeof cognome === 'string') updates.cognome = cognome
+    if (typeof isSecondary === 'boolean') updates.is_secondary = isSecondary
     const { error } = await adminSupabase.from('users').update(updates).eq('id', userId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }

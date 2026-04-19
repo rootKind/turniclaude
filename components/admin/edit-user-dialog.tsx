@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { VACATION_PERIOD_LABELS } from '@/lib/vacations'
 import type { VacationPeriod } from '@/types/database'
@@ -26,7 +28,7 @@ const formSchema = z.object({
 })
 type FormData = z.infer<typeof formSchema>
 
-type UserOption = { id: string; nome: string | null; cognome: string | null }
+type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean }
 
 interface Props {
   open: boolean
@@ -39,6 +41,7 @@ export function EditUserDialog({ open, onClose }: Props) {
   const [isLoading, setIsLoading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [basePeriod, setBasePeriod] = useState<VacationPeriod | null>(null)
+  const [isSecondary, setIsSecondary] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -46,9 +49,9 @@ export function EditUserDialog({ open, onClose }: Props) {
   })
 
   useEffect(() => {
-    if (!open) { setConfirmDelete(false); setBasePeriod(null); form.reset(); return }
+    if (!open) { setConfirmDelete(false); setBasePeriod(null); setIsSecondary(false); form.reset(); return }
     const supabase = createClient()
-    supabase.from('users').select('id, nome, cognome').order('cognome').then(({ data }) => {
+    supabase.from('users').select('id, nome, cognome, is_secondary').order('cognome').then(({ data }) => {
       setUsers(data ?? [])
     })
   }, [open, form])
@@ -58,6 +61,7 @@ export function EditUserDialog({ open, onClose }: Props) {
     if (u) {
       form.setValue('nome', u.nome ?? '')
       form.setValue('cognome', u.cognome ?? '')
+      setIsSecondary(u.is_secondary)
     }
     setBasePeriod(null)
     const supabase = createClient()
@@ -79,6 +83,7 @@ export function EditUserDialog({ open, onClose }: Props) {
           userId: values.userId,
           nome: values.nome,
           cognome: values.cognome,
+          isSecondary,
           ...(values.password ? { password: values.password } : {}),
         }),
       })
@@ -182,6 +187,21 @@ export function EditUserDialog({ open, onClose }: Props) {
                 <FormMessage />
               </FormItem>
             )} />
+
+            {/* Categoria utente */}
+            {form.watch('userId') && (
+              <div className="flex items-center justify-between py-1">
+                <div>
+                  <Label className="text-sm font-medium">Categoria</Label>
+                  <p className="text-[11px] text-muted-foreground">{isSecondary ? 'Noni' : 'DCO'}</p>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className={!isSecondary ? 'font-semibold text-foreground' : ''}>DCO</span>
+                  <Switch checked={isSecondary} onCheckedChange={setIsSecondary} />
+                  <span className={isSecondary ? 'font-semibold text-foreground' : ''}>Noni</span>
+                </div>
+              </div>
+            )}
 
             {/* Periodo ferie base */}
             {form.watch('userId') && (

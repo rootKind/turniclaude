@@ -24,6 +24,7 @@ interface Props {
   myPeriodThisYear: VacationPeriod | null
   isSameDateAsPrevious?: boolean
   dateIndex?: number
+  year: number
 }
 
 function formatRequestDate(createdAt: string): { day: string; month: string } {
@@ -51,6 +52,7 @@ export function VacationRequestItem({
   myPeriodThisYear,
   isSameDateAsPrevious = false,
   dateIndex = 0,
+  year,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -82,7 +84,7 @@ export function VacationRequestItem({
     try {
       const supabase = createClient()
       await toggleVacationInterest(supabase, request.id, currentUserId, isInterested)
-      queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
     } catch {
       toast.error('Errore')
     }
@@ -99,7 +101,7 @@ export function VacationRequestItem({
         .delete()
         .eq('id', request.id)
       if (error) throw error
-      queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
       toast.success('Richiesta eliminata')
     } catch {
       toast.error('Errore eliminazione')
