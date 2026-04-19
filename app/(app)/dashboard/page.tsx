@@ -110,40 +110,38 @@ function DashboardContent() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg font-bold">Turni Sala C.C.C.</h1>
-        {profile && (
-          <div className="flex items-center gap-2">
-            {/* Category toggle — hidden when impersonating (category is from impersonated user) */}
-            {adminUser && !isImpersonating && (
-              <button
-                onClick={() => setViewSecondary(v => !v)}
-                className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
-              >
-                {viewSecondary ? 'Noni' : 'DCO'}
-              </button>
-            )}
+      <div className="flex items-center justify-between mb-4 pr-12">
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-bold">Turni Sala C.C.C.</h1>
+          {/* Category toggle — hidden when impersonating (category is from impersonated user) */}
+          {profile && adminUser && !isImpersonating && (
+            <button
+              onClick={() => setViewSecondary(v => !v)}
+              className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
+            >
+              {viewSecondary ? 'Noni' : 'DCO'}
+            </button>
+          )}
+        </div>
 
-            {/* User switcher — admin only */}
-            {adminUser && allUsers.length > 0 && (
-              <select
-                value={asUserId ?? ''}
-                onChange={e => {
-                  const val = e.target.value
-                  if (val === '') router.push('/dashboard')
-                  else router.push(`/dashboard?as=${val}`)
-                }}
-                className="text-xs border rounded-lg px-2 py-1 bg-background text-foreground cursor-pointer"
-              >
-                <option value="">Io (admin)</option>
-                {allUsers.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.cognome} {u.nome}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
+        {/* User switcher — admin only */}
+        {profile && adminUser && allUsers.length > 0 && (
+          <select
+            value={asUserId ?? ''}
+            onChange={e => {
+              const val = e.target.value
+              if (val === '') router.push('/dashboard')
+              else router.push(`/dashboard?as=${val}`)
+            }}
+            className="text-xs border rounded-lg px-2 py-1 bg-background text-foreground cursor-pointer"
+          >
+            <option value="">Io (admin)</option>
+            {allUsers.map(u => (
+              <option key={u.id} value={u.id}>
+                {u.cognome} {u.nome}
+              </option>
+            ))}
+          </select>
         )}
       </div>
 

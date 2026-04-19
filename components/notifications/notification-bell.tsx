@@ -2,9 +2,13 @@
 import Link from 'next/link'
 import { Bell } from 'lucide-react'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
+import { usePathname } from 'next/navigation'
 
 export function NotificationBell() {
   const { unreadCount } = useNotificationHistory()
+  const pathname = usePathname()
+
+  if (pathname === '/notifiche') return null
 
   return (
     <Link

@@ -15,20 +15,20 @@ export default function NotifichePage() {
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-border bg-muted hover:bg-muted/70 transition-colors"
                 aria-label="Segna tutte come lette"
               >
-                <CheckCheck size={15} />
+                <CheckCheck size={13} />
                 <span>Tutte lette</span>
               </button>
             )}
             <button
               onClick={clearAll}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border border-destructive/40 text-destructive bg-destructive/5 hover:bg-destructive/15 transition-colors"
               aria-label="Elimina tutte"
             >
-              <Trash2 size={15} />
-              <span>Elimina</span>
+              <Trash2 size={13} />
+              <span>Elimina tutte</span>
             </button>
           </div>
         )}
