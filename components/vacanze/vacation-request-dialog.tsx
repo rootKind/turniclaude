@@ -90,6 +90,7 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
           offeredPeriod: myPeriodThisYear,
           targetPeriods,
           actorName,
+          year,
         }),
       }).catch(() => {})
       toast.success('Richiesta inviata')

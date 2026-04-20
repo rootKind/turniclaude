@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { type, shiftId, actorName, isSecondary, offeredShift, requestedShifts, shiftDate, requestId, offeredPeriod, targetPeriods } = body as Record<string, unknown>
+  const { type, shiftId, actorName, isSecondary, offeredShift, requestedShifts, shiftDate, requestId, offeredPeriod, targetPeriods, year } = body as Record<string, unknown>
 
   if (type === 'new_shift' && typeof isSecondary !== 'boolean') {
     return NextResponse.json({ error: 'isSecondary must be boolean' }, { status: 400 })
@@ -158,9 +158,10 @@ export async function POST(req: Request) {
       4: '01–15 Ago', 5: '16–31 Ago', 6: '01–15 Set',
     }
     const offeredLabel = periodLabels[vacReq.offered_period as number] ?? `Periodo ${vacReq.offered_period}`
+    const yearLabel = year ? ` ${year}` : ''
     const vacPayload = JSON.stringify({
       title: 'Qualcuno è interessato al tuo scambio ferie',
-      body: `${actorName} è interessato al tuo ${offeredLabel}`,
+      body: `${actorName} è interessato al tuo ${offeredLabel}${yearLabel}`,
       type: 'vacation_interest',
       requestId: Number(requestId),
     })
@@ -202,9 +203,10 @@ export async function POST(req: Request) {
       const tgLabel = Array.isArray(targetPeriods) && (targetPeriods as number[]).length >= 5
         ? 'qualsiasi periodo'
         : (targetPeriods as number[] ?? []).map(p => periodLabels[p] ?? `P${p}`).join(', ')
+      const nvYearLabel = year ? ` (${year})` : ''
       const nvPayload = JSON.stringify({
         title: 'Nuovo scambio ferie disponibile',
-        body: `${actorName} offre ${offLabel} in cambio di ${tgLabel}`,
+        body: `${actorName} offre ${offLabel} in cambio di ${tgLabel}${nvYearLabel}`,
         type: 'new_vacation',
         requestId: requestId ? Number(requestId) : null,
       })

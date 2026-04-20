@@ -92,7 +92,7 @@ export function VacationRequestItem({
         fetch('/api/push/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'vacation_interest', requestId: request.id, actorName }),
+          body: JSON.stringify({ type: 'vacation_interest', requestId: request.id, actorName, year }),
         }).catch(() => {})
       }
     } catch {
