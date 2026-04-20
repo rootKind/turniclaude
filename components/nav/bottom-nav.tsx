@@ -2,9 +2,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, Palmtree, Settings, Plus, Lock, Calendar } from 'lucide-react'
+import { LayoutGrid, Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
+import { useNotificationHistory } from '@/hooks/use-notification-history'
 
 interface Props {
   feedbackUnread?: number
@@ -15,7 +16,10 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   const pathname = usePathname()
   const isVacanze = pathname === '/vacanze'
   const isImpostazioni = pathname === '/impostazioni'
+  const isNotifiche = pathname === '/notifiche'
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [notifFabOpen, setNotifFabOpen] = useState(false)
+  const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
 
   const leftLinks = [
     { href: '/dashboard',    icon: LayoutGrid, label: 'Turni' },
@@ -27,6 +31,38 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
 
   return (
     <>
+      {/* Notifiche mini-fabs overlay */}
+      {isNotifiche && notifFabOpen && history.length > 0 && (
+        <div className="fixed bottom-20 left-0 right-0 flex flex-col items-center gap-3 z-40 pointer-events-none">
+          {unreadCount > 0 && (
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Tutte lette
+              </span>
+              <button
+                onClick={() => { markAllRead(); setNotifFabOpen(false) }}
+                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
+                aria-label="Segna tutte come lette"
+              >
+                <CheckCheck size={18} />
+              </button>
+            </div>
+          )}
+          <div className="flex items-center gap-2 pointer-events-auto">
+            <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+              Elimina tutte
+            </span>
+            <button
+              onClick={() => { clearAll(); setNotifFabOpen(false) }}
+              className="w-10 h-10 rounded-full bg-destructive text-destructive-foreground shadow-md flex items-center justify-center hover:bg-destructive/90 transition-colors"
+              aria-label="Elimina tutte"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-area-pb">
           <div className="flex items-stretch h-16 max-w-lg mx-auto relative">
             {leftLinks.map(({ href, icon: Icon, label }) => (
@@ -50,6 +86,20 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                   aria-label="Nuova segnalazione"
                 >
                   <Plus size={22} />
+                </button>
+              ) : isNotifiche ? (
+                <button
+                  onClick={() => history.length > 0 && setNotifFabOpen(v => !v)}
+                  className={cn(
+                    'w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors',
+                    notifFabOpen
+                      ? 'bg-muted text-foreground border border-border'
+                      : 'bg-primary text-primary-foreground',
+                    history.length === 0 && 'opacity-40 cursor-default',
+                  )}
+                  aria-label={notifFabOpen ? 'Chiudi menu' : 'Azioni notifiche'}
+                >
+                  {notifFabOpen ? <X size={20} /> : <Bell size={20} />}
                 </button>
               ) : isVacanze ? (
                 <Link
