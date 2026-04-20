@@ -137,7 +137,7 @@ export function SettingsPage() {
 
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-1">Ferie</p>
             <div className="flex items-center justify-between">
-              <Label htmlFor="notif-vacation-interest">Qualcuno è interessato al mio scambio ferie</Label>
+              <Label htmlFor="notif-vacation-interest">Qualcuno è interessato al mio cambio ferie</Label>
               <Switch
                 id="notif-vacation-interest"
                 checked={profile?.notify_on_vacation_interest ?? true}
@@ -146,7 +146,7 @@ export function SettingsPage() {
               />
             </div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="notif-vacation-new">Nuovo scambio ferie disponibile</Label>
+              <Label htmlFor="notif-vacation-new">Nuovo cambio ferie disponibile</Label>
               <Switch
                 id="notif-vacation-new"
                 checked={profile?.notify_on_new_vacation ?? false}

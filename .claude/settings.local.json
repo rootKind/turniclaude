@@ -37,7 +37,9 @@
       "Bash(grep -r \"vacation\" /c/Users/david/Downloads/pwa-v2/supabase/migrations/*.sql)",
       "Bash(grep *)",
       "mcp__supabase__deploy_edge_function",
-      "mcp__supabase__get_publishable_keys"
+      "mcp__supabase__get_publishable_keys",
+      "Bash(graphify hook *)",
+      "mcp__supabase__list_migrations"
     ]
   }
 }

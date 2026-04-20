@@ -323,7 +323,7 @@ async function handleVacationInterestInsert(
   const targets = (req.target_periods as number[]).map(p => periodLabels[p] ?? `P${p}`).join(', ')
 
   const notifPayload = JSON.stringify({
-    title: 'Qualcuno è interessato al tuo scambio ferie',
+    title: 'Qualcuno è interessato al tuo cambio ferie',
     body: `${intUser.nome} ${intUser.cognome} vuole scambiare ${offered} con ${targets}`,
     type: 'vacation_interest',
     requestId,
@@ -373,7 +373,7 @@ async function handleVacationRequestInsert(
   const targets = (targetPeriods ?? []).map(p => periodLabels[p] ?? `P${p}`).join(', ')
 
   const notifPayload = JSON.stringify({
-    title: 'Nuovo scambio ferie disponibile',
+    title: 'Nuovo cambio ferie disponibile',
     body: `${poster.nome} ${poster.cognome} offre ${offered} in cambio di ${targets}`,
     type: 'new_vacation',
     requestId,

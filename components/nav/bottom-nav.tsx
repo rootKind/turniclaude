@@ -22,8 +22,8 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
 
   const leftLinks = [
-    { href: '/dashboard',    icon: LayoutGrid, label: 'Turni' },
-    { href: '/vacanze',      icon: Palmtree,   label: 'Ferie' },
+    { href: '/dashboard',    icon: LayoutGrid, label: 'Cambi turno' },
+    { href: '/vacanze',      icon: Palmtree,   label: 'Cambi ferie' },
   ]
   const rightLinks = [
     { href: '/impostazioni', icon: Settings,   label: 'Impostazioni', badge: feedbackUnread },

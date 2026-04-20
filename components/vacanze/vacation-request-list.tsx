@@ -33,7 +33,7 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
   if (isLoading) return <VacationListSkeleton />
   if (!requests.length) return (
     <div className="text-center py-12 text-muted-foreground text-sm">
-      Nessuna richiesta di scambio ferie.
+      Nessuna richiesta di cambio ferie.
     </div>
   )
 

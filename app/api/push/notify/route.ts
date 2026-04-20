@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       const requestedLabel = Array.isArray(requestedShifts) ? (requestedShifts as string[]).join('/') : ''
       const msgBody = dateLabel
         ? `${actorName} cede ${offeredShift} il ${dateLabel}, cerca ${requestedLabel}`
-        : `${actorName} ha pubblicato un nuovo scambio turno`
+        : `${actorName} ha pubblicato un nuovo cambio turno`
       const payload = JSON.stringify({ title, body: msgBody, type: 'new_shift', shiftId: shiftId ? Number(shiftId) : null })
 
       await Promise.allSettled(
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     const requestedLabel = Array.isArray(shift.requested_shifts) ? (shift.requested_shifts as string[]).join('/') : ''
     const msgBody = dateLabel
       ? `${actorName} è interessato al tuo ${shift.offered_shift} del ${dateLabel} (cerca ${requestedLabel})`
-      : `${actorName} è interessato al tuo scambio`
+      : `${actorName} è interessato al tuo cambio`
     const payload = JSON.stringify({ title, body: msgBody, type: 'interest', shiftId: Number(shiftId) })
 
     const staleEndpoints: string[] = []
@@ -160,7 +160,7 @@ export async function POST(req: Request) {
     const offeredLabel = periodLabels[vacReq.offered_period as number] ?? `Periodo ${vacReq.offered_period}`
     const yearLabel = year ? ` ${year}` : ''
     const vacPayload = JSON.stringify({
-      title: 'Qualcuno è interessato al tuo scambio ferie',
+      title: 'Qualcuno è interessato al tuo cambio ferie',
       body: `${actorName} è interessato al tuo ${offeredLabel}${yearLabel}`,
       type: 'vacation_interest',
       requestId: Number(requestId),
@@ -205,7 +205,7 @@ export async function POST(req: Request) {
         : (targetPeriods as number[] ?? []).map(p => periodLabels[p] ?? `P${p}`).join(', ')
       const nvYearLabel = year ? ` (${year})` : ''
       const nvPayload = JSON.stringify({
-        title: 'Nuovo scambio ferie disponibile',
+        title: 'Nuovo cambio ferie disponibile',
         body: `${actorName} offre ${offLabel} in cambio di ${tgLabel}${nvYearLabel}`,
         type: 'new_vacation',
         requestId: requestId ? Number(requestId) : null,

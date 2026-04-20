@@ -65,11 +65,11 @@ export function NotificationList() {
   }
 
   const sections: Section[] = [
-    { key: 'system',            label: 'Notifiche di sistema',              Icon: Megaphone,  entries: groups.system },
-    { key: 'interest',          label: 'Interessi ai tuoi turni',           Icon: Heart,      entries: groups.interest },
-    { key: 'new_shift',         label: 'Nuove richieste turni',             Icon: CalendarPlus, entries: groups.new_shift },
-    { key: 'vacation_interest', label: 'Interessi al tuo scambio ferie',    Icon: Heart,      entries: groups.vacation_interest },
-    { key: 'new_vacation',      label: 'Nuovi scambi ferie',                Icon: TreePalm,   entries: groups.new_vacation },
+    { key: 'system',            label: 'Notifiche admin',              Icon: Megaphone,  entries: groups.system },
+    { key: 'interest',          label: 'Interessati ai tuoi cambi turno',           Icon: Heart,      entries: groups.interest },
+    { key: 'new_shift',         label: 'Nuove richieste cambi turno',             Icon: CalendarPlus, entries: groups.new_shift },
+    { key: 'vacation_interest', label: 'Interessati ai tuoi cambi ferie',    Icon: Heart,      entries: groups.vacation_interest },
+    { key: 'new_vacation',      label: 'Nuove richieste cambi ferie',                Icon: TreePalm,   entries: groups.new_vacation },
   ].filter(s => s.entries.length > 0)
 
   return (
