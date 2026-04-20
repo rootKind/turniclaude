@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { type, shiftId, actorName, isSecondary, offeredShift, requestedShifts, shiftDate } = body as Record<string, unknown>
+  const { type, shiftId, actorName, isSecondary, offeredShift, requestedShifts, shiftDate, requestId, offeredPeriod, targetPeriods } = body as Record<string, unknown>
 
   if (type === 'new_shift' && typeof isSecondary !== 'boolean') {
     return NextResponse.json({ error: 'isSecondary must be boolean' }, { status: 400 })
@@ -123,6 +123,119 @@ export async function POST(req: Request) {
     if (staleEndpoints.length) {
       await supabase.from('push_subscriptions').delete()
         .in('endpoint', staleEndpoints).eq('user_id', owner.id)
+    }
+  }
+
+  } else if (type === 'vacation_interest') {
+    if (!requestId) return NextResponse.json({ error: 'Missing requestId' }, { status: 400 })
+
+    const { data: vacReq } = await supabase
+      .from('vacation_requests')
+      .select('user_id, offered_period, target_periods')
+      .eq('id', Number(requestId))
+      .single()
+
+    if (!vacReq) return NextResponse.json({ sent: 0 })
+
+    const { data: owner } = await supabase
+      .from('users')
+      .select('id, notify_on_vacation_interest, notification_enabled')
+      .eq('id', vacReq.user_id)
+      .single()
+
+    if (!owner || owner.notification_enabled === false || owner.notify_on_vacation_interest === false) {
+      return NextResponse.json({ sent: 0 })
+    }
+
+    const { data: subs } = await supabase
+      .from('push_subscriptions')
+      .select('subscription, endpoint')
+      .eq('user_id', owner.id)
+
+    if (!subs?.length) return NextResponse.json({ sent: 0 })
+
+    const periodLabels: Record<number, string> = {
+      1: '16–30 Giu', 2: '01–15 Lug', 3: '16–31 Lug',
+      4: '01–15 Ago', 5: '16–31 Ago', 6: '01–15 Set',
+    }
+    const offeredLabel = periodLabels[vacReq.offered_period as number] ?? `Periodo ${vacReq.offered_period}`
+    const vacPayload = JSON.stringify({
+      title: 'Qualcuno è interessato al tuo scambio ferie',
+      body: `${actorName} è interessato al tuo ${offeredLabel}`,
+      type: 'vacation_interest',
+      requestId: Number(requestId),
+    })
+
+    const staleVac: string[] = []
+    await Promise.allSettled(
+      subs.map(async ({ subscription, endpoint }) => {
+        try {
+          await webpush.sendNotification(subscription as webpush.PushSubscription, vacPayload)
+        } catch (err: unknown) {
+          const code = (err as { statusCode?: number })?.statusCode
+          if (code === 410 || code === 404) staleVac.push(endpoint as string)
+        }
+      })
+    )
+    if (staleVac.length) {
+      await supabase.from('push_subscriptions').delete()
+        .in('endpoint', staleVac).eq('user_id', owner.id)
+    }
+  } else if (type === 'new_vacation') {
+    if (typeof isSecondary !== 'boolean') {
+      return NextResponse.json({ error: 'isSecondary must be boolean' }, { status: 400 })
+    }
+
+    const { data: targets } = await supabase
+      .from('users')
+      .select('id')
+      .eq('is_secondary', isSecondary)
+      .eq('notification_enabled', true)
+      .eq('notify_on_new_vacation', true)
+      .neq('id', user.id)
+
+    if (targets?.length) {
+      const periodLabels: Record<number, string> = {
+        1: '16–30 Giu', 2: '01–15 Lug', 3: '16–31 Lug',
+        4: '01–15 Ago', 5: '16–31 Ago', 6: '01–15 Set',
+      }
+      const offLabel = periodLabels[offeredPeriod as number] ?? `Periodo ${offeredPeriod}`
+      const tgLabel = Array.isArray(targetPeriods) && (targetPeriods as number[]).length >= 5
+        ? 'qualsiasi periodo'
+        : (targetPeriods as number[] ?? []).map(p => periodLabels[p] ?? `P${p}`).join(', ')
+      const nvPayload = JSON.stringify({
+        title: 'Nuovo scambio ferie disponibile',
+        body: `${actorName} offre ${offLabel} in cambio di ${tgLabel}`,
+        type: 'new_vacation',
+        requestId: requestId ? Number(requestId) : null,
+      })
+
+      await Promise.allSettled(
+        targets.map(async (t) => {
+          const { data: subs } = await supabase
+            .from('push_subscriptions')
+            .select('subscription, endpoint')
+            .eq('user_id', t.id)
+
+          if (!subs?.length) return
+
+          const staleNV: string[] = []
+          await Promise.allSettled(
+            subs.map(async ({ subscription, endpoint }) => {
+              try {
+                await webpush.sendNotification(subscription as webpush.PushSubscription, nvPayload)
+              } catch (err: unknown) {
+                const code = (err as { statusCode?: number })?.statusCode
+                if (code === 410 || code === 404) staleNV.push(endpoint as string)
+              }
+            })
+          )
+          if (staleNV.length) {
+            await supabase.from('push_subscriptions').delete()
+              .in('endpoint', staleNV).eq('user_id', t.id)
+          }
+        })
+      )
     }
   }
 

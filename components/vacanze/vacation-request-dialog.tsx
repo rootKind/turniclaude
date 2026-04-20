@@ -11,6 +11,7 @@ import { VACATION_PERIOD_LABELS, getVacationPeriodForYear } from '@/lib/vacation
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { VacationPeriod } from '@/types/database'
+import { useCurrentUser } from '@/hooks/use-current-user'
 
 const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
 const MIN_YEAR = 2026
@@ -31,6 +32,7 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
   const [qualsiasi, setQualsiasi] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const queryClient = useQueryClient()
+  const { profile } = useCurrentUser()
 
   const myPeriodThisYear = basePeriod != null ? getVacationPeriodForYear(basePeriod, year) : null
   const selectablePeriods = ALL_PERIODS.filter(p => p !== myPeriodThisYear)
@@ -78,6 +80,18 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
         year,
       })
       queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
+      const actorName = [profile?.nome, profile?.cognome].filter(Boolean).join(' ')
+      fetch('/api/push/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'new_vacation',
+          isSecondary,
+          offeredPeriod: myPeriodThisYear,
+          targetPeriods,
+          actorName,
+        }),
+      }).catch(() => {})
       toast.success('Richiesta inviata')
       onClose()
     } catch {

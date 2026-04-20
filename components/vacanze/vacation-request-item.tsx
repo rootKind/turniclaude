@@ -15,6 +15,7 @@ import { VACATION_REQUESTS_QUERY_KEY } from '@/hooks/use-vacation-requests'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { useCurrentUser } from '@/hooks/use-current-user'
 
 interface Props {
   request: VacationRequestWithInterests
@@ -57,6 +58,7 @@ export function VacationRequestItem({
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const queryClient = useQueryClient()
+  const { profile } = useCurrentUser()
 
   const isOwn        = request.user_id === currentUserId
   const canAdminAct  = isAdmin(loggedInUserId)
@@ -85,6 +87,14 @@ export function VacationRequestItem({
       const supabase = createClient()
       await toggleVacationInterest(supabase, request.id, currentUserId, isInterested)
       queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
+      if (!isInterested) {
+        const actorName = [profile?.nome, profile?.cognome].filter(Boolean).join(' ')
+        fetch('/api/push/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'vacation_interest', requestId: request.id, actorName }),
+        }).catch(() => {})
+      }
     } catch {
       toast.error('Errore')
     }
@@ -150,12 +160,18 @@ export function VacationRequestItem({
             <div className="flex items-center gap-1 flex-wrap">
               <PeriodPill period={request.offered_period} />
               <span className="text-muted-foreground text-[11px]">→</span>
-              {request.target_periods.map((p, i) => (
-                <span key={p} className="flex items-center gap-1">
-                  {i > 0 && <span className="text-muted-foreground text-[11px]">o</span>}
-                  <PeriodPill period={p} />
+              {request.target_periods.length >= 5 ? (
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 whitespace-nowrap">
+                  qualsiasi periodo
                 </span>
-              ))}
+              ) : (
+                request.target_periods.map((p, i) => (
+                  <span key={p} className="flex items-center gap-1">
+                    {i > 0 && <span className="text-muted-foreground text-[11px]">o</span>}
+                    <PeriodPill period={p} />
+                  </span>
+                ))
+              )}
             </div>
           </div>
 
