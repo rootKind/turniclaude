@@ -124,7 +124,6 @@ export async function POST(req: Request) {
       await supabase.from('push_subscriptions').delete()
         .in('endpoint', staleEndpoints).eq('user_id', owner.id)
     }
-  }
 
   } else if (type === 'vacation_interest') {
     if (!requestId) return NextResponse.json({ error: 'Missing requestId' }, { status: 400 })
