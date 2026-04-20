@@ -1,8 +1,8 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { LayoutGrid, Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { LayoutGrid, Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
@@ -14,9 +14,11 @@ interface Props {
 
 export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   const pathname = usePathname()
+  const router = useRouter()
   const isVacanze = pathname === '/vacanze'
   const isImpostazioni = pathname === '/impostazioni'
   const isNotifiche = pathname === '/notifiche'
+  const isTurni = pathname === '/turnisala' || pathname === '/turniferie'
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [notifFabOpen, setNotifFabOpen] = useState(false)
   const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
@@ -101,6 +103,14 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                 >
                   {notifFabOpen ? <X size={20} /> : <Bell size={20} />}
                 </button>
+              ) : isTurni ? (
+                <button
+                  onClick={() => router.push(pathname === '/turnisala' ? '/turniferie' : '/turnisala')}
+                  className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+                  aria-label="Cambia vista turni"
+                >
+                  <ArrowLeftRight size={20} />
+                </button>
               ) : isVacanze ? (
                 <Link
                   href="/vacanze?new=1"
@@ -120,11 +130,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
               )}
             </div>
 
-            {/* Turni placeholder */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground opacity-40">
-              <Calendar size={22} strokeWidth={1.5} />
-              <span className="text-[10px]">Turni</span>
-            </div>
+            <NavItem href="/turnisala" icon={Calendar} label="Turni" active={isTurni} />
 
             {rightLinks.map(({ href, icon: Icon, label, badge }) => (
               <NavItem key={href} href={href} icon={Icon} label={label} badge={badge} active={pathname === href} />
