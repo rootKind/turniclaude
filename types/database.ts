@@ -103,19 +103,34 @@ export interface VacationRequestWithInterests extends VacationRequest {
 
 export type DeskType = 'single' | 'double'
 
+export interface SalaLayoutDefaults {
+  singleMinWidth: number
+  doubleMinWidth: number
+  tirocinanteWidth: number
+}
+
+export const DEFAULT_SALA_LAYOUT_DEFAULTS: SalaLayoutDefaults = {
+  singleMinWidth: 80,
+  doubleMinWidth: 160,
+  tirocinanteWidth: 52,
+}
+
 export interface DeskCard {
   id: string
   title: string
   type: DeskType
-  hasTirocinante: boolean
-  surnames: string[]    // length 1 for single, 2 for double
-  tirocinante: string
-  row: number           // 0–4
-  col: number           // 0–2 (double must be ≤ 1 to fit in 3-col grid)
+  surnames: string[]
+  tirocinanti: string[]   // 0–2 elements
+  // legacy fields (backward compat)
+  hasTirocinante?: boolean
+  tirocinante?: string
+  row?: number
+  col?: number
 }
 
 export interface SalaLayout {
   cards: DeskCard[]
+  defaults?: SalaLayoutDefaults
 }
 
 // ── Costanti ─────────────────────────────────────────────────────────────────

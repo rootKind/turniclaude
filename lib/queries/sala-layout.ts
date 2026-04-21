@@ -9,7 +9,12 @@ export async function getSalaLayout(supabase: SupabaseClient): Promise<SalaLayou
     .maybeSingle()
 
   if (error) throw error
-  return { cards: (data?.layout as SalaLayout['cards']) ?? [] }
+
+  const raw = data?.layout as any
+  if (!raw) return { cards: [] }
+  // old format: array of cards
+  if (Array.isArray(raw)) return { cards: raw as SalaLayout['cards'] }
+  return raw as SalaLayout
 }
 
 export async function upsertSalaLayout(
@@ -19,7 +24,7 @@ export async function upsertSalaLayout(
 ): Promise<void> {
   const { error } = await supabase
     .from('sala_layout')
-    .upsert({ id: 1, layout: layout.cards, updated_at: new Date().toISOString(), updated_by: userId })
+    .upsert({ id: 1, layout, updated_at: new Date().toISOString(), updated_by: userId })
     .eq('id', 1)
 
   if (error) throw error
