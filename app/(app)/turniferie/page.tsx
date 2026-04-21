@@ -69,6 +69,9 @@ export default function TurniFeriePage() {
 
   const filtered = assignments.filter(a => a.user?.is_secondary === effectiveIsSecondary)
 
+  // Global cognome list for duplicate detection across all periods
+  const allCognomes = filtered.map(a => a.user?.cognome ?? '')
+
   const grouped = ALL_PERIODS.map(period => {
     const users = filtered
       .filter(a => getVacationPeriodForYear(a.base_period as VacationPeriod, selectedYear) === period)
@@ -121,7 +124,6 @@ export default function TurniFeriePage() {
         {grouped.map(({ period, meta, users }) => {
           const isMyPeriod = period === myPeriodThisYear
           const isOpen = expandedPeriods.has(period)
-          const cognomes = users.map(a => a.user?.cognome ?? '')
 
           return (
             <div
@@ -129,7 +131,7 @@ export default function TurniFeriePage() {
               className={`rounded-xl border overflow-hidden transition-colors ${
                 isMyPeriod
                   ? 'border-sky-400 dark:border-sky-600 bg-sky-50 dark:bg-sky-950/30'
-                  : 'border-border bg-card'
+                  : 'border-[#bdd0e0] dark:border-[#2e2e2e] bg-[#dde8f0] dark:bg-[#1a1a1a]'
               }`}
             >
               <button
@@ -158,20 +160,20 @@ export default function TurniFeriePage() {
                   {users.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Nessuno</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-x-1 px-3 py-1.5">
+                    <div className="grid grid-cols-2 gap-x-0 gap-y-0 px-2 py-1">
                       {users.map(a => {
                         const isMe = a.user_id === loggedInUserId
                         return (
                           <div
                             key={a.user_id}
-                            className={`flex items-center gap-1 py-0.5 text-xs rounded px-1 ${
+                            className={`flex items-center gap-1 py-px text-xs rounded px-1 ${
                               isMe
                                 ? 'font-semibold text-sky-800 dark:text-sky-200'
                                 : 'text-foreground'
                             }`}
                           >
                             {isMe && <span className="text-sky-500 text-[9px] leading-none">★</span>}
-                            <span>{displayName(a, cognomes)}</span>
+                            <span>{displayName(a, allCognomes)}</span>
                           </div>
                         )
                       })}
