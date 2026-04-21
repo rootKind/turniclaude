@@ -1,15 +1,14 @@
-'use client'
-import { useEffect } from 'react'
+import { createClient } from '@/lib/supabase/server'
+import { isAdmin } from '@/types/database'
+import { getSalaLayout } from '@/lib/queries/sala-layout'
+import { SalaPageClient } from './sala-page-client'
 
-export default function TurniSalaPage() {
-  useEffect(() => {
-    localStorage.setItem('turni-last-page', '/turnisala')
-  }, [])
+export default async function TurniSalaPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  return (
-    <main className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground gap-2">
-      <span className="text-lg font-medium">Turni Sala</span>
-      <span className="text-sm">In costruzione</span>
-    </main>
-  )
+  const admin = user ? isAdmin(user.id) : false
+  const layout = await getSalaLayout(supabase)
+
+  return <SalaPageClient layout={layout} isAdmin={admin} userId={user?.id ?? ''} />
 }

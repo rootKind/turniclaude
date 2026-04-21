@@ -99,6 +99,25 @@ export interface VacationRequestWithInterests extends VacationRequest {
   vacation_request_interests: VacationRequestInterest[]
 }
 
+// ── Sala Layout ──────────────────────────────────────────────────────────────
+
+export type DeskType = 'single' | 'double'
+
+export interface DeskCard {
+  id: string
+  title: string
+  type: DeskType
+  hasTirocinante: boolean
+  surnames: string[]    // length 1 for single, 2 for double
+  tirocinante: string
+  row: number           // 0–4
+  col: number           // 0–2 (double must be ≤ 1 to fit in 3-col grid)
+}
+
+export interface SalaLayout {
+  cards: DeskCard[]
+}
+
 // ── Costanti ─────────────────────────────────────────────────────────────────
 
 export const ADMIN_ID = 'fdd6c008-7a22-42d5-a75b-c44d9edfef12'
