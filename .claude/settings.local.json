@@ -39,7 +39,14 @@
       "mcp__supabase__deploy_edge_function",
       "mcp__supabase__get_publishable_keys",
       "Bash(graphify hook *)",
-      "mcp__supabase__list_migrations"
+      "mcp__supabase__list_migrations",
+      "Bash(node scripts/test-pdf-parse.mjs)",
+      "Bash(node -e \"const m = require\\('pdf-parse'\\); console.log\\(typeof m, Object.keys\\(m\\).slice\\(0,5\\)\\)\")",
+      "Bash(node -e \"const m = require\\('pdf-parse'\\); console.log\\(Object.keys\\(m\\)\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(npm uninstall *)",
+      "Bash(npx supabase *)",
+      "Bash(node *)"
     ]
   }
 }
