@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, Suspense, useRef } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -25,9 +25,6 @@ function VacanzeContent() {
   const [basePeriod, setBasePeriod] = useState<VacationPeriod | null>(null)
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const touchStartX = useRef(0)
-  const touchStartY = useRef(0)
-
   const adminUser = profile ? isAdmin(profile.id) : false
   const loggedInUserId = profile?.id ?? ''
   const effectiveIsSecondary = adminUser ? viewSecondary : (profile?.is_secondary ?? false)
@@ -56,24 +53,29 @@ function VacanzeContent() {
     setSelectedYear(y => Math.min(MAX_YEAR, Math.max(MIN_YEAR, y + delta)))
   }
 
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStartX.current = e.touches[0].clientX
-    touchStartY.current = e.touches[0].clientY
-  }
-
-  function handleTouchEnd(e: React.TouchEvent) {
-    const deltaX = e.changedTouches[0].clientX - touchStartX.current
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current
-    if (Math.abs(deltaX) <= 50 || Math.abs(deltaY) > Math.abs(deltaX)) return
-    changeYear(deltaX > 0 ? -1 : 1)
-  }
+  useEffect(() => {
+    let startX = 0
+    let startY = 0
+    function onTouchStart(e: TouchEvent) {
+      startX = e.touches[0].clientX
+      startY = e.touches[0].clientY
+    }
+    function onTouchEnd(e: TouchEvent) {
+      const dx = e.changedTouches[0].clientX - startX
+      const dy = e.changedTouches[0].clientY - startY
+      if (Math.abs(dx) <= 50 || Math.abs(dy) > Math.abs(dx)) return
+      setSelectedYear(y => Math.min(MAX_YEAR, Math.max(MIN_YEAR, y + (dx > 0 ? -1 : 1))))
+    }
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
 
   return (
-    <main
-      className="max-w-lg mx-auto px-4 pt-6 pb-4"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
       <div className="flex items-center justify-between mb-3">
         <h1 className="text-lg font-bold">Ferie Sala C.C.C.</h1>
         {profile && adminUser && (

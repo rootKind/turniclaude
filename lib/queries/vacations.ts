@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
+  UserProfile,
   VacationAssignment,
   VacationRequest,
   VacationRequestWithInterests,
@@ -7,6 +8,10 @@ import type {
   VacationPeriod,
 } from '@/types/database'
 import { getVacationPeriodForYear } from '@/lib/vacations'
+
+export interface VacationAssignmentWithUser extends VacationAssignment {
+  user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
+}
 
 // ── Read ─────────────────────────────────────────────────────────────────────
 
@@ -40,6 +45,18 @@ export async function getAllVacationAssignments(
 
   if (error) throw error
   return (data ?? []) as VacationAssignment[]
+}
+
+export async function getAllVacationAssignmentsWithUsers(
+  supabase: SupabaseClient,
+): Promise<VacationAssignmentWithUser[]> {
+  const { data, error } = await supabase
+    .from('vacation_assignments')
+    .select('*, user:users!vacation_assignments_user_id_fkey(id, nome, cognome, is_secondary)')
+    .order('created_at')
+
+  if (error) throw error
+  return (data ?? []) as VacationAssignmentWithUser[]
 }
 
 export async function getVacationRequests(
