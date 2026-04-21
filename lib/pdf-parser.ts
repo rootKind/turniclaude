@@ -199,7 +199,9 @@ function buildSchedule(allPersons: PersonData[], daysInMonth: number): Record<nu
 
 export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<SalaSchedule> {
   // Dynamic import to keep this server-only
-  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs' as any)
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
 
   const year = parseInt(month.split('-')[0])
   const monthIdx = parseInt(month.split('-')[1])
