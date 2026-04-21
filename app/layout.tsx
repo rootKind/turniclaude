@@ -6,6 +6,7 @@ import { QueryProvider } from '@/components/providers/query-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { ThemeColor } from '@/components/providers/theme-color'
 import { PwaGuard } from '@/components/providers/pwa-guard'
+import { SwRegistrar } from '@/components/providers/sw-registrar'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="it" suppressHydrationWarning>
       <body className={geist.className}>
         <ThemeProvider>
+          <SwRegistrar />
           <ThemeColor />
           <QueryProvider>
             <PwaGuard>
