@@ -1,9 +1,10 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { upsertSalaLayout } from '@/lib/queries/sala-layout'
+import { getSalaSchedule } from '@/lib/queries/sala-schedule'
 import { DeskBoard } from '@/components/sala/desk-board'
-import type { SalaLayout } from '@/types/database'
+import type { SalaLayout, SalaSchedule } from '@/types/database'
 
 function useLandscapeLock() {
   useEffect(() => {
@@ -19,23 +20,72 @@ interface Props {
   layout: SalaLayout
   isAdmin: boolean
   userId: string
+  initialSchedule: SalaSchedule | null
+  initialMonth: string
+  scheduleMonths: string[]
 }
 
-export function SalaPageClient({ layout, isAdmin, userId }: Props) {
+export function SalaPageClient({
+  layout,
+  isAdmin,
+  userId,
+  initialSchedule,
+  initialMonth,
+  scheduleMonths: initialMonths,
+}: Props) {
   useLandscapeLock()
 
   useEffect(() => {
     localStorage.setItem('turni-last-page', '/turnisala')
   }, [])
 
-  const handleSave = async (updated: SalaLayout) => {
+  const [schedule, setSchedule] = useState<SalaSchedule | null>(initialSchedule)
+  const [currentMonth, setCurrentMonth] = useState(initialMonth)
+  const [availableMonths, setAvailableMonths] = useState(initialMonths)
+
+  const handleSaveLayout = async (updated: SalaLayout) => {
     const supabase = createClient()
     await upsertSalaLayout(supabase, updated, userId)
   }
 
+  const handleMonthChange = async (month: string) => {
+    setCurrentMonth(month)
+    const supabase = createClient()
+    const data = await getSalaSchedule(supabase, month)
+    setSchedule(data)
+  }
+
+  const handleUpload = async (file: File, month: string) => {
+    const fd = new FormData()
+    fd.append('pdf', file)
+    fd.append('month', month)
+    const res = await fetch('/api/admin/parse-pdf', { method: 'POST', body: fd })
+    if (!res.ok) {
+      const body = await res.text()
+      throw new Error(body)
+    }
+    const supabase = createClient()
+    const data = await getSalaSchedule(supabase, month)
+    setSchedule(data)
+    setCurrentMonth(month)
+    setAvailableMonths(prev =>
+      prev.includes(month) ? prev : [month, ...prev].sort((a, b) => b.localeCompare(a)),
+    )
+  }
+
   return (
     <main className="flex flex-col min-h-[60vh]">
-      <DeskBoard layout={layout} isAdmin={isAdmin} userId={userId} onSave={handleSave} />
+      <DeskBoard
+        layout={layout}
+        isAdmin={isAdmin}
+        userId={userId}
+        onSave={handleSaveLayout}
+        schedule={schedule}
+        currentMonth={currentMonth}
+        availableMonths={availableMonths}
+        onMonthChange={handleMonthChange}
+        onUpload={handleUpload}
+      />
     </main>
   )
 }

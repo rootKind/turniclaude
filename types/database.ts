@@ -133,6 +133,26 @@ export interface SalaLayout {
   defaults?: SalaLayoutDefaults
 }
 
+// ── Sala Schedule (PDF import) ────────────────────────────────────────────────
+
+export type SalaShiftType = 'M' | 'N' | 'P'
+
+export interface SectionShiftData {
+  surnames: { T: string[], S: string[], noSlot: string[] }
+  tirocinanti: string[]
+}
+
+export interface DaySchedule {
+  sections: Record<string, Record<SalaShiftType, SectionShiftData>>
+  altriPresenti: string[]
+}
+
+export interface SalaSchedule {
+  month: string               // "2026-04"
+  schedule: Record<number, DaySchedule>  // day 1–31
+  uploaded_at: string
+}
+
 // ── Costanti ─────────────────────────────────────────────────────────────────
 
 export const ADMIN_ID = 'fdd6c008-7a22-42d5-a75b-c44d9edfef12'

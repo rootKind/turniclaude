@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/types/database'
 import { getSalaLayout } from '@/lib/queries/sala-layout'
+import { getSalaSchedule, listScheduleMonths } from '@/lib/queries/sala-schedule'
 import { SalaPageClient } from './sala-page-client'
 
 export default async function TurniSalaPage() {
@@ -8,7 +9,28 @@ export default async function TurniSalaPage() {
   const { data: { user } } = await supabase.auth.getUser()
 
   const admin = user ? isAdmin(user.id) : false
-  const layout = await getSalaLayout(supabase)
 
-  return <SalaPageClient layout={layout} isAdmin={admin} userId={user?.id ?? ''} />
+  const now = new Date()
+  const todayMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
+  const [layout, scheduleMonths] = await Promise.all([
+    getSalaLayout(supabase),
+    listScheduleMonths(supabase),
+  ])
+
+  const initialMonth = scheduleMonths[0] ?? todayMonth
+  const initialSchedule = scheduleMonths.length > 0
+    ? await getSalaSchedule(supabase, initialMonth)
+    : null
+
+  return (
+    <SalaPageClient
+      layout={layout}
+      isAdmin={admin}
+      userId={user?.id ?? ''}
+      initialSchedule={initialSchedule}
+      initialMonth={initialMonth}
+      scheduleMonths={scheduleMonths}
+    />
+  )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   DndContext,
   DragEndEvent,
@@ -12,10 +12,26 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults } from '@/types/database'
+import { ChevronLeft, ChevronRight, Upload } from 'lucide-react'
+import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType } from '@/types/database'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
+
+const MONTHS_IT = [
+  'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+  'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
+]
+
+function getDaysInMonth(month: string): number {
+  const [y, m] = month.split('-').map(Number)
+  return new Date(y, m, 0).getDate()
+}
+
+function formatMonthLabel(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  return `${MONTHS_IT[m - 1]} ${y}`
+}
 
 function migrateCard(card: DeskCardType): DeskCardType {
   if (card.tirocinanti !== undefined) return card
@@ -36,9 +52,23 @@ interface Props {
   isAdmin: boolean
   userId: string
   onSave: (layout: SalaLayout) => Promise<void>
+  schedule?: SalaSchedule | null
+  currentMonth: string
+  availableMonths: string[]
+  onMonthChange: (month: string) => Promise<void>
+  onUpload: (file: File, month: string) => Promise<void>
 }
 
-export function DeskBoard({ layout: initialLayout, isAdmin, onSave }: Props) {
+export function DeskBoard({
+  layout: initialLayout,
+  isAdmin,
+  onSave,
+  schedule,
+  currentMonth,
+  availableMonths,
+  onMonthChange,
+  onUpload,
+}: Props) {
   const [cards, setCards] = useState<DeskCardType[]>(() => initCards(initialLayout.cards))
   const [defaults, setDefaults] = useState<SalaLayoutDefaults>(
     initialLayout.defaults ?? DEFAULT_SALA_LAYOUT_DEFAULTS,
@@ -51,6 +81,28 @@ export function DeskBoard({ layout: initialLayout, isAdmin, onSave }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
+
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const [y, m] = currentMonth.split('-').map(Number)
+    const today = new Date()
+    return today.getFullYear() === y && today.getMonth() + 1 === m ? today.getDate() : 1
+  })
+  const [selectedShift, setSelectedShift] = useState<SalaShiftType>('M')
+  const [uploading, setUploading] = useState(false)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const touchStartX = useRef<number | null>(null)
+  const totalDays = getDaysInMonth(currentMonth)
+
+  useEffect(() => {
+    const [y, m] = currentMonth.split('-').map(Number)
+    const today = new Date()
+    if (today.getFullYear() === y && today.getMonth() + 1 === m) {
+      setSelectedDay(today.getDate())
+    } else {
+      setSelectedDay(1)
+    }
+  }, [currentMonth])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -120,6 +172,61 @@ export function DeskBoard({ layout: initialLayout, isAdmin, onSave }: Props) {
     setDirty(true)
   }, [])
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isEditing) return
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (isEditing || touchStartX.current === null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    touchStartX.current = null
+    if (Math.abs(dx) < 50) return
+    setSelectedDay(d => dx < 0 ? Math.min(d + 1, totalDays) : Math.max(d - 1, 1))
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setUploading(true)
+    try {
+      await onUpload(file, currentMonth)
+    } catch (err) {
+      alert('Errore upload: ' + (err as Error).message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // Build display cards: merge schedule data for selected day/shift, or fallback to layout
+  const displayCards = (schedule && !isEditing)
+    ? cards.map(card => {
+        const sectionData = schedule.schedule[selectedDay]?.sections[card.title]?.[selectedShift]
+        if (!sectionData) {
+          return { ...card, surnames: card.type === 'double' ? ['', ''] : [''], tirocinanti: [] }
+        }
+        const allNames = [
+          ...sectionData.surnames.T,
+          ...sectionData.surnames.S,
+          ...sectionData.surnames.noSlot,
+        ]
+        return {
+          ...card,
+          surnames: allNames.length > 0 ? allNames : (card.type === 'double' ? ['', ''] : ['']),
+          tirocinanti: sectionData.tirocinanti,
+        }
+      })
+    : cards
+
+  const altriPresenti = (schedule && !isEditing)
+    ? (schedule.schedule[selectedDay]?.altriPresenti ?? [])
+    : []
+
+  const monthOptions = availableMonths.includes(currentMonth)
+    ? availableMonths
+    : [...availableMonths, currentMonth].sort((a, b) => b.localeCompare(a))
+
   const activeCard = activeId ? cards.find(c => c.id === activeId) : null
 
   return (
@@ -129,7 +236,87 @@ export function DeskBoard({ layout: initialLayout, isAdmin, onSave }: Props) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex flex-col gap-3 p-4">
+      <div
+        className="flex flex-col gap-2 p-4"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Schedule header — hidden during layout edit */}
+        {!isEditing && (
+          <div className="flex items-center gap-1 flex-wrap">
+            {/* Day navigation */}
+            <button
+              onClick={() => setSelectedDay(d => Math.max(d - 1, 1))}
+              disabled={selectedDay <= 1}
+              className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <span className="text-xl font-bold w-8 text-center tabular-nums select-none">
+              {selectedDay}
+            </span>
+            <button
+              onClick={() => setSelectedDay(d => Math.min(d + 1, totalDays))}
+              disabled={selectedDay >= totalDays}
+              className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+            >
+              <ChevronRight size={20} />
+            </button>
+
+            {/* Month selector */}
+            <select
+              value={currentMonth}
+              onChange={e => onMonthChange(e.target.value)}
+              className="ml-1 text-sm font-medium bg-transparent border-0 outline-none cursor-pointer text-muted-foreground hover:text-foreground"
+            >
+              {monthOptions.map(mo => (
+                <option key={mo} value={mo}>{formatMonthLabel(mo)}</option>
+              ))}
+            </select>
+
+            <div className="flex-1" />
+
+            {/* P / M / N toggle */}
+            <div className="flex rounded-lg overflow-hidden border border-border text-xs font-semibold">
+              {(['M', 'P', 'N'] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setSelectedShift(s)}
+                  className={`px-3 py-1.5 transition-colors ${
+                    selectedShift === s
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            {/* Upload PDF (admin) */}
+            {isAdmin && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  <Upload size={13} />
+                  {uploading ? 'Caricamento…' : 'PDF'}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Layout edit toolbar */}
         {isAdmin && (
           <EditToolbar
             isEditing={isEditing}
@@ -144,9 +331,10 @@ export function DeskBoard({ layout: initialLayout, isAdmin, onSave }: Props) {
           />
         )}
 
+        {/* Cards grid */}
         <SortableContext items={cards.map(c => c.id)} strategy={rectSortingStrategy}>
           <div className="flex flex-wrap gap-2 items-stretch">
-            {cards.map(card => (
+            {displayCards.map(card => (
               <DeskCard
                 key={card.id}
                 card={card}
@@ -159,6 +347,18 @@ export function DeskBoard({ layout: initialLayout, isAdmin, onSave }: Props) {
             ))}
           </div>
         </SortableContext>
+
+        {/* Altri presenti */}
+        {altriPresenti.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40">
+            <span className="text-xs text-muted-foreground shrink-0">Altri presenti:</span>
+            {altriPresenti.map((name, i) => (
+              <span key={i} className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                {name}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <DragOverlay>
