@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isAdmin } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -25,6 +25,8 @@ export default function TurniFeriePage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [assignments, setAssignments] = useState<VacationAssignmentWithUser[]>([])
   const [expandedPeriods, setExpandedPeriods] = useState<Set<VacationPeriod>>(new Set([1, 2, 3, 4, 5, 6]))
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [autoExpand, setAutoExpand] = useState(false)
 
   const adminUser = profile ? isAdmin(profile.id) : false
   const loggedInUserId = profile?.id ?? ''
@@ -89,7 +91,7 @@ export default function TurniFeriePage() {
   }
 
   return (
-    <main className="max-w-lg mx-auto px-4 pt-6 pb-20">
+    <main className={`mx-auto px-4 pt-6 pb-20 ${viewMode === 'grid' ? 'max-w-2xl' : 'max-w-lg'}`}>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-bold">Turni Ferie</h1>
         {adminUser && (
@@ -102,33 +104,53 @@ export default function TurniFeriePage() {
         )}
       </div>
 
-      <div className="flex items-center gap-1 mb-4">
-        <button
-          onClick={() => setSelectedYear(y => Math.max(MIN_YEAR, y - 1))}
-          disabled={selectedYear <= MIN_YEAR}
-          className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <span className="text-sm font-semibold tabular-nums w-14 text-center">{selectedYear}</span>
-        <button
-          onClick={() => setSelectedYear(y => Math.min(MAX_YEAR, y + 1))}
-          disabled={selectedYear >= MAX_YEAR}
-          className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
-        >
-          <ChevronRight size={18} />
-        </button>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setSelectedYear(y => Math.max(MIN_YEAR, y - 1))}
+            disabled={selectedYear <= MIN_YEAR}
+            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <span className="text-sm font-semibold tabular-nums w-14 text-center">{selectedYear}</span>
+          <button
+            onClick={() => setSelectedYear(y => Math.min(MAX_YEAR, y + 1))}
+            disabled={selectedYear >= MAX_YEAR}
+            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={autoExpand}
+              onChange={e => setAutoExpand(e.target.checked)}
+              className="w-3 h-3 accent-sky-500"
+            />
+            Espandi tutto
+          </label>
+          <button
+            onClick={() => setViewMode(v => v === 'list' ? 'grid' : 'list')}
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
+            aria-label={viewMode === 'list' ? 'Vista griglia' : 'Vista lista'}
+          >
+            {viewMode === 'list' ? <LayoutGrid size={16} /> : <List size={16} />}
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-2' : 'flex flex-col gap-1.5'}>
         {grouped.map(({ period, meta, users }) => {
           const isMyPeriod = period === myPeriodThisYear
-          const isOpen = expandedPeriods.has(period)
+          const isOpen = autoExpand || expandedPeriods.has(period)
 
           return (
             <div
               key={period}
-              className={`rounded-xl border overflow-hidden transition-colors ${
+              className={`rounded-xl border overflow-hidden transition-colors flex flex-col ${
                 isMyPeriod
                   ? 'border-sky-400 dark:border-sky-600 bg-sky-50 dark:bg-sky-950/30'
                   : 'border-[#bdd0e0] dark:border-[#2e2e2e] bg-[#dde8f0] dark:bg-[#1a1a1a]'
@@ -156,7 +178,7 @@ export default function TurniFeriePage() {
               </button>
 
               {isOpen && (
-                <div className="border-t border-border">
+                <div className="border-t border-border flex-1">
                   {users.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Nessuno</p>
                   ) : (
