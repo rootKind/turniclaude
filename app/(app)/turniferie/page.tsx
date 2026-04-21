@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isAdmin } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -25,8 +25,8 @@ export default function TurniFeriePage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [assignments, setAssignments] = useState<VacationAssignmentWithUser[]>([])
   const [expandedPeriods, setExpandedPeriods] = useState<Set<VacationPeriod>>(new Set([1, 2, 3, 4, 5, 6]))
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
-  const [autoExpand, setAutoExpand] = useState(false)
+  // true when viewport is tall enough to show all 6 cards fully expanded
+  const [alwaysExpanded, setAlwaysExpanded] = useState(true)
 
   const adminUser = profile ? isAdmin(profile.id) : false
   const loggedInUserId = profile?.id ?? ''
@@ -34,6 +34,15 @@ export default function TurniFeriePage() {
 
   useEffect(() => {
     localStorage.setItem('turni-last-page', '/turniferie')
+  }, [])
+
+  useEffect(() => {
+    function check() {
+      setAlwaysExpanded(window.innerHeight >= 600)
+    }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
   }, [])
 
   useEffect(() => {
@@ -70,8 +79,6 @@ export default function TurniFeriePage() {
   }, [])
 
   const filtered = assignments.filter(a => a.user?.is_secondary === effectiveIsSecondary)
-
-  // Global cognome list for duplicate detection across all periods
   const allCognomes = filtered.map(a => a.user?.cognome ?? '')
 
   const grouped = ALL_PERIODS.map(period => {
@@ -82,6 +89,7 @@ export default function TurniFeriePage() {
   })
 
   function togglePeriod(period: VacationPeriod) {
+    if (alwaysExpanded) return
     setExpandedPeriods(prev => {
       const next = new Set(prev)
       if (next.has(period)) next.delete(period)
@@ -91,8 +99,11 @@ export default function TurniFeriePage() {
   }
 
   return (
-    <main className={`mx-auto px-4 pt-6 pb-20 ${viewMode === 'grid' ? 'max-w-2xl' : 'max-w-lg'}`}>
-      <div className="flex items-center justify-between mb-4">
+    <main
+      className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
+      style={{ height: 'calc(100dvh - 4rem)' }}
+    >
+      <div className="flex items-center justify-between mb-3">
         <h1 className="text-lg font-bold">Turni Ferie</h1>
         {adminUser && (
           <button
@@ -104,7 +115,7 @@ export default function TurniFeriePage() {
         )}
       </div>
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center mb-3">
         <div className="flex items-center gap-1">
           <button
             onClick={() => setSelectedYear(y => Math.max(MIN_YEAR, y - 1))}
@@ -122,35 +133,17 @@ export default function TurniFeriePage() {
             <ChevronRight size={18} />
           </button>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={autoExpand}
-              onChange={e => setAutoExpand(e.target.checked)}
-              className="w-3 h-3 accent-sky-500"
-            />
-            Espandi tutto
-          </label>
-          <button
-            onClick={() => setViewMode(v => v === 'list' ? 'grid' : 'list')}
-            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
-            aria-label={viewMode === 'list' ? 'Vista griglia' : 'Vista lista'}
-          >
-            {viewMode === 'list' ? <LayoutGrid size={16} /> : <List size={16} />}
-          </button>
-        </div>
       </div>
 
-      <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-2' : 'flex flex-col gap-1.5'}>
+      <div className="grid grid-cols-2 gap-2 flex-1 min-h-0" style={{ gridTemplateRows: 'repeat(3, 1fr)' }}>
         {grouped.map(({ period, meta, users }) => {
           const isMyPeriod = period === myPeriodThisYear
-          const isOpen = autoExpand || expandedPeriods.has(period)
+          const isOpen = alwaysExpanded || expandedPeriods.has(period)
 
           return (
             <div
               key={period}
-              className={`rounded-xl border overflow-hidden transition-colors flex flex-col ${
+              className={`rounded-xl border overflow-hidden transition-colors flex flex-col min-h-0 ${
                 isMyPeriod
                   ? 'border-sky-400 dark:border-sky-600 bg-sky-50 dark:bg-sky-950/30'
                   : 'border-[#bdd0e0] dark:border-[#2e2e2e] bg-[#dde8f0] dark:bg-[#1a1a1a]'
@@ -158,7 +151,8 @@ export default function TurniFeriePage() {
             >
               <button
                 onClick={() => togglePeriod(period)}
-                className="w-full flex items-center justify-between px-3 py-2 text-left"
+                disabled={alwaysExpanded}
+                className="w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {isMyPeriod && (
@@ -170,25 +164,27 @@ export default function TurniFeriePage() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-xs text-muted-foreground">{users.length}</span>
-                  <ChevronRight
-                    size={12}
-                    className={`text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
-                  />
+                  {!alwaysExpanded && (
+                    <ChevronRight
+                      size={12}
+                      className={`text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
+                    />
+                  )}
                 </div>
               </button>
 
               {isOpen && (
-                <div className="border-t border-border flex-1">
+                <div className="border-t border-border flex-1 overflow-auto min-h-0">
                   {users.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Nessuno</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-x-0 gap-y-0 px-2 py-1">
+                    <div className="grid grid-cols-2 px-2 py-1.5 gap-y-0.5">
                       {users.map(a => {
                         const isMe = a.user_id === loggedInUserId
                         return (
                           <div
                             key={a.user_id}
-                            className={`flex items-center gap-1 py-px text-xs rounded px-1 ${
+                            className={`flex items-center gap-1 py-0.5 text-xs rounded px-1 ${
                               isMe
                                 ? 'font-semibold text-sky-800 dark:text-sky-200'
                                 : 'text-foreground'
