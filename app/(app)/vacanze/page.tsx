@@ -12,7 +12,7 @@ import { VacationRequestDialog } from '@/components/vacanze/vacation-request-dia
 import type { VacationPeriod } from '@/types/database'
 
 const MIN_YEAR = 2026
-const MAX_YEAR = 2031
+const MAX_YEAR = 2099
 
 function VacanzeContent() {
   const router = useRouter()

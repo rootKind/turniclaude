@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { LayoutGrid, Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight } from 'lucide-react'
@@ -21,6 +21,19 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   const isTurni = pathname === '/turnisala' || pathname === '/turniferie'
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [notifFabOpen, setNotifFabOpen] = useState(false)
+  const [turniLastPage, setTurniLastPage] = useState('/turnisala')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('turni-last-page')
+    if (saved === '/turnisala' || saved === '/turniferie') setTurniLastPage(saved)
+  }, [])
+
+  useEffect(() => {
+    if (isTurni) {
+      localStorage.setItem('turni-last-page', pathname)
+      setTurniLastPage(pathname)
+    }
+  }, [isTurni, pathname])
   const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
 
   const leftLinks = [
@@ -130,7 +143,16 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
               )}
             </div>
 
-            <NavItem href="/turnisala" icon={Calendar} label="Turni" active={isTurni} />
+            <button
+              onClick={() => router.push(isTurni ? (pathname === '/turnisala' ? '/turniferie' : '/turnisala') : turniLastPage)}
+              className={cn(
+                'flex-1 flex flex-col items-center justify-center gap-0.5 relative',
+                isTurni ? 'text-foreground' : 'text-muted-foreground',
+              )}
+            >
+              <Calendar size={22} strokeWidth={isTurni ? 2.5 : 1.5} />
+              <span className="text-[10px]">Turni</span>
+            </button>
 
             {rightLinks.map(({ href, icon: Icon, label, badge }) => (
               <NavItem key={href} href={href} icon={Icon} label={label} badge={badge} active={pathname === href} />

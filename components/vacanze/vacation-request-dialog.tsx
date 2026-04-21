@@ -15,7 +15,7 @@ import { useCurrentUser } from '@/hooks/use-current-user'
 
 const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
 const MIN_YEAR = 2026
-const MAX_YEAR = 2031
+const MAX_YEAR = 2099
 
 interface Props {
   open: boolean
