@@ -77,6 +77,32 @@ function tryParseMainRow(tokens: string[], daysInMonth: number): { name: string;
   return null
 }
 
+// ─── pdf item merge ───────────────────────────────────────────────────────────
+
+const DOW_LABELS = new Set(['Lun','Mar','Mer','Gio','Ven','Sab','Dom'])
+
+/**
+ * PDF renderers sometimes split a single shift-code token across multiple text
+ * items at essentially the same x-position (e.g. "PT" + "UTOR" → "PTUTOR",
+ * "M" + "DCIF" → "MDCIF").  The inter-day spacing in these PDFs is ~25px, so
+ * any two consecutive items within 10px are guaranteed to be part of the same
+ * split token.
+ */
+function mergeClosePdfItems(items: TextItem[]): TextItem[] {
+  const result: TextItem[] = []
+  for (let i = 0; i < items.length; i++) {
+    const cur = items[i]
+    const nxt = items[i + 1]
+    if (nxt && Math.abs(cur.x - nxt.x) <= 10) {
+      result.push({ ...cur, str: cur.str + nxt.str })
+      i++
+    } else {
+      result.push(cur)
+    }
+  }
+  return result
+}
+
 // ─── x → day mapping ──────────────────────────────────────────────────────────
 
 function xToDay(x: number, headerXMap: Record<number, number>): number | null {
@@ -127,31 +153,17 @@ function processPageRows(
 
     let pendingMod: typeof rows[0] | null = null
     for (const row of groupRows) {
-      const tokens = row.items.map(it => it.str)
+      // Merge split tokens in the theoretical row before counting
+      const mergedItems = mergeClosePdfItems(row.items)
+      const tokens = mergedItems.map(it => it.str)
       const parsed = tryParseMainRow(tokens, daysInMonth)
 
       if (parsed) {
         const modByDay: Record<number, string> = {}
         if (pendingMod) {
-          // Merge split shift codes: "M" + "DCIF" at same x → "MDCIF"
-          const modItems: TextItem[] = []
-          for (let i = 0; i < pendingMod.items.length; i++) {
-            const cur = pendingMod.items[i]
-            const nxt = pendingMod.items[i + 1]
-            if (
-              /^[MNP]$/.test(cur.str) &&
-              nxt &&
-              Math.abs(cur.x - nxt.x) <= 10 &&
-              /^[A-Z]/.test(nxt.str)
-            ) {
-              modItems.push({ ...cur, str: cur.str + nxt.str })
-              i++
-            } else {
-              modItems.push(cur)
-            }
-          }
-          for (const item of modItems) {
-            if (['Mer','Gio','Ven','Sab','Dom','Lun','Mar'].includes(item.str)) continue
+          // Filter DOW labels first, then merge any remaining split codes
+          const filtered = pendingMod.items.filter(it => !DOW_LABELS.has(it.str))
+          for (const item of mergeClosePdfItems(filtered)) {
             const day = xToDay(item.x, headerXMap)
             if (day) modByDay[day] = item.str
           }
