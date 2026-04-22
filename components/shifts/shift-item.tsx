@@ -110,8 +110,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
     <div
       ref={cardRef}
       className={cn(
-        isSameDateAsPrevious ? 'mt-0.5' : 'mt-3',
-        'first:mt-0 rounded-[10px] transition-shadow duration-700',
+        'rounded-[10px] transition-shadow duration-700',
         showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
       )}
     >

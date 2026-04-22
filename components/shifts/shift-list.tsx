@@ -214,6 +214,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
               return (
                 <motion.div
                   key={shift.id}
+                  className={index === 0 ? 'mt-0' : isSameDateAsPrevious ? 'mt-0.5' : 'mt-3'}
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.15, delay: Math.min(index * 0.03, 0.25), ease: 'easeOut' }}
