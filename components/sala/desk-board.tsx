@@ -199,10 +199,17 @@ export function DeskBoard({
     }
   }
 
+  const scheduleSections: string[] = schedule
+    ? [...new Set(
+        Object.values(schedule.schedule).flatMap(day => Object.keys(day.sections))
+      )].sort()
+    : []
+
   // Build display cards: merge schedule data for selected day/shift, or fallback to layout
   const displayCards = (schedule && !isEditing)
     ? cards.map(card => {
-        const sectionData = schedule.schedule[selectedDay]?.sections[card.title]?.[selectedShift]
+        const lookupKey = card.sectionKey ?? card.title
+        const sectionData = schedule.schedule[selectedDay]?.sections[lookupKey]?.[selectedShift]
         if (!sectionData) {
           return { ...card, surnames: card.type === 'double' ? ['', ''] : [''], tirocinanti: [] }
         }
@@ -341,6 +348,7 @@ export function DeskBoard({
                 isEditing={isEditing}
                 minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
                 tirocinanteWidth={defaults.tirocinanteWidth}
+                scheduleSections={scheduleSections}
                 onUpdate={updateCard}
                 onDelete={deleteCard}
               />
@@ -368,6 +376,7 @@ export function DeskBoard({
             isEditing={false}
             minWidth={activeCard.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
             tirocinanteWidth={defaults.tirocinanteWidth}
+            scheduleSections={[]}
             onUpdate={() => {}}
             onDelete={() => {}}
           />

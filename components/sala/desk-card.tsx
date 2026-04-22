@@ -2,7 +2,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Trash2, UserPlus } from 'lucide-react'
+import { GripVertical, Trash2, UserPlus, Link2 } from 'lucide-react'
 import type { DeskCard as DeskCardType } from '@/types/database'
 
 interface Props {
@@ -10,11 +10,12 @@ interface Props {
   isEditing: boolean
   minWidth: number
   tirocinanteWidth: number
+  scheduleSections: string[]
   onUpdate: (card: DeskCardType) => void
   onDelete: (id: string) => void
 }
 
-export function DeskCard({ card, isEditing, minWidth, tirocinanteWidth, onUpdate, onDelete }: Props) {
+export function DeskCard({ card, isEditing, minWidth, tirocinanteWidth, scheduleSections, onUpdate, onDelete }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
     disabled: !isEditing,
@@ -108,6 +109,24 @@ export function DeskCard({ card, isEditing, minWidth, tirocinanteWidth, onUpdate
             </div>
           )}
         </div>
+
+        {/* Section key picker — only in edit mode when schedule sections available */}
+        {isEditing && scheduleSections.length > 0 && (
+          <div className="flex items-center gap-1 px-2 py-0.5 border-b border-border/50 bg-muted/20">
+            <Link2 size={10} className={card.sectionKey ? 'text-primary' : 'text-muted-foreground/50'} />
+            <select
+              value={card.sectionKey ?? ''}
+              onChange={e => onUpdate({ ...card, sectionKey: e.target.value || undefined })}
+              className="flex-1 text-[10px] bg-transparent outline-none text-muted-foreground cursor-pointer min-w-0"
+              title="Sezione PDF collegata"
+            >
+              <option value="">— usa titolo —</option>
+              {scheduleSections.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Surnames */}
         <div className="flex flex-1 items-center px-2 py-2 gap-3">

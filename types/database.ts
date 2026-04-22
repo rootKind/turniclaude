@@ -121,6 +121,7 @@ export interface DeskCard {
   type: DeskType
   surnames: string[]
   tirocinanti: string[]   // 0–2 elements
+  sectionKey?: string     // explicit PDF section key; falls back to title
   // legacy fields (backward compat)
   hasTirocinante?: boolean
   tirocinante?: string
