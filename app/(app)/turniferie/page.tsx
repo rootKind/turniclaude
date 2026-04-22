@@ -4,8 +4,8 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isAdmin } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
-import { getAllVacationAssignmentsWithUsers, type VacationAssignmentWithUser } from '@/lib/queries/vacations'
-import { VACATION_PERIOD_LABELS, getVacationPeriodForYear, getBasePeriodForYear } from '@/lib/vacations'
+import { getAllVacationAssignmentsWithUsers, getVacationYearOverrides, type VacationAssignmentWithUser } from '@/lib/queries/vacations'
+import { VACATION_PERIOD_LABELS, getEffectivePeriodForYear } from '@/lib/vacations'
 import { getAppSettings } from '@/lib/queries/app-settings'
 import type { VacationPeriod } from '@/types/database'
 
@@ -32,6 +32,8 @@ export default function TurniFeriePage() {
   const adminUser = profile ? isAdmin(profile.id) : false
   const loggedInUserId = profile?.id ?? ''
   const effectiveIsSecondary = adminUser ? viewSecondary : (profile?.is_secondary ?? false)
+
+  const [yearOverrides, setYearOverrides] = useState<Map<string, VacationPeriod>>(new Map())
 
   const [swapOpen, setSwapOpen] = useState(false)
   const [swapMode, setSwapMode] = useState<'move' | 'switch'>('move')
@@ -77,9 +79,16 @@ export default function TurniFeriePage() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    const supabase = createClient()
+    getVacationYearOverrides(supabase, selectedYear)
+      .then(map => setYearOverrides(map))
+      .catch(() => {})
+  }, [selectedYear])
+
   const myAssignment = assignments.find(a => a.user_id === loggedInUserId)
   const myPeriodThisYear: VacationPeriod | null = myAssignment
-    ? getVacationPeriodForYear(myAssignment.base_period as VacationPeriod, selectedYear)
+    ? getEffectivePeriodForYear(myAssignment.base_period as VacationPeriod, selectedYear, yearOverrides, loggedInUserId)
     : null
 
   useEffect(() => {
@@ -108,7 +117,7 @@ export default function TurniFeriePage() {
 
   const grouped = ALL_PERIODS.map(period => {
     const users = filtered
-      .filter(a => getVacationPeriodForYear(a.base_period as VacationPeriod, selectedYear) === period)
+      .filter(a => getEffectivePeriodForYear(a.base_period as VacationPeriod, selectedYear, yearOverrides, a.user_id) === period)
       .sort((a, b) => (a.user?.cognome ?? '').localeCompare(b.user?.cognome ?? '', 'it'))
     return { period, meta: VACATION_PERIOD_LABELS[period], users }
   })
@@ -117,16 +126,19 @@ export default function TurniFeriePage() {
     if (!swapUserId) return
     setSwapLoading(true)
     try {
-      const newBasePeriod = getBasePeriodForYear(swapTargetPeriod, selectedYear)
       const res = await fetch('/api/admin/vacation-swap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: swapUserId, new_base_period: newBasePeriod }),
+        body: JSON.stringify({ user_id: swapUserId, period: swapTargetPeriod, year: selectedYear }),
       })
       if (!res.ok) throw new Error(await res.text())
       const supabase = createClient()
-      const data = await getAllVacationAssignmentsWithUsers(supabase)
+      const [data, overrides] = await Promise.all([
+        getAllVacationAssignmentsWithUsers(supabase),
+        getVacationYearOverrides(supabase, selectedYear),
+      ])
       setAssignments(data)
+      setYearOverrides(overrides)
       setSwapOpen(false)
     } finally {
       setSwapLoading(false)
@@ -138,25 +150,31 @@ export default function TurniFeriePage() {
     const a1 = filtered.find(a => a.user_id === switchUser1Id)
     const a2 = filtered.find(a => a.user_id === switchUser2Id)
     if (!a1 || !a2) return
+    const p1 = getEffectivePeriodForYear(a1.base_period as VacationPeriod, selectedYear, yearOverrides, switchUser1Id)
+    const p2 = getEffectivePeriodForYear(a2.base_period as VacationPeriod, selectedYear, yearOverrides, switchUser2Id)
     setSwapLoading(true)
     try {
       const [r1, r2] = await Promise.all([
         fetch('/api/admin/vacation-swap', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: switchUser1Id, new_base_period: a2.base_period }),
+          body: JSON.stringify({ user_id: switchUser1Id, period: p2, year: selectedYear }),
         }),
         fetch('/api/admin/vacation-swap', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: switchUser2Id, new_base_period: a1.base_period }),
+          body: JSON.stringify({ user_id: switchUser2Id, period: p1, year: selectedYear }),
         }),
       ])
       if (!r1.ok) throw new Error(await r1.text())
       if (!r2.ok) throw new Error(await r2.text())
       const supabase = createClient()
-      const data = await getAllVacationAssignmentsWithUsers(supabase)
+      const [data, overrides] = await Promise.all([
+        getAllVacationAssignmentsWithUsers(supabase),
+        getVacationYearOverrides(supabase, selectedYear),
+      ])
       setAssignments(data)
+      setYearOverrides(overrides)
       setSwapOpen(false)
     } finally {
       setSwapLoading(false)
@@ -207,7 +225,7 @@ export default function TurniFeriePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 flex-1 min-h-0" style={{ gridTemplateRows: 'repeat(3, 1fr)' }}>
+      <div className="grid grid-cols-2 gap-2" style={{ gridTemplateRows: 'repeat(3, auto)' }}>
         {grouped.map(({ period, meta, users }) => {
           const isMyPeriod = period === myPeriodThisYear
           const isOpen = alwaysExpanded || expandedPeriods.has(period)
@@ -215,7 +233,7 @@ export default function TurniFeriePage() {
           return (
             <div
               key={period}
-              className={`rounded-xl border overflow-hidden transition-colors flex flex-col min-h-0 ${
+              className={`rounded-xl border overflow-hidden transition-colors flex flex-col ${
                 isMyPeriod
                   ? 'border-sky-400 dark:border-sky-600 bg-sky-50 dark:bg-sky-950/30'
                   : 'border-[#bdd0e0] dark:border-[#2e2e2e] bg-[#dde8f0] dark:bg-[#1a1a1a]'
@@ -246,7 +264,7 @@ export default function TurniFeriePage() {
               </button>
 
               {isOpen && (
-                <div className="border-t border-border flex-1 overflow-auto min-h-0">
+                <div className="border-t border-border">
                   {users.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Nessuno</p>
                   ) : (
@@ -317,7 +335,7 @@ export default function TurniFeriePage() {
                           <option key={a.user_id} value={a.user_id}>
                             {a.user?.cognome} {a.user?.nome}
                             {' — P'}
-                            {getVacationPeriodForYear(a.base_period as VacationPeriod, selectedYear)}
+                            {getEffectivePeriodForYear(a.base_period as VacationPeriod, selectedYear, yearOverrides, a.user_id)}
                           </option>
                         ))}
                     </select>
@@ -366,7 +384,7 @@ export default function TurniFeriePage() {
                           <option key={a.user_id} value={a.user_id}>
                             {a.user?.cognome} {a.user?.nome}
                             {' — P'}
-                            {getVacationPeriodForYear(a.base_period as VacationPeriod, selectedYear)}
+                            {getEffectivePeriodForYear(a.base_period as VacationPeriod, selectedYear, yearOverrides, a.user_id)}
                           </option>
                         ))}
                     </select>
@@ -386,7 +404,7 @@ export default function TurniFeriePage() {
                           <option key={a.user_id} value={a.user_id}>
                             {a.user?.cognome} {a.user?.nome}
                             {' — P'}
-                            {getVacationPeriodForYear(a.base_period as VacationPeriod, selectedYear)}
+                            {getEffectivePeriodForYear(a.base_period as VacationPeriod, selectedYear, yearOverrides, a.user_id)}
                           </option>
                         ))}
                     </select>
@@ -394,8 +412,8 @@ export default function TurniFeriePage() {
                   {switchUser1Id && switchUser2Id && (() => {
                     const a1 = filtered.find(a => a.user_id === switchUser1Id)
                     const a2 = filtered.find(a => a.user_id === switchUser2Id)
-                    const p1 = a1 ? getVacationPeriodForYear(a1.base_period as VacationPeriod, selectedYear) : null
-                    const p2 = a2 ? getVacationPeriodForYear(a2.base_period as VacationPeriod, selectedYear) : null
+                    const p1 = a1 ? getEffectivePeriodForYear(a1.base_period as VacationPeriod, selectedYear, yearOverrides, switchUser1Id) : null
+                    const p2 = a2 ? getEffectivePeriodForYear(a2.base_period as VacationPeriod, selectedYear, yearOverrides, switchUser2Id) : null
                     return (
                       <div className="text-xs text-muted-foreground text-center bg-muted/50 rounded-lg px-3 py-2">
                         P{p1} ↔ P{p2}

@@ -11,17 +11,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  let body: { user_id?: unknown; new_base_period?: unknown }
+  let body: { user_id?: unknown; period?: unknown; year?: unknown }
   try { body = await req.json() } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { user_id, new_base_period } = body
+  const { user_id, period, year } = body
   if (!user_id || typeof user_id !== 'string') {
     return NextResponse.json({ error: 'Missing user_id' }, { status: 400 })
   }
-  if (![1,2,3,4,5,6].includes(new_base_period as number)) {
-    return NextResponse.json({ error: 'Invalid new_base_period' }, { status: 400 })
+  if (![1,2,3,4,5,6].includes(period as number)) {
+    return NextResponse.json({ error: 'Invalid period' }, { status: 400 })
+  }
+  if (typeof year !== 'number' || year < 2026) {
+    return NextResponse.json({ error: 'Invalid year' }, { status: 400 })
   }
 
   const admin = createAdminClient(
@@ -29,9 +32,8 @@ export async function POST(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
   const { error } = await admin
-    .from('vacation_assignments')
-    .update({ base_period: new_base_period as VacationPeriod })
-    .eq('user_id', user_id)
+    .from('vacation_year_overrides')
+    .upsert({ user_id, year, period: period as VacationPeriod }, { onConflict: 'user_id,year' })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

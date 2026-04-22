@@ -31,6 +31,16 @@ export function getVacationPeriodForYear(
   return ROTATION_SEQ[targetIdx]
 }
 
+/** Periodo effettivo: usa override per l'anno se presente, altrimenti rotazione base. */
+export function getEffectivePeriodForYear(
+  basePeriod: VacationPeriod,
+  year: number,
+  overrides: Map<string, VacationPeriod>,
+  userId: string,
+): VacationPeriod {
+  return overrides.get(userId) ?? getVacationPeriodForYear(basePeriod, year)
+}
+
 /** Inverso: dato il periodo target in un anno, restituisce il base_period necessario. */
 export function getBasePeriodForYear(
   targetPeriod: VacationPeriod,

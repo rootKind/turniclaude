@@ -77,6 +77,13 @@ export interface VacationAssignment {
   created_at: string
 }
 
+export interface VacationYearOverride {
+  user_id: string
+  year: number
+  period: VacationPeriod
+  created_at: string
+}
+
 export interface VacationRequest {
   id: number
   user_id: string

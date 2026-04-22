@@ -6,6 +6,7 @@ import type {
   VacationRequestWithInterests,
   VacationRequestInterest,
   VacationPeriod,
+  VacationYearOverride,
 } from '@/types/database'
 import { getVacationPeriodForYear } from '@/lib/vacations'
 
@@ -57,6 +58,23 @@ export async function getAllVacationAssignmentsWithUsers(
 
   if (error) throw error
   return (data ?? []) as VacationAssignmentWithUser[]
+}
+
+export async function getVacationYearOverrides(
+  supabase: SupabaseClient,
+  year: number,
+): Promise<Map<string, VacationPeriod>> {
+  const { data, error } = await supabase
+    .from('vacation_year_overrides')
+    .select('user_id, period')
+    .eq('year', year)
+
+  if (error) throw error
+  const map = new Map<string, VacationPeriod>()
+  for (const row of (data ?? []) as Pick<VacationYearOverride, 'user_id' | 'period'>[]) {
+    map.set(row.user_id, row.period as VacationPeriod)
+  }
+  return map
 }
 
 export async function getVacationRequests(
