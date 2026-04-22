@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { fetchShifts } from '@/lib/queries/shifts'
+import type { Shift } from '@/types/database'
 
 export const SHIFTS_QUERY_KEY = (isSecondary: boolean) => ['shifts', isSecondary]
 
@@ -40,7 +41,7 @@ export function useShifts(isSecondary: boolean) {
     return () => { supabase.removeChannel(channel) }
   }, [isSecondary, queryClient])
 
-  return useQuery({
+  return useQuery<Shift[]>({
     queryKey: SHIFTS_QUERY_KEY(isSecondary),
     queryFn: async () => {
       const data = await fetchShifts(isSecondary)
