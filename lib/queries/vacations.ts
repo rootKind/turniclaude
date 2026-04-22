@@ -187,6 +187,56 @@ export function findCompatibleVacationRequests(
   )
 }
 
+/**
+ * BFS per catene circolari di N persone (N >= 3 totale, cioè >= 2 nodi intermedi).
+ * Restituisce array di path: ogni path è la sequenza di richieste intermedie [B, C, ...]
+ * che, insieme all'utente corrente, formano un ciclo chiuso.
+ *
+ * Semantica catena A→B→C→A:
+ *   A dà myOffered a B (B la vuole), B dà B.offered a C (C la vuole), C dà C.offered ad A (A la vuole)
+ */
+export function findVacationChains(
+  requests: VacationRequestWithInterests[],
+  myOffered: VacationPeriod,
+  myTargets: VacationPeriod[],
+  myUserId: string,
+  maxIntermediateNodes = 4,
+): VacationRequestWithInterests[][] {
+  const chains: VacationRequestWithInterests[][] = []
+
+  type State = { path: VacationRequestWithInterests[]; lastOffered: VacationPeriod }
+  const queue: State[] = []
+
+  for (const r of requests) {
+    if (r.user_id === myUserId) continue
+    if (!(r.target_periods as VacationPeriod[]).includes(myOffered)) continue
+    queue.push({ path: [r], lastOffered: r.offered_period })
+  }
+
+  while (queue.length > 0) {
+    const { path, lastOffered } = queue.shift()!
+
+    // Ciclo chiuso: l'ultimo nodo offre qualcosa che A vuole → catena valida
+    // Richiede almeno 2 nodi intermedi (catena ≥ 3 persone totali)
+    if (path.length >= 2 && myTargets.includes(lastOffered)) {
+      chains.push(path)
+      if (chains.length >= 20) break
+      continue
+    }
+
+    if (path.length >= maxIntermediateNodes) continue
+
+    const usedIds = new Set([myUserId, ...path.map(r => r.user_id)])
+    for (const r of requests) {
+      if (usedIds.has(r.user_id)) continue
+      if (!(r.target_periods as VacationPeriod[]).includes(lastOffered)) continue
+      queue.push({ path: [...path, r], lastOffered: r.offered_period })
+    }
+  }
+
+  return chains
+}
+
 export async function toggleVacationInterest(
   supabase: SupabaseClient,
   requestId: number,
