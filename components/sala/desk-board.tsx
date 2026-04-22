@@ -12,7 +12,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { ChevronLeft, ChevronRight, Upload, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType } from '@/types/database'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -240,7 +240,7 @@ export function DeskBoard({
     }
   }
 
-  const openHistory = async () => {
+  const openHistory = useCallback(async () => {
     setShowHistory(true)
     setHistoryLoading(true)
     try {
@@ -250,7 +250,22 @@ export function DeskBoard({
     } finally {
       setHistoryLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    const onUpload = () => fileInputRef.current?.click()
+    const onHistory = () => openHistory()
+    const onEdit = () => setIsEditing(true)
+    document.addEventListener('sala-admin-upload', onUpload)
+    document.addEventListener('sala-admin-history', onHistory)
+    document.addEventListener('sala-admin-edit', onEdit)
+    return () => {
+      document.removeEventListener('sala-admin-upload', onUpload)
+      document.removeEventListener('sala-admin-history', onHistory)
+      document.removeEventListener('sala-admin-edit', onEdit)
+    }
+  }, [isAdmin, openHistory])
 
   const handleDeleteMonth = async (month: string) => {
     setDeletingMonth(month)
@@ -355,29 +370,19 @@ export function DeskBoard({
             </div>
 
             {isAdmin && (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-                >
-                  <Upload size={13} />
-                  {uploading ? 'Caricamento…' : 'PDF'}
-                </button>
-              </>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={handleFileChange}
+              />
             )}
           </div>
         )}
 
-        {/* Layout edit toolbar */}
-        {isAdmin && (
+        {/* Layout edit toolbar — visible only while editing */}
+        {isAdmin && isEditing && (
           <EditToolbar
             isEditing={isEditing}
             dirty={dirty}

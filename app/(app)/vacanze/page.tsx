@@ -7,11 +7,11 @@ import { isAdmin } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getMyVacationAssignment } from '@/lib/queries/vacations'
 import { VACATION_PERIOD_LABELS } from '@/lib/vacations'
+import { getAppSettings } from '@/lib/queries/app-settings'
 import { VacationRequestList } from '@/components/vacanze/vacation-request-list'
 import { VacationRequestDialog } from '@/components/vacanze/vacation-request-dialog'
 import type { VacationPeriod } from '@/types/database'
 
-const MIN_YEAR = 2026
 const MAX_YEAR = 2099
 
 function VacanzeContent() {
@@ -25,6 +25,7 @@ function VacanzeContent() {
   const [basePeriod, setBasePeriod] = useState<VacationPeriod | null>(null)
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [minYear, setMinYear] = useState(2026)
   const adminUser = profile ? isAdmin(profile.id) : false
   const loggedInUserId = profile?.id ?? ''
   const effectiveIsSecondary = adminUser ? viewSecondary : (profile?.is_secondary ?? false)
@@ -49,8 +50,13 @@ function VacanzeContent() {
     }
   }, [searchParams, router])
 
+  useEffect(() => {
+    const supabase = createClient()
+    getAppSettings(supabase).then(s => setMinYear(s.min_year_vacanze)).catch(() => {})
+  }, [])
+
   function changeYear(delta: number) {
-    setSelectedYear(y => Math.min(MAX_YEAR, Math.max(MIN_YEAR, y + delta)))
+    setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear,y + delta)))
   }
 
   useEffect(() => {
@@ -64,7 +70,7 @@ function VacanzeContent() {
       const dx = e.changedTouches[0].clientX - startX
       const dy = e.changedTouches[0].clientY - startY
       if (Math.abs(dx) <= 50 || Math.abs(dy) > Math.abs(dx)) return
-      setSelectedYear(y => Math.min(MAX_YEAR, Math.max(MIN_YEAR, y + (dx > 0 ? -1 : 1))))
+      setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear,y + (dx > 0 ? -1 : 1))))
     }
     document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })
@@ -92,7 +98,7 @@ function VacanzeContent() {
       <div className="mb-4 px-3 py-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 flex items-center gap-2">
         <button
           onClick={() => changeYear(-1)}
-          disabled={selectedYear <= MIN_YEAR}
+          disabled={selectedYear <= minYear}
           className="p-1 rounded-lg hover:bg-sky-100 dark:hover:bg-sky-900/40 disabled:opacity-30 transition-colors flex-shrink-0"
         >
           <ChevronLeft size={16} className="text-sky-600 dark:text-sky-400" />

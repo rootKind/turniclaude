@@ -1,8 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutGrid, Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight } from 'lucide-react'
+import { LayoutGrid, Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, Upload, History, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
@@ -21,7 +21,10 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   const isTurni = pathname === '/turnisala' || pathname === '/turniferie'
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [notifFabOpen, setNotifFabOpen] = useState(false)
+  const [adminFabOpen, setAdminFabOpen] = useState(false)
   const [turniLastPage, setTurniLastPage] = useState('/turnisala')
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressTriggered = useRef(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('turni-last-page')
@@ -36,6 +39,35 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   }, [isTurni, pathname])
   const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
 
+  function handleTurniSalaFabPointerDown() {
+    longPressTriggered.current = false
+    longPressTimer.current = setTimeout(() => {
+      longPressTriggered.current = true
+      setAdminFabOpen(v => !v)
+    }, 500)
+  }
+
+  function handleTurniSalaFabPointerUp() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
+  function handleTurniSalaFabClick() {
+    if (longPressTriggered.current) {
+      longPressTriggered.current = false
+      return
+    }
+    setAdminFabOpen(false)
+    router.push('/turniferie')
+  }
+
+  function dispatchSalaAdmin(event: string) {
+    document.dispatchEvent(new CustomEvent(event))
+    setAdminFabOpen(false)
+  }
+
   const leftLinks = [
     { href: '/dashboard',    icon: LayoutGrid, label: 'Cambi turno' },
     { href: '/vacanze',      icon: Palmtree,   label: 'Cambi ferie' },
@@ -46,6 +78,53 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
 
   return (
     <>
+      {/* Admin mini-fabs overlay — turnisala only */}
+      {pathname === '/turnisala' && isAdmin && adminFabOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setAdminFabOpen(false)}
+        >
+          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Modifica piantina
+              </span>
+              <button
+                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-edit') }}
+                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
+                aria-label="Modifica piantina"
+              >
+                <Pencil size={18} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Cronologia PDF
+              </span>
+              <button
+                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-history') }}
+                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
+                aria-label="Cronologia PDF"
+              >
+                <History size={18} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Upload PDF
+              </span>
+              <button
+                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-upload') }}
+                className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:bg-primary/90 transition-colors"
+                aria-label="Upload PDF"
+              >
+                <Upload size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Notifiche mini-fabs overlay */}
       {isNotifiche && notifFabOpen && history.length > 0 && (
         <div className="fixed bottom-20 left-0 right-0 flex flex-col items-center gap-3 z-40 pointer-events-none">
@@ -117,13 +196,32 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                   {notifFabOpen ? <X size={20} /> : <Bell size={20} />}
                 </button>
               ) : isTurni ? (
-                <button
-                  onClick={() => router.push(pathname === '/turnisala' ? '/turniferie' : '/turnisala')}
-                  className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                  aria-label="Cambia vista turni"
-                >
-                  <ArrowLeftRight size={20} />
-                </button>
+                pathname === '/turnisala' && isAdmin ? (
+                  <button
+                    onPointerDown={handleTurniSalaFabPointerDown}
+                    onPointerUp={handleTurniSalaFabPointerUp}
+                    onPointerLeave={handleTurniSalaFabPointerUp}
+                    onClick={handleTurniSalaFabClick}
+                    onContextMenu={e => e.preventDefault()}
+                    className={cn(
+                      'w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors',
+                      adminFabOpen
+                        ? 'bg-muted text-foreground border border-border'
+                        : 'bg-primary text-primary-foreground',
+                    )}
+                    aria-label={adminFabOpen ? 'Chiudi menu admin' : 'Azioni admin sala'}
+                  >
+                    {adminFabOpen ? <X size={20} /> : <ArrowLeftRight size={20} />}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => router.push(pathname === '/turnisala' ? '/turniferie' : '/turnisala')}
+                    className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+                    aria-label="Cambia vista turni"
+                  >
+                    <ArrowLeftRight size={20} />
+                  </button>
+                )
               ) : isVacanze ? (
                 <Link
                   href="/vacanze?new=1"

@@ -6,9 +6,9 @@ import { isAdmin } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getAllVacationAssignmentsWithUsers, type VacationAssignmentWithUser } from '@/lib/queries/vacations'
 import { VACATION_PERIOD_LABELS, getVacationPeriodForYear } from '@/lib/vacations'
+import { getAppSettings } from '@/lib/queries/app-settings'
 import type { VacationPeriod } from '@/types/database'
 
-const MIN_YEAR = 2026
 const MAX_YEAR = 2099
 const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
 
@@ -23,6 +23,7 @@ export default function TurniFeriePage() {
   const { profile } = useCurrentUser()
   const [viewSecondary, setViewSecondary] = useState(false)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [minYear, setMinYear] = useState(2026)
   const [assignments, setAssignments] = useState<VacationAssignmentWithUser[]>([])
   const [expandedPeriods, setExpandedPeriods] = useState<Set<VacationPeriod>>(new Set([1, 2, 3, 4, 5, 6]))
   // true when viewport is tall enough to show all 6 cards fully expanded
@@ -34,6 +35,8 @@ export default function TurniFeriePage() {
 
   useEffect(() => {
     localStorage.setItem('turni-last-page', '/turniferie')
+    const supabase = createClient()
+    getAppSettings(supabase).then(s => setMinYear(s.min_year_turniferie)).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -68,7 +71,7 @@ export default function TurniFeriePage() {
       const dx = e.changedTouches[0].clientX - startX
       const dy = e.changedTouches[0].clientY - startY
       if (Math.abs(dx) <= 50 || Math.abs(dy) > Math.abs(dx)) return
-      setSelectedYear(y => Math.min(MAX_YEAR, Math.max(MIN_YEAR, y + (dx > 0 ? -1 : 1))))
+      setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear,y + (dx > 0 ? -1 : 1))))
     }
     document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })
@@ -119,7 +122,7 @@ export default function TurniFeriePage() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setSelectedYear(y => Math.max(MIN_YEAR, y - 1))}
-            disabled={selectedYear <= MIN_YEAR}
+            disabled={selectedYear <= minYear}
             className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
           >
             <ChevronLeft size={18} />
