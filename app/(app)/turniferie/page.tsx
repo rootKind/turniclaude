@@ -13,6 +13,15 @@ import type { VacationPeriod } from '@/types/database'
 const MAX_YEAR = 2099
 const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
 
+const PERIOD_CARD_CLASSES: Record<number, { border: string; header: string; content: string }> = {
+  1: { border: 'border-emerald-300 dark:border-emerald-700', header: 'bg-emerald-100 dark:bg-emerald-900/30', content: 'bg-emerald-50 dark:bg-emerald-950/20' },
+  2: { border: 'border-yellow-300 dark:border-yellow-700', header: 'bg-yellow-100 dark:bg-yellow-900/30', content: 'bg-yellow-50 dark:bg-yellow-950/20' },
+  3: { border: 'border-amber-300 dark:border-amber-700', header: 'bg-amber-100 dark:bg-amber-900/30', content: 'bg-amber-50 dark:bg-amber-950/20' },
+  4: { border: 'border-orange-300 dark:border-orange-700', header: 'bg-orange-100 dark:bg-orange-900/30', content: 'bg-orange-50 dark:bg-orange-950/20' },
+  5: { border: 'border-rose-300 dark:border-rose-700', header: 'bg-rose-100 dark:bg-rose-900/30', content: 'bg-rose-50 dark:bg-rose-950/20' },
+  6: { border: 'border-violet-300 dark:border-violet-700', header: 'bg-violet-100 dark:bg-violet-900/30', content: 'bg-violet-50 dark:bg-violet-950/20' },
+}
+
 function displayName(a: VacationAssignmentWithUser, cognomes: string[]) {
   const cognome = a.user?.cognome ?? ''
   const nome = a.user?.nome ?? ''
@@ -255,14 +264,18 @@ export default function TurniFeriePage() {
               transition={{ duration: 0.15, delay: index * 0.04, ease: 'easeOut' }}
               className={`rounded-xl border overflow-hidden transition-colors flex flex-col ${
                 isMyPeriod
-                  ? 'border-sky-400 dark:border-sky-600 bg-sky-50 dark:bg-sky-950/30'
-                  : 'border-[#bdd0e0] dark:border-[#2e2e2e] bg-[#dde8f0] dark:bg-[#1a1a1a]'
+                  ? `border-sky-400 dark:border-sky-600`
+                  : PERIOD_CARD_CLASSES[period]?.border ?? 'border-[#bdd0e0] dark:border-[#2e2e2e]'
               }`}
             >
               <button
                 onClick={() => togglePeriod(period)}
                 disabled={alwaysExpanded}
-                className="w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default"
+                className={`w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default ${
+                  isMyPeriod
+                    ? 'bg-sky-100 dark:bg-sky-900/40'
+                    : PERIOD_CARD_CLASSES[period]?.header ?? ''
+                }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {isMyPeriod && (
@@ -284,7 +297,11 @@ export default function TurniFeriePage() {
               </button>
 
               {isOpen && (
-                <div className="border-t border-border">
+                <div className={`border-t border-black/10 dark:border-white/10 ${
+                  isMyPeriod
+                    ? 'bg-sky-50 dark:bg-sky-950/30'
+                    : PERIOD_CARD_CLASSES[period]?.content ?? 'bg-background'
+                }`}>
                   {users.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Nessuno</p>
                   ) : (
