@@ -369,7 +369,7 @@ export function DeskBoard({
                   onClick={() => setSelectedShift(s)}
                   className={`px-3 py-1.5 transition-colors ${
                     selectedShift === s
-                      ? 'bg-primary text-primary-foreground'
+                      ? 'bg-blue-600 text-white dark:bg-blue-500'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >

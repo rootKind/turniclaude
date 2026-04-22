@@ -148,7 +148,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
           className={cn(
             'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
             selectedFilter === 'mine'
-              ? 'bg-primary text-primary-foreground border-primary'
+              ? 'bg-blue-600 text-white border-blue-600 dark:bg-blue-500 dark:border-blue-500'
               : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
           )}
         >
@@ -163,7 +163,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
           className={cn(
             'flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
             selectedFilter === null
-              ? 'bg-primary text-primary-foreground'
+              ? 'bg-blue-600 text-white dark:bg-blue-500'
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           )}
         >
@@ -182,7 +182,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
               className={cn(
                 'flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
                 selectedFilter === m
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-blue-600 text-white dark:bg-blue-500'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               )}
             >

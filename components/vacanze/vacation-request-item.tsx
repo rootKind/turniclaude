@@ -36,10 +36,19 @@ function formatRequestDate(createdAt: string): { day: string; month: string } {
   }
 }
 
+const PERIOD_PILL_CLASSES: Record<number, string> = {
+  1: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  2: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+  3: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  4: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  5: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+  6: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+}
+
 function PeriodPill({ period }: { period: VacationPeriod }) {
   const label = VACATION_PERIOD_LABELS[period].label
   return (
-    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 whitespace-nowrap">
+    <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASSES[period] ?? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300')}>
       {label}
     </span>
   )
@@ -229,7 +238,7 @@ export function VacationRequestItem({
                       .map(i => (
                         <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 gap-2">
                           <span className="text-[12px] shrink-0">{i.user.cognome ?? i.user.nome}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 whitespace-nowrap">
+                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASSES[i.period_this_year] ?? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300')}>
                             {VACATION_PERIOD_LABELS[i.period_this_year].label}
                           </span>
                           <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(i.created_at)}</span>
@@ -255,7 +264,7 @@ export function VacationRequestItem({
                       .map(i => (
                         <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 gap-2">
                           <span className="text-[12px] shrink-0">{i.user.cognome ?? i.user.nome}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 whitespace-nowrap">
+                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASSES[i.period_this_year] ?? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300')}>
                             {VACATION_PERIOD_LABELS[i.period_this_year].label}
                           </span>
                           <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(i.created_at)}</span>
