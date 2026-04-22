@@ -106,8 +106,8 @@ export default function TurniFeriePage() {
       className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
       style={{ height: 'calc(100dvh - 4rem)' }}
     >
-      <div className="flex items-center justify-between mb-3">
-        <h1 className="text-lg font-bold">Turni Ferie</h1>
+      <div className="flex items-center gap-2 mb-3 bg-card border border-border rounded-xl px-3 py-2">
+        <h1 className="text-lg font-bold flex-1">Turni Ferie</h1>
         {adminUser && (
           <button
             onClick={() => setViewSecondary(v => !v)}
@@ -116,9 +116,6 @@ export default function TurniFeriePage() {
             {viewSecondary ? 'Noni' : 'DCO'}
           </button>
         )}
-      </div>
-
-      <div className="flex items-center mb-3">
         <div className="flex items-center gap-1">
           <button
             onClick={() => setSelectedYear(y => Math.max(minYear, y - 1))}

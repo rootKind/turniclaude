@@ -322,15 +322,16 @@ export function DeskBoard({
       <div className="flex flex-col gap-2 p-4">
         {/* Schedule header — hidden during layout edit */}
         {!isEditing && (
-          <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center gap-1.5 bg-card border border-border rounded-xl px-3 py-2 mr-14">
+            {/* Day navigation */}
             <button
               onClick={() => setSelectedDay(d => Math.max(d - 1, 1))}
               disabled={selectedDay <= 1}
               className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={16} />
             </button>
-            <span className="text-xl font-bold w-8 text-center tabular-nums select-none">
+            <span className="text-lg font-bold w-7 text-center tabular-nums select-none">
               {selectedDay}
             </span>
             <button
@@ -338,23 +339,31 @@ export function DeskBoard({
               disabled={selectedDay >= totalDays}
               className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={16} />
             </button>
 
-            <select
-              value={currentMonth}
-              onChange={e => onMonthChange(e.target.value)}
-              className="ml-1 text-sm font-medium bg-transparent border-0 outline-none cursor-pointer text-muted-foreground hover:text-foreground"
-            >
-              {monthOptions.map(mo => (
-                <option key={mo} value={mo}>{formatMonthLabel(mo)}</option>
-              ))}
-            </select>
+            {/* Month + Year with overlay select */}
+            <div className="relative ml-1">
+              <span className="text-sm font-medium pointer-events-none select-none">
+                {MONTHS_IT[parseInt(currentMonth.split('-')[1]) - 1]}{' '}
+                {currentMonth.split('-')[0]}
+              </span>
+              <select
+                value={currentMonth}
+                onChange={e => onMonthChange(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+              >
+                {monthOptions.map(mo => (
+                  <option key={mo} value={mo}>{formatMonthLabel(mo)}</option>
+                ))}
+              </select>
+            </div>
 
             <div className="flex-1" />
 
+            {/* P/M/N buttons */}
             <div className="flex rounded-lg overflow-hidden border border-border text-xs font-semibold">
-              {(['M', 'P', 'N'] as const).map(s => (
+              {(['P', 'M', 'N'] as const).map(s => (
                 <button
                   key={s}
                   onClick={() => setSelectedShift(s)}

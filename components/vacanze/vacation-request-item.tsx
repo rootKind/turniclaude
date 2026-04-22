@@ -105,12 +105,17 @@ export function VacationRequestItem({
     if (!confirmDelete) { setConfirmDelete(true); return }
     setConfirmDelete(false)
     try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('vacation_requests')
-        .delete()
-        .eq('id', request.id)
-      if (error) throw error
+      if (!isOwn && canAdminAct) {
+        const res = await fetch(`/api/admin/vacation-requests?id=${request.id}`, { method: 'DELETE' })
+        if (!res.ok) { const b = await res.json(); throw new Error(b.error) }
+      } else {
+        const supabase = createClient()
+        const { error } = await supabase
+          .from('vacation_requests')
+          .delete()
+          .eq('id', request.id)
+        if (error) throw error
+      }
       queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
       toast.success('Richiesta eliminata')
     } catch {
