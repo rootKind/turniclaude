@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutGrid, Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, Upload, History, Pencil } from 'lucide-react'
+import { Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, Upload, History, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
@@ -96,8 +96,8 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   }
 
   const leftLinks = [
-    { href: '/dashboard',    icon: LayoutGrid, label: 'Cambi turno' },
-    { href: '/vacanze',      icon: Palmtree,   label: 'Cambi ferie' },
+    { href: '/dashboard',    icon: CalendarSwitchIcon, label: 'Cambi turno' },
+    { href: '/vacanze',      icon: PalmSwitchIcon,     label: 'Cambi ferie' },
   ]
   const rightLinks = [
     { href: '/impostazioni', icon: Settings,   label: 'Impostazioni', badge: feedbackUnread },
@@ -314,13 +314,22 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
 
             <button
               onClick={() => router.push(isTurni ? (pathname === '/turnisala' ? '/turniferie' : '/turnisala') : turniLastPage)}
-              className={cn(
-                'flex-1 flex flex-col items-center justify-center gap-0.5 relative',
-                isTurni ? 'text-foreground' : 'text-muted-foreground',
-              )}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
             >
-              <Calendar size={22} strokeWidth={isTurni ? 2.5 : 1.5} />
-              <span className="text-[10px]">Turni</span>
+              <div className="flex items-center gap-0.5">
+                <Calendar
+                  size={17}
+                  strokeWidth={pathname === '/turnisala' ? 2.5 : 1.5}
+                  className={pathname === '/turnisala' ? 'text-foreground' : 'text-muted-foreground'}
+                />
+                <span className="text-muted-foreground text-[9px] leading-none select-none">/</span>
+                <Palmtree
+                  size={17}
+                  strokeWidth={pathname === '/turniferie' ? 2.5 : 1.5}
+                  className={pathname === '/turniferie' ? 'text-foreground' : 'text-muted-foreground'}
+                />
+              </div>
+              <span className={cn('text-[10px]', isTurni ? 'text-foreground' : 'text-muted-foreground')}>Turni</span>
             </button>
 
             {rightLinks.map(({ href, icon: Icon, label, badge }) => (
@@ -333,6 +342,24 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   )
 }
 
+
+function CalendarSwitchIcon({ size = 22, strokeWidth = 1.5 }: { size?: number; strokeWidth?: number }) {
+  return (
+    <span className="relative inline-block">
+      <Calendar size={size} strokeWidth={strokeWidth} />
+      <ArrowLeftRight size={9} strokeWidth={2.5} className="absolute -right-2 -bottom-0.5" />
+    </span>
+  )
+}
+
+function PalmSwitchIcon({ size = 22, strokeWidth = 1.5 }: { size?: number; strokeWidth?: number }) {
+  return (
+    <span className="relative inline-block">
+      <Palmtree size={size} strokeWidth={strokeWidth} />
+      <ArrowLeftRight size={9} strokeWidth={2.5} className="absolute -right-2 -bottom-0.5" />
+    </span>
+  )
+}
 
 function NavItem({ href, icon: Icon, label, badge = 0, active }: {
   href: string; icon: React.ElementType; label: string; badge?: number; active: boolean
