@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getVacationRequestsWithInterests } from '@/lib/queries/vacations'
+import type { VacationRequestWithInterests } from '@/types/database'
 
 export const VACATION_REQUESTS_QUERY_KEY = (isSecondary: boolean, year: number) =>
   ['vacation_requests', isSecondary, year]
@@ -43,7 +44,7 @@ export function useVacationRequests(isSecondary: boolean, year: number) {
     return () => { supabase.removeChannel(channel) }
   }, [isSecondary, year, queryClient])
 
-  return useQuery({
+  return useQuery<VacationRequestWithInterests[]>({
     queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year),
     queryFn: async () => {
       const supabase = createClient()
@@ -52,7 +53,7 @@ export function useVacationRequests(isSecondary: boolean, year: number) {
       return data
     },
     staleTime: 15_000,
-    initialData: () => getCached(isSecondary, year).data,
+    initialData: () => getCached(isSecondary, year).data as VacationRequestWithInterests[] | undefined,
     initialDataUpdatedAt: () => getCached(isSecondary, year).ts,
   })
 }
