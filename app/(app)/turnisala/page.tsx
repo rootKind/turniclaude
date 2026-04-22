@@ -13,9 +13,12 @@ export default async function TurniSalaPage() {
   const now = new Date()
   const todayMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-  const [layout, scheduleMonths] = await Promise.all([
+  const [layout, scheduleMonths, userProfile] = await Promise.all([
     getSalaLayout(supabase),
     listScheduleMonths(supabase),
+    user
+      ? supabase.from('users').select('cognome').eq('id', user.id).maybeSingle().then(r => r.data)
+      : Promise.resolve(null),
   ])
 
   const initialMonth = scheduleMonths[0] ?? todayMonth
@@ -28,6 +31,7 @@ export default async function TurniSalaPage() {
       layout={layout}
       isAdmin={admin}
       userId={user?.id ?? ''}
+      userCognome={userProfile?.cognome ?? undefined}
       initialSchedule={initialSchedule}
       initialMonth={initialMonth}
       scheduleMonths={scheduleMonths}

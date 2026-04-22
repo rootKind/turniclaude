@@ -12,9 +12,12 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { ChevronLeft, ChevronRight, Upload } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Upload, X } from 'lucide-react'
 import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType } from '@/types/database'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
+import { createClient } from '@/lib/supabase/client'
+import { getUploadHistory } from '@/lib/queries/sala-schedule'
+import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
 
@@ -33,6 +36,14 @@ function formatMonthLabel(month: string): string {
   return `${MONTHS_IT[m - 1]} ${y}`
 }
 
+function formatDateTime(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleString('it-IT', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
 function migrateCard(card: DeskCardType): DeskCardType {
   if (card.tirocinanti !== undefined) return card
   return {
@@ -47,27 +58,37 @@ function initCards(cards: DeskCardType[]): DeskCardType[] {
     .map(migrateCard)
 }
 
+function matchesCognome(surnames: string[], cognome?: string): boolean {
+  if (!cognome) return false
+  const norm = cognome.toLowerCase().trim()
+  return surnames.some(s => s.toLowerCase().trim() === norm)
+}
+
 interface Props {
   layout: SalaLayout
   isAdmin: boolean
   userId: string
+  userCognome?: string
   onSave: (layout: SalaLayout) => Promise<void>
   schedule?: SalaSchedule | null
   currentMonth: string
   availableMonths: string[]
   onMonthChange: (month: string) => Promise<void>
   onUpload: (file: File, month: string) => Promise<void>
+  onDeleteMonth: (month: string) => Promise<void>
 }
 
 export function DeskBoard({
   layout: initialLayout,
   isAdmin,
+  userCognome,
   onSave,
   schedule,
   currentMonth,
   availableMonths,
   onMonthChange,
   onUpload,
+  onDeleteMonth,
 }: Props) {
   const [cards, setCards] = useState<DeskCardType[]>(() => initCards(initialLayout.cards))
   const [defaults, setDefaults] = useState<SalaLayoutDefaults>(
@@ -90,9 +111,42 @@ export function DeskBoard({
   const [selectedShift, setSelectedShift] = useState<SalaShiftType>('M')
   const [uploading, setUploading] = useState(false)
 
+  // History dialog
+  const [showHistory, setShowHistory] = useState(false)
+  const [historyEntries, setHistoryEntries] = useState<UploadHistoryEntry[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [deletingMonth, setDeletingMonth] = useState<string | null>(null)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const touchStartX = useRef<number | null>(null)
+  const isEditingRef = useRef(isEditing)
+  const totalDaysRef = useRef(getDaysInMonth(currentMonth))
+
+  useEffect(() => { isEditingRef.current = isEditing }, [isEditing])
+
   const totalDays = getDaysInMonth(currentMonth)
+  useEffect(() => { totalDaysRef.current = totalDays }, [totalDays])
+
+  // Document-level swipe — works in any area of the page
+  useEffect(() => {
+    const onTouchStart = (e: TouchEvent) => {
+      if (isEditingRef.current) return
+      touchStartX.current = e.touches[0].clientX
+    }
+    const onTouchEnd = (e: TouchEvent) => {
+      if (isEditingRef.current || touchStartX.current === null) return
+      const dx = e.changedTouches[0].clientX - touchStartX.current
+      touchStartX.current = null
+      if (Math.abs(dx) < 50) return
+      setSelectedDay(d => dx < 0 ? Math.min(d + 1, totalDaysRef.current) : Math.max(d - 1, 1))
+    }
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
 
   useEffect(() => {
     const [y, m] = currentMonth.split('-').map(Number)
@@ -172,19 +226,6 @@ export function DeskBoard({
     setDirty(true)
   }, [])
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (isEditing) return
-    touchStartX.current = e.touches[0].clientX
-  }
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (isEditing || touchStartX.current === null) return
-    const dx = e.changedTouches[0].clientX - touchStartX.current
-    touchStartX.current = null
-    if (Math.abs(dx) < 50) return
-    setSelectedDay(d => dx < 0 ? Math.min(d + 1, totalDays) : Math.max(d - 1, 1))
-  }
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -199,13 +240,33 @@ export function DeskBoard({
     }
   }
 
+  const openHistory = async () => {
+    setShowHistory(true)
+    setHistoryLoading(true)
+    try {
+      const supabase = createClient()
+      const entries = await getUploadHistory(supabase)
+      setHistoryEntries(entries)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  const handleDeleteMonth = async (month: string) => {
+    setDeletingMonth(month)
+    try {
+      await onDeleteMonth(month)
+    } finally {
+      setDeletingMonth(null)
+    }
+  }
+
   const scheduleSections: string[] = schedule
     ? [...new Set(
         Object.values(schedule.schedule).flatMap(day => Object.keys(day.sections))
       )].sort()
     : []
 
-  // Build display cards: merge schedule data for selected day/shift, or fallback to layout
   const displayCards = (schedule && !isEditing)
     ? cards.map(card => {
         const lookupKey = card.sectionKey ?? card.title
@@ -243,15 +304,10 @@ export function DeskBoard({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div
-        className="flex flex-col gap-2 p-4"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
+      <div className="flex flex-col gap-2 p-4">
         {/* Schedule header — hidden during layout edit */}
         {!isEditing && (
           <div className="flex items-center gap-1 flex-wrap">
-            {/* Day navigation */}
             <button
               onClick={() => setSelectedDay(d => Math.max(d - 1, 1))}
               disabled={selectedDay <= 1}
@@ -270,7 +326,6 @@ export function DeskBoard({
               <ChevronRight size={20} />
             </button>
 
-            {/* Month selector */}
             <select
               value={currentMonth}
               onChange={e => onMonthChange(e.target.value)}
@@ -283,7 +338,6 @@ export function DeskBoard({
 
             <div className="flex-1" />
 
-            {/* P / M / N toggle */}
             <div className="flex rounded-lg overflow-hidden border border-border text-xs font-semibold">
               {(['M', 'P', 'N'] as const).map(s => (
                 <button
@@ -300,7 +354,6 @@ export function DeskBoard({
               ))}
             </div>
 
-            {/* Upload PDF (admin) */}
             {isAdmin && (
               <>
                 <input
@@ -335,6 +388,7 @@ export function DeskBoard({
             onCancel={handleCancel}
             onAddCard={addCard}
             onChangeDefaults={handleChangeDefaults}
+            onHistory={openHistory}
           />
         )}
 
@@ -346,6 +400,7 @@ export function DeskBoard({
                 key={card.id}
                 card={card}
                 isEditing={isEditing}
+                highlighted={!isEditing && matchesCognome(card.surnames, userCognome)}
                 minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
                 tirocinanteWidth={defaults.tirocinanteWidth}
                 scheduleSections={scheduleSections}
@@ -382,6 +437,85 @@ export function DeskBoard({
           />
         )}
       </DragOverlay>
+
+      {/* History dialog */}
+      {showHistory && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex justify-end"
+          onClick={e => { if (e.target === e.currentTarget) setShowHistory(false) }}
+        >
+          <div className="bg-card w-full max-w-sm h-full flex flex-col shadow-xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+              <h2 className="text-sm font-semibold">Gestione PDF sala</h2>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-5">
+              {/* Currently loaded months */}
+              <section>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Mesi caricati
+                </h3>
+                {availableMonths.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nessun mese caricato.</p>
+                ) : (
+                  <ul className="flex flex-col gap-1">
+                    {availableMonths.map(m => (
+                      <li key={m} className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50">
+                        <span className="text-sm font-medium">{formatMonthLabel(m)}</span>
+                        <button
+                          onClick={() => handleDeleteMonth(m)}
+                          disabled={deletingMonth === m}
+                          className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+                          title={`Elimina dati ${formatMonthLabel(m)}`}
+                        >
+                          {deletingMonth === m
+                            ? <span className="text-xs">…</span>
+                            : <X size={14} />
+                          }
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              {/* Upload history */}
+              <section>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Cronologia upload
+                </h3>
+                {historyLoading ? (
+                  <p className="text-xs text-muted-foreground">Caricamento…</p>
+                ) : historyEntries.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nessun upload registrato.</p>
+                ) : (
+                  <ul className="flex flex-col gap-1">
+                    {historyEntries.map(entry => (
+                      <li key={entry.id} className="rounded-lg px-3 py-2 bg-muted/30 flex flex-col gap-0.5">
+                        <span className="text-xs font-medium truncate" title={entry.filename}>
+                          {entry.filename}
+                        </span>
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <span>{formatMonthLabel(entry.month)}</span>
+                          <span>·</span>
+                          <span>{formatDateTime(entry.uploaded_at)}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
     </DndContext>
   )
 }

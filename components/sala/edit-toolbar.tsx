@@ -1,5 +1,5 @@
 'use client'
-import { Pencil, Save, X, LayoutGrid, Square } from 'lucide-react'
+import { Pencil, Save, X, LayoutGrid, Square, History } from 'lucide-react'
 import type { SalaLayoutDefaults } from '@/types/database'
 
 interface Props {
@@ -12,15 +12,23 @@ interface Props {
   onCancel: () => void
   onAddCard: (type: 'single' | 'double') => void
   onChangeDefaults: (d: SalaLayoutDefaults) => void
+  onHistory: () => void
 }
 
 export function EditToolbar({
   isEditing, dirty, saving, defaults,
-  onStartEdit, onSave, onCancel, onAddCard, onChangeDefaults,
+  onStartEdit, onSave, onCancel, onAddCard, onChangeDefaults, onHistory,
 }: Props) {
   if (!isEditing) {
     return (
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={onHistory}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <History size={14} />
+          Cronologia PDF
+        </button>
         <button
           onClick={onStartEdit}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
@@ -52,6 +60,14 @@ export function EditToolbar({
         >
           <LayoutGrid size={13} />
           Doppia
+        </button>
+
+        <button
+          onClick={onHistory}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-background border border-border hover:border-primary hover:text-primary transition-colors"
+        >
+          <History size={13} />
+          Cronologia
         </button>
 
         <div className="flex-1" />

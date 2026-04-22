@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/types/database'
 import { parsePdfSchedule } from '@/lib/pdf-parser'
-import { upsertSalaSchedule } from '@/lib/queries/sala-schedule'
+import { upsertSalaSchedule, saveUploadHistory } from '@/lib/queries/sala-schedule'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
 
   const result = await parsePdfSchedule(buffer, month)
   await upsertSalaSchedule(supabase, result, user.id)
+  await saveUploadHistory(supabase, month, file.name, user.id)
 
   return NextResponse.json({ ok: true, month, persons: Object.keys(result.schedule).length })
 }

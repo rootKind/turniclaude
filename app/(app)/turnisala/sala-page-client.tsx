@@ -20,6 +20,7 @@ interface Props {
   layout: SalaLayout
   isAdmin: boolean
   userId: string
+  userCognome?: string
   initialSchedule: SalaSchedule | null
   initialMonth: string
   scheduleMonths: string[]
@@ -29,6 +30,7 @@ export function SalaPageClient({
   layout,
   isAdmin,
   userId,
+  userCognome,
   initialSchedule,
   initialMonth,
   scheduleMonths: initialMonths,
@@ -73,18 +75,46 @@ export function SalaPageClient({
     )
   }
 
+  const handleDeleteMonth = async (month: string) => {
+    const res = await fetch(`/api/admin/sala-schedule?month=${month}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const body = await res.text()
+      throw new Error(body)
+    }
+    setAvailableMonths(prev => {
+      const next = prev.filter(m => m !== month)
+      if (currentMonth === month) {
+        const fallback = next[0] ?? null
+        if (fallback) {
+          handleMonthChange(fallback)
+        } else {
+          setSchedule(null)
+          setCurrentMonth(
+            (() => {
+              const now = new Date()
+              return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+            })()
+          )
+        }
+      }
+      return next
+    })
+  }
+
   return (
     <main className="flex flex-col min-h-[60vh]">
       <DeskBoard
         layout={layout}
         isAdmin={isAdmin}
         userId={userId}
+        userCognome={userCognome}
         onSave={handleSaveLayout}
         schedule={schedule}
         currentMonth={currentMonth}
         availableMonths={availableMonths}
         onMonthChange={handleMonthChange}
         onUpload={handleUpload}
+        onDeleteMonth={handleDeleteMonth}
       />
     </main>
   )

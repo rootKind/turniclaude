@@ -1,6 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SalaSchedule } from '@/types/database'
 
+export interface UploadHistoryEntry {
+  id: string
+  month: string
+  filename: string
+  uploaded_at: string
+}
+
 export async function getSalaSchedule(
   supabase: SupabaseClient,
   month: string,
@@ -44,6 +51,38 @@ export async function upsertSalaSchedule(
       uploaded_at: new Date().toISOString(),
       uploaded_by: userId,
     })
+
+  if (error) throw error
+}
+
+export async function saveUploadHistory(
+  supabase: SupabaseClient,
+  month: string,
+  filename: string,
+  userId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('sala_upload_history')
+    .insert({ month, filename, uploaded_by: userId })
+
+  if (error) throw error
+}
+
+export async function getUploadHistory(supabase: SupabaseClient): Promise<UploadHistoryEntry[]> {
+  const { data, error } = await supabase
+    .from('sala_upload_history')
+    .select('id, month, filename, uploaded_at')
+    .order('uploaded_at', { ascending: false })
+
+  if (error) throw error
+  return (data ?? []) as UploadHistoryEntry[]
+}
+
+export async function deleteScheduleMonth(supabase: SupabaseClient, month: string): Promise<void> {
+  const { error } = await supabase
+    .from('sala_schedule')
+    .delete()
+    .eq('month', month)
 
   if (error) throw error
 }

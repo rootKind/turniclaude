@@ -8,6 +8,7 @@ import type { DeskCard as DeskCardType } from '@/types/database'
 interface Props {
   card: DeskCardType
   isEditing: boolean
+  highlighted?: boolean
   minWidth: number
   tirocinanteWidth: number
   scheduleSections: string[]
@@ -15,7 +16,7 @@ interface Props {
   onDelete: (id: string) => void
 }
 
-export function DeskCard({ card, isEditing, minWidth, tirocinanteWidth, scheduleSections, onUpdate, onDelete }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth, scheduleSections, onUpdate, onDelete }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
     disabled: !isEditing,
@@ -65,7 +66,7 @@ export function DeskCard({ card, isEditing, minWidth, tirocinanteWidth, schedule
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-card border border-border rounded-lg overflow-hidden flex h-full"
+      className={`bg-card rounded-lg overflow-hidden flex h-full border ${highlighted ? 'border-amber-400 ring-2 ring-amber-300/40' : 'border-border'}`}
     >
       {/* Main area */}
       <div className="flex flex-col" style={{ minWidth: `${minWidth}px` }}>
