@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
 import { BellOff, Megaphone, Heart, CalendarPlus, Check, Trash2, TreePalm } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
@@ -74,8 +75,14 @@ export function NotificationList() {
 
   return (
     <div className="flex flex-col gap-4">
-      {sections.map(({ key, label, Icon, entries }) => (
-        <div key={key} className="flex flex-col">
+      {sections.map(({ key, label, Icon, entries }, index) => (
+        <motion.div
+          key={key}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.15, delay: index * 0.05, ease: 'easeOut' }}
+          className="flex flex-col"
+        >
           <div className="flex items-center gap-2 mb-1 px-1">
             <Icon size={13} className="text-muted-foreground flex-shrink-0" />
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -141,7 +148,7 @@ export function NotificationList() {
               )
             })}
           </div>
-        </div>
+        </motion.div>
       ))}
     </div>
   )

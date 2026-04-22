@@ -212,17 +212,23 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
               const prev = filtered[index - 1]
               const isSameDateAsPrevious = !!prev && prev.shift_date === shift.shift_date
               return (
-                <ShiftItem
+                <motion.div
                   key={shift.id}
-                  shift={shift}
-                  currentUserId={effectiveUserId}
-                  loggedInUserId={loggedInUserId}
-                  isSecondary={isSecondary}
-                  isSameDateAsPrevious={isSameDateAsPrevious}
-                  dateIndex={dateIndexes[index]}
-                  onEdit={setEditingShift}
-                  isHighlighted={highlightShiftId === shift.id}
-                />
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.15, delay: Math.min(index * 0.03, 0.25), ease: 'easeOut' }}
+                >
+                  <ShiftItem
+                    shift={shift}
+                    currentUserId={effectiveUserId}
+                    loggedInUserId={loggedInUserId}
+                    isSecondary={isSecondary}
+                    isSameDateAsPrevious={isSameDateAsPrevious}
+                    dateIndex={dateIndexes[index]}
+                    onEdit={setEditingShift}
+                    isHighlighted={highlightShiftId === shift.id}
+                  />
+                </motion.div>
               )
             })}
           </motion.div>
