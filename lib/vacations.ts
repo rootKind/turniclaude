@@ -30,3 +30,14 @@ export function getVacationPeriodForYear(
   const targetIdx = (baseIdx + offset) % 6
   return ROTATION_SEQ[targetIdx]
 }
+
+/** Inverso: dato il periodo target in un anno, restituisce il base_period necessario. */
+export function getBasePeriodForYear(
+  targetPeriod: VacationPeriod,
+  year: number,
+): VacationPeriod {
+  const offset    = ((year - 2026) % 6 + 6) % 6
+  const targetIdx = ROTATION_SEQ.indexOf(targetPeriod)
+  const baseIdx   = (targetIdx - offset + 6) % 6
+  return ROTATION_SEQ[baseIdx]
+}

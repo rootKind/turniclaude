@@ -133,7 +133,24 @@ function processPageRows(
       if (parsed) {
         const modByDay: Record<number, string> = {}
         if (pendingMod) {
-          for (const item of pendingMod.items) {
+          // Merge split shift codes: "M" + "DCIF" at same x → "MDCIF"
+          const modItems: TextItem[] = []
+          for (let i = 0; i < pendingMod.items.length; i++) {
+            const cur = pendingMod.items[i]
+            const nxt = pendingMod.items[i + 1]
+            if (
+              /^[MNP]$/.test(cur.str) &&
+              nxt &&
+              Math.abs(cur.x - nxt.x) <= 10 &&
+              /^[A-Z]/.test(nxt.str)
+            ) {
+              modItems.push({ ...cur, str: cur.str + nxt.str })
+              i++
+            } else {
+              modItems.push(cur)
+            }
+          }
+          for (const item of modItems) {
             if (['Mer','Gio','Ven','Sab','Dom','Lun','Mar'].includes(item.str)) continue
             const day = xToDay(item.x, headerXMap)
             if (day) modByDay[day] = item.str

@@ -22,9 +22,12 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [notifFabOpen, setNotifFabOpen] = useState(false)
   const [adminFabOpen, setAdminFabOpen] = useState(false)
+  const [ferieAdminFabOpen, setFerieAdminFabOpen] = useState(false)
   const [turniLastPage, setTurniLastPage] = useState('/turnisala')
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressTriggered = useRef(false)
+  const ferieLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const ferieLongPressTriggered = useRef(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('turni-last-page')
@@ -66,6 +69,30 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
   function dispatchSalaAdmin(event: string) {
     document.dispatchEvent(new CustomEvent(event))
     setAdminFabOpen(false)
+  }
+
+  function handleFerieFabPointerDown() {
+    ferieLongPressTriggered.current = false
+    ferieLongPressTimer.current = setTimeout(() => {
+      ferieLongPressTriggered.current = true
+      setFerieAdminFabOpen(v => !v)
+    }, 500)
+  }
+
+  function handleFerieFabPointerUp() {
+    if (ferieLongPressTimer.current) {
+      clearTimeout(ferieLongPressTimer.current)
+      ferieLongPressTimer.current = null
+    }
+  }
+
+  function handleFerieFabClick() {
+    if (ferieLongPressTriggered.current) {
+      ferieLongPressTriggered.current = false
+      return
+    }
+    setFerieAdminFabOpen(false)
+    router.push('/turnisala')
   }
 
   const leftLinks = [
@@ -119,6 +146,33 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                 aria-label="Upload PDF"
               >
                 <Upload size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin mini-fabs overlay — turniferie only */}
+      {pathname === '/turniferie' && isAdmin && ferieAdminFabOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setFerieAdminFabOpen(false)}
+        >
+          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Sposta ferie
+              </span>
+              <button
+                onClick={e => {
+                  e.stopPropagation()
+                  document.dispatchEvent(new CustomEvent('ferie-admin-swap'))
+                  setFerieAdminFabOpen(false)
+                }}
+                className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:bg-primary/90 transition-colors"
+                aria-label="Sposta dipendente tra periodi"
+              >
+                <ArrowLeftRight size={18} />
               </button>
             </div>
           </div>
@@ -212,6 +266,23 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                     aria-label={adminFabOpen ? 'Chiudi menu admin' : 'Azioni admin sala'}
                   >
                     {adminFabOpen ? <X size={20} /> : <ArrowLeftRight size={20} />}
+                  </button>
+                ) : pathname === '/turniferie' && isAdmin ? (
+                  <button
+                    onPointerDown={handleFerieFabPointerDown}
+                    onPointerUp={handleFerieFabPointerUp}
+                    onPointerLeave={handleFerieFabPointerUp}
+                    onClick={handleFerieFabClick}
+                    onContextMenu={e => e.preventDefault()}
+                    className={cn(
+                      'w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors',
+                      ferieAdminFabOpen
+                        ? 'bg-muted text-foreground border border-border'
+                        : 'bg-primary text-primary-foreground',
+                    )}
+                    aria-label={ferieAdminFabOpen ? 'Chiudi menu admin' : 'Azioni admin ferie'}
+                  >
+                    {ferieAdminFabOpen ? <X size={20} /> : <ArrowLeftRight size={20} />}
                   </button>
                 ) : (
                   <button

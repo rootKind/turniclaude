@@ -1,11 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isAdmin } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getAllVacationAssignmentsWithUsers, type VacationAssignmentWithUser } from '@/lib/queries/vacations'
-import { VACATION_PERIOD_LABELS, getVacationPeriodForYear } from '@/lib/vacations'
+import { VACATION_PERIOD_LABELS, getVacationPeriodForYear, getBasePeriodForYear } from '@/lib/vacations'
 import { getAppSettings } from '@/lib/queries/app-settings'
 import type { VacationPeriod } from '@/types/database'
 
@@ -33,11 +33,27 @@ export default function TurniFeriePage() {
   const loggedInUserId = profile?.id ?? ''
   const effectiveIsSecondary = adminUser ? viewSecondary : (profile?.is_secondary ?? false)
 
+  const [swapOpen, setSwapOpen] = useState(false)
+  const [swapUserId, setSwapUserId] = useState('')
+  const [swapTargetPeriod, setSwapTargetPeriod] = useState<VacationPeriod>(1)
+  const [swapLoading, setSwapLoading] = useState(false)
+
   useEffect(() => {
     localStorage.setItem('turni-last-page', '/turniferie')
     const supabase = createClient()
     getAppSettings(supabase).then(s => setMinYear(s.min_year_turniferie)).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!adminUser) return
+    function onSwap() {
+      setSwapUserId('')
+      setSwapTargetPeriod(1)
+      setSwapOpen(true)
+    }
+    document.addEventListener('ferie-admin-swap', onSwap)
+    return () => document.removeEventListener('ferie-admin-swap', onSwap)
+  }, [adminUser])
 
   useEffect(() => {
     function check() {
@@ -91,6 +107,26 @@ export default function TurniFeriePage() {
     return { period, meta: VACATION_PERIOD_LABELS[period], users }
   })
 
+  async function applySwap() {
+    if (!swapUserId) return
+    setSwapLoading(true)
+    try {
+      const newBasePeriod = getBasePeriodForYear(swapTargetPeriod, selectedYear)
+      const res = await fetch('/api/admin/vacation-swap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: swapUserId, new_base_period: newBasePeriod }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const supabase = createClient()
+      const data = await getAllVacationAssignmentsWithUsers(supabase)
+      setAssignments(data)
+      setSwapOpen(false)
+    } finally {
+      setSwapLoading(false)
+    }
+  }
+
   function togglePeriod(period: VacationPeriod) {
     if (alwaysExpanded) return
     setExpandedPeriods(prev => {
@@ -106,7 +142,7 @@ export default function TurniFeriePage() {
       className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
       style={{ height: 'calc(100dvh - 4rem)' }}
     >
-      <div className="flex items-center gap-2 mb-3 bg-card border border-border rounded-xl px-3 py-2">
+      <div className="flex items-center gap-2 mb-3 bg-card border border-border rounded-xl pl-3 pr-14 py-2">
         <h1 className="text-lg font-bold flex-1">Turni Ferie</h1>
         {adminUser && (
           <button
@@ -203,6 +239,68 @@ export default function TurniFeriePage() {
           )
         })}
       </div>
+      {swapOpen && adminUser && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 pb-20 px-4">
+          <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <span className="font-semibold text-sm">Sposta dipendente</span>
+              <button onClick={() => setSwapOpen(false)} className="p-1 hover:bg-muted rounded-lg transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-4 py-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Dipendente</label>
+                <select
+                  value={swapUserId}
+                  onChange={e => setSwapUserId(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Seleziona…</option>
+                  {filtered
+                    .sort((a, b) => (a.user?.cognome ?? '').localeCompare(b.user?.cognome ?? '', 'it'))
+                    .map(a => (
+                      <option key={a.user_id} value={a.user_id}>
+                        {a.user?.cognome} {a.user?.nome}
+                        {' — '}
+                        P{getVacationPeriodForYear(a.base_period as VacationPeriod, selectedYear)}
+                        {' → '}
+                        {VACATION_PERIOD_LABELS[getVacationPeriodForYear(a.base_period as VacationPeriod, selectedYear)].label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Periodo destinazione ({selectedYear})</label>
+                <select
+                  value={swapTargetPeriod}
+                  onChange={e => setSwapTargetPeriod(parseInt(e.target.value) as VacationPeriod)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {([1,2,3,4,5,6] as VacationPeriod[]).map(p => (
+                    <option key={p} value={p}>P{p} — {VACATION_PERIOD_LABELS[p].label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setSwapOpen(false)}
+                  className="flex-1 py-2 rounded-xl border border-border text-sm hover:bg-muted transition-colors"
+                >
+                  Annulla
+                </button>
+                <button
+                  onClick={applySwap}
+                  disabled={!swapUserId || swapLoading}
+                  className="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-40 transition-colors"
+                >
+                  {swapLoading ? 'Salvo…' : 'Applica'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
