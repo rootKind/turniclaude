@@ -121,7 +121,7 @@ export default function TurniFeriePage() {
       <div className="flex items-center mb-3">
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setSelectedYear(y => Math.max(MIN_YEAR, y - 1))}
+            onClick={() => setSelectedYear(y => Math.max(minYear, y - 1))}
             disabled={selectedYear <= minYear}
             className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
           >
