@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/nav/bottom-nav'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import { isAdmin } from '@/types/database'
+import { PageTransitionWrapper } from '@/components/providers/page-transition'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -23,7 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen pb-16">
-      {children}
+      <PageTransitionWrapper>{children}</PageTransitionWrapper>
       <NotificationBell />
       <BottomNav feedbackUnread={feedbackUnread} isAdmin={admin} />
     </div>

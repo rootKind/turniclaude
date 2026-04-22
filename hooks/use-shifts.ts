@@ -3,8 +3,24 @@ import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { fetchShifts } from '@/lib/queries/shifts'
+import type { Shift } from '@/types/database'
 
 export const SHIFTS_QUERY_KEY = (isSecondary: boolean) => ['shifts', isSecondary]
+
+const cacheKey = (isSecondary: boolean) => `cache:shifts-${isSecondary}`
+
+function getCached(isSecondary: boolean) {
+  try {
+    const raw = localStorage.getItem(cacheKey(isSecondary))
+    if (!raw) return { data: undefined, ts: 0 }
+    const parsed = JSON.parse(raw)
+    return { data: parsed.data, ts: parsed.ts as number }
+  } catch { return { data: undefined, ts: 0 } }
+}
+
+function setCached(isSecondary: boolean, data: unknown) {
+  try { localStorage.setItem(cacheKey(isSecondary), JSON.stringify({ data, ts: Date.now() })) } catch {}
+}
 
 export function useShifts(isSecondary: boolean) {
   const queryClient = useQueryClient()
@@ -25,9 +41,15 @@ export function useShifts(isSecondary: boolean) {
     return () => { supabase.removeChannel(channel) }
   }, [isSecondary, queryClient])
 
-  return useQuery({
+  return useQuery<Shift[]>({
     queryKey: SHIFTS_QUERY_KEY(isSecondary),
-    queryFn: () => fetchShifts(isSecondary),
+    queryFn: async () => {
+      const data = await fetchShifts(isSecondary)
+      setCached(isSecondary, data)
+      return data
+    },
     staleTime: 15_000,
+    initialData: () => getCached(isSecondary).data,
+    initialDataUpdatedAt: () => getCached(isSecondary).ts,
   })
 }

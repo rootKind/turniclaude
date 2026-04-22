@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isAdmin } from '@/types/database'
@@ -73,16 +74,32 @@ export default function TurniFeriePage() {
   }, [])
 
   useEffect(() => {
+    const CACHE_KEY = 'cache:vacation-assignments'
+    try {
+      const raw = localStorage.getItem(CACHE_KEY)
+      if (raw) setAssignments(JSON.parse(raw))
+    } catch {}
     const supabase = createClient()
     getAllVacationAssignmentsWithUsers(supabase)
-      .then(data => setAssignments(data))
+      .then(data => {
+        setAssignments(data)
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)) } catch {}
+      })
       .catch(() => {})
   }, [])
 
   useEffect(() => {
+    const CACHE_KEY = `cache:vacation-overrides-${selectedYear}`
+    try {
+      const raw = localStorage.getItem(CACHE_KEY)
+      if (raw) setYearOverrides(new Map(JSON.parse(raw)))
+    } catch {}
     const supabase = createClient()
     getVacationYearOverrides(supabase, selectedYear)
-      .then(map => setYearOverrides(map))
+      .then(map => {
+        setYearOverrides(map)
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify([...map])) } catch {}
+      })
       .catch(() => {})
   }, [selectedYear])
 
@@ -226,13 +243,16 @@ export default function TurniFeriePage() {
       </div>
 
       <div className="grid grid-cols-2 gap-2" style={{ gridTemplateRows: 'repeat(3, auto)' }}>
-        {grouped.map(({ period, meta, users }) => {
+        {grouped.map(({ period, meta, users }, index) => {
           const isMyPeriod = period === myPeriodThisYear
           const isOpen = alwaysExpanded || expandedPeriods.has(period)
 
           return (
-            <div
+            <motion.div
               key={period}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.15, delay: index * 0.04, ease: 'easeOut' }}
               className={`rounded-xl border overflow-hidden transition-colors flex flex-col ${
                 isMyPeriod
                   ? 'border-sky-400 dark:border-sky-600 bg-sky-50 dark:bg-sky-950/30'
@@ -289,7 +309,7 @@ export default function TurniFeriePage() {
                   )}
                 </div>
               )}
-            </div>
+            </motion.div>
           )
         })}
       </div>
