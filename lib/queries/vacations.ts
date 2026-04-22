@@ -156,6 +156,19 @@ export async function createVacationRequest(
   return data as VacationRequest
 }
 
+export function findCompatibleVacationRequests(
+  requests: VacationRequestWithInterests[],
+  offeredPeriod: VacationPeriod,
+  targetPeriods: VacationPeriod[],
+  excludeUserId: string,
+): VacationRequestWithInterests[] {
+  return requests.filter(r =>
+    r.user_id !== excludeUserId &&
+    targetPeriods.includes(r.offered_period) &&
+    (r.target_periods as VacationPeriod[]).includes(offeredPeriod)
+  )
+}
+
 export async function toggleVacationInterest(
   supabase: SupabaseClient,
   requestId: number,
