@@ -198,34 +198,37 @@ function buildSchedule(allPersons: PersonData[], daysInMonth: number): Record<nu
 // ─── public API ───────────────────────────────────────────────────────────────
 
 export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<SalaSchedule> {
-  // Dynamic import to keep this server-only
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfParse = require('pdf-parse')
 
   const year = parseInt(month.split('-')[0])
   const monthIdx = parseInt(month.split('-')[1])
   const daysInMonth = new Date(year, monthIdx, 0).getDate()
 
-  const uint8 = new Uint8Array(buffer)
-  const doc = await getDocument({ data: uint8 }).promise
-  const numPages = doc.numPages
-
   const allPersons: PersonData[] = []
 
-  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-    const page = await doc.getPage(pageNum)
-    const { items } = await page.getTextContent()
-
-    const textItems: TextItem[] = []
-    for (const item of items as any[]) {
-      if (!item.str?.trim()) continue
-      const [, , , , tx, ty] = item.transform
-      textItems.push({ str: item.str.trim(), x: Math.round(tx), y: Math.round(ty) })
+  async function pagerender(pageData: any): Promise<string> {
+    try {
+      const { items } = await pageData.getTextContent()
+      const textItems: TextItem[] = []
+      for (const item of items as any[]) {
+        if (!item.str?.trim()) continue
+        const [, , , , tx, ty] = item.transform
+        textItems.push({ str: item.str.trim(), x: Math.round(tx), y: Math.round(ty) })
+      }
+      const rows = groupByRow(textItems)
+      allPersons.push(...processPageRows(rows, daysInMonth))
+    } catch (err) {
+      console.error('PDF parse error (page render)', err)
     }
+    return ''
+  }
 
-    const rows = groupByRow(textItems)
-    allPersons.push(...processPageRows(rows, daysInMonth))
+  try {
+    await pdfParse(buffer, { pagerender })
+  } catch (err) {
+    console.error('PDF parse error', err)
+    throw err
   }
 
   const schedule = buildSchedule(allPersons, daysInMonth)
