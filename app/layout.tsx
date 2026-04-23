@@ -5,6 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { ThemeColor } from '@/components/providers/theme-color'
+import { ColorThemeProvider } from '@/components/providers/color-theme-provider'
 import { PwaGuard } from '@/components/providers/pwa-guard'
 import { SwRegistrar } from '@/components/providers/sw-registrar'
 import { Toaster } from '@/components/ui/sonner'
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <SwRegistrar />
           <ThemeColor />
+          <ColorThemeProvider />
           <QueryProvider>
             <PwaGuard>
               {children}

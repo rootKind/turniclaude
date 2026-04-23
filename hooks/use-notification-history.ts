@@ -51,6 +51,7 @@ export function useNotificationHistory() {
       if (event.data?.type !== 'PUSH_RECEIVED') return
       const entry: NotificationEntry = event.data.entry
       setHistory(prev => {
+        if (prev.some(e => e.id === entry.id)) return prev
         const updated = [entry, ...prev].slice(0, MAX)
         writeHistory(updated)
         return updated
