@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useState, useEffect } from 'react'
+import { useRef } from 'react'
 import { Trash2, UserPlus, Link2, ArrowLeftRight, ArrowUpDown, GripVertical } from 'lucide-react'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -17,9 +17,11 @@ interface Props {
   isDragOverlay?: boolean
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth, scheduleSections, onUpdate, onDelete, isDragOverlay }: Props) {
+const toTitleCase = (s: string) =>
+  s ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : s
+
+export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth: _, scheduleSections, onUpdate, onDelete, isDragOverlay }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
-  const [tirWide, setTirWide] = useState(false)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
 
@@ -27,16 +29,6 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
     id: card.id,
     disabled: !isEditing || isDragOverlay,
   })
-
-  useEffect(() => {
-    const el = firstTirRef.current
-    if (!el) { setTirWide(false); return }
-    const ro = new ResizeObserver(([entry]) => {
-      setTirWide(entry.contentRect.width >= 70)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [tirCount])
 
   const updateSurname = (index: number, value: string) => {
     const surnames = [...card.surnames]
@@ -60,19 +52,25 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
   const toggleDoubleLayout = () => onUpdate({ ...card, doubleLayout: isDoubleCol ? 'row' : 'col' })
 
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
+  const displayTitle = isEditing
+    ? card.title
+    : card.title.replace(/\s*doppia\s*/gi, '').trim()
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-card rounded-lg overflow-hidden flex h-full border transition-opacity ${
+      className={`bg-card rounded-lg overflow-hidden flex flex-col h-full border transition-opacity ${
         highlighted ? 'border-amber-400 ring-2 ring-amber-300/40' : 'border-border'
       } ${isDragging && !isDragOverlay ? 'opacity-40' : ''}`}
     >
       {/* Main area */}
-      <div className="flex flex-col" style={{ minWidth: `${minWidth}px` }}>
+      <div className="flex flex-col flex-1 min-h-0" style={{ minWidth: `${minWidth}px` }}>
         {/* Title row */}
-        <div className="flex items-center gap-1 px-2 border-b border-border bg-muted/40 shrink-0" style={{ height: '28px' }}>
+        <div
+          className={`flex items-center gap-1 px-2 border-b border-border bg-muted/40 shrink-0 ${!isEditing ? 'justify-center' : ''}`}
+          style={{ height: '28px' }}
+        >
           {isEditing && (
             <button
               {...attributes}
@@ -91,7 +89,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
               placeholder="Titolo scrivania"
             />
           ) : (
-            <span className="text-xs font-semibold whitespace-nowrap">{card.title}</span>
+            <span className="text-xs font-semibold whitespace-nowrap">{displayTitle}</span>
           )}
           {isEditing && (
             <div className="flex items-center gap-1 shrink-0">
@@ -121,7 +119,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
           )}
         </div>
 
-        {/* Section key picker — only in edit mode when schedule sections available */}
+        {/* Section key picker */}
         {isEditing && scheduleSections.length > 0 && (
           <div className="flex items-center gap-1 px-2 py-0.5 border-b border-border/50 bg-muted/20">
             <Link2 size={10} className={card.sectionKey ? 'text-primary' : 'text-muted-foreground/50'} />
@@ -141,12 +139,9 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
 
         {/* Surnames */}
         {isDoubleCol ? (
-          <div className="flex flex-col flex-1">
+          <div className="flex flex-col flex-1 bg-muted/60 items-center justify-center">
             {card.surnames.map((surname, i) => (
-              <div
-                key={i}
-                className={`flex flex-1 items-center px-2 ${i < card.surnames.length - 1 ? 'border-b border-border/50' : ''}`}
-              >
+              <div key={i} className="flex items-center px-2 py-0.5">
                 {isEditing ? (
                   <input
                     className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground w-full"
@@ -155,15 +150,15 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
                     placeholder="Cognome"
                   />
                 ) : (
-                  <span className="text-sm font-medium whitespace-nowrap leading-tight">
-                    {surname || <span className="text-muted-foreground/40">—</span>}
+                  <span className={`text-sm whitespace-nowrap leading-tight ${i === 1 ? 'italic text-muted-foreground' : ''}`}>
+                    {surname ? toTitleCase(surname) : <span className="text-muted-foreground/40">—</span>}
                   </span>
                 )}
               </div>
             ))}
           </div>
         ) : (
-          <div className="flex flex-1 items-center px-2 py-2 gap-3">
+          <div className="flex flex-1 items-center justify-center px-2 py-2 gap-3 bg-muted/60">
             {card.surnames.map((surname, i) => (
               <div key={i} className="shrink-0">
                 {isEditing ? (
@@ -175,8 +170,8 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
                     placeholder="Cognome"
                   />
                 ) : (
-                  <span className="text-sm font-medium whitespace-nowrap">
-                    {surname || <span className="text-muted-foreground/40">—</span>}
+                  <span className={`text-sm whitespace-nowrap ${card.type === 'double' && i === 1 ? 'italic text-muted-foreground' : ''}`}>
+                    {surname ? toTitleCase(surname) : <span className="text-muted-foreground/40">—</span>}
                   </span>
                 )}
               </div>
@@ -185,63 +180,32 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
         )}
       </div>
 
-      {/* Tirocinante slots */}
-      {tirCount === 2 ? (
-        <div
-          ref={firstTirRef}
-          className="border-l border-border flex flex-col shrink-0"
-          style={{ minWidth: `${tirocinanteWidth}px` }}
-        >
-          <div className="px-1 border-b border-border bg-muted/40 flex items-center shrink-0" style={{ height: '28px' }}>
-            <span className="text-[10px] text-muted-foreground font-medium leading-none whitespace-nowrap">
-              {tirWide ? 'Tirocinante' : 'Tir.'}
-            </span>
+      {/* Tirocinante bottom extension */}
+      {tirCount > 0 && (
+        <div className="border-t border-border shrink-0">
+          <div className="px-2 bg-muted/40 flex items-center justify-center" style={{ height: '18px' }}>
+            <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-wide leading-none">Tir.</span>
           </div>
-          {tirocinanti.map((tir, i) => (
-            <div key={i} className={`flex flex-1 items-center px-1 ${i === 0 ? 'border-b border-border/50' : ''}`}>
-              {isEditing ? (
-                <input
-                  className="w-full text-xs bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
-                  value={tir}
-                  onChange={e => updateTirocinante(i, e.target.value)}
-                  placeholder="Cogn."
-                />
-              ) : (
-                <span className="text-xs font-medium whitespace-nowrap leading-tight">
-                  {tir || <span className="text-muted-foreground/40">—</span>}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : tirocinanti.map((tir, i) => (
-        <div
-          key={i}
-          ref={i === 0 ? firstTirRef : undefined}
-          className="border-l border-border flex flex-col shrink-0"
-          style={{ minWidth: `${tirocinanteWidth}px` }}
-        >
-          <div className="px-1 border-b border-border bg-muted/40 flex items-center shrink-0" style={{ height: '28px' }}>
-            <span className="text-[10px] text-muted-foreground font-medium leading-none whitespace-nowrap">
-              {tirWide ? 'Tirocinante' : 'Tir.'}
-            </span>
-          </div>
-          <div className="flex-1 flex items-center px-1 py-2">
-            {isEditing ? (
-              <input
-                className="w-full text-xs bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
-                value={tir}
-                onChange={e => updateTirocinante(i, e.target.value)}
-                placeholder="Cogn."
-              />
-            ) : (
-              <span className="text-xs font-medium whitespace-nowrap">
-                {tir || <span className="text-muted-foreground/40">—</span>}
-              </span>
-            )}
+          <div className="flex items-center justify-center gap-2 px-2 py-1 bg-muted/50">
+            {tirocinanti.map((tir, i) => (
+              <div key={i} ref={i === 0 ? firstTirRef : undefined}>
+                {isEditing ? (
+                  <input
+                    className="text-xs bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
+                    value={tir}
+                    onChange={e => updateTirocinante(i, e.target.value)}
+                    placeholder="Cogn."
+                  />
+                ) : (
+                  <span className="text-xs whitespace-nowrap">
+                    {tir ? toTitleCase(tir) : <span className="text-muted-foreground/40">—</span>}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
-      ))}
+      )}
     </div>
   )
 }
