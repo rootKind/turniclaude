@@ -384,7 +384,7 @@ export function DeskBoard({
     <div className="flex flex-col gap-2 p-4">
       {/* Schedule header — hidden during layout edit */}
       {!isEditing && (
-        <div className="flex items-center gap-1 bg-card border border-sky-200 dark:border-border rounded-xl px-3 py-2 mr-14">
+        <div className="flex items-center gap-1 bg-card border desk-schedule-border rounded-xl px-3 py-2 mr-14">
           <button
             onClick={() => setSelectedDay(d => Math.max(d - 1, 1))}
             disabled={selectedDay <= 1}
@@ -428,7 +428,7 @@ export function DeskBoard({
                 onClick={() => setSelectedShift(s)}
                 className={`px-2 py-1.5 transition-colors ${
                   selectedShift === s
-                    ? 'bg-sky-400 text-white dark:bg-zinc-900 dark:text-white'
+                    ? 'chip-selected'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >

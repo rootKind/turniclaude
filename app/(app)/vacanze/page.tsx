@@ -126,28 +126,28 @@ function VacanzeContent() {
       </div>
 
       {/* Periodo ferie con navigazione anno */}
-      <div className="mb-4 px-3 py-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 flex items-center gap-2">
+      <div className="mb-4 px-3 py-2.5 rounded-xl offered-box border flex items-center gap-2">
         <button
           onClick={() => changeYear(-1)}
           disabled={selectedYear <= minYear}
-          className="p-1 rounded-lg hover:bg-sky-100 dark:hover:bg-sky-900/40 disabled:opacity-30 transition-colors flex-shrink-0"
+          className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
         >
-          <ChevronLeft size={16} className="text-sky-600 dark:text-sky-400" />
+          <ChevronLeft size={16} className="text-offered-label" />
         </button>
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] text-sky-600 dark:text-sky-400 font-medium uppercase tracking-wide mb-0.5">
+          <p className="text-[11px] text-offered-label font-medium uppercase tracking-wide mb-0.5">
             Il tuo periodo {selectedYear}
           </p>
-          <p className="text-[14px] font-semibold text-sky-800 dark:text-sky-200">
+          <p className="text-[14px] font-semibold text-offered-value">
             {periodLabel ?? '—'}
           </p>
         </div>
         <button
           onClick={() => changeYear(1)}
           disabled={selectedYear >= MAX_YEAR}
-          className="p-1 rounded-lg hover:bg-sky-100 dark:hover:bg-sky-900/40 disabled:opacity-30 transition-colors flex-shrink-0"
+          className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
         >
-          <ChevronRight size={16} className="text-sky-600 dark:text-sky-400" />
+          <ChevronRight size={16} className="text-offered-label" />
         </button>
       </div>
 

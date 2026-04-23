@@ -37,19 +37,14 @@ function formatRequestDate(createdAt: string): { day: string; month: string } {
   }
 }
 
-const PERIOD_PILL_CLASSES: Record<number, string> = {
-  1: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  2: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
-  3: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  4: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-  5: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
-  6: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+const PERIOD_PILL_CLASS: Record<number, string> = {
+  1: 'p1-pill', 2: 'p2-pill', 3: 'p3-pill', 4: 'p4-pill', 5: 'p5-pill', 6: 'p6-pill',
 }
 
 function PeriodPill({ period }: { period: VacationPeriod }) {
   const label = VACATION_PERIOD_LABELS[period].label
   return (
-    <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASSES[period] ?? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300')}>
+    <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[period] ?? 'offered-box text-offered-label')}>
       {label}
     </span>
   )
@@ -164,7 +159,7 @@ export function VacationRequestItem({
             <span className="text-[16px] font-extrabold leading-none text-muted-foreground">{dateIndex + 1}°</span>
           ) : (
             <>
-              <span className={cn('text-[20px] font-extrabold leading-none', isOwn && hasInterest ? 'text-green-400 dark:text-green-300' : '')}>
+              <span className={cn('text-[20px] font-extrabold leading-none', isOwn && hasInterest ? 'text-interest-date' : '')}>
                 {day}
               </span>
               <span className="text-[9px] uppercase tracking-wide text-muted-foreground mt-0.5">{month}</span>
@@ -176,7 +171,7 @@ export function VacationRequestItem({
         <div className="flex items-center gap-2 px-3 py-2.5 flex-1 min-w-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1.5">
-              <span className={cn('font-semibold text-[13px] leading-none', isOwn ? 'text-yellow-700 dark:text-yellow-200' : '')}>
+              <span className={cn('font-semibold text-[13px] leading-none', isOwn ? 'text-own-name' : '')}>
                 {displayName}
               </span>
               {isOwn && (
@@ -187,7 +182,7 @@ export function VacationRequestItem({
               <PeriodPill period={request.offered_period} />
               <span className="text-muted-foreground text-[11px]">→</span>
               {request.target_periods.length >= 5 ? (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 whitespace-nowrap">
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full offered-box text-offered-label whitespace-nowrap">
                   qualsiasi periodo
                 </span>
               ) : (
@@ -204,7 +199,7 @@ export function VacationRequestItem({
           {/* Interest count */}
           <div className="flex-shrink-0 text-[11px]">
             {isOwn ? (
-              <span className={hasInterest ? 'text-green-400 dark:text-green-400' : 'text-muted-foreground'}>
+              <span className={hasInterest ? 'text-interest-date' : 'text-muted-foreground'}>
                 {hasInterest ? `${interestCount} ❤️` : '0 ♡'}
               </span>
             ) : (
@@ -241,7 +236,7 @@ export function VacationRequestItem({
               {/* Interested users — owner or admin */}
               {(isOwn || canAdminAct) && hasInterest && (
                 <div className="mb-3">
-                  <p className="text-[10px] font-bold text-green-400 uppercase tracking-wide mb-1.5">
+                  <p className="text-[10px] font-bold text-match uppercase tracking-wide mb-1.5">
                     Interessati
                   </p>
                   <div className="flex flex-col gap-0.5">
@@ -250,7 +245,7 @@ export function VacationRequestItem({
                       .map(i => (
                         <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 gap-2">
                           <span className="text-[12px] shrink-0">{i.user.cognome ?? i.user.nome}</span>
-                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASSES[i.period_this_year] ?? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300')}>
+                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[i.period_this_year] ?? 'offered-box text-offered-label')}>
                             {VACATION_PERIOD_LABELS[i.period_this_year].label}
                           </span>
                           <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(i.created_at)}</span>
@@ -276,7 +271,7 @@ export function VacationRequestItem({
                       .map(i => (
                         <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 gap-2">
                           <span className="text-[12px] shrink-0">{i.user.cognome ?? i.user.nome}</span>
-                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASSES[i.period_this_year] ?? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300')}>
+                          <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[i.period_this_year] ?? 'offered-box text-offered-label')}>
                             {VACATION_PERIOD_LABELS[i.period_this_year].label}
                           </span>
                           <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(i.created_at)}</span>
@@ -311,7 +306,7 @@ export function VacationRequestItem({
                 <Button
                   className={cn(
                     'w-full h-9 text-[12px] font-semibold mt-2',
-                    isInterested && 'bg-green-600 hover:bg-green-700 text-white',
+                    isInterested && 'btn-interest-on',
                     alreadyHasThatPeriod && 'opacity-50 cursor-not-allowed',
                   )}
                   variant={isInterested ? 'default' : 'outline'}

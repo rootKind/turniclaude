@@ -13,13 +13,13 @@ import type { VacationPeriod } from '@/types/database'
 const MAX_YEAR = 2099
 const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
 
-const PERIOD_CARD_CLASSES: Record<number, { border: string; header: string; content: string }> = {
-  1: { border: 'border-emerald-300 dark:border-emerald-700', header: 'bg-emerald-100 dark:bg-emerald-900/30', content: 'bg-emerald-50 dark:bg-emerald-950/20' },
-  2: { border: 'border-yellow-300 dark:border-yellow-700', header: 'bg-yellow-100 dark:bg-yellow-900/30', content: 'bg-yellow-50 dark:bg-yellow-950/20' },
-  3: { border: 'border-amber-300 dark:border-amber-700', header: 'bg-amber-100 dark:bg-amber-900/30', content: 'bg-amber-50 dark:bg-amber-950/20' },
-  4: { border: 'border-orange-300 dark:border-orange-700', header: 'bg-orange-100 dark:bg-orange-900/30', content: 'bg-orange-50 dark:bg-orange-950/20' },
-  5: { border: 'border-rose-300 dark:border-rose-700', header: 'bg-rose-100 dark:bg-rose-900/30', content: 'bg-rose-50 dark:bg-rose-950/20' },
-  6: { border: 'border-violet-300 dark:border-violet-700', header: 'bg-violet-100 dark:bg-violet-900/30', content: 'bg-violet-50 dark:bg-violet-950/20' },
+const PERIOD_CARD_VARS: Record<number, { border: string; header: string; content: string }> = {
+  1: { border: 'var(--period-1-card-border)', header: 'var(--period-1-card-header)', content: 'var(--period-1-card-content)' },
+  2: { border: 'var(--period-2-card-border)', header: 'var(--period-2-card-header)', content: 'var(--period-2-card-content)' },
+  3: { border: 'var(--period-3-card-border)', header: 'var(--period-3-card-header)', content: 'var(--period-3-card-content)' },
+  4: { border: 'var(--period-4-card-border)', header: 'var(--period-4-card-header)', content: 'var(--period-4-card-content)' },
+  5: { border: 'var(--period-5-card-border)', header: 'var(--period-5-card-header)', content: 'var(--period-5-card-content)' },
+  6: { border: 'var(--period-6-card-border)', header: 'var(--period-6-card-header)', content: 'var(--period-6-card-content)' },
 }
 
 function displayName(a: VacationAssignmentWithUser, cognomes: string[]) {
@@ -274,26 +274,20 @@ export default function TurniFeriePage() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.15, delay: index * 0.04, ease: 'easeOut' }}
-              className={`rounded-xl border overflow-hidden transition-colors flex flex-col ${
-                isMyPeriod
-                  ? 'border-sky-400 dark:border-sky-600'
-                  : 'border-border'
-              }`}
+              className={`rounded-xl border overflow-hidden transition-colors flex flex-col ${isMyPeriod ? 'my-period-border' : ''}`}
+              style={{ borderColor: isMyPeriod ? undefined : `var(--period-${period}-card-border)` }}
             >
               <button
                 onClick={() => togglePeriod(period)}
                 disabled={alwaysExpanded}
-                className={`w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default ${
-                  isMyPeriod
-                    ? 'bg-sky-100 dark:bg-sky-900/40'
-                    : ''
-                }`}
+                className={`w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default ${isMyPeriod ? 'my-period-header' : ''}`}
+                style={isMyPeriod ? undefined : { background: `var(--period-${period}-card-header)` }}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {isMyPeriod && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full my-period-dot flex-shrink-0" />
                   )}
-                  <span className={`font-semibold text-xs ${isMyPeriod ? 'text-sky-800 dark:text-sky-200' : ''}`}>
+                  <span className={`font-semibold text-xs ${isMyPeriod ? 'text-my-period' : ''}`}>
                     {meta.label}
                   </span>
                 </div>
@@ -309,11 +303,10 @@ export default function TurniFeriePage() {
               </button>
 
               {isOpen && (
-                <div className={`border-t border-black/10 dark:border-white/10 ${
-                  isMyPeriod
-                    ? 'bg-sky-50 dark:bg-sky-950/30'
-                    : 'bg-background'
-                }`}>
+                <div
+                  className={`border-t border-black/10 dark:border-white/10 ${isMyPeriod ? 'my-period-content' : ''}`}
+                  style={isMyPeriod ? undefined : { background: `var(--period-${period}-card-content)` }}
+                >
                   {users.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Nessuno</p>
                   ) : (

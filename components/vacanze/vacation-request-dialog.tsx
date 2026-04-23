@@ -241,11 +241,11 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
             </div>
 
             {/* Periodo offerto */}
-            <div className="mb-5 px-3 py-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800">
-              <p className="text-[11px] text-sky-600 dark:text-sky-400 font-medium uppercase tracking-wide mb-0.5">
+            <div className="mb-5 px-3 py-2.5 rounded-xl offered-box border">
+              <p className="text-[11px] text-offered-label font-medium uppercase tracking-wide mb-0.5">
                 Offri
               </p>
-              <p className="text-[14px] font-semibold text-sky-800 dark:text-sky-200">
+              <p className="text-[14px] font-semibold text-offered-value">
                 {offeredLabel}
               </p>
             </div>
@@ -336,8 +336,8 @@ function VacationCompatibilityPanel({
     <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
       {/* Cambi diretti (2 persone) */}
       {matches.length > 0 && (
-        <div className="rounded-xl border border-green-600/40 bg-green-950/20 dark:bg-green-950/30 p-4 space-y-3">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-green-400">
+        <div className="rounded-xl border panel-match p-4 space-y-3">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-match">
             ⚡ {matches.length === 1 ? 'Richiesta compatibile trovata' : `${matches.length} richieste compatibili trovate`}
           </p>
 
@@ -352,7 +352,7 @@ function VacationCompatibilityPanel({
               <div key={request.id} className="rounded-lg bg-black/20 dark:bg-black/30 p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] font-semibold">{formatDisplayName(request.user)}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-green-900/50 text-green-400">MATCH ✓</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded badge-match">MATCH ✓</span>
                 </div>
 
                 <div className="text-[12px] space-y-0.5">
@@ -365,10 +365,10 @@ function VacationCompatibilityPanel({
                 </div>
 
                 {alreadyCount === 0 ? (
-                  <p className="text-[11px] text-green-300">♡ Nessuno ancora — saresti il primo</p>
+                  <p className="text-[11px] text-match-none">♡ Nessuno ancora — saresti il primo</p>
                 ) : (
                   <div className="rounded bg-black/20 px-2.5 py-2 space-y-1">
-                    <p className="text-[11px] font-semibold text-amber-400">❤️ {alreadyCount} già {alreadyCount === 1 ? 'interessato' : 'interessati'}</p>
+                    <p className="text-[11px] font-semibold text-match-count">❤️ {alreadyCount} già {alreadyCount === 1 ? 'interessato' : 'interessati'}</p>
                     {interested
                       .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
                       .map((i, idx) => (
@@ -377,13 +377,13 @@ function VacationCompatibilityPanel({
                           <span className="text-[10px]">{formatRelativeTime(i.created_at!)}</span>
                         </div>
                       ))}
-                    <p className="text-[11px] font-semibold text-lime-400">→ Saresti il {alreadyCount + 1}°</p>
+                    <p className="text-[11px] font-semibold text-match-pos">→ Saresti il {alreadyCount + 1}°</p>
                   </div>
                 )}
 
                 <Button
                   size="sm"
-                  className="w-full h-8 text-[12px] bg-green-700 hover:bg-green-600 text-white"
+                  className="w-full h-8 text-[12px] btn-match-action"
                   onClick={() => onInterest(request)}
                   disabled={alreadyInterested}
                 >
@@ -397,8 +397,8 @@ function VacationCompatibilityPanel({
 
       {/* Catene circolari (N persone) */}
       {chains.length > 0 && (
-        <div className="rounded-xl border border-violet-600/40 bg-violet-950/20 dark:bg-violet-950/30 p-4 space-y-3">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-violet-400">
+        <div className="rounded-xl border panel-chain p-4 space-y-3">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-chain">
             ⛓ {chains.length === 1 ? 'Catena compatibile trovata' : `${chains.length} catene compatibili trovate`}
           </p>
 
@@ -411,8 +411,8 @@ function VacationCompatibilityPanel({
             return (
               <div key={idx} className="rounded-lg bg-black/20 dark:bg-black/30 p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-violet-300">Catena a {totalPeople} persone</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-violet-900/50 text-violet-400">⛓ CHAIN</span>
+                  <span className="text-[11px] font-bold text-chain-node">Catena a {totalPeople} persone</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded badge-chain">⛓ CHAIN</span>
                 </div>
 
                 {/* Flow visivo */}
@@ -421,7 +421,7 @@ function VacationCompatibilityPanel({
                   <span className="text-muted-foreground">({VACATION_PERIOD_LABELS[chain[0].target_periods[0] as VacationPeriod]?.label ?? '?'})</span>
                   {chain.map((node, i) => (
                     <span key={node.id} className="flex items-center gap-1">
-                      <span className="text-violet-400">→</span>
+                      <span className="text-chain-node">→</span>
                       <span className="font-semibold text-foreground">{node.user.cognome ?? node.user.nome}</span>
                       {i < chain.length - 1 && (
                         <span className="text-muted-foreground">({VACATION_PERIOD_LABELS[chain[i + 1].target_periods[0] as VacationPeriod]?.label ?? '?'})</span>
@@ -444,7 +444,7 @@ function VacationCompatibilityPanel({
 
                 <Button
                   size="sm"
-                  className="w-full h-8 text-[12px] bg-violet-700 hover:bg-violet-600 text-white"
+                  className="w-full h-8 text-[12px] btn-chain-action"
                   onClick={() => onJoinChain(chain)}
                   disabled={alreadyInChain || isSubmitting}
                 >

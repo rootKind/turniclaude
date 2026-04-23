@@ -98,7 +98,7 @@ function DashboardContent() {
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
       {/* Impersonation banner */}
       {isImpersonating && displayName && (
-        <div className="flex items-center justify-between bg-orange-500 text-white rounded-xl px-3 py-2 mb-4 text-sm font-medium">
+        <div className="flex items-center justify-between banner-impersonate rounded-xl px-3 py-2 mb-4 text-sm font-medium">
           <span>👁 Stai vedendo come <strong>{displayName}</strong></span>
           <button
             onClick={() => router.push('/dashboard')}

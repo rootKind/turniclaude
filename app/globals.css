@@ -103,6 +103,88 @@
   --pill-pomeriggio-text: #b45309;
   --pill-notte-bg: #ede9fe;
   --pill-notte-text: #6d28d9;
+
+  /* Impersonation banner */
+  --banner-impersonate-bg: #f97316;
+  --banner-impersonate-text: #ffffff;
+
+  /* Match panel (green) */
+  --match-panel-bg: rgba(5,46,22,0.10);
+  --match-panel-border: rgba(22,163,74,0.35);
+  --match-text: #16a34a;
+  --match-badge-bg: rgba(20,83,45,0.40);
+  --match-action-bg: #15803d;
+  --match-action-text: #ffffff;
+  --match-count-text: #d97706;
+  --match-pos-text: #65a30d;
+  --match-none-text: #16a34a;
+
+  /* Chain panel (violet) */
+  --chain-panel-bg: rgba(46,16,101,0.08);
+  --chain-panel-border: rgba(109,40,217,0.35);
+  --chain-text: #6d28d9;
+  --chain-badge-bg: rgba(46,16,101,0.40);
+  --chain-action-bg: #6d28d9;
+  --chain-action-text: #ffffff;
+  --chain-node-text: #7c3aed;
+
+  /* Chip / filter selection */
+  --chip-selected-bg: #38bdf8;
+  --chip-selected-text: #ffffff;
+  --chip-selected-border: #38bdf8;
+
+  /* Offered period info box */
+  --offered-box-bg: #f0f9ff;
+  --offered-box-border: #bae6fd;
+  --offered-box-label: #0284c7;
+  --offered-box-value: #0c4a6e;
+
+  /* My period section (turniferie) */
+  --my-period-border: #38bdf8;
+  --my-period-header-bg: #e0f2fe;
+  --my-period-content-bg: #f0f9ff;
+  --my-period-text: #0c4a6e;
+  --my-period-dot: #0ea5e9;
+
+  /* Period pills (6 ferie periods) */
+  --period-1-pill-bg: #d1fae5; --period-1-pill-text: #065f46;
+  --period-2-pill-bg: #fef9c3; --period-2-pill-text: #854d0e;
+  --period-3-pill-bg: #fef3c7; --period-3-pill-text: #92400e;
+  --period-4-pill-bg: #ffedd5; --period-4-pill-text: #9a3412;
+  --period-5-pill-bg: #ffe4e6; --period-5-pill-text: #9f1239;
+  --period-6-pill-bg: #ede9fe; --period-6-pill-text: #5b21b6;
+
+  /* Period cards (turniferie) border / header / content */
+  --period-1-card-border: #6ee7b7; --period-1-card-header: #d1fae5; --period-1-card-content: #ecfdf5;
+  --period-2-card-border: #fde047; --period-2-card-header: #fef9c3; --period-2-card-content: #fefce8;
+  --period-3-card-border: #fcd34d; --period-3-card-header: #fef3c7; --period-3-card-content: #fffbeb;
+  --period-4-card-border: #fdba74; --period-4-card-header: #ffedd5; --period-4-card-content: #fff7ed;
+  --period-5-card-border: #fda4af; --period-5-card-header: #ffe4e6; --period-5-card-content: #fff1f2;
+  --period-6-card-border: #c4b5fd; --period-6-card-header: #ede9fe; --period-6-card-content: #f5f3ff;
+
+  /* Shift dialog toggle pills */
+  --dialog-pill-mattina-border: #bfdbfe;
+  --dialog-pill-mattina-active-bg: #dbeafe;
+  --dialog-pill-mattina-active-border: #60a5fa;
+  --dialog-pill-pomeriggio-border: #fde68a;
+  --dialog-pill-pomeriggio-active-bg: #fef3c7;
+  --dialog-pill-pomeriggio-active-border: #f59e0b;
+  --dialog-pill-notte-border: #e9d5ff;
+  --dialog-pill-notte-active-bg: #ede9fe;
+  --dialog-pill-notte-active-border: #a78bfa;
+
+  /* User type badges */
+  --badge-noni-bg: #f3e8ff; --badge-noni-text: #7e22ce;
+  --badge-dco-bg: #dbeafe;  --badge-dco-text: #1d4ed8;
+
+  /* Shift item interest indicators */
+  --interest-date-color: #4ade80;
+  --own-name-color: #854d0e;
+  --interest-btn-bg: #16a34a;
+  --feedback-check-color: #22c55e;
+
+  /* Sala desk board */
+  --desk-schedule-border: #bae6fd;
 }
 
 .dark {
@@ -159,6 +241,88 @@
   --pill-pomeriggio-text: #fbbf24;
   --pill-notte-bg: #2d1b69;
   --pill-notte-text: #a78bfa;
+
+  /* Impersonation banner — dark */
+  --banner-impersonate-bg: #ea580c;
+  --banner-impersonate-text: #ffffff;
+
+  /* Match panel — dark */
+  --match-panel-bg: rgba(5,46,22,0.28);
+  --match-panel-border: rgba(22,163,74,0.35);
+  --match-text: #4ade80;
+  --match-badge-bg: rgba(20,83,45,0.45);
+  --match-action-bg: #16a34a;
+  --match-action-text: #ffffff;
+  --match-count-text: #fbbf24;
+  --match-pos-text: #a3e635;
+  --match-none-text: #86efac;
+
+  /* Chain panel — dark */
+  --chain-panel-bg: rgba(46,16,101,0.28);
+  --chain-panel-border: rgba(109,40,217,0.35);
+  --chain-text: #a78bfa;
+  --chain-badge-bg: rgba(46,16,101,0.45);
+  --chain-action-bg: #7c3aed;
+  --chain-action-text: #ffffff;
+  --chain-node-text: #c4b5fd;
+
+  /* Chip — dark */
+  --chip-selected-bg: #18181b;
+  --chip-selected-text: #ffffff;
+  --chip-selected-border: #3f3f46;
+
+  /* Offered period info box — dark */
+  --offered-box-bg: rgba(8,47,73,0.25);
+  --offered-box-border: #0c4a6e;
+  --offered-box-label: #38bdf8;
+  --offered-box-value: #e0f2fe;
+
+  /* My period — dark */
+  --my-period-border: #0284c7;
+  --my-period-header-bg: rgba(8,47,73,0.38);
+  --my-period-content-bg: rgba(8,47,73,0.22);
+  --my-period-text: #e0f2fe;
+  --my-period-dot: #0ea5e9;
+
+  /* Period pills — dark */
+  --period-1-pill-bg: rgba(6,78,59,0.38);   --period-1-pill-text: #6ee7b7;
+  --period-2-pill-bg: rgba(66,32,6,0.38);   --period-2-pill-text: #fde047;
+  --period-3-pill-bg: rgba(69,26,3,0.38);   --period-3-pill-text: #fcd34d;
+  --period-4-pill-bg: rgba(67,20,7,0.38);   --period-4-pill-text: #fb923c;
+  --period-5-pill-bg: rgba(76,5,25,0.38);   --period-5-pill-text: #fb7185;
+  --period-6-pill-bg: rgba(46,16,101,0.38); --period-6-pill-text: #c4b5fd;
+
+  /* Period cards — dark */
+  --period-1-card-border: #047857; --period-1-card-header: rgba(6,78,59,0.28);  --period-1-card-content: rgba(2,44,34,0.18);
+  --period-2-card-border: #a16207; --period-2-card-header: rgba(66,32,6,0.28);  --period-2-card-content: rgba(66,32,6,0.15);
+  --period-3-card-border: #b45309; --period-3-card-header: rgba(69,26,3,0.28);  --period-3-card-content: rgba(69,26,3,0.15);
+  --period-4-card-border: #c2410c; --period-4-card-header: rgba(67,20,7,0.28);  --period-4-card-content: rgba(67,20,7,0.15);
+  --period-5-card-border: #be123c; --period-5-card-header: rgba(76,5,25,0.28);  --period-5-card-content: rgba(76,5,25,0.15);
+  --period-6-card-border: #6d28d9; --period-6-card-header: rgba(46,16,101,0.28); --period-6-card-content: rgba(46,16,101,0.15);
+
+  /* Shift dialog toggle pills — dark */
+  --dialog-pill-mattina-border: #1e3a5f;
+  --dialog-pill-mattina-active-bg: rgba(30,58,95,0.40);
+  --dialog-pill-mattina-active-border: #3b82f6;
+  --dialog-pill-pomeriggio-border: #3b2300;
+  --dialog-pill-pomeriggio-active-bg: rgba(59,35,0,0.40);
+  --dialog-pill-pomeriggio-active-border: #d97706;
+  --dialog-pill-notte-border: #2d1b69;
+  --dialog-pill-notte-active-bg: rgba(46,16,101,0.40);
+  --dialog-pill-notte-active-border: #7c3aed;
+
+  /* User type badges — dark */
+  --badge-noni-bg: rgba(46,16,101,0.30); --badge-noni-text: #d8b4fe;
+  --badge-dco-bg: rgba(30,58,95,0.30);  --badge-dco-text: #93c5fd;
+
+  /* Shift item — dark */
+  --interest-date-color: #4ade80;
+  --own-name-color: #fef08a;
+  --interest-btn-bg: #16a34a;
+  --feedback-check-color: #22c55e;
+
+  /* Sala — dark */
+  --desk-schedule-border: var(--border);
 }
 
 @layer base {
@@ -201,6 +365,60 @@
   /* Hide scrollbar while keeping scroll functionality */
   .no-scrollbar { scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  /* ── Hardcoded-color replacements ────────────────────────────── */
+  .banner-impersonate { background: var(--banner-impersonate-bg); color: var(--banner-impersonate-text); }
+
+  .panel-match { background: var(--match-panel-bg); border-color: var(--match-panel-border); }
+  .panel-chain { background: var(--chain-panel-bg); border-color: var(--chain-panel-border); }
+  .text-match  { color: var(--match-text); }
+  .text-chain  { color: var(--chain-text); }
+  .badge-match { background: var(--match-badge-bg); color: var(--match-text); }
+  .badge-chain { background: var(--chain-badge-bg); color: var(--chain-text); }
+  .btn-match-action { background: var(--match-action-bg) !important; color: var(--match-action-text) !important; }
+  .btn-chain-action { background: var(--chain-action-bg) !important; color: var(--chain-action-text) !important; }
+  .text-match-count { color: var(--match-count-text); }
+  .text-match-pos   { color: var(--match-pos-text); }
+  .text-match-none  { color: var(--match-none-text); }
+  .text-chain-node  { color: var(--chain-node-text); }
+
+  .chip-selected { background: var(--chip-selected-bg) !important; color: var(--chip-selected-text) !important; border-color: var(--chip-selected-border) !important; }
+
+  .offered-box       { background: var(--offered-box-bg); border-color: var(--offered-box-border); }
+  .text-offered-label{ color: var(--offered-box-label); }
+  .text-offered-value{ color: var(--offered-box-value); }
+
+  .my-period-border  { border-color: var(--my-period-border) !important; }
+  .my-period-header  { background: var(--my-period-header-bg); }
+  .my-period-content { background: var(--my-period-content-bg); }
+  .text-my-period    { color: var(--my-period-text); }
+  .my-period-dot     { background: var(--my-period-dot); }
+
+  .badge-noni { background: var(--badge-noni-bg); color: var(--badge-noni-text); }
+  .badge-dco  { background: var(--badge-dco-bg);  color: var(--badge-dco-text); }
+
+  .btn-interest-on { background: var(--interest-btn-bg) !important; color: #fff !important; }
+  .text-interest-date { color: var(--interest-date-color); }
+  .text-own-name      { color: var(--own-name-color); }
+  .text-feedback-check{ color: var(--feedback-check-color); }
+
+  .desk-schedule-border { border-color: var(--desk-schedule-border); }
+
+  /* Period pills (6 ferie periods) */
+  .p1-pill { background: var(--period-1-pill-bg); color: var(--period-1-pill-text); }
+  .p2-pill { background: var(--period-2-pill-bg); color: var(--period-2-pill-text); }
+  .p3-pill { background: var(--period-3-pill-bg); color: var(--period-3-pill-text); }
+  .p4-pill { background: var(--period-4-pill-bg); color: var(--period-4-pill-text); }
+  .p5-pill { background: var(--period-5-pill-bg); color: var(--period-5-pill-text); }
+  .p6-pill { background: var(--period-6-pill-bg); color: var(--period-6-pill-text); }
+
+  /* Shift dialog toggle pills */
+  .dialog-pill-m { border-color: var(--dialog-pill-mattina-border);    color: var(--pill-mattina-text); }
+  .dialog-pill-p { border-color: var(--dialog-pill-pomeriggio-border); color: var(--pill-pomeriggio-text); }
+  .dialog-pill-n { border-color: var(--dialog-pill-notte-border);      color: var(--pill-notte-text); }
+  .dialog-pill-m.dp-active { background: var(--dialog-pill-mattina-active-bg);    border-color: var(--dialog-pill-mattina-active-border); }
+  .dialog-pill-p.dp-active { background: var(--dialog-pill-pomeriggio-active-bg); border-color: var(--dialog-pill-pomeriggio-active-border); }
+  .dialog-pill-n.dp-active { background: var(--dialog-pill-notte-active-bg);      border-color: var(--dialog-pill-notte-active-border); }
 }
 
 /* Page transition & loading bar */
