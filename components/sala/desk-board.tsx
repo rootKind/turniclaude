@@ -322,7 +322,7 @@ export function DeskBoard({
       <div className="flex flex-col gap-2 p-4">
         {/* Schedule header — hidden during layout edit */}
         {!isEditing && (
-          <div className="flex items-center gap-1.5 bg-card border border-border rounded-xl px-3 py-2 mr-14">
+          <div className="flex items-center gap-1.5 bg-card border border-sky-200 dark:border-border rounded-xl px-3 py-2 mr-14">
             {/* Day navigation */}
             <button
               onClick={() => setSelectedDay(d => Math.max(d - 1, 1))}
@@ -369,7 +369,7 @@ export function DeskBoard({
                   onClick={() => setSelectedShift(s)}
                   className={`px-3 py-1.5 transition-colors ${
                     selectedShift === s
-                      ? 'bg-blue-600 text-white dark:bg-blue-500'
+                      ? 'bg-sky-400 text-white dark:bg-zinc-900 dark:text-white'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >

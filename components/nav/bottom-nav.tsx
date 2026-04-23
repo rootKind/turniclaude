@@ -181,7 +181,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
 
       {/* Notifiche mini-fabs overlay */}
       {isNotifiche && notifFabOpen && history.length > 0 && (
-        <div className="fixed bottom-20 left-0 right-0 flex flex-col items-center gap-3 z-40 pointer-events-none">
+        <div className="fixed left-0 right-0 flex flex-col items-center gap-3 z-40 pointer-events-none" style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem)' }}>
           {unreadCount > 0 && (
             <div className="flex items-center gap-2 pointer-events-auto">
               <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
