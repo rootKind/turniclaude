@@ -13,14 +13,6 @@ import type { VacationPeriod } from '@/types/database'
 const MAX_YEAR = 2099
 const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
 
-const PERIOD_CARD_VARS: Record<number, { border: string; header: string; content: string }> = {
-  1: { border: 'var(--period-1-card-border)', header: 'var(--period-1-card-header)', content: 'var(--period-1-card-content)' },
-  2: { border: 'var(--period-2-card-border)', header: 'var(--period-2-card-header)', content: 'var(--period-2-card-content)' },
-  3: { border: 'var(--period-3-card-border)', header: 'var(--period-3-card-header)', content: 'var(--period-3-card-content)' },
-  4: { border: 'var(--period-4-card-border)', header: 'var(--period-4-card-header)', content: 'var(--period-4-card-content)' },
-  5: { border: 'var(--period-5-card-border)', header: 'var(--period-5-card-header)', content: 'var(--period-5-card-content)' },
-  6: { border: 'var(--period-6-card-border)', header: 'var(--period-6-card-header)', content: 'var(--period-6-card-content)' },
-}
 
 function displayName(a: VacationAssignmentWithUser, cognomes: string[]) {
   const cognome = a.user?.cognome ?? ''
@@ -275,13 +267,11 @@ export default function TurniFeriePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.15, delay: index * 0.04, ease: 'easeOut' }}
               className={`rounded-xl border overflow-hidden transition-colors flex flex-col ${isMyPeriod ? 'my-period-border' : ''}`}
-              style={{ borderColor: isMyPeriod ? undefined : `var(--period-${period}-card-border)` }}
             >
               <button
                 onClick={() => togglePeriod(period)}
                 disabled={alwaysExpanded}
                 className={`w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default ${isMyPeriod ? 'my-period-header' : ''}`}
-                style={isMyPeriod ? undefined : { background: `var(--period-${period}-card-header)` }}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {isMyPeriod && (
@@ -305,7 +295,6 @@ export default function TurniFeriePage() {
               {isOpen && (
                 <div
                   className={`border-t border-black/10 dark:border-white/10 ${isMyPeriod ? 'my-period-content' : ''}`}
-                  style={isMyPeriod ? undefined : { background: `var(--period-${period}-card-content)` }}
                 >
                   {users.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Nessuno</p>
