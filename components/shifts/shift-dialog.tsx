@@ -17,9 +17,9 @@ import type { Shift, ShiftType } from '@/types/database'
 const SHIFT_TYPES: ShiftType[] = ['Mattina', 'Pomeriggio', 'Notte']
 
 const SHIFT_STYLES: Record<ShiftType, { base: string; active: string }> = {
-  Mattina:    { base: 'border-blue-200 text-blue-700 dark:border-blue-800 dark:text-blue-300', active: 'bg-blue-100 border-blue-400 dark:bg-blue-900/40 dark:border-blue-500' },
-  Pomeriggio: { base: 'border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-300', active: 'bg-amber-100 border-amber-400 dark:bg-amber-900/40 dark:border-amber-500' },
-  Notte:      { base: 'border-purple-200 text-purple-700 dark:border-purple-800 dark:text-purple-300', active: 'bg-purple-100 border-purple-400 dark:bg-purple-900/40 dark:border-purple-500' },
+  Mattina:    { base: 'dialog-pill-m', active: 'dialog-pill-m dp-active' },
+  Pomeriggio: { base: 'dialog-pill-p', active: 'dialog-pill-p dp-active' },
+  Notte:      { base: 'dialog-pill-n', active: 'dialog-pill-n dp-active' },
 }
 
 interface Props {
@@ -319,8 +319,8 @@ function CompatibilityPanel({
 }) {
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-green-600/40 bg-green-950/20 dark:bg-green-950/30 p-4 space-y-3">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-green-400">
+      <div className="rounded-xl border panel-match p-4 space-y-3">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-match">
           ⚡ {matches.length === 1 ? 'Match compatibile trovato' : `${matches.length} match compatibili trovati`}
         </p>
 
@@ -331,7 +331,7 @@ function CompatibilityPanel({
             <div key={shift.id} className="rounded-lg bg-black/20 dark:bg-black/30 p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[13px] font-semibold">{formatDisplayName(shift.user)}</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-green-900/50 text-green-400">MATCH ✓</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded badge-match">MATCH ✓</span>
               </div>
 
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -350,10 +350,10 @@ function CompatibilityPanel({
               </div>
 
               {alreadyCount === 0 ? (
-                <p className="text-[11px] text-green-300">♡ Nessuno ancora — saresti il primo</p>
+                <p className="text-[11px] text-match-none">♡ Nessuno ancora — saresti il primo</p>
               ) : (
                 <div className="rounded bg-black/20 px-2.5 py-2 space-y-1">
-                  <p className="text-[11px] font-semibold text-amber-400">❤️ {alreadyCount} già {alreadyCount === 1 ? 'interessato' : 'interessati'}</p>
+                  <p className="text-[11px] font-semibold text-match-count">❤️ {alreadyCount} già {alreadyCount === 1 ? 'interessato' : 'interessati'}</p>
                   {interested
                     .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
                     .map((i, idx) => (
@@ -362,13 +362,13 @@ function CompatibilityPanel({
                         <span className="text-[10px]">{formatRelativeTime(i.created_at!)}</span>
                       </div>
                     ))}
-                  <p className="text-[11px] font-semibold text-lime-400">→ Saresti il {alreadyCount + 1}°</p>
+                  <p className="text-[11px] font-semibold text-match-pos">→ Saresti il {alreadyCount + 1}°</p>
                 </div>
               )}
 
               <Button
                 size="sm"
-                className="w-full h-8 text-[12px] bg-green-700 hover:bg-green-600 text-white"
+                className="w-full h-8 text-[12px] btn-match-action"
                 onClick={() => onInterest(shift)}
               >
                 ❤️ Interessati a {shift.user.cognome ?? shift.user.nome}

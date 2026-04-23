@@ -129,7 +129,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
             <span className="text-[16px] font-extrabold leading-none text-muted-foreground">{dateIndex + 1}°</span>
           ) : (
             <>
-              <span className={cn('text-[20px] font-extrabold leading-none', isOwn && hasInterest ? 'text-green-400 dark:text-green-300' : '')}>
+              <span className={cn('text-[20px] font-extrabold leading-none', isOwn && hasInterest ? 'text-interest-date' : '')}>
                 {day}
               </span>
               <span className="text-[9px] uppercase tracking-wide text-muted-foreground mt-0.5">{month}</span>
@@ -141,7 +141,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         <div className="flex items-center gap-2 px-3 py-2.5 flex-1 min-w-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1">
-              <span className={cn('font-semibold text-[13px] leading-none', isOwn ? 'text-yellow-700 dark:text-yellow-200' : '')}>
+              <span className={cn('font-semibold text-[13px] leading-none', isOwn ? 'text-own-name' : '')}>
                 {displayName}
               </span>
               {isOwn && (
@@ -163,7 +163,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
           {/* Interest count */}
           <div className="flex-shrink-0 text-[11px]">
             {isOwn ? (
-              <span className={hasInterest ? 'text-green-400 dark:text-green-400' : 'text-muted-foreground'}>
+              <span className={hasInterest ? 'text-interest-date' : 'text-muted-foreground'}>
                 {hasInterest ? `${shift.shift_interested_users!.length} ❤️` : '0 ♡'}
               </span>
             ) : (
@@ -200,7 +200,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
               {/* Interested users list — show for own shifts OR admin */}
               {(isOwn || canAdminAct) && hasInterest && (
                 <div className="mb-3">
-                  <p className="text-[10px] font-bold text-green-400 uppercase tracking-wide mb-1.5">
+                  <p className="text-[10px] font-bold text-match uppercase tracking-wide mb-1.5">
                     Interessati
                   </p>
                   <div className="flex flex-col gap-0.5">
@@ -266,7 +266,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
               {/* Interest button — non-own shifts (users and admin can both express interest) */}
               {!isOwn && (
                 <Button
-                  className={cn('w-full h-9 text-[12px] font-semibold mt-2', isInterested && 'bg-green-600 hover:bg-green-700 text-white')}
+                  className={cn('w-full h-9 text-[12px] font-semibold mt-2', isInterested && 'btn-interest-on')}
                   variant={isInterested ? 'default' : 'outline'}
                   onClick={handleInterestToggle}
                 >

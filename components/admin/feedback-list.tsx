@@ -68,7 +68,7 @@ function FeedbackCard({
         <Trash size={16} />
       </motion.div>
       <motion.div
-        className="absolute inset-y-0 left-0 flex items-center justify-center w-14 text-green-500 z-0"
+        className="absolute inset-y-0 left-0 flex items-center justify-center w-14 text-feedback-check z-0"
         style={{ opacity: checkOpacity }}
       >
         <Check size={16} />

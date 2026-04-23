@@ -58,7 +58,7 @@ export function ImpersonateDialog({ open, onClose }: Props) {
                 <span className="font-medium">{u.cognome} {u.nome}</span>
                 <span className={cn(
                   'text-[10px] font-semibold px-1.5 py-0.5 rounded',
-                  u.is_secondary ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                  u.is_secondary ? 'badge-noni' : 'badge-dco'
                 )}>
                   {u.is_secondary ? 'Noni' : 'DCO'}
                 </span>
