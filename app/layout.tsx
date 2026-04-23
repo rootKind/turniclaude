@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
+import { cookies } from 'next/headers'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { ThemeColor } from '@/components/providers/theme-color'
 import { ColorThemeProvider } from '@/components/providers/color-theme-provider'
+import { ColorInspector } from '@/components/admin/color-inspector'
 import { PwaGuard } from '@/components/providers/pwa-guard'
 import { SwRegistrar } from '@/components/providers/sw-registrar'
 import { Toaster } from '@/components/ui/sonner'
@@ -37,9 +39,17 @@ export const viewport: Viewport = {
   ],
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies()
+  const ssrStyles = cookieStore.get('co')?.value ?? ''
+
   return (
     <html lang="it" suppressHydrationWarning>
+      {ssrStyles && (
+        <head>
+          <style dangerouslySetInnerHTML={{ __html: ssrStyles }} />
+        </head>
+      )}
       <body className={geist.className}>
         <ThemeProvider>
           <SwRegistrar />
@@ -51,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </PwaGuard>
             <Toaster richColors position="top-center" />
           </QueryProvider>
+          <ColorInspector />
           <Analytics />
           <SpeedInsights />
         </ThemeProvider>

@@ -3,6 +3,19 @@ export type ColorOverrides = {
   dark?: Record<string, string>
 }
 
+export function buildStyleString(overrides: ColorOverrides): string {
+  const lightVars = Object.entries(overrides.light ?? {})
+    .map(([k, v]) => `  ${k}: ${v};`)
+    .join('\n')
+  const darkVars = Object.entries(overrides.dark ?? {})
+    .map(([k, v]) => `  ${k}: ${v};`)
+    .join('\n')
+  const parts: string[] = []
+  if (lightVars) parts.push(`:root {\n${lightVars}\n}`)
+  if (darkVars) parts.push(`.dark {\n${darkVars}\n}`)
+  return parts.join('\n')
+}
+
 let styleEl: HTMLStyleElement | null = null
 
 export function applyColorOverrides(overrides: ColorOverrides) {
@@ -15,16 +28,7 @@ export function applyColorOverrides(overrides: ColorOverrides) {
       document.head.appendChild(styleEl)
     }
   }
-  const lightVars = Object.entries(overrides.light ?? {})
-    .map(([k, v]) => `  ${k}: ${v};`)
-    .join('\n')
-  const darkVars = Object.entries(overrides.dark ?? {})
-    .map(([k, v]) => `  ${k}: ${v};`)
-    .join('\n')
-  const parts: string[] = []
-  if (lightVars) parts.push(`:root {\n${lightVars}\n}`)
-  if (darkVars) parts.push(`.dark {\n${darkVars}\n}`)
-  styleEl.textContent = parts.join('\n')
+  styleEl.textContent = buildStyleString(overrides)
 }
 
 export function clearColorOverrides() {
