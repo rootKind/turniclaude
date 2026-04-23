@@ -171,11 +171,17 @@ export function DeskBoard({
   const touchStartX = useRef<number | null>(null)
   const isEditingRef = useRef(isEditing)
   const totalDaysRef = useRef(getDaysInMonth(currentMonth))
+  const selectedShiftRef = useRef<SalaShiftType>(selectedShift)
+  const selectedDayRef = useRef<number>(selectedDay)
 
   useEffect(() => { isEditingRef.current = isEditing }, [isEditing])
+  useEffect(() => { selectedShiftRef.current = selectedShift }, [selectedShift])
+  useEffect(() => { selectedDayRef.current = selectedDay }, [selectedDay])
 
   const totalDays = getDaysInMonth(currentMonth)
   useEffect(() => { totalDaysRef.current = totalDays }, [totalDays])
+
+  const SHIFT_ORDER: SalaShiftType[] = ['N', 'M', 'P']
 
   useEffect(() => {
     const onTouchStart = (e: TouchEvent) => {
@@ -187,7 +193,23 @@ export function DeskBoard({
       const dx = e.changedTouches[0].clientX - touchStartX.current
       touchStartX.current = null
       if (Math.abs(dx) < 50) return
-      setSelectedDay(d => dx < 0 ? Math.min(d + 1, totalDaysRef.current) : Math.max(d - 1, 1))
+      const idx = SHIFT_ORDER.indexOf(selectedShiftRef.current)
+      const day = selectedDayRef.current
+      if (dx < 0) {
+        if (idx < SHIFT_ORDER.length - 1) {
+          setSelectedShift(SHIFT_ORDER[idx + 1])
+        } else if (day < totalDaysRef.current) {
+          setSelectedDay(day + 1)
+          setSelectedShift(SHIFT_ORDER[0])
+        }
+      } else {
+        if (idx > 0) {
+          setSelectedShift(SHIFT_ORDER[idx - 1])
+        } else if (day > 1) {
+          setSelectedDay(day - 1)
+          setSelectedShift(SHIFT_ORDER[SHIFT_ORDER.length - 1])
+        }
+      }
     }
     document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })
@@ -195,6 +217,7 @@ export function DeskBoard({
       document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('touchend', onTouchEnd)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -380,8 +403,8 @@ export function DeskBoard({
             <ChevronRight size={16} />
           </button>
 
-          <div className="relative ml-1">
-            <span className="text-sm font-medium pointer-events-none select-none">
+          <div className="relative ml-1 min-w-0 shrink">
+            <span className="text-sm font-medium pointer-events-none select-none truncate">
               {MONTHS_IT[parseInt(currentMonth.split('-')[1]) - 1]}{' '}
               {currentMonth.split('-')[0]}
             </span>
@@ -398,8 +421,8 @@ export function DeskBoard({
 
           <div className="flex-1" />
 
-          <div className="flex rounded-lg overflow-hidden border border-border text-xs font-semibold">
-            {(['P', 'M', 'N'] as const).map(s => (
+          <div className="flex rounded-lg overflow-hidden border border-border text-xs font-semibold shrink-0">
+            {(['N', 'M', 'P'] as const).map(s => (
               <button
                 key={s}
                 onClick={() => setSelectedShift(s)}
