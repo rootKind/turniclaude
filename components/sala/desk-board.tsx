@@ -8,6 +8,33 @@ import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+
+function DroppableCell({ id, children, isEditing }: { id: string; children: React.ReactNode; isEditing: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col gap-2 transition-colors ${
+        isEditing
+          ? `min-h-[48px] rounded-lg border border-dashed ${isOver ? 'border-primary bg-primary/5' : 'border-border/30'}`
+          : ''
+      }`}
+    >
+      {children}
+    </div>
+  )
+}
 
 const KNOWN_SECTIONS = ['1', '2', '3', '4', '5', '6', '7', '8']
 
@@ -107,6 +134,31 @@ export function DeskBoard({
   const [historyEntries, setHistoryEntries] = useState<UploadHistoryEntry[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [deletingMonth, setDeletingMonth] = useState<string | null>(null)
+
+  const [activeCardId, setActiveCardId] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  )
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveCardId(event.active.id as string)
+  }, [])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    setActiveCardId(null)
+    const { active, over } = event
+    if (!over) return
+    // droppable id format: "row-{n}-align-{align}"
+    const match = String(over.id).match(/^row-(\d+)-align-(.+)$/)
+    if (!match) return
+    const row = Number(match[1])
+    const align = match[2] as 'left' | 'center' | 'right'
+    const cardId = active.id as string
+    setCards(prev => prev.map(c => c.id === cardId ? { ...c, row, align } : c))
+    setDirty(true)
+  }, [])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const touchStartX = useRef<number | null>(null)
@@ -372,42 +424,56 @@ export function DeskBoard({
         />
       )}
 
-      {/* Cards grid — 3 columns (left/center/right), up to 4 rows */}
-      <div className="flex flex-col gap-3">
-        {usedRows.map(row => (
-          <div key={row} className="grid grid-cols-3 gap-2">
-            {ALIGNS.map(align => {
-              const cellCards = displayCards.filter(
-                c => (c.row ?? 1) === row && (c.align ?? 'left') === align,
-              )
-              return (
-                <div
-                  key={align}
-                  className={`flex flex-col gap-2 ${
-                    isEditing && cellCards.length === 0
-                      ? 'min-h-[48px] rounded-lg border border-dashed border-border/30'
-                      : ''
-                  }`}
-                >
-                  {cellCards.map(card => (
-                    <DeskCard
-                      key={card.id}
-                      card={card}
-                      isEditing={isEditing}
-                      highlighted={!isEditing && matchesCognome(card.surnames, userCognome)}
-                      minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
-                      tirocinanteWidth={defaults.tirocinanteWidth}
-                      scheduleSections={scheduleSections}
-                      onUpdate={updateCard}
-                      onDelete={deleteCard}
-                    />
-                  ))}
-                </div>
-              )
-            })}
-          </div>
-        ))}
-      </div>
+      {/* Cards grid — 3 columns (left/center/right), up to 5 rows */}
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="flex flex-col gap-3">
+          {usedRows.map(row => (
+            <div key={row} className="grid grid-cols-3 gap-2">
+              {ALIGNS.map(align => {
+                const cellCards = displayCards.filter(
+                  c => (c.row ?? 1) === row && (c.align ?? 'left') === align,
+                )
+                return (
+                  <DroppableCell key={align} id={`row-${row}-align-${align}`} isEditing={isEditing}>
+                    {cellCards.map(card => (
+                      <DeskCard
+                        key={card.id}
+                        card={card}
+                        isEditing={isEditing}
+                        highlighted={!isEditing && matchesCognome(card.surnames, userCognome)}
+                        minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
+                        tirocinanteWidth={defaults.tirocinanteWidth}
+                        scheduleSections={scheduleSections}
+                        onUpdate={updateCard}
+                        onDelete={deleteCard}
+                      />
+                    ))}
+                  </DroppableCell>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+
+        <DragOverlay>
+          {activeCardId && (() => {
+            const card = cards.find(c => c.id === activeCardId)
+            if (!card) return null
+            return (
+              <DeskCard
+                card={card}
+                isEditing={true}
+                isDragOverlay={true}
+                minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
+                tirocinanteWidth={defaults.tirocinanteWidth}
+                scheduleSections={scheduleSections}
+                onUpdate={() => {}}
+                onDelete={() => {}}
+              />
+            )
+          })()}
+        </DragOverlay>
+      </DndContext>
 
       {/* Altri presenti */}
       {altriPresenti.length > 0 && (

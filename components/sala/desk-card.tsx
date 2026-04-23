@@ -1,6 +1,8 @@
 'use client'
 import { useRef, useState, useEffect } from 'react'
-import { Trash2, UserPlus, Link2, ArrowLeftRight, ArrowUpDown, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
+import { Trash2, UserPlus, Link2, ArrowLeftRight, ArrowUpDown, GripVertical } from 'lucide-react'
+import { useDraggable } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
 import type { DeskCard as DeskCardType } from '@/types/database'
 
 interface Props {
@@ -12,19 +14,19 @@ interface Props {
   scheduleSections: string[]
   onUpdate: (card: DeskCardType) => void
   onDelete: (id: string) => void
+  isDragOverlay?: boolean
 }
 
-const ALIGN_ICONS = [
-  ['left', AlignLeft],
-  ['center', AlignCenter],
-  ['right', AlignRight],
-] as const
-
-export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth, scheduleSections, onUpdate, onDelete }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth, scheduleSections, onUpdate, onDelete, isDragOverlay }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const [tirWide, setTirWide] = useState(false)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
+
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: card.id,
+    disabled: !isEditing || isDragOverlay,
+  })
 
   useEffect(() => {
     const el = firstTirRef.current
@@ -57,17 +59,30 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
   const isDoubleCol = card.type === 'double' && card.doubleLayout === 'col'
   const toggleDoubleLayout = () => onUpdate({ ...card, doubleLayout: isDoubleCol ? 'row' : 'col' })
 
-  const currentRow = card.row ?? 1
-  const currentAlign = card.align ?? 'left'
+  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
 
   return (
     <div
-      className={`bg-card rounded-lg overflow-hidden flex h-full border ${highlighted ? 'border-amber-400 ring-2 ring-amber-300/40' : 'border-border'}`}
+      ref={setNodeRef}
+      style={style}
+      className={`bg-card rounded-lg overflow-hidden flex h-full border transition-opacity ${
+        highlighted ? 'border-amber-400 ring-2 ring-amber-300/40' : 'border-border'
+      } ${isDragging && !isDragOverlay ? 'opacity-40' : ''}`}
     >
       {/* Main area */}
       <div className="flex flex-col" style={{ minWidth: `${minWidth}px` }}>
         {/* Title row */}
         <div className="flex items-center gap-1 px-2 border-b border-border bg-muted/40 shrink-0" style={{ height: '28px' }}>
+          {isEditing && (
+            <button
+              {...attributes}
+              {...listeners}
+              className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
+              title="Trascina per riposizionare"
+            >
+              <GripVertical size={13} />
+            </button>
+          )}
           {isEditing ? (
             <input
               className="flex-1 text-xs font-semibold bg-transparent outline-none min-w-0 text-foreground placeholder:text-muted-foreground"
@@ -105,44 +120,6 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
             </div>
           )}
         </div>
-
-        {/* Row + align pickers — edit mode only */}
-        {isEditing && (
-          <div className="flex items-center gap-2 px-2 py-0.5 border-b border-border/50 bg-muted/20">
-            <span className="text-[10px] text-muted-foreground shrink-0">R:</span>
-            <div className="flex gap-0.5">
-              {[1, 2, 3, 4, 5].map(r => (
-                <button
-                  key={r}
-                  onClick={() => onUpdate({ ...card, row: r })}
-                  className={`w-5 h-5 text-[10px] rounded font-medium transition-colors ${
-                    currentRow === r
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-background border border-border text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-0.5 ml-1">
-              {ALIGN_ICONS.map(([a, Icon]) => (
-                <button
-                  key={a}
-                  onClick={() => onUpdate({ ...card, align: a })}
-                  className={`p-0.5 rounded transition-colors ${
-                    currentAlign === a
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  title={a}
-                >
-                  <Icon size={12} />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Section key picker — only in edit mode when schedule sections available */}
         {isEditing && scheduleSections.length > 0 && (
