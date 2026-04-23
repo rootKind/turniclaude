@@ -109,7 +109,7 @@ function VacanzeContent() {
       document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('touchend', onTouchEnd)
     }
-  }, [])
+  }, [minYear])
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">

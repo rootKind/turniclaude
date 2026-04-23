@@ -140,7 +140,7 @@ export default function TurniFeriePage() {
       document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('touchend', onTouchEnd)
     }
-  }, [])
+  }, [minYear])
 
   const filtered = assignments.filter(a => a.user?.is_secondary === effectiveIsSecondary)
   const allCognomes = filtered.map(a => a.user?.cognome ?? '')
