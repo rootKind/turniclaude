@@ -1,8 +1,8 @@
 'use client'
-import { useRef, useState, useEffect } from 'react'
-import { useSortable } from '@dnd-kit/sortable'
+import { useRef } from 'react'
+import { Trash2, UserPlus, Link2, ArrowLeftRight, ArrowUpDown, GripVertical } from 'lucide-react'
+import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Trash2, UserPlus, Link2 } from 'lucide-react'
 import type { DeskCard as DeskCardType } from '@/types/database'
 
 interface Props {
@@ -14,35 +14,21 @@ interface Props {
   scheduleSections: string[]
   onUpdate: (card: DeskCardType) => void
   onDelete: (id: string) => void
+  isDragOverlay?: boolean
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth, scheduleSections, onUpdate, onDelete }: Props) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: card.id,
-    disabled: !isEditing,
-  })
+const toTitleCase = (s: string) =>
+  s ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : s
 
+export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth: _, scheduleSections, onUpdate, onDelete, isDragOverlay }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
-  const [tirWide, setTirWide] = useState(false)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
 
-  useEffect(() => {
-    const el = firstTirRef.current
-    if (!el) { setTirWide(false); return }
-    const ro = new ResizeObserver(([entry]) => {
-      setTirWide(entry.contentRect.width >= 70)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [tirCount])
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-    zIndex: isDragging ? 50 : undefined,
-  }
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: card.id,
+    disabled: !isEditing || isDragOverlay,
+  })
 
   const updateSurname = (index: number, value: string) => {
     const surnames = [...card.surnames]
@@ -62,24 +48,37 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
     else onUpdate({ ...card, tirocinanti: [] })
   }
 
+  const isDoubleCol = card.type === 'double' && card.doubleLayout === 'col'
+  const toggleDoubleLayout = () => onUpdate({ ...card, doubleLayout: isDoubleCol ? 'row' : 'col' })
+
+  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
+  const displayTitle = isEditing
+    ? card.title
+    : card.title.replace(/\s*doppia\s*/gi, '').trim()
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-card rounded-lg overflow-hidden flex h-full border ${highlighted ? 'border-amber-400 ring-2 ring-amber-300/40' : 'border-border'}`}
+      className={`bg-card rounded-lg overflow-hidden flex flex-col h-full border transition-opacity ${
+        highlighted ? 'border-amber-400 ring-2 ring-amber-300/40' : 'border-border'
+      } ${isDragging && !isDragOverlay ? 'opacity-40' : ''}`}
     >
       {/* Main area */}
-      <div className="flex flex-col" style={{ minWidth: `${minWidth}px` }}>
-        {/* Title row — fixed h-7 to match tirocinante header */}
-        <div className="flex items-center gap-1 px-2 border-b border-border bg-muted/40 shrink-0" style={{ height: '28px' }}>
+      <div className="flex flex-col flex-1 min-h-0" style={{ minWidth: `${minWidth}px` }}>
+        {/* Title row */}
+        <div
+          className={`flex items-center gap-1 px-2 border-b border-border bg-muted/40 shrink-0 ${!isEditing ? 'justify-center' : ''}`}
+          style={{ height: '28px' }}
+        >
           {isEditing && (
             <button
-              {...listeners}
               {...attributes}
-              className="touch-none text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing shrink-0"
-              aria-label="Trascina"
+              {...listeners}
+              className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
+              title="Trascina per riposizionare"
             >
-              <GripVertical size={14} />
+              <GripVertical size={13} />
             </button>
           )}
           {isEditing ? (
@@ -90,10 +89,19 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
               placeholder="Titolo scrivania"
             />
           ) : (
-            <span className="text-xs font-semibold whitespace-nowrap">{card.title}</span>
+            <span className="text-xs font-semibold whitespace-nowrap">{displayTitle}</span>
           )}
           {isEditing && (
             <div className="flex items-center gap-1 shrink-0">
+              {card.type === 'double' && (
+                <button
+                  onClick={toggleDoubleLayout}
+                  className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                  title={isDoubleCol ? 'Nomi affiancati' : 'Nomi sovrapposti'}
+                >
+                  {isDoubleCol ? <ArrowLeftRight size={13} /> : <ArrowUpDown size={13} />}
+                </button>
+              )}
               <button
                 onClick={cycleTirocinanti}
                 className={`p-0.5 rounded transition-colors ${tirocinanti.length > 0 ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -111,7 +119,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
           )}
         </div>
 
-        {/* Section key picker — only in edit mode when schedule sections available */}
+        {/* Section key picker */}
         {isEditing && scheduleSections.length > 0 && (
           <div className="flex items-center gap-1 px-2 py-0.5 border-b border-border/50 bg-muted/20">
             <Link2 size={10} className={card.sectionKey ? 'text-primary' : 'text-muted-foreground/50'} />
@@ -130,57 +138,74 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
         )}
 
         {/* Surnames */}
-        <div className="flex flex-1 items-center px-2 py-2 gap-3">
-          {card.surnames.map((surname, i) => (
-            <div key={i} className="shrink-0">
-              {isEditing ? (
-                <input
-                  className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
-                  style={{ minWidth: '52px', width: `${Math.max(52, surname.length * 9)}px` }}
-                  value={surname}
-                  onChange={e => updateSurname(i, e.target.value)}
-                  placeholder="Cognome"
-                />
-              ) : (
-                <span className="text-sm font-medium whitespace-nowrap">
-                  {surname || <span className="text-muted-foreground/40">—</span>}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
+        {isDoubleCol ? (
+          <div className="flex flex-col flex-1 bg-muted/60 items-center justify-center">
+            {card.surnames.map((surname, i) => (
+              <div key={i} className="flex items-center px-2 py-0.5">
+                {isEditing ? (
+                  <input
+                    className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground w-full"
+                    value={surname}
+                    onChange={e => updateSurname(i, e.target.value)}
+                    placeholder="Cognome"
+                  />
+                ) : (
+                  <span className={`text-sm whitespace-nowrap leading-tight ${i === 1 ? 'italic text-muted-foreground' : ''}`}>
+                    {surname ? toTitleCase(surname) : <span className="text-muted-foreground/40">—</span>}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-1 items-center justify-center px-2 py-2 gap-3 bg-muted/60">
+            {card.surnames.map((surname, i) => (
+              <div key={i} className="shrink-0">
+                {isEditing ? (
+                  <input
+                    className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
+                    style={{ minWidth: '52px', width: `${Math.max(52, surname.length * 9)}px` }}
+                    value={surname}
+                    onChange={e => updateSurname(i, e.target.value)}
+                    placeholder="Cognome"
+                  />
+                ) : (
+                  <span className={`text-sm whitespace-nowrap ${card.type === 'double' && i === 1 ? 'italic text-muted-foreground' : ''}`}>
+                    {surname ? toTitleCase(surname) : <span className="text-muted-foreground/40">—</span>}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Tirocinante slots — up to 2, each to the right of the previous */}
-      {tirocinanti.map((tir, i) => (
-        <div
-          key={i}
-          ref={i === 0 ? firstTirRef : undefined}
-          className="border-l border-border flex flex-col shrink-0"
-          style={{ minWidth: `${tirocinanteWidth}px` }}
-        >
-          {/* Header — same height as title row */}
-          <div className="px-1 border-b border-border bg-muted/40 flex items-center shrink-0" style={{ height: '28px' }}>
-            <span className="text-[10px] text-muted-foreground font-medium leading-none whitespace-nowrap">
-              {tirWide ? 'Tirocinante' : 'Tir.'}
-            </span>
+      {/* Tirocinante bottom extension */}
+      {tirCount > 0 && (
+        <div className="border-t border-border shrink-0">
+          <div className="px-2 bg-muted/40 flex items-center justify-center" style={{ height: '18px' }}>
+            <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-wide leading-none">Tir.</span>
           </div>
-          <div className="flex-1 flex items-center px-1 py-2">
-            {isEditing ? (
-              <input
-                className="w-full text-xs bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
-                value={tir}
-                onChange={e => updateTirocinante(i, e.target.value)}
-                placeholder="Cogn."
-              />
-            ) : (
-              <span className="text-xs font-medium whitespace-nowrap">
-                {tir || <span className="text-muted-foreground/40">—</span>}
-              </span>
-            )}
+          <div className="flex items-center justify-center gap-2 px-2 py-1 bg-muted/50">
+            {tirocinanti.map((tir, i) => (
+              <div key={i} ref={i === 0 ? firstTirRef : undefined}>
+                {isEditing ? (
+                  <input
+                    className="text-xs bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
+                    value={tir}
+                    onChange={e => updateTirocinante(i, e.target.value)}
+                    placeholder="Cogn."
+                  />
+                ) : (
+                  <span className="text-xs whitespace-nowrap">
+                    {tir ? toTitleCase(tir) : <span className="text-muted-foreground/40">—</span>}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
-      ))}
+      )}
     </div>
   )
 }

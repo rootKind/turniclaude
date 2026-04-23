@@ -128,11 +128,13 @@ export interface DeskCard {
   type: DeskType
   surnames: string[]
   tirocinanti: string[]   // 0–2 elements
+  doubleLayout?: 'row' | 'col'  // double cards: names side-by-side (row) or stacked (col)
   sectionKey?: string     // explicit PDF section key; falls back to title
+  row?: number            // grid row 1-4
+  align?: 'left' | 'center' | 'right'  // grid column
   // legacy fields (backward compat)
   hasTirocinante?: boolean
   tirocinante?: string
-  row?: number
   col?: number
 }
 

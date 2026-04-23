@@ -222,7 +222,7 @@ export default function TurniFeriePage() {
       className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
       style={{ height: 'calc(100dvh - 4rem)' }}
     >
-      <div className="flex items-center gap-2 mb-3 bg-card border border-border rounded-xl pl-3 pr-3 py-2 mr-14">
+      <div className="flex items-center gap-2 mb-3 bg-card border border-sky-200 dark:border-border rounded-xl pl-3 pr-3 py-2 mr-14">
         <h1 className="text-lg font-bold flex-1">Turni Ferie</h1>
         {adminUser && (
           <button
@@ -264,8 +264,8 @@ export default function TurniFeriePage() {
               transition={{ duration: 0.15, delay: index * 0.04, ease: 'easeOut' }}
               className={`rounded-xl border overflow-hidden transition-colors flex flex-col ${
                 isMyPeriod
-                  ? `border-sky-400 dark:border-sky-600`
-                  : PERIOD_CARD_CLASSES[period]?.border ?? 'border-[#bdd0e0] dark:border-[#2e2e2e]'
+                  ? 'border-sky-400 dark:border-sky-600'
+                  : 'border-border'
               }`}
             >
               <button
@@ -274,7 +274,7 @@ export default function TurniFeriePage() {
                 className={`w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default ${
                   isMyPeriod
                     ? 'bg-sky-100 dark:bg-sky-900/40'
-                    : PERIOD_CARD_CLASSES[period]?.header ?? ''
+                    : ''
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
@@ -300,7 +300,7 @@ export default function TurniFeriePage() {
                 <div className={`border-t border-black/10 dark:border-white/10 ${
                   isMyPeriod
                     ? 'bg-sky-50 dark:bg-sky-950/30'
-                    : PERIOD_CARD_CLASSES[period]?.content ?? 'bg-background'
+                    : 'bg-background'
                 }`}>
                   {users.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Nessuno</p>

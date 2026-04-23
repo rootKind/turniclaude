@@ -113,10 +113,25 @@ export async function POST(req: Request) {
       .eq('user_id', userId)
     if (!subs?.length) return
 
+    const userReq = allRequests.find(r => r.user_id === userId)
+    const chainRequestIds: number[] = userReq ? (() => {
+      const chains = findVacationChains(
+        allRequests,
+        userReq.offered_period,
+        userReq.target_periods as VacationPeriod[],
+        userId,
+      )
+      const chainWithNew = chains.find(chain => chain.some(r => r.user_id === newRequestUserId))
+      return chainWithNew
+        ? [userReq.id, ...chainWithNew.map(r => r.id)]
+        : [userReq.id]
+    })() : []
+
     const payload = JSON.stringify({
       title: 'Nuova catena ferie disponibile',
       body: `${actorName} ha inserito una richiesta che completa una catena con la tua (${year})`,
       type: 'new_vacation',
+      requestIds: chainRequestIds,
     })
 
     const stale: string[] = []

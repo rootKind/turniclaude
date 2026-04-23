@@ -51,19 +51,22 @@ fermati e aggiorna il piano.
 - Se un passo richiede più di ~30 min di lavoro, fermati e proponi
   di spezzarlo
 
-### 5. COMMIT E AVANTI
+### 5. VERSIONE + COMMIT (atomico)
 Dopo ogni feature o bug fix completato:
-```bashgit add -A
-git commit -m "tipo: descrizione concisa"```
-Usa Conventional Commits: `feat:`, `fix:`, `refactor:`, `style:`, `chore:`.
-Non chiedere conferma per il commit — vai avanti automaticamente.
-Dopo il commit:
-1. Leggi lo short hash dell'ultimo commit con `git rev-parse --short HEAD`
-2. Leggi data e ora del commit con `git log -1 --format="%ci" HEAD` (formato: `YYYY-MM-DD HH:MM:SS +TZ`)
-3. Aggiorna la versione mostrata nella pagina `/impostazioni` con hash, data e ora nel formato:
+
+1. Genera lo short hash PREVISIONALE con:
+   `git rev-parse --short HEAD`
+   (usa questo hash come base, sarà quello precedente ma accettabile)
+
+2. Genera data e ora attuale
+
+3. Aggiorna la versione nella pagina `/impostazioni` nel formato:
    `vX.YYY · <hash> — ultimo aggiornamento: DD/MM/YYYY HH:MM`
-   (usa ora locale dal campo `+TZ`, tronca ai minuti)
-4. Aggiorna la checklist nel file del piano e passa al prossimo step.
+
+4. Esegui un unico commit includendo TUTTO:
+```bash
+git add -A
+git commit -m "tipo: descrizione concisa"```
 ---
 
 # Turni Sala C.C.C. — PWA

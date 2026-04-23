@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -26,6 +26,7 @@ interface Props {
   isSameDateAsPrevious?: boolean
   dateIndex?: number
   year: number
+  isHighlighted?: boolean
 }
 
 function formatRequestDate(createdAt: string): { day: string; month: string } {
@@ -63,10 +64,21 @@ export function VacationRequestItem({
   isSameDateAsPrevious = false,
   dateIndex = 0,
   year,
+  isHighlighted = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showRing, setShowRing] = useState(isHighlighted)
+  const cardRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
+
+  useEffect(() => {
+    if (!isHighlighted) return
+    setShowRing(true)
+    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const t = setTimeout(() => setShowRing(false), 3000)
+    return () => clearTimeout(t)
+  }, [isHighlighted])
   const { profile } = useCurrentUser()
 
   const isOwn        = request.user_id === currentUserId
@@ -136,7 +148,7 @@ export function VacationRequestItem({
   const interestCount = request.vacation_request_interests.length
 
   return (
-    <div className={cn(isSameDateAsPrevious ? 'mt-0.5' : 'mt-3', 'first:mt-0 rounded-[10px]')}>
+    <div ref={cardRef} className={cn(isSameDateAsPrevious ? 'mt-0.5' : 'mt-3', 'first:mt-0 rounded-[10px] transition-shadow duration-700', showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background')}>
       {/* Main row */}
       <div
         role="button"

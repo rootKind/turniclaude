@@ -26,6 +26,13 @@ function VacanzeContent() {
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [minYear, setMinYear] = useState(2026)
+  const [highlightRequestIds, setHighlightRequestIds] = useState<number[]>(() => {
+    const multi = searchParams.get('requests')
+    const single = searchParams.get('request')
+    if (multi) return multi.split(',').map(Number).filter(Boolean)
+    if (single) return [Number(single)]
+    return []
+  })
   const adminUser = profile ? isAdmin(profile.id) : false
   const loggedInUserId = profile?.id ?? ''
   const effectiveIsSecondary = adminUser ? viewSecondary : (profile?.is_secondary ?? false)
@@ -49,6 +56,18 @@ function VacanzeContent() {
       router.replace('/vacanze')
     }
   }, [searchParams, router])
+
+  useEffect(() => {
+    if (!highlightRequestIds.length) return
+    const t = setTimeout(() => {
+      setHighlightRequestIds([])
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('request')
+      params.delete('requests')
+      router.replace(params.size > 0 ? `/vacanze?${params.toString()}` : '/vacanze')
+    }, 4000)
+    return () => clearTimeout(t)
+  }, [highlightRequestIds, router, searchParams])
 
   useEffect(() => {
     const supabase = createClient()
@@ -126,6 +145,7 @@ function VacanzeContent() {
         loggedInUserId={loggedInUserId}
         myPeriodThisYear={myPeriodThisYear}
         year={selectedYear}
+        highlightRequestIds={highlightRequestIds}
       />
 
       <VacationRequestDialog

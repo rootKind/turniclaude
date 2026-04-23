@@ -28,7 +28,7 @@ self.addEventListener('push', (event) => {
   let payload
   try { payload = event.data.json() } catch { payload = { title: 'Turni', body: event.data.text() } }
 
-  const { title = 'Turni', body = '', shiftId, url, type = 'system' } = payload
+  const { title = 'Turni', body = '', shiftId, requestId, requestIds, url, type = 'system' } = payload
 
   event.waitUntil(
     (async () => {
@@ -49,16 +49,21 @@ self.addEventListener('push', (event) => {
       // Also broadcast to any open tabs for immediate in-app update (they dedup by id)
       clients.forEach(client => client.postMessage({ type: 'PUSH_RECEIVED', entry }))
 
+      let navUrl
+      if (shiftId) {
+        navUrl = `/dashboard?shift=${shiftId}`
+      } else if (Array.isArray(requestIds) && requestIds.length > 0) {
+        navUrl = `/vacanze?requests=${requestIds.join(',')}`
+      } else if (requestId) {
+        navUrl = `/vacanze?request=${requestId}`
+      } else {
+        navUrl = url ?? '/dashboard'
+      }
+
       return self.registration.showNotification(title, {
         body,
         icon: '/icons/icon-192.png',
-        data: {
-          url: shiftId
-            ? `/dashboard?shift=${shiftId}`
-            : (type === 'vacation_interest' || type === 'new_vacation')
-              ? '/vacanze'
-              : (url ?? '/dashboard'),
-        },
+        data: { url: navUrl },
       })
     })()
   )
