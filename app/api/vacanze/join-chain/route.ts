@@ -64,6 +64,7 @@ export async function POST(req: Request) {
       body: `${actorName} è interessato al tuo ${offeredLabel} ${year} come parte di una catena`,
       type: 'vacation_interest',
       requestId,
+      requestIds,
     })
 
     const stale: string[] = []

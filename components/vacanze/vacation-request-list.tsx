@@ -11,13 +11,14 @@ interface Props {
   loggedInUserId: string
   myPeriodThisYear: VacationPeriod | null
   year: number
+  highlightRequestIds?: number[]
 }
 
 function dayKey(createdAt: string) {
   return new Date(createdAt).toISOString().slice(0, 10)
 }
 
-export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUserId, myPeriodThisYear, year }: Props) {
+export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUserId, myPeriodThisYear, year, highlightRequestIds = [] }: Props) {
   const { data: requests = [], isLoading } = useVacationRequests(isSecondary, year)
 
   const dateIndexes = useMemo(() => {
@@ -53,6 +54,7 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
             isSameDateAsPrevious={isSameDateAsPrevious}
             dateIndex={dateIndexes[index]}
             year={year}
+            isHighlighted={highlightRequestIds.includes(request.id)}
           />
         )
       })}
