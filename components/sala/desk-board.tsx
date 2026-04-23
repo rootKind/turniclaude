@@ -21,6 +21,8 @@ import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
 
+const KNOWN_SECTIONS = ['1', '2', '3', '4', '5', '6', '7', '8']
+
 const MONTHS_IT = [
   'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
   'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
@@ -277,9 +279,10 @@ export function DeskBoard({
   }
 
   const scheduleSections: string[] = schedule
-    ? [...new Set(
-        Object.values(schedule.schedule).flatMap(day => Object.keys(day.sections))
-      )].sort()
+    ? [...new Set([
+        ...KNOWN_SECTIONS,
+        ...Object.values(schedule.schedule).flatMap(day => Object.keys(day.sections)),
+      ])].sort()
     : []
 
   const displayCards = (schedule && !isEditing)
