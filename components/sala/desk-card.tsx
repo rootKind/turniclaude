@@ -2,7 +2,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Trash2, UserPlus, Link2 } from 'lucide-react'
+import { GripVertical, Trash2, UserPlus, Link2, ArrowLeftRight, ArrowUpDown } from 'lucide-react'
 import type { DeskCard as DeskCardType } from '@/types/database'
 
 interface Props {
@@ -62,6 +62,9 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
     else onUpdate({ ...card, tirocinanti: [] })
   }
 
+  const isDoubleCol = card.type === 'double' && card.doubleLayout === 'col'
+  const toggleDoubleLayout = () => onUpdate({ ...card, doubleLayout: isDoubleCol ? 'row' : 'col' })
+
   return (
     <div
       ref={setNodeRef}
@@ -94,6 +97,15 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
           )}
           {isEditing && (
             <div className="flex items-center gap-1 shrink-0">
+              {card.type === 'double' && (
+                <button
+                  onClick={toggleDoubleLayout}
+                  className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+                  title={isDoubleCol ? 'Nomi affiancati' : 'Nomi sovrapposti'}
+                >
+                  {isDoubleCol ? <ArrowLeftRight size={13} /> : <ArrowUpDown size={13} />}
+                </button>
+              )}
               <button
                 onClick={cycleTirocinanti}
                 className={`p-0.5 rounded transition-colors ${tirocinanti.length > 0 ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -130,36 +142,87 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
         )}
 
         {/* Surnames */}
-        <div className="flex flex-1 items-center px-2 py-2 gap-3">
-          {card.surnames.map((surname, i) => (
-            <div key={i} className="shrink-0">
+        {isDoubleCol ? (
+          <div className="flex flex-col flex-1">
+            {card.surnames.map((surname, i) => (
+              <div
+                key={i}
+                className={`flex flex-1 items-center px-2 ${i < card.surnames.length - 1 ? 'border-b border-border/50' : ''}`}
+              >
+                {isEditing ? (
+                  <input
+                    className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground w-full"
+                    value={surname}
+                    onChange={e => updateSurname(i, e.target.value)}
+                    placeholder="Cognome"
+                  />
+                ) : (
+                  <span className="text-sm font-medium whitespace-nowrap leading-tight">
+                    {surname || <span className="text-muted-foreground/40">—</span>}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-1 items-center px-2 py-2 gap-3">
+            {card.surnames.map((surname, i) => (
+              <div key={i} className="shrink-0">
+                {isEditing ? (
+                  <input
+                    className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
+                    style={{ minWidth: '52px', width: `${Math.max(52, surname.length * 9)}px` }}
+                    value={surname}
+                    onChange={e => updateSurname(i, e.target.value)}
+                    placeholder="Cognome"
+                  />
+                ) : (
+                  <span className="text-sm font-medium whitespace-nowrap">
+                    {surname || <span className="text-muted-foreground/40">—</span>}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Tirocinante slots — 2 tir. merged into one stacked column, 1 tir. single column */}
+      {tirCount === 2 ? (
+        <div
+          ref={firstTirRef}
+          className="border-l border-border flex flex-col shrink-0"
+          style={{ minWidth: `${tirocinanteWidth}px` }}
+        >
+          <div className="px-1 border-b border-border bg-muted/40 flex items-center shrink-0" style={{ height: '28px' }}>
+            <span className="text-[10px] text-muted-foreground font-medium leading-none whitespace-nowrap">
+              {tirWide ? 'Tirocinante' : 'Tir.'}
+            </span>
+          </div>
+          {tirocinanti.map((tir, i) => (
+            <div key={i} className={`flex flex-1 items-center px-1 ${i === 0 ? 'border-b border-border/50' : ''}`}>
               {isEditing ? (
                 <input
-                  className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
-                  style={{ minWidth: '52px', width: `${Math.max(52, surname.length * 9)}px` }}
-                  value={surname}
-                  onChange={e => updateSurname(i, e.target.value)}
-                  placeholder="Cognome"
+                  className="w-full text-xs bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
+                  value={tir}
+                  onChange={e => updateTirocinante(i, e.target.value)}
+                  placeholder="Cogn."
                 />
               ) : (
-                <span className="text-sm font-medium whitespace-nowrap">
-                  {surname || <span className="text-muted-foreground/40">—</span>}
+                <span className="text-xs font-medium whitespace-nowrap leading-tight">
+                  {tir || <span className="text-muted-foreground/40">—</span>}
                 </span>
               )}
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Tirocinante slots — up to 2, each to the right of the previous */}
-      {tirocinanti.map((tir, i) => (
+      ) : tirocinanti.map((tir, i) => (
         <div
           key={i}
           ref={i === 0 ? firstTirRef : undefined}
           className="border-l border-border flex flex-col shrink-0"
           style={{ minWidth: `${tirocinanteWidth}px` }}
         >
-          {/* Header — same height as title row */}
           <div className="px-1 border-b border-border bg-muted/40 flex items-center shrink-0" style={{ height: '28px' }}>
             <span className="text-[10px] text-muted-foreground font-medium leading-none whitespace-nowrap">
               {tirWide ? 'Tirocinante' : 'Tir.'}

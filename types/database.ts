@@ -128,6 +128,7 @@ export interface DeskCard {
   type: DeskType
   surnames: string[]
   tirocinanti: string[]   // 0–2 elements
+  doubleLayout?: 'row' | 'col'  // double cards: names side-by-side (row) or stacked (col)
   sectionKey?: string     // explicit PDF section key; falls back to title
   // legacy fields (backward compat)
   hasTirocinante?: boolean
