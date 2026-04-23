@@ -1,12 +1,14 @@
 {
   "name": "Turni Sala C.C.C.",
-  "short_name": "Turni",
+  "short_name": "Turni Sala C.C.C.",
   "description": "Gestione scambi turni",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "orientation": "portrait",
+  "author": "Davide Minino",
+  "version": "2.0",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
