@@ -25,7 +25,7 @@ export default function TurniFeriePage() {
   const { profile } = useCurrentUser()
   const [viewSecondary, setViewSecondary] = useState(false)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [minYear, setMinYear] = useState(2026)
+  const [minYear, setMinYear] = useState<number | null>(null)
   const [assignments, setAssignments] = useState<VacationAssignmentWithUser[]>([])
   const [expandedPeriods, setExpandedPeriods] = useState<Set<VacationPeriod>>(new Set([1, 2, 3, 4, 5, 6]))
   // true when viewport is tall enough to show all 6 cards fully expanded
@@ -60,6 +60,7 @@ export default function TurniFeriePage() {
   }, [])
 
   useEffect(() => {
+    if (minYear === null) return
     setSelectedYear(y => Math.max(y, minYear))
   }, [minYear])
 
@@ -129,10 +130,11 @@ export default function TurniFeriePage() {
       startY = e.touches[0].clientY
     }
     function onTouchEnd(e: TouchEvent) {
+      if (minYear === null) return
       const dx = e.changedTouches[0].clientX - startX
       const dy = e.changedTouches[0].clientY - startY
       if (Math.abs(dx) <= 50 || Math.abs(dy) > Math.abs(dx)) return
-      setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear,y + (dx > 0 ? -1 : 1))))
+      setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear, y + (dx > 0 ? -1 : 1))))
     }
     document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })
@@ -220,6 +222,12 @@ export default function TurniFeriePage() {
       return next
     })
   }
+
+  if (minYear === null) return (
+    <main className="mx-auto px-3 pt-5 max-w-2xl flex flex-col items-center justify-center" style={{ height: 'calc(100dvh - 4rem)' }}>
+      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </main>
+  )
 
   return (
     <main
