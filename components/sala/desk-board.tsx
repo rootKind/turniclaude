@@ -136,6 +136,13 @@ export function DeskBoard({
   const [deletingMonth, setDeletingMonth] = useState<string | null>(null)
 
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [uploadMonth, setUploadMonth] = useState(() => {
+    const [y, m] = currentMonth.split('-').map(Number)
+    const nm = m === 12 ? 1 : m + 1
+    const ny = m === 12 ? y + 1 : y
+    return { year: ny, month: nm }
+  })
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -164,11 +171,17 @@ export function DeskBoard({
   const touchStartX = useRef<number | null>(null)
   const isEditingRef = useRef(isEditing)
   const totalDaysRef = useRef(getDaysInMonth(currentMonth))
+  const selectedShiftRef = useRef<SalaShiftType>(selectedShift)
+  const selectedDayRef = useRef<number>(selectedDay)
 
   useEffect(() => { isEditingRef.current = isEditing }, [isEditing])
+  useEffect(() => { selectedShiftRef.current = selectedShift }, [selectedShift])
+  useEffect(() => { selectedDayRef.current = selectedDay }, [selectedDay])
 
   const totalDays = getDaysInMonth(currentMonth)
   useEffect(() => { totalDaysRef.current = totalDays }, [totalDays])
+
+  const SHIFT_ORDER: SalaShiftType[] = ['N', 'M', 'P']
 
   useEffect(() => {
     const onTouchStart = (e: TouchEvent) => {
@@ -180,7 +193,23 @@ export function DeskBoard({
       const dx = e.changedTouches[0].clientX - touchStartX.current
       touchStartX.current = null
       if (Math.abs(dx) < 50) return
-      setSelectedDay(d => dx < 0 ? Math.min(d + 1, totalDaysRef.current) : Math.max(d - 1, 1))
+      const idx = SHIFT_ORDER.indexOf(selectedShiftRef.current)
+      const day = selectedDayRef.current
+      if (dx < 0) {
+        if (idx < SHIFT_ORDER.length - 1) {
+          setSelectedShift(SHIFT_ORDER[idx + 1])
+        } else if (day < totalDaysRef.current) {
+          setSelectedDay(day + 1)
+          setSelectedShift(SHIFT_ORDER[0])
+        }
+      } else {
+        if (idx > 0) {
+          setSelectedShift(SHIFT_ORDER[idx - 1])
+        } else if (day > 1) {
+          setSelectedDay(day - 1)
+          setSelectedShift(SHIFT_ORDER[SHIFT_ORDER.length - 1])
+        }
+      }
     }
     document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })
@@ -188,6 +217,7 @@ export function DeskBoard({
       document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('touchend', onTouchEnd)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -249,13 +279,24 @@ export function DeskBoard({
     setDirty(true)
   }, [])
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
+    const [y, m] = currentMonth.split('-').map(Number)
+    const nm = m === 12 ? 1 : m + 1
+    const ny = m === 12 ? y + 1 : y
+    setUploadMonth({ year: ny, month: nm })
+    setPendingFile(file)
+  }
+
+  const handleConfirmUpload = async () => {
+    if (!pendingFile) return
+    const month = `${uploadMonth.year}-${String(uploadMonth.month).padStart(2, '0')}`
+    setPendingFile(null)
     setUploading(true)
     try {
-      await onUpload(file, currentMonth)
+      await onUpload(pendingFile, month)
     } catch (err) {
       alert('Errore upload: ' + (err as Error).message)
     } finally {
@@ -362,8 +403,8 @@ export function DeskBoard({
             <ChevronRight size={16} />
           </button>
 
-          <div className="relative ml-1">
-            <span className="text-sm font-medium pointer-events-none select-none">
+          <div className="relative ml-1 min-w-0 shrink">
+            <span className="text-sm font-medium pointer-events-none select-none truncate">
               {MONTHS_IT[parseInt(currentMonth.split('-')[1]) - 1]}{' '}
               {currentMonth.split('-')[0]}
             </span>
@@ -380,8 +421,8 @@ export function DeskBoard({
 
           <div className="flex-1" />
 
-          <div className="flex rounded-lg overflow-hidden border border-border text-xs font-semibold">
-            {(['P', 'M', 'N'] as const).map(s => (
+          <div className="flex rounded-lg overflow-hidden border border-border text-xs font-semibold shrink-0">
+            {(['N', 'M', 'P'] as const).map(s => (
               <button
                 key={s}
                 onClick={() => setSelectedShift(s)}
@@ -484,6 +525,52 @@ export function DeskBoard({
               {name}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Upload month picker dialog */}
+      {pendingFile && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-xs flex flex-col gap-4 p-5">
+            <h2 className="text-sm font-semibold">Mese del PDF</h2>
+            <p className="text-xs text-muted-foreground truncate" title={pendingFile.name}>
+              {pendingFile.name}
+            </p>
+            <div className="flex gap-2">
+              <select
+                value={uploadMonth.month}
+                onChange={e => setUploadMonth(prev => ({ ...prev, month: Number(e.target.value) }))}
+                className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary"
+              >
+                {MONTHS_IT.map((label, i) => (
+                  <option key={i + 1} value={i + 1}>{label}</option>
+                ))}
+              </select>
+              <select
+                value={uploadMonth.year}
+                onChange={e => setUploadMonth(prev => ({ ...prev, year: Number(e.target.value) }))}
+                className="w-24 px-2 py-1.5 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary"
+              >
+                {[currentMonth.split('-')[0], String(Number(currentMonth.split('-')[0]) + 1)].map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setPendingFile(null)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={handleConfirmUpload}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Carica
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

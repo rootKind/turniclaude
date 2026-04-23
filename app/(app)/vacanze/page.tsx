@@ -72,7 +72,19 @@ function VacanzeContent() {
   useEffect(() => {
     const supabase = createClient()
     getAppSettings(supabase).then(s => setMinYear(s.min_year_vacanze)).catch(() => {})
+    const channel = supabase
+      .channel('app-settings-vacanze')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
+        const s = payload.new as { min_year_vacanze: number }
+        setMinYear(s.min_year_vacanze)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
   }, [])
+
+  useEffect(() => {
+    setSelectedYear(y => Math.max(y, minYear))
+  }, [minYear])
 
   function changeYear(delta: number) {
     setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear,y + delta)))

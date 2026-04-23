@@ -57,7 +57,19 @@ export default function TurniFeriePage() {
     localStorage.setItem('turni-last-page', '/turniferie')
     const supabase = createClient()
     getAppSettings(supabase).then(s => setMinYear(s.min_year_turniferie)).catch(() => {})
+    const channel = supabase
+      .channel('app-settings-turniferie')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
+        const s = payload.new as { min_year_turniferie: number }
+        setMinYear(s.min_year_turniferie)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
   }, [])
+
+  useEffect(() => {
+    setSelectedYear(y => Math.max(y, minYear))
+  }, [minYear])
 
   useEffect(() => {
     if (!adminUser) return
