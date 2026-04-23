@@ -111,7 +111,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
           <div className="flex items-center gap-2 px-2 py-0.5 border-b border-border/50 bg-muted/20">
             <span className="text-[10px] text-muted-foreground shrink-0">R:</span>
             <div className="flex gap-0.5">
-              {[1, 2, 3, 4].map(r => (
+              {[1, 2, 3, 4, 5].map(r => (
                 <button
                   key={r}
                   onClick={() => onUpdate({ ...card, row: r })}

@@ -284,7 +284,7 @@ export function DeskBoard({
 
   // Build grid: rows 1-4, cols left/center/right
   const usedRows: number[] = isEditing
-    ? [1, 2, 3, 4]
+    ? [1, 2, 3, 4, 5]
     : [...new Set(displayCards.map(c => c.row ?? 1))].sort((a, b) => a - b)
 
   return (

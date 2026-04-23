@@ -46,7 +46,8 @@
       "Bash(node -e ' *)",
       "Bash(npm uninstall *)",
       "Bash(npx supabase *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(pnpm install *)"
     ]
   }
 }
