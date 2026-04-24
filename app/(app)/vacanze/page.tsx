@@ -25,7 +25,7 @@ function VacanzeContent() {
   const [basePeriod, setBasePeriod] = useState<VacationPeriod | null>(null)
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [minYear, setMinYear] = useState(2026)
+  const [minYear, setMinYear] = useState<number | null>(null)
   const [highlightRequestIds, setHighlightRequestIds] = useState<number[]>(() => {
     const multi = searchParams.get('requests')
     const single = searchParams.get('request')
@@ -83,11 +83,13 @@ function VacanzeContent() {
   }, [])
 
   useEffect(() => {
+    if (minYear === null) return
     setSelectedYear(y => Math.max(y, minYear))
   }, [minYear])
 
   function changeYear(delta: number) {
-    setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear,y + delta)))
+    if (minYear === null) return
+    setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear, y + delta)))
   }
 
   useEffect(() => {
@@ -98,10 +100,11 @@ function VacanzeContent() {
       startY = e.touches[0].clientY
     }
     function onTouchEnd(e: TouchEvent) {
+      if (minYear === null) return
       const dx = e.changedTouches[0].clientX - startX
       const dy = e.changedTouches[0].clientY - startY
       if (Math.abs(dx) <= 50 || Math.abs(dy) > Math.abs(dx)) return
-      setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear,y + (dx > 0 ? -1 : 1))))
+      setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear, y + (dx > 0 ? -1 : 1))))
     }
     document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })
@@ -109,7 +112,13 @@ function VacanzeContent() {
       document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('touchend', onTouchEnd)
     }
-  }, [])
+  }, [minYear])
+
+  if (minYear === null) return (
+    <main className="max-w-lg mx-auto px-4 pt-6 pb-4 flex items-center justify-center" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
+      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    </main>
+  )
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">

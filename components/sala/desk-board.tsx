@@ -51,6 +51,34 @@ function getDaysInMonth(month: string): number {
   return new Date(y, m, 0).getDate()
 }
 
+function getPrevMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  const pm = m === 1 ? 12 : m - 1
+  const py = m === 1 ? y - 1 : y
+  return `${py}-${String(pm).padStart(2, '0')}`
+}
+
+function getNextMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  const nm = m === 12 ? 1 : m + 1
+  const ny = m === 12 ? y + 1 : y
+  return `${ny}-${String(nm).padStart(2, '0')}`
+}
+
+function getInitialShiftAndDay(month: string): { shift: SalaShiftType; day: number } {
+  const now = new Date()
+  const [y, m] = month.split('-').map(Number)
+  if (now.getFullYear() !== y || now.getMonth() + 1 !== m) {
+    return { shift: 'M', day: 1 }
+  }
+  const hour = now.getHours()
+  const today = now.getDate()
+  if (hour >= 6 && hour < 14) return { shift: 'M', day: today }
+  if (hour >= 14 && hour < 22) return { shift: 'P', day: today }
+  if (hour >= 22) return { shift: 'N', day: Math.min(today + 1, getDaysInMonth(month)) }
+  return { shift: 'N', day: today }
+}
+
 function formatMonthLabel(month: string): string {
   const [y, m] = month.split('-').map(Number)
   return `${MONTHS_IT[m - 1]} ${y}`
@@ -122,12 +150,8 @@ export function DeskBoard({
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
 
-  const [selectedDay, setSelectedDay] = useState(() => {
-    const [y, m] = currentMonth.split('-').map(Number)
-    const today = new Date()
-    return today.getFullYear() === y && today.getMonth() + 1 === m ? today.getDate() : 1
-  })
-  const [selectedShift, setSelectedShift] = useState<SalaShiftType>('M')
+  const [selectedDay, setSelectedDay] = useState(() => getInitialShiftAndDay(currentMonth).day)
+  const [selectedShift, setSelectedShift] = useState<SalaShiftType>(() => getInitialShiftAndDay(currentMonth).shift)
   const [uploading, setUploading] = useState(false)
 
   const [showHistory, setShowHistory] = useState(false)
@@ -173,10 +197,17 @@ export function DeskBoard({
   const totalDaysRef = useRef(getDaysInMonth(currentMonth))
   const selectedShiftRef = useRef<SalaShiftType>(selectedShift)
   const selectedDayRef = useRef<number>(selectedDay)
+  const availableMonthsRef = useRef(availableMonths)
+  const currentMonthRef = useRef(currentMonth)
+  const onMonthChangeRef = useRef(onMonthChange)
+  const swipeMonthChangeRef = useRef(false)
 
   useEffect(() => { isEditingRef.current = isEditing }, [isEditing])
   useEffect(() => { selectedShiftRef.current = selectedShift }, [selectedShift])
   useEffect(() => { selectedDayRef.current = selectedDay }, [selectedDay])
+  useEffect(() => { availableMonthsRef.current = availableMonths }, [availableMonths])
+  useEffect(() => { currentMonthRef.current = currentMonth }, [currentMonth])
+  useEffect(() => { onMonthChangeRef.current = onMonthChange }, [onMonthChange])
 
   const totalDays = getDaysInMonth(currentMonth)
   useEffect(() => { totalDaysRef.current = totalDays }, [totalDays])
@@ -201,6 +232,14 @@ export function DeskBoard({
         } else if (day < totalDaysRef.current) {
           setSelectedDay(day + 1)
           setSelectedShift(SHIFT_ORDER[0])
+        } else {
+          const next = getNextMonth(currentMonthRef.current)
+          if (availableMonthsRef.current.includes(next)) {
+            swipeMonthChangeRef.current = true
+            setSelectedDay(1)
+            setSelectedShift(SHIFT_ORDER[0])
+            onMonthChangeRef.current(next)
+          }
         }
       } else {
         if (idx > 0) {
@@ -208,6 +247,15 @@ export function DeskBoard({
         } else if (day > 1) {
           setSelectedDay(day - 1)
           setSelectedShift(SHIFT_ORDER[SHIFT_ORDER.length - 1])
+        } else {
+          const prev = getPrevMonth(currentMonthRef.current)
+          if (availableMonthsRef.current.includes(prev)) {
+            const lastDay = getDaysInMonth(prev)
+            swipeMonthChangeRef.current = true
+            setSelectedDay(lastDay)
+            setSelectedShift(SHIFT_ORDER[SHIFT_ORDER.length - 1])
+            onMonthChangeRef.current(prev)
+          }
         }
       }
     }
@@ -221,13 +269,15 @@ export function DeskBoard({
   }, [])
 
   useEffect(() => {
-    const [y, m] = currentMonth.split('-').map(Number)
-    const today = new Date()
-    if (today.getFullYear() === y && today.getMonth() + 1 === m) {
-      setSelectedDay(today.getDate())
-    } else {
-      setSelectedDay(1)
+    if (swipeMonthChangeRef.current) {
+      swipeMonthChangeRef.current = false
+      return
     }
+    const now = new Date()
+    const [y, m] = currentMonth.split('-').map(Number)
+    const isCurrentMonth = now.getFullYear() === y && now.getMonth() + 1 === m
+    setSelectedDay(isCurrentMonth ? now.getDate() : 1)
+    setSelectedShift('M')
   }, [currentMonth])
 
   const updateCard = useCallback((updated: DeskCardType) => {

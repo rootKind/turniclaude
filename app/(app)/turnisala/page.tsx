@@ -21,7 +21,7 @@ export default async function TurniSalaPage() {
       : Promise.resolve(null),
   ])
 
-  const initialMonth = scheduleMonths[0] ?? todayMonth
+  const initialMonth = scheduleMonths.includes(todayMonth) ? todayMonth : (scheduleMonths[0] ?? todayMonth)
   const initialSchedule = scheduleMonths.length > 0
     ? await getSalaSchedule(supabase, initialMonth)
     : null
