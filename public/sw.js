@@ -62,11 +62,12 @@ self.addEventListener('push', (event) => {
 
       const navUrl = new URL(navPath, self.location.origin).href
       const iconUrl = self.location.origin + '/icons/icon-192.png'
+      const badgeUrl = self.location.origin + '/icons/badge-96.png'
 
       return self.registration.showNotification(title, {
         body,
         icon: iconUrl,
-        badge: iconUrl,
+        badge: badgeUrl,
         data: { url: navUrl },
       })
     })()
