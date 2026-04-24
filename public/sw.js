@@ -49,20 +49,24 @@ self.addEventListener('push', (event) => {
       // Also broadcast to any open tabs for immediate in-app update (they dedup by id)
       clients.forEach(client => client.postMessage({ type: 'PUSH_RECEIVED', entry }))
 
-      let navUrl
+      let navPath
       if (shiftId) {
-        navUrl = `/dashboard?shift=${shiftId}`
+        navPath = `/dashboard?shift=${shiftId}`
       } else if (Array.isArray(requestIds) && requestIds.length > 0) {
-        navUrl = `/vacanze?requests=${requestIds.join(',')}`
+        navPath = `/vacanze?requests=${requestIds.join(',')}`
       } else if (requestId) {
-        navUrl = `/vacanze?request=${requestId}`
+        navPath = `/vacanze?request=${requestId}`
       } else {
-        navUrl = url ?? '/dashboard'
+        navPath = url ?? '/dashboard'
       }
+
+      const navUrl = new URL(navPath, self.location.origin).href
+      const iconUrl = self.location.origin + '/icons/icon-192.png'
 
       return self.registration.showNotification(title, {
         body,
-        icon: '/icons/icon-192.png',
+        icon: iconUrl,
+        badge: iconUrl,
         data: { url: navUrl },
       })
     })()
@@ -71,7 +75,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = event.notification.data?.url ?? '/dashboard'
+  const targetUrl = event.notification.data?.url ?? (self.location.origin + '/dashboard')
   event.waitUntil(
     self.clients.matchAll({ type: 'window' }).then((clientList) => {
       for (const client of clientList) {
