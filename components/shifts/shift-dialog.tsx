@@ -4,7 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
-import { cn, todayRome, formatDisplayName, formatRelativeTime, SHIFT_PILL_CLASSES, buildDuplicateCognomi } from '@/lib/utils'
+import { cn, todayRome, formatDisplayName, formatRelativeTime, SHIFT_PILL_CLASSES } from '@/lib/utils'
+import { useDuplicateCognomi } from '@/hooks/use-users'
 import { createShift, findCompatibleShifts, toggleInterest } from '@/lib/queries/shifts'
 import { SHIFTS_QUERY_KEY, useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -42,6 +43,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
   const { data: shifts = [] } = useShifts(isSecondary)
+  const duplicateCognomi = useDuplicateCognomi(isSecondary)
 
   const effectiveUserId = impersonatingUserId ?? profile?.id ?? ''
 
@@ -203,7 +205,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
               onInterest={handleInterest}
               onPublishAnyway={doPublish}
               isSubmitting={isSubmitting}
-              duplicateCognomi={buildDuplicateCognomi(shifts.map(s => s.user))}
+              duplicateCognomi={duplicateCognomi}
             />
           ) : (
             <>

@@ -4,7 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { cn, formatDisplayName, formatRelativeTime, buildDuplicateCognomi } from '@/lib/utils'
+import { cn, formatDisplayName, formatRelativeTime } from '@/lib/utils'
+import { useDuplicateCognomi } from '@/hooks/use-users'
 import {
   createVacationRequest,
   getVacationRequests,
@@ -42,7 +43,7 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
   const { data: allRequests = [] } = useVacationRequests(isSecondary, year)
-  const duplicateCognomi = buildDuplicateCognomi(allRequests.map(r => r.user))
+  const duplicateCognomi = useDuplicateCognomi(isSecondary)
 
   const myPeriodThisYear = basePeriod != null ? getVacationPeriodForYear(basePeriod, year) : null
   const selectablePeriods = ALL_PERIODS.filter(p => p !== myPeriodThisYear)
