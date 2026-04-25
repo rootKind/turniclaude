@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
+import { useDuplicateCognomi } from '@/hooks/use-users'
+import { formatDisplayName } from '@/lib/utils'
 import { isAdmin } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getAllVacationAssignmentsWithUsers, getVacationYearOverrides, type VacationAssignmentWithUser } from '@/lib/queries/vacations'
@@ -14,12 +16,6 @@ const MAX_YEAR = 2099
 const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
 
 
-function displayName(a: VacationAssignmentWithUser, cognomes: string[]) {
-  const cognome = a.user?.cognome ?? ''
-  const nome = a.user?.nome ?? ''
-  const isDup = cognomes.filter(c => c === cognome).length > 1
-  return isDup ? `${cognome} ${nome.charAt(0)}.` : cognome
-}
 
 export default function TurniFeriePage() {
   const { profile } = useCurrentUser()
@@ -145,7 +141,7 @@ export default function TurniFeriePage() {
   }, [minYear])
 
   const filtered = assignments.filter(a => a.user?.is_secondary === effectiveIsSecondary)
-  const allCognomes = filtered.map(a => a.user?.cognome ?? '')
+  const duplicateCognomi = useDuplicateCognomi(effectiveIsSecondary)
 
   const grouped = ALL_PERIODS.map(period => {
     const users = filtered
@@ -320,7 +316,7 @@ export default function TurniFeriePage() {
                             }`}
                           >
                             {isMe && <span className="text-sky-500 text-[9px] leading-none">★</span>}
-                            <span>{displayName(a, allCognomes)}</span>
+                            <span>{a.user ? formatDisplayName(a.user, duplicateCognomi) : ''}</span>
                           </div>
                         )
                       })}
@@ -372,7 +368,7 @@ export default function TurniFeriePage() {
                         .sort((a, b) => (a.user?.cognome ?? '').localeCompare(b.user?.cognome ?? '', 'it'))
                         .map(a => (
                           <option key={a.user_id} value={a.user_id}>
-                            {a.user?.cognome} {a.user?.nome}
+                            {a.user ? formatDisplayName(a.user, duplicateCognomi) : ''}
                             {' — P'}
                             {getEffectivePeriodForYear(a.base_period as VacationPeriod, selectedYear, yearOverrides, a.user_id)}
                           </option>
@@ -421,7 +417,7 @@ export default function TurniFeriePage() {
                         .sort((a, b) => (a.user?.cognome ?? '').localeCompare(b.user?.cognome ?? '', 'it'))
                         .map(a => (
                           <option key={a.user_id} value={a.user_id}>
-                            {a.user?.cognome} {a.user?.nome}
+                            {a.user ? formatDisplayName(a.user, duplicateCognomi) : ''}
                             {' — P'}
                             {getEffectivePeriodForYear(a.base_period as VacationPeriod, selectedYear, yearOverrides, a.user_id)}
                           </option>
@@ -441,7 +437,7 @@ export default function TurniFeriePage() {
                         .filter(a => a.user_id !== switchUser1Id)
                         .map(a => (
                           <option key={a.user_id} value={a.user_id}>
-                            {a.user?.cognome} {a.user?.nome}
+                            {a.user ? formatDisplayName(a.user, duplicateCognomi) : ''}
                             {' — P'}
                             {getEffectivePeriodForYear(a.base_period as VacationPeriod, selectedYear, yearOverrides, a.user_id)}
                           </option>
