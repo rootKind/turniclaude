@@ -1,7 +1,8 @@
 'use client'
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, ChevronDown } from 'lucide-react'
 import { it } from 'date-fns/locale'
+import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType } from '@/types/database'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
@@ -218,6 +219,20 @@ export function DeskBoard({
     ? new Set(Object.keys(schedule.schedule).map(Number))
     : null
 
+  const [pickerMonth, setPickerMonth] = useState(() => new Date(cy, cm - 1))
+  useEffect(() => { setPickerMonth(new Date(cy, cm - 1)) }, [cy, cm])
+
+  const availableMonthsSet = new Set(availableMonths)
+  const sortedAvailable = [...availableMonths].sort()
+  const calFromMonth = sortedAvailable.length > 0
+    ? (() => { const [y, m] = sortedAvailable[0].split('-').map(Number); return new Date(y, m - 1) })()
+    : new Date(cy, cm - 1)
+  const calToMonth = sortedAvailable.length > 0
+    ? (() => { const [y, m] = sortedAvailable[sortedAvailable.length - 1].split('-').map(Number); return new Date(y, m - 1) })()
+    : new Date(cy, cm - 1)
+
+  const weekdayLabel = format(new Date(cy, cm - 1, selectedDay), 'EEE', { locale: it }).replace('.', '').toUpperCase().slice(0, 3)
+
   const SHIFT_ORDER: SalaShiftType[] = ['N', 'M', 'P']
 
   useEffect(() => {
@@ -428,10 +443,6 @@ export function DeskBoard({
     ? (schedule.schedule[selectedDay]?.altriPresenti ?? [])
     : []
 
-  const monthOptions = availableMonths.includes(currentMonth)
-    ? availableMonths
-    : [...availableMonths, currentMonth].sort((a, b) => b.localeCompare(a))
-
   // Build grid: rows 1-4, cols left/center/right
   const usedRows: number[] = isEditing
     ? [1, 2, 3, 4, 5]
@@ -445,52 +456,45 @@ export function DeskBoard({
           <div className="relative">
             <button
               onClick={() => setShowDayPicker(v => !v)}
-              className="text-lg font-bold w-8 text-center tabular-nums select-none px-1 rounded hover:bg-muted transition-colors"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none"
             >
-              {selectedDay}
+              <span className="text-[9px] font-semibold text-muted-foreground uppercase leading-none">{weekdayLabel}</span>
+              <span className="text-lg font-bold tabular-nums leading-none">{selectedDay}</span>
+              <span className="text-sm font-medium leading-none">
+                {MONTHS_IT[cm - 1]} {cy}
+              </span>
+              <ChevronDown size={12} className={`text-muted-foreground transition-transform ${showDayPicker ? 'rotate-180' : ''}`} />
             </button>
             {showDayPicker && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowDayPicker(false)} />
-                <div className="absolute top-full left-1/2 -translate-x-1/2 z-50 mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+                <div className="absolute top-full left-0 z-50 mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
                   <Calendar
                     mode="single"
                     selected={new Date(cy, cm - 1, selectedDay)}
                     onSelect={(date) => {
-                      if (date) {
-                        setSelectedDay(date.getDate())
-                        setShowDayPicker(false)
-                      }
+                      if (!date) return
+                      const newMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+                      setSelectedDay(date.getDate())
+                      if (newMonth !== currentMonth) onMonthChange(newMonth)
+                      setShowDayPicker(false)
                     }}
+                    month={pickerMonth}
+                    onMonthChange={setPickerMonth}
+                    fromMonth={calFromMonth}
+                    toMonth={calToMonth}
                     disabled={(date) => {
-                      if (date.getFullYear() !== cy || date.getMonth() + 1 !== cm) return true
-                      if (!activeDays) return true
-                      return !activeDays.has(date.getDate())
+                      const dateMonthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+                      if (!availableMonthsSet.has(dateMonthStr)) return true
+                      if (dateMonthStr === currentMonth && activeDays) return !activeDays.has(date.getDate())
+                      return false
                     }}
-                    month={new Date(cy, cm - 1)}
-                    disableNavigation
                     showOutsideDays={false}
                     locale={it}
                   />
                 </div>
               </>
             )}
-          </div>
-
-          <div className="relative ml-1 min-w-0 shrink">
-            <span className="text-sm font-medium pointer-events-none select-none truncate">
-              {MONTHS_IT[parseInt(currentMonth.split('-')[1]) - 1]}{' '}
-              {currentMonth.split('-')[0]}
-            </span>
-            <select
-              value={currentMonth}
-              onChange={e => onMonthChange(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full"
-            >
-              {monthOptions.map(mo => (
-                <option key={mo} value={mo}>{formatMonthLabel(mo)}</option>
-              ))}
-            </select>
           </div>
 
           <div className="flex-1" />
