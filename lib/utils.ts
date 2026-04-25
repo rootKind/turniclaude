@@ -26,10 +26,16 @@ export function formatDisplayName(
   return cognome
 }
 
-/** Costruisce il set dei cognomi che compaiono più di una volta nella lista. */
-export function buildDuplicateCognomi(users: Array<{ cognome?: string | null }>): Set<string> {
+/** Costruisce il set dei cognomi che compaiono su più utenti distinti (dedup per id). */
+export function buildDuplicateCognomi(users: Array<{ id?: string; cognome?: string | null }>): Set<string> {
+  const seenIds = new Set<string>()
   const count = new Map<string, number>()
   for (const u of users) {
+    const uid = u.id
+    if (uid) {
+      if (seenIds.has(uid)) continue
+      seenIds.add(uid)
+    }
     if (u.cognome) count.set(u.cognome, (count.get(u.cognome) ?? 0) + 1)
   }
   return new Set([...count.entries()].filter(([, n]) => n > 1).map(([c]) => c))
