@@ -7,7 +7,7 @@ import { useCurrentUser } from '@/hooks/use-current-user'
 import { ShiftItem } from './shift-item'
 import { EditShiftDialog } from './edit-shift-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import { cn, buildDuplicateCognomi } from '@/lib/utils'
 import type { Shift } from '@/types/database'
 
 const MONTH_LABELS: Record<string, string> = {
@@ -63,6 +63,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   }, [shifts, selectedFilter, effectiveUserId])
 
   const hasOwnShifts = useMemo(() => shifts.some(s => s.user_id === effectiveUserId), [shifts, effectiveUserId])
+  const duplicateCognomi = useMemo(() => buildDuplicateCognomi(shifts.map(s => s.user)), [shifts])
   const showChipBar = months.length > 1 || hasOwnShifts
 
   // Show all shifts so the highlighted one is visible
@@ -228,6 +229,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
                     dateIndex={dateIndexes[index]}
                     onEdit={setEditingShift}
                     isHighlighted={highlightShiftId === shift.id}
+                    duplicateCognomi={duplicateCognomi}
                   />
                 </motion.div>
               )

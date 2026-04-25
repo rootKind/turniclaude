@@ -22,9 +22,10 @@ interface Props {
   dateIndex?: number
   onEdit?: (shift: Shift) => void
   isHighlighted?: boolean
+  duplicateCognomi?: Set<string>
 }
 
-export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isSameDateAsPrevious = false, dateIndex = 0, onEdit, isHighlighted = false }: Props) {
+export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isSameDateAsPrevious = false, dateIndex = 0, onEdit, isHighlighted = false, duplicateCognomi }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showRing, setShowRing] = useState(isHighlighted)
@@ -104,7 +105,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
     }
   }
 
-  const displayName = formatDisplayName(shift.user)
+  const displayName = formatDisplayName(shift.user, duplicateCognomi)
 
   return (
     <div
@@ -209,7 +210,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                       .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
                       .map(i => (
                         <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
-                          <span className="text-[12px]">{i.user.cognome ?? i.user.nome}</span>
+                          <span className="text-[12px]">{formatDisplayName(i.user, duplicateCognomi)}</span>
                           <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
                         </div>
                       ))}
@@ -233,7 +234,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                       .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
                       .map(i => (
                         <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
-                          <span className="text-[12px]">{i.user.cognome ?? i.user.nome}</span>
+                          <span className="text-[12px]">{formatDisplayName(i.user, duplicateCognomi)}</span>
                           <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
                         </div>
                       ))}

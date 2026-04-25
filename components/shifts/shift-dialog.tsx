@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
-import { cn, todayRome, formatDisplayName, formatRelativeTime, SHIFT_PILL_CLASSES } from '@/lib/utils'
+import { cn, todayRome, formatDisplayName, formatRelativeTime, SHIFT_PILL_CLASSES, buildDuplicateCognomi } from '@/lib/utils'
 import { createShift, findCompatibleShifts, toggleInterest } from '@/lib/queries/shifts'
 import { SHIFTS_QUERY_KEY, useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -203,6 +203,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
               onInterest={handleInterest}
               onPublishAnyway={doPublish}
               isSubmitting={isSubmitting}
+              duplicateCognomi={buildDuplicateCognomi(shifts.map(s => s.user))}
             />
           ) : (
             <>
@@ -311,11 +312,13 @@ function CompatibilityPanel({
   onInterest,
   onPublishAnyway,
   isSubmitting,
+  duplicateCognomi,
 }: {
   matches: Shift[]
   onInterest: (shift: Shift) => void
   onPublishAnyway: () => void
   isSubmitting: boolean
+  duplicateCognomi?: Set<string>
 }) {
   return (
     <div className="space-y-4">
@@ -330,7 +333,7 @@ function CompatibilityPanel({
           return (
             <div key={shift.id} className="rounded-lg bg-black/20 dark:bg-black/30 p-3 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[13px] font-semibold">{formatDisplayName(shift.user)}</span>
+                <span className="text-[13px] font-semibold">{formatDisplayName(shift.user, duplicateCognomi)}</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded badge-match">MATCH ✓</span>
               </div>
 
@@ -358,7 +361,7 @@ function CompatibilityPanel({
                     .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
                     .map((i, idx) => (
                       <div key={i.user_id} className="flex items-center justify-between text-[11px] text-muted-foreground">
-                        <span>{idx + 1}° {i.user.cognome ?? i.user.nome}</span>
+                        <span>{idx + 1}° {formatDisplayName(i.user, duplicateCognomi)}</span>
                         <span className="text-[10px]">{formatRelativeTime(i.created_at!)}</span>
                       </div>
                     ))}
@@ -371,7 +374,7 @@ function CompatibilityPanel({
                 className="w-full h-8 text-[12px] btn-match-action"
                 onClick={() => onInterest(shift)}
               >
-                ❤️ Interessati a {shift.user.cognome ?? shift.user.nome}
+                ❤️ Interessati a {formatDisplayName(shift.user, duplicateCognomi)}
               </Button>
             </div>
           )

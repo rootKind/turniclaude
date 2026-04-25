@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { cn, formatDisplayName, formatRelativeTime } from '@/lib/utils'
+import { cn, formatDisplayName, formatRelativeTime, buildDuplicateCognomi } from '@/lib/utils'
 import {
   createVacationRequest,
   getVacationRequests,
@@ -42,6 +42,7 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
   const { data: allRequests = [] } = useVacationRequests(isSecondary, year)
+  const duplicateCognomi = buildDuplicateCognomi(allRequests.map(r => r.user))
 
   const myPeriodThisYear = basePeriod != null ? getVacationPeriodForYear(basePeriod, year) : null
   const selectablePeriods = ALL_PERIODS.filter(p => p !== myPeriodThisYear)
@@ -210,6 +211,7 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
             onPublishAnyway={doPublish}
             isSubmitting={isSubmitting}
             currentUserId={userId}
+            duplicateCognomi={duplicateCognomi}
           />
         ) : (
           <>
@@ -323,6 +325,7 @@ function VacationCompatibilityPanel({
   onPublishAnyway,
   isSubmitting,
   currentUserId,
+  duplicateCognomi,
 }: {
   matches: VacationRequestWithInterests[]
   chains: VacationRequestWithInterests[][]
@@ -331,6 +334,7 @@ function VacationCompatibilityPanel({
   onPublishAnyway: () => void
   isSubmitting: boolean
   currentUserId: string
+  duplicateCognomi?: Set<string>
 }) {
   return (
     <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
@@ -351,7 +355,7 @@ function VacationCompatibilityPanel({
             return (
               <div key={request.id} className="rounded-lg bg-black/20 dark:bg-black/30 p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-semibold">{formatDisplayName(request.user)}</span>
+                  <span className="text-[13px] font-semibold">{formatDisplayName(request.user, duplicateCognomi)}</span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded badge-match">MATCH ✓</span>
                 </div>
 
@@ -373,7 +377,7 @@ function VacationCompatibilityPanel({
                       .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
                       .map((i, idx) => (
                         <div key={i.user_id} className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>{idx + 1}° {i.user.cognome ?? i.user.nome}</span>
+                          <span>{idx + 1}° {formatDisplayName(i.user, duplicateCognomi)}</span>
                           <span className="text-[10px]">{formatRelativeTime(i.created_at!)}</span>
                         </div>
                       ))}
@@ -387,7 +391,7 @@ function VacationCompatibilityPanel({
                   onClick={() => onInterest(request)}
                   disabled={alreadyInterested}
                 >
-                  {alreadyInterested ? '✓ Già interessato' : `❤️ Interessati a ${request.user.cognome ?? request.user.nome}`}
+                  {alreadyInterested ? '✓ Già interessato' : `❤️ Interessati a ${formatDisplayName(request.user, duplicateCognomi)}`}
                 </Button>
               </div>
             )
@@ -422,7 +426,7 @@ function VacationCompatibilityPanel({
                   {chain.map((node, i) => (
                     <span key={node.id} className="flex items-center gap-1">
                       <span className="text-chain-node">→</span>
-                      <span className="font-semibold text-foreground">{node.user.cognome ?? node.user.nome}</span>
+                      <span className="font-semibold text-foreground">{formatDisplayName(node.user, duplicateCognomi)}</span>
                       {i < chain.length - 1 && (
                         <span className="text-muted-foreground">({VACATION_PERIOD_LABELS[chain[i + 1].target_periods[0] as VacationPeriod]?.label ?? '?'})</span>
                       )}
@@ -435,7 +439,7 @@ function VacationCompatibilityPanel({
                 <div className="text-[11px] space-y-0.5 text-muted-foreground">
                   {chain.map(node => (
                     <p key={node.id}>
-                      <span className="font-medium text-foreground">{node.user.cognome ?? node.user.nome}</span>
+                      <span className="font-medium text-foreground">{formatDisplayName(node.user, duplicateCognomi)}</span>
                       {' '}offre {VACATION_PERIOD_LABELS[node.offered_period].label}, vuole{' '}
                       {(node.target_periods as VacationPeriod[]).map(p => VACATION_PERIOD_LABELS[p].label).join(' o ')}
                     </p>
