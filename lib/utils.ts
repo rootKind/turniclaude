@@ -28,12 +28,13 @@ export function formatDisplayName(user: Pick<UserProfile, 'nome' | 'cognome'>): 
   return cognome
 }
 
-/** Returns { day: "14", month: "apr" } from a YYYY-MM-DD string */
-export function formatShiftDate(dateStr: string): { day: string; month: string } {
+/** Returns { day: "14", month: "apr", weekday: "LUN" } from a YYYY-MM-DD string */
+export function formatShiftDate(dateStr: string): { day: string; month: string; weekday: string } {
   const date = new Date(dateStr + 'T00:00:00')
   return {
     day: format(date, 'd', { locale: it }),
     month: format(date, 'MMM', { locale: it }).replace('.', ''),
+    weekday: format(date, 'EEE', { locale: it }).replace('.', '').toUpperCase().slice(0, 3),
   }
 }
 

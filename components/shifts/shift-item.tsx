@@ -48,7 +48,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
 
   const state = getShiftItemState({ isOwn, hasInterest, highlight: false })
   const stateClass = SHIFT_STATE_CLASSES[state]
-  const { day, month } = formatShiftDate(shift.shift_date)
+  const { day, month, weekday } = formatShiftDate(shift.shift_date)
 
   const dateBgClass = isSameDateAsPrevious
     ? 'opacity-20 ' + SHIFT_DATE_CLASSES[state]
@@ -129,6 +129,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
             <span className="text-[16px] font-extrabold leading-none text-muted-foreground">{dateIndex + 1}°</span>
           ) : (
             <>
+              <span className="text-[8px] uppercase tracking-wide text-muted-foreground">{weekday}</span>
               <span className={cn('text-[20px] font-extrabold leading-none', isOwn && hasInterest ? 'text-interest-date' : '')}>
                 {day}
               </span>

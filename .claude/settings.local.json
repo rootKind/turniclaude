@@ -47,7 +47,9 @@
       "Bash(npm uninstall *)",
       "Bash(npx supabase *)",
       "Bash(node *)",
-      "Bash(pnpm install *)"
+      "Bash(pnpm install *)",
+      "Bash(gh repo *)",
+      "Bash(gh api *)"
     ]
   }
 }
