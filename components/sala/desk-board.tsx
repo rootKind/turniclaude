@@ -203,6 +203,7 @@ export function DeskBoard({
   const currentMonthRef = useRef(currentMonth)
   const onMonthChangeRef = useRef(onMonthChange)
   const swipeMonthChangeRef = useRef(false)
+  const pickerMonthChangeRef = useRef(false)
 
   useEffect(() => { isEditingRef.current = isEditing }, [isEditing])
   useEffect(() => { selectedShiftRef.current = selectedShift }, [selectedShift])
@@ -294,11 +295,13 @@ export function DeskBoard({
       swipeMonthChangeRef.current = false
       return
     }
-    const now = new Date()
-    const [y, m] = currentMonth.split('-').map(Number)
-    const isCurrentMonth = now.getFullYear() === y && now.getMonth() + 1 === m
-    setSelectedDay(isCurrentMonth ? now.getDate() : 1)
-    setSelectedShift('M')
+    if (pickerMonthChangeRef.current) {
+      pickerMonthChangeRef.current = false
+      return
+    }
+    const { shift, day } = getInitialShiftAndDay(currentMonth)
+    setSelectedDay(day)
+    setSelectedShift(shift)
     setShowDayPicker(false)
   }, [currentMonth])
 
@@ -456,13 +459,12 @@ export function DeskBoard({
           <div className="relative">
             <button
               onClick={() => setShowDayPicker(v => !v)}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none"
             >
-              <span className="text-[9px] font-semibold text-muted-foreground uppercase leading-none">{weekdayLabel}</span>
-              <span className="text-lg font-bold tabular-nums leading-none">{selectedDay}</span>
-              <span className="text-sm font-medium leading-none">
-                {MONTHS_IT[cm - 1]} {cy}
-              </span>
+              <span className="text-sm font-semibold text-muted-foreground uppercase leading-none">{weekdayLabel}</span>
+              <span className="text-sm font-semibold tabular-nums leading-none">{selectedDay}</span>
+              <span className="text-sm font-semibold leading-none">{MONTHS_IT[cm - 1]}</span>
+              <span className="text-sm font-semibold text-muted-foreground leading-none">{cy}</span>
               <ChevronDown size={12} className={`text-muted-foreground transition-transform ${showDayPicker ? 'rotate-180' : ''}`} />
             </button>
             {showDayPicker && (
@@ -476,7 +478,10 @@ export function DeskBoard({
                       if (!date) return
                       const newMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
                       setSelectedDay(date.getDate())
-                      if (newMonth !== currentMonth) onMonthChange(newMonth)
+                      if (newMonth !== currentMonth) {
+                        pickerMonthChangeRef.current = true
+                        onMonthChange(newMonth)
+                      }
                       setShowDayPicker(false)
                     }}
                     month={pickerMonth}
