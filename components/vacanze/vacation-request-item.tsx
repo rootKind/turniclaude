@@ -27,6 +27,7 @@ interface Props {
   dateIndex?: number
   year: number
   isHighlighted?: boolean
+  duplicateCognomi?: Set<string>
 }
 
 function formatRequestDate(createdAt: string): { day: string; month: string } {
@@ -60,6 +61,7 @@ export function VacationRequestItem({
   dateIndex = 0,
   year,
   isHighlighted = false,
+  duplicateCognomi,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -139,7 +141,7 @@ export function VacationRequestItem({
     }
   }
 
-  const displayName = formatDisplayName(request.user)
+  const displayName = formatDisplayName(request.user, duplicateCognomi)
   const interestCount = request.vacation_request_interests.length
 
   return (
@@ -244,7 +246,7 @@ export function VacationRequestItem({
                       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                       .map(i => (
                         <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 gap-2">
-                          <span className="text-[12px] shrink-0">{i.user.cognome ?? i.user.nome}</span>
+                          <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
                           <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[i.period_this_year] ?? 'offered-box text-offered-label')}>
                             {VACATION_PERIOD_LABELS[i.period_this_year].label}
                           </span>
@@ -270,7 +272,7 @@ export function VacationRequestItem({
                       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                       .map(i => (
                         <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 gap-2">
-                          <span className="text-[12px] shrink-0">{i.user.cognome ?? i.user.nome}</span>
+                          <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
                           <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[i.period_this_year] ?? 'offered-box text-offered-label')}>
                             {VACATION_PERIOD_LABELS[i.period_this_year].label}
                           </span>

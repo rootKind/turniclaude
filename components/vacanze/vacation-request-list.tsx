@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { useVacationRequests } from '@/hooks/use-vacation-requests'
 import { VacationRequestItem } from './vacation-request-item'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useDuplicateCognomi } from '@/hooks/use-users'
 import type { VacationPeriod } from '@/types/database'
 
 interface Props {
@@ -20,6 +21,8 @@ function dayKey(createdAt: string) {
 
 export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUserId, myPeriodThisYear, year, highlightRequestIds = [] }: Props) {
   const { data: requests = [], isLoading } = useVacationRequests(isSecondary, year)
+
+  const duplicateCognomi = useDuplicateCognomi(isSecondary)
 
   const dateIndexes = useMemo(() => {
     const count = new Map<string, number>()
@@ -55,6 +58,7 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
             dateIndex={dateIndexes[index]}
             year={year}
             isHighlighted={highlightRequestIds.includes(request.id)}
+            duplicateCognomi={duplicateCognomi}
           />
         )
       })}

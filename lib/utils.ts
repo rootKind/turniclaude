@@ -14,26 +14,40 @@ export function todayRome(): string {
   return new Intl.DateTimeFormat('sv', { timeZone: 'Europe/Rome' }).format(new Date())
 }
 
-/** Handles duplicate surnames: "Esposito A", compound "Di Napoli Nome" */
-export function formatDisplayName(user: Pick<UserProfile, 'nome' | 'cognome'>): string {
+/** Cognome solo; se omonimia → cognome + iniziale nome. */
+export function formatDisplayName(
+  user: Pick<UserProfile, 'nome' | 'cognome'>,
+  duplicateCognomi?: Set<string>,
+): string {
   const nome = user.nome ?? ''
   const cognome = user.cognome ?? ''
   if (!cognome) return nome
-  if (/^(di|de|del|della|degli|lo|la|le|d')/i.test(cognome)) {
-    return [cognome, nome].filter(Boolean).join(' ')
-  }
-  if (cognome.toLowerCase() === 'esposito' && nome.charAt(0).toUpperCase() === 'A') {
-    return 'Esposito A'
-  }
+  if (duplicateCognomi?.has(cognome) && nome) return `${cognome} ${nome.charAt(0).toUpperCase()}.`
   return cognome
 }
 
-/** Returns { day: "14", month: "apr" } from a YYYY-MM-DD string */
-export function formatShiftDate(dateStr: string): { day: string; month: string } {
+/** Costruisce il set dei cognomi che compaiono su più utenti distinti (dedup per id). */
+export function buildDuplicateCognomi(users: Array<{ id?: string; cognome?: string | null }>): Set<string> {
+  const seenIds = new Set<string>()
+  const count = new Map<string, number>()
+  for (const u of users) {
+    const uid = u.id
+    if (uid) {
+      if (seenIds.has(uid)) continue
+      seenIds.add(uid)
+    }
+    if (u.cognome) count.set(u.cognome, (count.get(u.cognome) ?? 0) + 1)
+  }
+  return new Set([...count.entries()].filter(([, n]) => n > 1).map(([c]) => c))
+}
+
+/** Returns { day: "14", month: "apr", weekday: "LUN" } from a YYYY-MM-DD string */
+export function formatShiftDate(dateStr: string): { day: string; month: string; weekday: string } {
   const date = new Date(dateStr + 'T00:00:00')
   return {
     day: format(date, 'd', { locale: it }),
     month: format(date, 'MMM', { locale: it }).replace('.', ''),
+    weekday: format(date, 'EEE', { locale: it }).replace('.', '').toUpperCase().slice(0, 3),
   }
 }
 

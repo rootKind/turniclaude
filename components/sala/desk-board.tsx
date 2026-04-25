@@ -1,6 +1,9 @@
 'use client'
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { X, ChevronDown } from 'lucide-react'
+import { it } from 'date-fns/locale'
+import { format } from 'date-fns'
+import { Calendar } from '@/components/ui/calendar'
 import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType } from '@/types/database'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -68,9 +71,7 @@ function getNextMonth(month: string): string {
 function getInitialShiftAndDay(month: string): { shift: SalaShiftType; day: number } {
   const now = new Date()
   const [y, m] = month.split('-').map(Number)
-  if (now.getFullYear() !== y || now.getMonth() + 1 !== m) {
-    return { shift: 'M', day: 1 }
-  }
+  if (now.getFullYear() !== y || now.getMonth() + 1 !== m) return { shift: 'M', day: 1 }
   const hour = now.getHours()
   const today = now.getDate()
   if (hour >= 6 && hour < 14) return { shift: 'M', day: today }
@@ -152,6 +153,7 @@ export function DeskBoard({
 
   const [selectedDay, setSelectedDay] = useState(() => getInitialShiftAndDay(currentMonth).day)
   const [selectedShift, setSelectedShift] = useState<SalaShiftType>(() => getInitialShiftAndDay(currentMonth).shift)
+  const [showDayPicker, setShowDayPicker] = useState(false)
   const [uploading, setUploading] = useState(false)
 
   const [showHistory, setShowHistory] = useState(false)
@@ -201,6 +203,7 @@ export function DeskBoard({
   const currentMonthRef = useRef(currentMonth)
   const onMonthChangeRef = useRef(onMonthChange)
   const swipeMonthChangeRef = useRef(false)
+  const pickerMonthChangeRef = useRef(false)
 
   useEffect(() => { isEditingRef.current = isEditing }, [isEditing])
   useEffect(() => { selectedShiftRef.current = selectedShift }, [selectedShift])
@@ -211,6 +214,25 @@ export function DeskBoard({
 
   const totalDays = getDaysInMonth(currentMonth)
   useEffect(() => { totalDaysRef.current = totalDays }, [totalDays])
+
+  const [cy, cm] = currentMonth.split('-').map(Number)
+  const activeDays = schedule
+    ? new Set(Object.keys(schedule.schedule).map(Number))
+    : null
+
+  const [pickerMonth, setPickerMonth] = useState(() => new Date(cy, cm - 1))
+  useEffect(() => { setPickerMonth(new Date(cy, cm - 1)) }, [cy, cm])
+
+  const availableMonthsSet = new Set(availableMonths)
+  const sortedAvailable = [...availableMonths].sort()
+  const calFromMonth = sortedAvailable.length > 0
+    ? (() => { const [y, m] = sortedAvailable[0].split('-').map(Number); return new Date(y, m - 1) })()
+    : new Date(cy, cm - 1)
+  const calToMonth = sortedAvailable.length > 0
+    ? (() => { const [y, m] = sortedAvailable[sortedAvailable.length - 1].split('-').map(Number); return new Date(y, m - 1) })()
+    : new Date(cy, cm - 1)
+
+  const weekdayLabel = format(new Date(cy, cm - 1, selectedDay), 'EEE', { locale: it }).replace('.', '').toUpperCase().slice(0, 3)
 
   const SHIFT_ORDER: SalaShiftType[] = ['N', 'M', 'P']
 
@@ -273,11 +295,14 @@ export function DeskBoard({
       swipeMonthChangeRef.current = false
       return
     }
-    const now = new Date()
-    const [y, m] = currentMonth.split('-').map(Number)
-    const isCurrentMonth = now.getFullYear() === y && now.getMonth() + 1 === m
-    setSelectedDay(isCurrentMonth ? now.getDate() : 1)
-    setSelectedShift('M')
+    if (pickerMonthChangeRef.current) {
+      pickerMonthChangeRef.current = false
+      return
+    }
+    const { shift, day } = getInitialShiftAndDay(currentMonth)
+    setSelectedDay(day)
+    setSelectedShift(shift)
+    setShowDayPicker(false)
   }, [currentMonth])
 
   const updateCard = useCallback((updated: DeskCardType) => {
@@ -421,10 +446,6 @@ export function DeskBoard({
     ? (schedule.schedule[selectedDay]?.altriPresenti ?? [])
     : []
 
-  const monthOptions = availableMonths.includes(currentMonth)
-    ? availableMonths
-    : [...availableMonths, currentMonth].sort((a, b) => b.localeCompare(a))
-
   // Build grid: rows 1-4, cols left/center/right
   const usedRows: number[] = isEditing
     ? [1, 2, 3, 4, 5]
@@ -435,38 +456,50 @@ export function DeskBoard({
       {/* Schedule header — hidden during layout edit */}
       {!isEditing && (
         <div className="flex items-center gap-1 bg-card border desk-schedule-border rounded-xl px-3 py-2 mr-14">
-          <button
-            onClick={() => setSelectedDay(d => Math.max(d - 1, 1))}
-            disabled={selectedDay <= 1}
-            className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <span className="text-lg font-bold w-7 text-center tabular-nums select-none">
-            {selectedDay}
-          </span>
-          <button
-            onClick={() => setSelectedDay(d => Math.min(d + 1, totalDays))}
-            disabled={selectedDay >= totalDays}
-            className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
-          >
-            <ChevronRight size={16} />
-          </button>
-
-          <div className="relative ml-1 min-w-0 shrink">
-            <span className="text-sm font-medium pointer-events-none select-none truncate">
-              {MONTHS_IT[parseInt(currentMonth.split('-')[1]) - 1]}{' '}
-              {currentMonth.split('-')[0]}
-            </span>
-            <select
-              value={currentMonth}
-              onChange={e => onMonthChange(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full"
+          <div className="relative">
+            <button
+              onClick={() => setShowDayPicker(v => !v)}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none"
             >
-              {monthOptions.map(mo => (
-                <option key={mo} value={mo}>{formatMonthLabel(mo)}</option>
-              ))}
-            </select>
+              <span className="text-sm font-semibold text-muted-foreground uppercase leading-none">{weekdayLabel}</span>
+              <span className="text-sm font-semibold tabular-nums leading-none">{selectedDay}</span>
+              <span className="text-sm font-semibold leading-none">{MONTHS_IT[cm - 1]}</span>
+              <span className="text-sm font-semibold text-muted-foreground leading-none">{cy}</span>
+              <ChevronDown size={12} className={`text-muted-foreground transition-transform ${showDayPicker ? 'rotate-180' : ''}`} />
+            </button>
+            {showDayPicker && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowDayPicker(false)} />
+                <div className="absolute top-full left-0 z-50 mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+                  <Calendar
+                    mode="single"
+                    selected={new Date(cy, cm - 1, selectedDay)}
+                    onSelect={(date) => {
+                      if (!date) return
+                      const newMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+                      setSelectedDay(date.getDate())
+                      if (newMonth !== currentMonth) {
+                        pickerMonthChangeRef.current = true
+                        onMonthChange(newMonth)
+                      }
+                      setShowDayPicker(false)
+                    }}
+                    month={pickerMonth}
+                    onMonthChange={setPickerMonth}
+                    fromMonth={calFromMonth}
+                    toMonth={calToMonth}
+                    disabled={(date) => {
+                      const dateMonthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+                      if (!availableMonthsSet.has(dateMonthStr)) return true
+                      if (dateMonthStr === currentMonth && activeDays) return !activeDays.has(date.getDate())
+                      return false
+                    }}
+                    showOutsideDays={false}
+                    locale={it}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex-1" />

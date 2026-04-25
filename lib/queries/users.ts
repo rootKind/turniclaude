@@ -34,3 +34,14 @@ export async function fetchAllUsers(): Promise<UserProfile[]> {
   if (error) throw error
   return data as UserProfile[]
 }
+
+export async function fetchUsersByGroup(isSecondary: boolean): Promise<Pick<UserProfile, 'id' | 'nome' | 'cognome'>[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, nome, cognome')
+    .eq('is_secondary', isSecondary)
+    .order('cognome')
+  if (error) throw error
+  return data as Pick<UserProfile, 'id' | 'nome' | 'cognome'>[]
+}
