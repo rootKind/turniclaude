@@ -14,7 +14,9 @@ export function todayRome(): string {
   return new Intl.DateTimeFormat('sv', { timeZone: 'Europe/Rome' }).format(new Date())
 }
 
-/** Cognome solo; se omonimia → cognome + iniziale nome; se anche iniziale uguale → 2 lettere nome. */
+const MAX_NAME_PREFIX = 3
+
+/** Cognome solo; se omonimia → cognome + prefisso nome minimo che disambigua (1-3 lettere). */
 export function formatDisplayName(
   user: Pick<UserProfile, 'nome' | 'cognome'>,
   duplicateCognomi?: Set<string>,
@@ -23,42 +25,47 @@ export function formatDisplayName(
   const cognome = user.cognome ?? ''
   if (!cognome) return nome
   if (duplicateCognomi?.has(cognome) && nome) {
-    const initial = nome.charAt(0).toUpperCase()
-    if (duplicateCognomi.has(`${cognome}_${initial}`) && nome.length > 1) {
-      return `${cognome} ${nome.substring(0, 2).charAt(0).toUpperCase()}${nome.charAt(1).toLowerCase()}.`
+    for (let len = 1; len <= MAX_NAME_PREFIX; len++) {
+      const prefix = nome.substring(0, len)
+      const key = `${cognome}_${prefix.charAt(0).toUpperCase()}${prefix.slice(1).toLowerCase()}`
+      if (!duplicateCognomi.has(key) || len === MAX_NAME_PREFIX) {
+        const display = prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase()
+        return `${cognome} ${display}.`
+      }
     }
-    return `${cognome} ${initial}.`
   }
   return cognome
 }
 
 /** Costruisce il set dei cognomi duplicati (dedup per id).
- *  Aggiunge anche chiavi "Cognome_I" per i casi dove cognome+iniziale è anch'esso duplicato. */
+ *  Aggiunge chiavi "Cognome_Pr" (prefisso 1-3 lettere) quando quel prefisso è ancora condiviso. */
 export function buildDuplicateCognomi(users: Array<{ id?: string; cognome?: string | null; nome?: string | null }>): Set<string> {
   const seenIds = new Set<string>()
-  const byCognome = new Map<string, number>()
-  const byCognomeInitial = new Map<string, number>()
+  const counts: Array<Map<string, number>> = [new Map(), new Map(), new Map(), new Map()]
   for (const u of users) {
     const uid = u.id
     if (uid) {
       if (seenIds.has(uid)) continue
       seenIds.add(uid)
     }
-    if (u.cognome) {
-      byCognome.set(u.cognome, (byCognome.get(u.cognome) ?? 0) + 1)
-      const initial = u.nome?.charAt(0).toUpperCase() ?? ''
-      if (initial) {
-        const key = `${u.cognome}_${initial}`
-        byCognomeInitial.set(key, (byCognomeInitial.get(key) ?? 0) + 1)
-      }
+    if (!u.cognome) continue
+    counts[0].set(u.cognome, (counts[0].get(u.cognome) ?? 0) + 1)
+    const nome = u.nome ?? ''
+    for (let len = 1; len <= MAX_NAME_PREFIX; len++) {
+      if (nome.length < len) break
+      const prefix = nome.substring(0, len)
+      const key = `${u.cognome}_${prefix.charAt(0).toUpperCase()}${prefix.slice(1).toLowerCase()}`
+      counts[len].set(key, (counts[len].get(key) ?? 0) + 1)
     }
   }
   const result = new Set<string>()
-  for (const [cognome, n] of byCognome) {
+  for (const [cognome, n] of counts[0]) {
     if (n > 1) result.add(cognome)
   }
-  for (const [key, n] of byCognomeInitial) {
-    if (n > 1) result.add(key)
+  for (let len = 1; len <= MAX_NAME_PREFIX; len++) {
+    for (const [key, n] of counts[len]) {
+      if (n > 1) result.add(key)
+    }
   }
   return result
 }
