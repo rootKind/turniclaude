@@ -112,7 +112,15 @@ function initCards(cards: DeskCardType[]): DeskCardType[] {
 function matchesCognome(surnames: string[], cognome?: string, nome?: string, duplicateCognomi?: Set<string>): boolean {
   if (!cognome) return false
   const displayName = formatDisplayName({ nome: nome ?? '', cognome }, duplicateCognomi).toLowerCase().trim()
-  return surnames.some(s => s.toLowerCase().trim() === displayName)
+  const normCognome = cognome.toLowerCase().trim()
+  const isOmonimo = duplicateCognomi?.has(cognome) ?? false
+  return surnames.some(s => {
+    const sNorm = s.toLowerCase().trim()
+    if (sNorm === displayName) return true
+    // PDF può aggiungere suffisso anche senza omonimia — strip fallback solo per non-omonimi
+    if (!isOmonimo && sNorm.replace(/\s+[a-z]+\.$/, '') === normCognome) return true
+    return false
+  })
 }
 
 interface Props {
