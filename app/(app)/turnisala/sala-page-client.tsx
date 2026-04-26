@@ -21,6 +21,7 @@ interface Props {
   isAdmin: boolean
   userId: string
   userCognome?: string
+  userNome?: string
   initialSchedule: SalaSchedule | null
   initialMonth: string
   scheduleMonths: string[]
@@ -31,6 +32,7 @@ export function SalaPageClient({
   isAdmin,
   userId,
   userCognome,
+  userNome,
   initialSchedule,
   initialMonth,
   scheduleMonths: initialMonths,
@@ -108,6 +110,7 @@ export function SalaPageClient({
         isAdmin={isAdmin}
         userId={userId}
         userCognome={userCognome}
+        userNome={userNome}
         onSave={handleSaveLayout}
         schedule={schedule}
         currentMonth={currentMonth}
