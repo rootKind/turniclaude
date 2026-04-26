@@ -35,6 +35,16 @@ export async function fetchAllUsers(): Promise<UserProfile[]> {
   return data as UserProfile[]
 }
 
+export async function fetchAllUsersMinimal(): Promise<Pick<UserProfile, 'id' | 'nome' | 'cognome'>[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, nome, cognome')
+    .order('cognome')
+  if (error) throw error
+  return data as Pick<UserProfile, 'id' | 'nome' | 'cognome'>[]
+}
+
 export async function fetchUsersByGroup(isSecondary: boolean): Promise<Pick<UserProfile, 'id' | 'nome' | 'cognome'>[]> {
   const supabase = createClient()
   const { data, error } = await supabase

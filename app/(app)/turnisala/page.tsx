@@ -17,7 +17,7 @@ export default async function TurniSalaPage() {
     getSalaLayout(supabase),
     listScheduleMonths(supabase),
     user
-      ? supabase.from('users').select('cognome').eq('id', user.id).maybeSingle().then(r => r.data)
+      ? supabase.from('users').select('cognome, nome').eq('id', user.id).maybeSingle().then(r => r.data)
       : Promise.resolve(null),
   ])
 
@@ -32,6 +32,7 @@ export default async function TurniSalaPage() {
       isAdmin={admin}
       userId={user?.id ?? ''}
       userCognome={userProfile?.cognome ?? undefined}
+      userNome={userProfile?.nome ?? undefined}
       initialSchedule={initialSchedule}
       initialMonth={initialMonth}
       scheduleMonths={scheduleMonths}

@@ -14,7 +14,9 @@ export function todayRome(): string {
   return new Intl.DateTimeFormat('sv', { timeZone: 'Europe/Rome' }).format(new Date())
 }
 
-/** Cognome solo; se omonimia → cognome + iniziale nome. */
+const MAX_NAME_PREFIX = 3
+
+/** Cognome solo; se omonimia → cognome + prefisso nome minimo che disambigua (1-3 lettere). */
 export function formatDisplayName(
   user: Pick<UserProfile, 'nome' | 'cognome'>,
   duplicateCognomi?: Set<string>,
@@ -22,23 +24,50 @@ export function formatDisplayName(
   const nome = user.nome ?? ''
   const cognome = user.cognome ?? ''
   if (!cognome) return nome
-  if (duplicateCognomi?.has(cognome) && nome) return `${cognome} ${nome.charAt(0).toUpperCase()}.`
+  if (duplicateCognomi?.has(cognome) && nome) {
+    for (let len = 1; len <= MAX_NAME_PREFIX; len++) {
+      const prefix = nome.substring(0, len)
+      const key = `${cognome}_${prefix.charAt(0).toUpperCase()}${prefix.slice(1).toLowerCase()}`
+      if (!duplicateCognomi.has(key) || len === MAX_NAME_PREFIX) {
+        const display = prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase()
+        return `${cognome} ${display}.`
+      }
+    }
+  }
   return cognome
 }
 
-/** Costruisce il set dei cognomi che compaiono su più utenti distinti (dedup per id). */
-export function buildDuplicateCognomi(users: Array<{ id?: string; cognome?: string | null }>): Set<string> {
+/** Costruisce il set dei cognomi duplicati (dedup per id).
+ *  Aggiunge chiavi "Cognome_Pr" (prefisso 1-3 lettere) quando quel prefisso è ancora condiviso. */
+export function buildDuplicateCognomi(users: Array<{ id?: string; cognome?: string | null; nome?: string | null }>): Set<string> {
   const seenIds = new Set<string>()
-  const count = new Map<string, number>()
+  const counts: Array<Map<string, number>> = [new Map(), new Map(), new Map(), new Map()]
   for (const u of users) {
     const uid = u.id
     if (uid) {
       if (seenIds.has(uid)) continue
       seenIds.add(uid)
     }
-    if (u.cognome) count.set(u.cognome, (count.get(u.cognome) ?? 0) + 1)
+    if (!u.cognome) continue
+    counts[0].set(u.cognome, (counts[0].get(u.cognome) ?? 0) + 1)
+    const nome = u.nome ?? ''
+    for (let len = 1; len <= MAX_NAME_PREFIX; len++) {
+      if (nome.length < len) break
+      const prefix = nome.substring(0, len)
+      const key = `${u.cognome}_${prefix.charAt(0).toUpperCase()}${prefix.slice(1).toLowerCase()}`
+      counts[len].set(key, (counts[len].get(key) ?? 0) + 1)
+    }
   }
-  return new Set([...count.entries()].filter(([, n]) => n > 1).map(([c]) => c))
+  const result = new Set<string>()
+  for (const [cognome, n] of counts[0]) {
+    if (n > 1) result.add(cognome)
+  }
+  for (let len = 1; len <= MAX_NAME_PREFIX; len++) {
+    for (const [key, n] of counts[len]) {
+      if (n > 1) result.add(key)
+    }
+  }
+  return result
 }
 
 /** Returns { day: "14", month: "apr", weekday: "LUN" } from a YYYY-MM-DD string */

@@ -9,6 +9,8 @@ import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
+import { formatDisplayName } from '@/lib/utils'
+import { useAllDuplicateCognomi } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
 import {
@@ -107,10 +109,18 @@ function initCards(cards: DeskCardType[]): DeskCardType[] {
     .map(migrateCard)
 }
 
-function matchesCognome(surnames: string[], cognome?: string): boolean {
+function matchesCognome(surnames: string[], cognome?: string, nome?: string, duplicateCognomi?: Set<string>): boolean {
   if (!cognome) return false
-  const norm = cognome.toLowerCase().trim()
-  return surnames.some(s => s.toLowerCase().trim() === norm)
+  const displayName = formatDisplayName({ nome: nome ?? '', cognome }, duplicateCognomi).toLowerCase().trim()
+  const normCognome = cognome.toLowerCase().trim()
+  const isOmonimo = duplicateCognomi?.has(cognome) ?? false
+  return surnames.some(s => {
+    const sNorm = s.toLowerCase().trim()
+    if (sNorm === displayName) return true
+    // PDF può aggiungere suffisso anche senza omonimia — strip fallback solo per non-omonimi
+    if (!isOmonimo && sNorm.replace(/\s+[a-z]+\.$/, '') === normCognome) return true
+    return false
+  })
 }
 
 interface Props {
@@ -118,6 +128,7 @@ interface Props {
   isAdmin: boolean
   userId: string
   userCognome?: string
+  userNome?: string
   onSave: (layout: SalaLayout) => Promise<void>
   schedule?: SalaSchedule | null
   currentMonth: string
@@ -131,6 +142,7 @@ export function DeskBoard({
   layout: initialLayout,
   isAdmin,
   userCognome,
+  userNome,
   onSave,
   schedule,
   currentMonth,
@@ -139,6 +151,7 @@ export function DeskBoard({
   onUpload,
   onDeleteMonth,
 }: Props) {
+  const duplicateCognomi = useAllDuplicateCognomi()
   const [cards, setCards] = useState<DeskCardType[]>(() => initCards(initialLayout.cards))
   const [defaults, setDefaults] = useState<SalaLayoutDefaults>(
     initialLayout.defaults ?? DEFAULT_SALA_LAYOUT_DEFAULTS,
@@ -564,7 +577,7 @@ export function DeskBoard({
                         key={card.id}
                         card={card}
                         isEditing={isEditing}
-                        highlighted={!isEditing && matchesCognome(card.surnames, userCognome)}
+                        highlighted={!isEditing && matchesCognome(card.surnames, userCognome, userNome, duplicateCognomi)}
                         minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
                         tirocinanteWidth={defaults.tirocinanteWidth}
                         scheduleSections={scheduleSections}
