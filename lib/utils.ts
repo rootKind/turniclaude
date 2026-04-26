@@ -14,7 +14,7 @@ export function todayRome(): string {
   return new Intl.DateTimeFormat('sv', { timeZone: 'Europe/Rome' }).format(new Date())
 }
 
-/** Cognome solo; se omonimia → cognome + iniziale nome. */
+/** Cognome solo; se omonimia → cognome + iniziale nome; se anche iniziale uguale → 2 lettere nome. */
 export function formatDisplayName(
   user: Pick<UserProfile, 'nome' | 'cognome'>,
   duplicateCognomi?: Set<string>,
@@ -22,23 +22,45 @@ export function formatDisplayName(
   const nome = user.nome ?? ''
   const cognome = user.cognome ?? ''
   if (!cognome) return nome
-  if (duplicateCognomi?.has(cognome) && nome) return `${cognome} ${nome.charAt(0).toUpperCase()}.`
+  if (duplicateCognomi?.has(cognome) && nome) {
+    const initial = nome.charAt(0).toUpperCase()
+    if (duplicateCognomi.has(`${cognome}_${initial}`) && nome.length > 1) {
+      return `${cognome} ${nome.substring(0, 2).charAt(0).toUpperCase()}${nome.charAt(1).toLowerCase()}.`
+    }
+    return `${cognome} ${initial}.`
+  }
   return cognome
 }
 
-/** Costruisce il set dei cognomi che compaiono su più utenti distinti (dedup per id). */
-export function buildDuplicateCognomi(users: Array<{ id?: string; cognome?: string | null }>): Set<string> {
+/** Costruisce il set dei cognomi duplicati (dedup per id).
+ *  Aggiunge anche chiavi "Cognome_I" per i casi dove cognome+iniziale è anch'esso duplicato. */
+export function buildDuplicateCognomi(users: Array<{ id?: string; cognome?: string | null; nome?: string | null }>): Set<string> {
   const seenIds = new Set<string>()
-  const count = new Map<string, number>()
+  const byCognome = new Map<string, number>()
+  const byCognomeInitial = new Map<string, number>()
   for (const u of users) {
     const uid = u.id
     if (uid) {
       if (seenIds.has(uid)) continue
       seenIds.add(uid)
     }
-    if (u.cognome) count.set(u.cognome, (count.get(u.cognome) ?? 0) + 1)
+    if (u.cognome) {
+      byCognome.set(u.cognome, (byCognome.get(u.cognome) ?? 0) + 1)
+      const initial = u.nome?.charAt(0).toUpperCase() ?? ''
+      if (initial) {
+        const key = `${u.cognome}_${initial}`
+        byCognomeInitial.set(key, (byCognomeInitial.get(key) ?? 0) + 1)
+      }
+    }
   }
-  return new Set([...count.entries()].filter(([, n]) => n > 1).map(([c]) => c))
+  const result = new Set<string>()
+  for (const [cognome, n] of byCognome) {
+    if (n > 1) result.add(cognome)
+  }
+  for (const [key, n] of byCognomeInitial) {
+    if (n > 1) result.add(key)
+  }
+  return result
 }
 
 /** Returns { day: "14", month: "apr", weekday: "LUN" } from a YYYY-MM-DD string */
