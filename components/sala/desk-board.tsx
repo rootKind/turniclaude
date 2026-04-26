@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName } from '@/lib/utils'
-import { useDuplicateCognomi } from '@/hooks/use-users'
+import { useAllDuplicateCognomi } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
 import {
@@ -151,7 +151,7 @@ export function DeskBoard({
   onUpload,
   onDeleteMonth,
 }: Props) {
-  const duplicateCognomi = useDuplicateCognomi(false)
+  const duplicateCognomi = useAllDuplicateCognomi()
   const [cards, setCards] = useState<DeskCardType[]>(() => initCards(initialLayout.cards))
   const [defaults, setDefaults] = useState<SalaLayoutDefaults>(
     initialLayout.defaults ?? DEFAULT_SALA_LAYOUT_DEFAULTS,
