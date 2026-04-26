@@ -110,7 +110,7 @@ function initCards(cards: DeskCardType[]): DeskCardType[] {
 function matchesCognome(surnames: string[], cognome?: string): boolean {
   if (!cognome) return false
   const norm = cognome.toLowerCase().trim()
-  return surnames.some(s => s.toLowerCase().trim() === norm)
+  return surnames.some(s => s.toLowerCase().trim().replace(/\s+[a-z]+\.$/, '') === norm)
 }
 
 interface Props {
