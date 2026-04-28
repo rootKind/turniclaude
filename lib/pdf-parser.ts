@@ -57,24 +57,61 @@ function groupByRow(items: TextItem[], tolerance = 3): Array<{ y: number; items:
 
 // ─── name detection ───────────────────────────────────────────────────────────
 
-const EXCLUDED_FIRST = new Set(['RC', 'RI', 'RM', 'A', 'AG', 'D', 'VS', 'SPW', 'TIR', 'F'])
+const EXCLUDED_FIRST = new Set([
+  'RC', 'RI', 'RM', 'A', 'AG', 'D', 'VS', 'SPW', 'TIR', 'F',
+  'GIORNO', 'GIORNI', 'COLORI', 'LEGENDA', 'SIGLE', 'COLORE',
+])
 
 function looksLikeName(token: string): boolean {
   if (token.length < 2) return false
   if (EXCLUDED_FIRST.has(token)) return false
   if (/^\d+$/.test(token)) return false
   if (/^[a-z]/.test(token)) return false
+  if (/[,;()/]/.test(token)) return false  // commas/parens/slashes = footer text
+  if (/^[A-Z][a-z]/.test(token) && token !== token.toUpperCase()) return false  // SpNw, SpN style codes
   return true
 }
 
-function tryParseMainRow(tokens: string[], daysInMonth: number): { name: string; shifts: string[] } | null {
-  for (let nameLen = 1; nameLen <= 4; nameLen++) {
-    const rest = tokens.slice(nameLen)
-    if (rest.length !== daysInMonth) continue
-    if (!tokens.slice(0, nameLen).every(looksLikeName)) continue
-    return { name: tokens.slice(0, nameLen).join(' '), shifts: rest }
+/**
+ * Returns true when x is within DAY_COL_TOLERANCE of any day-column header.
+ * Inter-day spacing in these PDFs is ~25px, so 13px is < half-step.
+ */
+const DAY_COL_TOLERANCE = 13
+
+function isNearDayColumn(x: number, headerXMap: Record<number, number>): boolean {
+  for (const hx of Object.values(headerXMap)) {
+    if (Math.abs(x - hx) <= DAY_COL_TOLERANCE) return true
   }
-  return null
+  return false
+}
+
+function tryParseMainRowByX(
+  items: TextItem[],
+  headerXMap: Record<number, number>,
+  daysInMonth: number,
+): { name: string; shifts: string[] } | null {
+  if (items.length === 0) return null
+  if (headerXMap[1] === undefined) return null
+
+  const nameItems: TextItem[] = []
+  const shiftItems: TextItem[] = []
+  for (const item of items) {
+    if (isNearDayColumn(item.x, headerXMap)) shiftItems.push(item)
+    else nameItems.push(item)
+  }
+
+  if (nameItems.length === 0 || nameItems.length > 4) return null
+  if (!nameItems.every(it => looksLikeName(it.str))) return null
+  const name = nameItems.map(it => it.str).join(' ')
+  if (name.length > 30) return null  // footer/legend rows are always long
+
+  const shifts = new Array<string>(daysInMonth).fill('')
+  for (const item of shiftItems) {
+    const day = xToDay(item.x, headerXMap)
+    if (day !== null && day >= 1 && day <= daysInMonth) shifts[day - 1] = item.str
+  }
+
+  return { name, shifts }
 }
 
 // ─── pdf item merge ───────────────────────────────────────────────────────────
@@ -153,10 +190,9 @@ function processPageRows(
 
     let pendingMod: typeof rows[0] | null = null
     for (const row of groupRows) {
-      // Merge split tokens in the theoretical row before counting
+      // Merge split tokens in the theoretical row before parsing
       const mergedItems = mergeClosePdfItems(row.items)
-      const tokens = mergedItems.map(it => it.str)
-      const parsed = tryParseMainRow(tokens, daysInMonth)
+      const parsed = tryParseMainRowByX(mergedItems, headerXMap, daysInMonth)
 
       if (parsed) {
         const modByDay: Record<number, string> = {}
