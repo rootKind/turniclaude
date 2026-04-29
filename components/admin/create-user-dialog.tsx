@@ -16,6 +16,7 @@ const formSchema = z.object({
   nome: z.string().min(1, 'Nome obbligatorio'),
   cognome: z.string().min(1, 'Cognome obbligatorio'),
   is_secondary: z.boolean(),
+  is_manager: z.boolean(),
 })
 type FormData = z.infer<typeof formSchema>
 
@@ -29,7 +30,7 @@ export function CreateUserDialog({ open, onClose }: Props) {
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: { email: '', password: '', nome: '', cognome: '', is_secondary: false },
+    defaultValues: { email: '', password: '', nome: '', cognome: '', is_secondary: false, is_manager: false },
   })
 
   async function onSubmit(values: FormData) {
@@ -88,14 +89,27 @@ export function CreateUserDialog({ open, onClose }: Props) {
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="is_secondary" render={({ field }) => (
+            <FormField control={form.control} name="is_manager" render={({ field }) => (
               <FormItem className="flex items-center justify-between rounded-lg border p-3">
-                <FormLabel className="cursor-pointer">Reparto Noni (secondario)</FormLabel>
+                <FormLabel className="cursor-pointer">Manager</FormLabel>
                 <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  <Switch checked={field.value} onCheckedChange={(v) => {
+                    field.onChange(v)
+                    if (v) form.setValue('is_secondary', false)
+                  }} />
                 </FormControl>
               </FormItem>
             )} />
+            {!form.watch('is_manager') && (
+              <FormField control={form.control} name="is_secondary" render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                  <FormLabel className="cursor-pointer">Reparto Noni (secondario)</FormLabel>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )} />
+            )}
             <Button type="submit" disabled={isLoading} className="w-full">
               {isLoading ? 'Creazione...' : 'Crea utente'}
             </Button>

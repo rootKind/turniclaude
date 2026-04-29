@@ -8,6 +8,7 @@ const SHIFTS_SELECT = `
   shift_date,
   requested_shifts,
   highlight,
+  is_pending,
   created_at,
   user:users!shifts_user_id_fkey(id, nome, cognome, is_secondary),
   shift_interested_users(

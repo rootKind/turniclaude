@@ -49,7 +49,13 @@
       "Bash(node *)",
       "Bash(pnpm install *)",
       "Bash(gh repo *)",
-      "Bash(gh api *)"
+      "Bash(gh api *)",
+      "Bash(cp scripts/test-pdf-parse.mjs scripts/test-aprile.mjs)",
+      "Bash(sed -i 's/Aprile_21-04-2026\\\\.pdf/Aprile_28-04-2026.pdf/' scripts/test-aprile.mjs)",
+      "Bash(sed 's/Maggio_24-04-2026\\\\.pdf/Aprile_28-04-2026.pdf/; s/DAYS_IN_MONTH = 31/DAYS_IN_MONTH = 30/' scripts/test-pdf-maggio.mjs)",
+      "Bash(sed -i 's/for \\(const day of \\\\[1, 2, 3, 4, 5\\\\]\\)/for \\(const day of [1, 15, 30]\\)/' scripts/test-aprile2.mjs)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\david\\\\Downloads\\\\pwa-v2\\\\app\\\\api\\\\manager\\\\shift-requests\\\\[id]\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\david\\\\Downloads\\\\pwa-v2\\\\app\\\\api\\\\manager\\\\vacation-requests\\\\[id]\")"
     ]
   }
 }

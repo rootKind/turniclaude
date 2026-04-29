@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatShiftDate, formatRelativeTime, formatDisplayName, getShiftItemState, SHIFT_STATE_CLASSES, SHIFT_DATE_CLASSES, SHIFT_PILL_CLASSES } from '@/lib/utils'
 import { isAdmin } from '@/types/database'
@@ -12,6 +12,7 @@ import { SHIFTS_QUERY_KEY } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 
 interface Props {
   shift: Shift
@@ -23,13 +24,19 @@ interface Props {
   onEdit?: (shift: Shift) => void
   isHighlighted?: boolean
   duplicateCognomi?: Set<string>
+  isManagerView?: boolean
 }
 
-export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isSameDateAsPrevious = false, dateIndex = 0, onEdit, isHighlighted = false, duplicateCognomi }: Props) {
+export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isSameDateAsPrevious = false, dateIndex = 0, onEdit, isHighlighted = false, duplicateCognomi, isManagerView = false }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showRing, setShowRing] = useState(isHighlighted)
   const cardRef = useRef<HTMLDivElement>(null)
+  // Manager-specific state
+  const [managerAction, setManagerAction] = useState<'reject' | 'confirm' | 'pending' | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [selectedInterestUserId, setSelectedInterestUserId] = useState<string>('')
+  const [managerLoading, setManagerLoading] = useState(false)
 
   useEffect(() => {
     if (!isHighlighted) return
@@ -105,6 +112,96 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
     }
   }
 
+  async function handleManagerReject() {
+    setManagerLoading(true)
+    try {
+      const res = await fetch(`/api/manager/shift-requests/${shift.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject', reason: rejectReason.trim() || undefined }),
+      })
+      if (!res.ok) throw new Error()
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      toast.success('Richiesta rifiutata')
+      setManagerAction(null)
+      setRejectReason('')
+    } catch {
+      toast.error('Errore')
+    } finally {
+      setManagerLoading(false)
+    }
+  }
+
+  async function handleManagerConfirm() {
+    const interestedUsers = shift.shift_interested_users ?? []
+    if (interestedUsers.length > 1 && !selectedInterestUserId) {
+      setManagerAction('confirm')
+      return
+    }
+    const userId = interestedUsers.length === 1 ? interestedUsers[0].user_id : selectedInterestUserId
+    setManagerLoading(true)
+    try {
+      const res = await fetch(`/api/manager/shift-requests/${shift.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'confirm', selectedUserId: userId || undefined }),
+      })
+      if (!res.ok) throw new Error()
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      toast.success('Richiesta confermata')
+      setManagerAction(null)
+      setSelectedInterestUserId('')
+    } catch {
+      toast.error('Errore')
+    } finally {
+      setManagerLoading(false)
+    }
+  }
+
+  async function handleManagerPending(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (shift.is_pending) {
+      setManagerLoading(true)
+      try {
+        const res = await fetch(`/api/manager/shift-requests/${shift.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'pending' }),
+        })
+        if (!res.ok) throw new Error()
+        queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      } catch {
+        toast.error('Errore')
+      } finally {
+        setManagerLoading(false)
+      }
+      return
+    }
+    const interestedUsers = shift.shift_interested_users ?? []
+    if (interestedUsers.length > 1 && !selectedInterestUserId) {
+      setExpanded(true)
+      setManagerAction('pending')
+      return
+    }
+    const userId = interestedUsers.length === 1 ? interestedUsers[0].user_id : selectedInterestUserId
+    setManagerLoading(true)
+    try {
+      const res = await fetch(`/api/manager/shift-requests/${shift.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pending', selectedUserId: userId || undefined }),
+      })
+      if (!res.ok) throw new Error()
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      setManagerAction(null)
+      setSelectedInterestUserId('')
+    } catch {
+      toast.error('Errore')
+    } finally {
+      setManagerLoading(false)
+    }
+  }
+
   const displayName = formatDisplayName(shift.user, duplicateCognomi)
 
   return (
@@ -112,7 +209,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
       ref={cardRef}
       className={cn(
         'rounded-[10px] transition-shadow duration-700',
-        showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+        showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
       )}
     >
       {/* Main row */}
@@ -120,12 +217,17 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
-        className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius)}
+        className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius,
+          !shift.is_pending && isManagerView && hasInterest && 'bg-green-500/[0.08]',
+          shift.is_pending && 'bg-amber-500/[0.08]',
+        )}
         onClick={() => setExpanded(v => !v)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
       >
         {/* Date block */}
-        <div className={cn('w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
+        <div className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
+          {!shift.is_pending && isManagerView && hasInterest && <span className="absolute inset-0 bg-green-500/[0.08] pointer-events-none" />}
+          {shift.is_pending && <span className="absolute inset-0 bg-amber-500/[0.08] pointer-events-none" />}
           {dateIndex > 0 ? (
             <span className="text-[16px] font-extrabold leading-none text-muted-foreground">{dateIndex + 1}°</span>
           ) : (
@@ -164,7 +266,30 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
 
           {/* Interest count */}
           <div className="flex-shrink-0 text-[11px]">
-            {isOwn ? (
+            {isManagerView ? (
+              <div className="flex items-center gap-1">
+                {(hasInterest || shift.is_pending) && (
+                  <button
+                    className={cn(
+                      'flex items-center justify-center w-5 h-5 rounded-full border transition-colors',
+                      shift.is_pending
+                        ? 'border-amber-500/70 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
+                        : 'border-green-600/40 text-green-600 bg-green-500/10 hover:bg-green-500/20',
+                      managerLoading && 'opacity-50 pointer-events-none',
+                    )}
+                    onClick={handleManagerPending}
+                    aria-label="Segna come in attesa"
+                  >
+                    <Clock size={10} />
+                  </button>
+                )}
+                {(shift.shift_interested_users?.length ?? 0) > 0 && (
+                  <span className={cn(shift.is_pending ? 'text-amber-500' : 'text-green-600')}>
+                    {shift.shift_interested_users!.length}
+                  </span>
+                )}
+              </div>
+            ) : isOwn ? (
               <span className={hasInterest ? 'text-interest-date' : 'text-muted-foreground'}>
                 {hasInterest ? `${shift.shift_interested_users!.length} ❤️` : '0 ♡'}
               </span>
@@ -199,81 +324,209 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
               isOwn ? 'bg-[#dcdcf0] dark:bg-[#22223a]' :
               'bg-[#e0e0e0] dark:bg-[#111]'
             )}>
-              {/* Interested users list — show for own shifts OR admin */}
-              {(isOwn || canAdminAct) && hasInterest && (
-                <div className="mb-3">
-                  <p className="text-[10px] font-bold text-match uppercase tracking-wide mb-1.5">
-                    Interessati
-                  </p>
-                  <div className="flex flex-col gap-0.5">
-                    {shift.shift_interested_users!
-                      .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
-                      .map(i => (
-                        <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
-                          <span className="text-[12px]">{formatDisplayName(i.user, duplicateCognomi)}</span>
-                          <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
+              {/* ── MANAGER VIEW ── */}
+              {isManagerView && (
+                <>
+                  {/* Interested users list */}
+                  {hasInterest ? (
+                    <div className="mb-3">
+                      <p className="text-[10px] font-bold text-match uppercase tracking-wide mb-1.5">Interessati</p>
+                      <div className="flex flex-col gap-0.5">
+                        {shift.shift_interested_users!
+                          .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
+                          .map(i => (
+                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                              <span className="text-[12px]">{formatDisplayName(i.user, duplicateCognomi)}</span>
+                              <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[12px] text-muted-foreground mb-3">Nessuno interessato ancora</p>
+                  )}
 
-              {/* No interest yet — show for own shifts or admin */}
-              {(isOwn || canAdminAct) && !hasInterest && (
-                <p className="text-[12px] text-muted-foreground mb-3">Nessuno interessato ancora</p>
-              )}
+                  {/* Reject popup */}
+                  {managerAction === 'reject' && (
+                    <div className="mb-3 flex flex-col gap-2">
+                      <Textarea
+                        placeholder="Motivo (opzionale)"
+                        className="text-[12px] min-h-[60px] resize-none"
+                        value={rejectReason}
+                        onChange={e => setRejectReason(e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                      />
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setManagerAction(null); setRejectReason('') }}>
+                          Annulla
+                        </Button>
+                        <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" disabled={managerLoading} onClick={e => { e.stopPropagation(); handleManagerReject() }}>
+                          {managerLoading ? '...' : 'Conferma rifiuto'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Also-interested others — show for non-own shifts when NOT admin */}
-              {!isOwn && !canAdminAct && hasInterest && (
-                <div className="mb-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-                    Anche interessati
-                  </p>
-                  <div className="flex flex-col gap-0.5">
-                    {shift.shift_interested_users!
-                      .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
-                      .map(i => (
-                        <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
-                          <span className="text-[12px]">{formatDisplayName(i.user, duplicateCognomi)}</span>
-                          <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
+                  {/* Pending: select interested user if multiple */}
+                  {managerAction === 'pending' && (shift.shift_interested_users?.length ?? 0) > 1 && (
+                    <div className="mb-3 flex flex-col gap-2">
+                      <p className="text-[11px] text-muted-foreground">Seleziona il dipendente per la notifica di attesa:</p>
+                      <select
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        value={selectedInterestUserId}
+                        onChange={e => setSelectedInterestUserId(e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <option value="">Seleziona…</option>
+                        {shift.shift_interested_users!
+                          .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
+                          .map(i => (
+                            <option key={i.user_id} value={i.user_id}>{formatDisplayName(i.user, duplicateCognomi)}</option>
+                          ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setManagerAction(null); setSelectedInterestUserId('') }}>
+                          Annulla
+                        </Button>
+                        <Button size="sm" className="flex-1 h-8 text-[11px] bg-amber-500 hover:bg-amber-600 text-white" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerPending(e) }}>
+                          {managerLoading ? '...' : 'Segna in attesa'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Modifica + Elimina — own shifts OR admin on any shift */}
-              {(isOwn || canAdminAct) && (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); onEdit?.(shift) }}>
-                    <Pencil size={13} className="mr-1" /> Modifica
-                  </Button>
-                  {confirmDelete ? (
-                    <>
-                      <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
+                  {/* Confirm: select interested user if multiple */}
+                  {managerAction === 'confirm' && (shift.shift_interested_users?.length ?? 0) > 1 && (
+                    <div className="mb-3 flex flex-col gap-2">
+                      <p className="text-[11px] text-muted-foreground">Seleziona il dipendente con cui fare il cambio:</p>
+                      <select
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        value={selectedInterestUserId}
+                        onChange={e => setSelectedInterestUserId(e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <option value="">Seleziona…</option>
+                        {shift.shift_interested_users!
+                          .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
+                          .map(i => (
+                            <option key={i.user_id} value={i.user_id}>{formatDisplayName(i.user, duplicateCognomi)}</option>
+                          ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setManagerAction(null); setSelectedInterestUserId('') }}>
+                          Annulla
+                        </Button>
+                        <Button size="sm" className="flex-1 h-8 text-[11px] bg-green-600 hover:bg-green-700 text-white" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerConfirm() }}>
+                          {managerLoading ? '...' : 'Conferma'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Conferma / Rifiuta buttons */}
+                  {managerAction === null && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="flex-1 h-8 text-[11px]"
+                        onClick={e => { e.stopPropagation(); setManagerAction('reject') }}
+                      >
+                        Rifiuta
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 h-8 text-[11px] bg-green-600 hover:bg-green-700 text-white"
+                        disabled={managerLoading}
+                        onClick={e => { e.stopPropagation(); handleManagerConfirm() }}
+                      >
                         Conferma
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setConfirmDelete(false) }}>
-                        Annulla
-                      </Button>
-                    </>
-                  ) : (
-                    <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
-                      <Trash2 size={13} className="mr-1" /> Elimina
-                    </Button>
+                    </div>
                   )}
-                </div>
+                </>
               )}
 
-              {/* Interest button — non-own shifts (users and admin can both express interest) */}
-              {!isOwn && (
-                <Button
-                  className={cn('w-full h-9 text-[12px] font-semibold mt-2', isInterested && 'btn-interest-on')}
-                  variant={isInterested ? 'default' : 'outline'}
-                  onClick={handleInterestToggle}
-                >
-                  {isInterested ? '✓ Sono interessato' : '♡ Sono interessato'}
-                </Button>
+              {/* ── NORMAL / ADMIN VIEW ── */}
+              {!isManagerView && (
+                <>
+                  {/* Interested users list — show for own shifts OR admin */}
+                  {(isOwn || canAdminAct) && hasInterest && (
+                    <div className="mb-3">
+                      <p className="text-[10px] font-bold text-match uppercase tracking-wide mb-1.5">
+                        Interessati
+                      </p>
+                      <div className="flex flex-col gap-0.5">
+                        {shift.shift_interested_users!
+                          .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
+                          .map(i => (
+                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                              <span className="text-[12px]">{formatDisplayName(i.user, duplicateCognomi)}</span>
+                              <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No interest yet — show for own shifts or admin */}
+                  {(isOwn || canAdminAct) && !hasInterest && (
+                    <p className="text-[12px] text-muted-foreground mb-3">Nessuno interessato ancora</p>
+                  )}
+
+                  {/* Also-interested others — show for non-own shifts when NOT admin */}
+                  {!isOwn && !canAdminAct && hasInterest && (
+                    <div className="mb-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
+                        Anche interessati
+                      </p>
+                      <div className="flex flex-col gap-0.5">
+                        {shift.shift_interested_users!
+                          .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
+                          .map(i => (
+                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                              <span className="text-[12px]">{formatDisplayName(i.user, duplicateCognomi)}</span>
+                              <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Modifica + Elimina — own shifts OR admin on any shift */}
+                  {(isOwn || canAdminAct) && (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); onEdit?.(shift) }}>
+                        <Pencil size={13} className="mr-1" /> Modifica
+                      </Button>
+                      {confirmDelete ? (
+                        <>
+                          <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
+                            Conferma
+                          </Button>
+                          <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setConfirmDelete(false) }}>
+                            Annulla
+                          </Button>
+                        </>
+                      ) : (
+                        <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
+                          <Trash2 size={13} className="mr-1" /> Elimina
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Interest button — non-own shifts (users and admin can both express interest) */}
+                  {!isOwn && (
+                    <Button
+                      className={cn('w-full h-9 text-[12px] font-semibold mt-2', isInterested && 'btn-interest-on')}
+                      variant={isInterested ? 'default' : 'outline'}
+                      onClick={handleInterestToggle}
+                    >
+                      {isInterested ? '✓ Sono interessato' : '♡ Sono interessato'}
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </motion.div>

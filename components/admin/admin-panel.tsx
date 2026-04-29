@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, Palette } from 'lucide-react'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, Palette, FlaskConical } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { getAppSettings, updateAppSettings } from '@/lib/queries/app-settings'
 import { NotificationDialog } from './notification-dialog'
+import { NotificationTestDialog } from './notification-test-dialog'
 import { FeedbackList } from './feedback-list'
 import { UserManagementDialog } from './user-management-dialog'
 import { ImpersonateDialog } from './impersonate-dialog'
@@ -13,6 +14,7 @@ import { ImpersonateDialog } from './impersonate-dialog'
 export function AdminPanel() {
   const router = useRouter()
   const [notifOpen, setNotifOpen] = useState(false)
+  const [notifTestOpen, setNotifTestOpen] = useState(false)
   const [usersOpen, setUsersOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackUnread, setFeedbackUnread] = useState(0)
@@ -21,6 +23,10 @@ export function AdminPanel() {
   const [minYearTurniferie, setMinYearTurniferie] = useState(2026)
   const [minYearVacanze, setMinYearVacanze] = useState(2026)
   const [savingYears, setSavingYears] = useState(false)
+  const [limitEnabled, setLimitEnabled] = useState(false)
+  const [maxSwapDays, setMaxSwapDays] = useState(90)
+  const [hideShiftsBeyond, setHideShiftsBeyond] = useState(false)
+  const [savingLimit, setSavingLimit] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -36,6 +42,9 @@ export function AdminPanel() {
     getAppSettings(supabase).then(s => {
       setMinYearTurniferie(s.min_year_turniferie)
       setMinYearVacanze(s.min_year_vacanze)
+      setLimitEnabled(s.shift_swap_limit_enabled)
+      setMaxSwapDays(s.max_shift_swap_days)
+      setHideShiftsBeyond(s.hide_shifts_beyond_limit)
     }).catch(() => {})
   }, [])
 
@@ -46,6 +55,16 @@ export function AdminPanel() {
       await updateAppSettings(supabase, { [field]: value })
     } finally {
       setSavingYears(false)
+    }
+  }
+
+  async function saveLimit(patch: { shift_swap_limit_enabled?: boolean; max_shift_swap_days?: number; hide_shifts_beyond_limit?: boolean }) {
+    setSavingLimit(true)
+    try {
+      const supabase = createClient()
+      await updateAppSettings(supabase, patch)
+    } finally {
+      setSavingLimit(false)
     }
   }
 
@@ -103,6 +122,12 @@ export function AdminPanel() {
           description="Personalizza tutti i colori dell'interfaccia"
           onClick={() => router.push('/admin/colori')}
         />
+        <ActionTile
+          icon={<FlaskConical size={18} />}
+          title="Test notifiche"
+          description="Invia notifiche di prova a un dipendente specifico"
+          onClick={() => setNotifTestOpen(true)}
+        />
       </div>
 
       {/* Anno minimo ferie */}
@@ -126,7 +151,46 @@ export function AdminPanel() {
         </div>
       </div>
 
+      {/* Limite giorni cambio turno */}
+      <div className="rounded-xl border bg-card px-4 py-3 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold">Limite cambio turno</p>
+          <Toggle
+            enabled={limitEnabled}
+            disabled={savingLimit}
+            onChange={v => {
+              setLimitEnabled(v)
+              saveLimit({ shift_swap_limit_enabled: v })
+            }}
+          />
+        </div>
+        {limitEnabled && (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Giorni massimi in avanti</span>
+              <DaysInput
+                value={maxSwapDays}
+                disabled={savingLimit}
+                onChange={v => { setMaxSwapDays(v); saveLimit({ max_shift_swap_days: v }) }}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Nascondi turni oltre limite</span>
+              <Toggle
+                enabled={hideShiftsBeyond}
+                disabled={savingLimit}
+                onChange={v => {
+                  setHideShiftsBeyond(v)
+                  saveLimit({ hide_shifts_beyond_limit: v })
+                }}
+              />
+            </div>
+          </>
+        )}
+      </div>
+
       <NotificationDialog open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <NotificationTestDialog open={notifTestOpen} onClose={() => setNotifTestOpen(false)} />
       <UserManagementDialog open={usersOpen} onClose={() => setUsersOpen(false)} />
       <FeedbackList open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <ImpersonateDialog open={impersonateOpen} onClose={() => setImpersonateOpen(false)} />
@@ -196,6 +260,74 @@ function YearStepper({ value, disabled, onChange }: {
       <button
         onClick={() => onChange(value + 1)}
         disabled={disabled || value >= 2099}
+        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
+      >
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  )
+}
+
+function Toggle({ enabled, disabled, onChange }: {
+  enabled: boolean
+  disabled: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <button
+      role="switch"
+      aria-checked={enabled}
+      disabled={disabled}
+      onClick={() => onChange(!enabled)}
+      className={cn(
+        'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200',
+        'focus:outline-none disabled:opacity-40',
+        enabled ? 'bg-primary' : 'bg-muted-foreground/30'
+      )}
+    >
+      <span
+        className={cn(
+          'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200',
+          enabled ? 'translate-x-5' : 'translate-x-0'
+        )}
+      />
+    </button>
+  )
+}
+
+function DaysInput({ value, disabled, onChange }: {
+  value: number
+  disabled: boolean
+  onChange: (v: number) => void
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => onChange(Math.max(1, value - 1))}
+        disabled={disabled || value <= 1}
+        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
+      >
+        <ChevronLeft size={16} />
+      </button>
+      <input
+        type="number"
+        min={1}
+        max={365}
+        value={value}
+        disabled={disabled}
+        onChange={e => {
+          const n = Math.max(1, Math.min(365, parseInt(e.target.value) || 1))
+          onChange(n)
+        }}
+        onBlur={e => {
+          const n = Math.max(1, Math.min(365, parseInt(e.target.value) || 1))
+          onChange(n)
+        }}
+        className="w-14 text-center text-sm font-semibold tabular-nums bg-transparent border rounded-lg px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-40"
+      />
+      <button
+        onClick={() => onChange(Math.min(365, value + 1))}
+        disabled={disabled || value >= 365}
         className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
       >
         <ChevronRight size={16} />

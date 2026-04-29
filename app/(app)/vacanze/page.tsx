@@ -3,7 +3,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
-import { isAdmin } from '@/types/database'
+import { isAdmin, isManager } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getMyVacationAssignment } from '@/lib/queries/vacations'
 import { VACATION_PERIOD_LABELS } from '@/lib/vacations'
@@ -34,8 +34,10 @@ function VacanzeContent() {
     return []
   })
   const adminUser = profile ? isAdmin(profile.id) : false
+  const managerUser = profile ? isManager(profile) : false
+  const canToggleCategory = adminUser || managerUser
   const loggedInUserId = profile?.id ?? ''
-  const effectiveIsSecondary = adminUser ? viewSecondary : (profile?.is_secondary ?? false)
+  const effectiveIsSecondary = canToggleCategory ? viewSecondary : (profile?.is_secondary ?? false)
 
   useEffect(() => {
     if (!loggedInUserId) return
@@ -114,17 +116,11 @@ function VacanzeContent() {
     }
   }, [minYear])
 
-  if (minYear === null) return (
-    <main className="max-w-lg mx-auto px-4 pt-6 pb-4 flex items-center justify-center" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
-      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-    </main>
-  )
-
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2 mb-3 pr-12">
         <h1 className="text-lg font-bold">Ferie Sala C.C.C.</h1>
-        {profile && adminUser && (
+        {profile && canToggleCategory && (
           <button
             onClick={() => setViewSecondary(v => !v)}
             className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
@@ -138,7 +134,7 @@ function VacanzeContent() {
       <div className="mb-4 px-3 py-2.5 rounded-xl offered-box border flex items-center gap-2">
         <button
           onClick={() => changeYear(-1)}
-          disabled={selectedYear <= minYear}
+          disabled={minYear === null || selectedYear <= minYear}
           className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
         >
           <ChevronLeft size={16} className="text-offered-label" />

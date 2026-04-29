@@ -9,6 +9,7 @@ export interface UserProfile {
   nome: string | null
   cognome: string | null
   is_secondary: boolean             // false = DCO (primary), true = Noni (secondary)
+  is_manager: boolean               // true = manager (neither DCO nor Noni)
   notification_enabled: boolean | null
   notify_on_interest: boolean | null
   notify_on_new_shift: boolean | null
@@ -32,6 +33,7 @@ export interface Shift {
   shift_date: string                // YYYY-MM-DD
   requested_shifts: ShiftType[]     // max 2 items
   highlight: boolean | null
+  is_pending: boolean
   created_at: string | null
   user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
   shift_interested_users: ShiftInterestedUser[]
@@ -90,6 +92,7 @@ export interface VacationRequest {
   offered_period: VacationPeriod
   target_periods: VacationPeriod[]   // 1–5 items
   year: number
+  is_pending: boolean
   created_at: string
 }
 
@@ -166,7 +169,6 @@ export interface SalaSchedule {
 // ── Costanti ─────────────────────────────────────────────────────────────────
 
 export const ADMIN_ID = 'fdd6c008-7a22-42d5-a75b-c44d9edfef12'
-export const TURNISTA_ID = '45406410-cf22-4f79-b493-b6ee766fd3d8'
 
 export function isAdmin(userId: string) { return userId === ADMIN_ID }
-export function isTurnista(userId: string) { return userId === TURNISTA_ID }
+export function isManager(profile: Pick<UserProfile, 'is_manager'>): boolean { return profile.is_manager }

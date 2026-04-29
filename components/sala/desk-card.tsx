@@ -183,12 +183,10 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
       {/* Tirocinante bottom extension */}
       {tirCount > 0 && (
         <div className="border-t border-border shrink-0">
-          <div className="px-2 bg-muted/40 flex items-center justify-center" style={{ height: '18px' }}>
-            <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-wide leading-none">Tir.</span>
-          </div>
-          <div className="flex items-center justify-center gap-2 px-2 py-1 bg-muted/50">
+          <div className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 bg-muted/50">
             {tirocinanti.map((tir, i) => (
-              <div key={i} ref={i === 0 ? firstTirRef : undefined}>
+              <div key={i} ref={i === 0 ? firstTirRef : undefined} className="flex items-center gap-1">
+                <span className="text-[8px] text-muted-foreground font-medium uppercase leading-none">Tir.</span>
                 {isEditing ? (
                   <input
                     className="text-xs bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"

@@ -12,6 +12,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const admin = isAdmin(user.id)
 
+  const { data: profile } = await supabase
+    .from('users')
+    .select('is_manager')
+    .eq('id', user.id)
+    .single()
+  const manager = profile?.is_manager ?? false
+
   // Count unread feedback for admin badge (only fetched server-side for admin)
   let feedbackUnread = 0
   if (admin) {
@@ -26,7 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen pb-16">
       <PageTransitionWrapper>{children}</PageTransitionWrapper>
       <NotificationBell />
-      <BottomNav feedbackUnread={feedbackUnread} isAdmin={admin} />
+      <BottomNav feedbackUnread={feedbackUnread} isAdmin={admin} isManager={manager} />
     </div>
   )
 }

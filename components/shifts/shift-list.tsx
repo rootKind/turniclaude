@@ -4,12 +4,15 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { User } from 'lucide-react'
 import { useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
+import { useAppSettings } from '@/hooks/use-app-settings'
+import { isManager } from '@/types/database'
 import { ShiftItem } from './shift-item'
 import { EditShiftDialog } from './edit-shift-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import { cn, todayRome } from '@/lib/utils'
 import { useDuplicateCognomi } from '@/hooks/use-users'
 import type { Shift } from '@/types/database'
+import { addDays, parseISO, format } from 'date-fns'
 
 const MONTH_LABELS: Record<string, string> = {
   '01': 'Gen', '02': 'Feb', '03': 'Mar', '04': 'Apr',
@@ -17,7 +20,7 @@ const MONTH_LABELS: Record<string, string> = {
   '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic',
 }
 
-type FilterValue = 'mine' | null | string
+type FilterValue = 'mine' | 'compatible' | null | string
 
 interface ShiftListProps {
   isSecondary?: boolean
@@ -37,7 +40,9 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   const isSecondary = isSecondaryProp !== undefined ? isSecondaryProp : (profile?.is_secondary ?? false)
   const effectiveUserId = effectiveUserIdProp ?? profile?.id ?? ''
   const loggedInUserId = loggedInUserIdProp ?? profile?.id ?? ''
+  const isManagerView = profile ? isManager(profile) : false
   const { data: shifts = [], isLoading } = useShifts(isSecondary)
+  const appSettings = useAppSettings()
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [selectedFilter, setSelectedFilter] = useState<FilterValue>(null)
 
@@ -47,23 +52,39 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   // 1 = going to previous (swipe right), -1 = going to next (swipe left)
   const swipeDirection = useRef<1 | -1>(-1)
 
+  const baseShifts = useMemo(() => {
+    if (
+      appSettings?.shift_swap_limit_enabled &&
+      appSettings.hide_shifts_beyond_limit &&
+      appSettings.max_shift_swap_days > 0
+    ) {
+      const maxDateStr = format(addDays(parseISO(todayRome()), appSettings.max_shift_swap_days), 'yyyy-MM-dd')
+      return shifts.filter(s => s.shift_date <= maxDateStr)
+    }
+    return shifts
+  }, [shifts, appSettings])
+
   const months = useMemo(() => {
     const seen = new Set<string>()
-    return shifts
+    return baseShifts
       .map(s => s.shift_date.slice(0, 7))
       .filter(m => { if (seen.has(m)) return false; seen.add(m); return true })
-  }, [shifts])
+  }, [baseShifts])
 
-  // Navigation sequence: 'mine', null, ...months
-  const navSequence = useMemo<FilterValue[]>(() => ['mine', null, ...months], [months])
+  // Navigation sequence: 'mine'/'compatible', null, ...months
+  const navSequence = useMemo<FilterValue[]>(
+    () => [isManagerView ? 'compatible' : 'mine', null, ...months],
+    [isManagerView, months]
+  )
 
   const filtered = useMemo(() => {
-    if (selectedFilter === 'mine') return shifts.filter(s => s.user_id === effectiveUserId)
-    if (!selectedFilter) return shifts
-    return shifts.filter(s => s.shift_date.startsWith(selectedFilter))
-  }, [shifts, selectedFilter, effectiveUserId])
+    if (selectedFilter === 'mine') return baseShifts.filter(s => s.user_id === effectiveUserId)
+    if (selectedFilter === 'compatible') return baseShifts.filter(s => (s.shift_interested_users?.length ?? 0) > 0)
+    if (!selectedFilter) return baseShifts
+    return baseShifts.filter(s => s.shift_date.startsWith(selectedFilter))
+  }, [baseShifts, selectedFilter, effectiveUserId])
 
-  const hasOwnShifts = useMemo(() => shifts.some(s => s.user_id === effectiveUserId), [shifts, effectiveUserId])
+  const hasOwnShifts = useMemo(() => baseShifts.some(s => s.user_id === effectiveUserId), [baseShifts, effectiveUserId])
   const duplicateCognomi = useDuplicateCognomi(isSecondary)
   const showChipBar = months.length > 1 || hasOwnShifts
 
@@ -131,9 +152,9 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   }
 
   if (isLoading) return <ShiftListSkeleton />
-  if (!shifts.length) return (
+  if (!baseShifts.length) return (
     <div className="text-center py-12 text-muted-foreground text-sm">
-      Nessun turno disponibile. Premi + per aggiungerne uno.
+      {isManagerView ? 'Nessuna richiesta di cambio turno.' : 'Nessun turno disponibile. Premi + per aggiungerne uno.'}
     </div>
   )
 
@@ -143,20 +164,36 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
       {showChipBar && <div
         className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar"
       >
-        {/* Solo miei */}
-        <button
-          ref={el => { if (el) chipRefs.current.set('mine', el); else chipRefs.current.delete('mine') }}
-          onClick={() => navigateTo('mine')}
-          className={cn(
-            'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
-            selectedFilter === 'mine'
-              ? 'chip-selected'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
-          )}
-        >
-          <User className="w-3 h-3" />
-          Solo miei
-        </button>
+        {/* Solo miei (utenti) / Solo compatibili (manager) */}
+        {!isManagerView ? (
+          <button
+            ref={el => { if (el) chipRefs.current.set('mine', el); else chipRefs.current.delete('mine') }}
+            onClick={() => navigateTo('mine')}
+            className={cn(
+              'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
+              selectedFilter === 'mine'
+                ? 'chip-selected'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
+            )}
+          >
+            <User className="w-3 h-3" />
+            Solo miei
+          </button>
+        ) : (
+          <button
+            ref={el => { if (el) chipRefs.current.set('compatible', el); else chipRefs.current.delete('compatible') }}
+            onClick={() => navigateTo('compatible')}
+            className={cn(
+              'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
+              selectedFilter === 'compatible'
+                ? 'chip-selected'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
+            )}
+          >
+            <User className="w-3 h-3" />
+            Solo compatibili
+          </button>
+        )}
 
         {/* Tutti */}
         <button
@@ -217,9 +254,9 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
                 <motion.div
                   key={shift.id}
                   className={index === 0 ? 'mt-0' : isSameDateAsPrevious ? 'mt-0.5' : 'mt-3'}
-                  initial={{ opacity: 0, y: 5 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.15, delay: Math.min(index * 0.03, 0.25), ease: 'easeOut' }}
+                  transition={{ duration: 0.15, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
                 >
                   <ShiftItem
                     shift={shift}
@@ -231,6 +268,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
                     onEdit={setEditingShift}
                     isHighlighted={highlightShiftId === shift.id}
                     duplicateCognomi={duplicateCognomi}
+                    isManagerView={isManagerView}
                   />
                 </motion.div>
               )

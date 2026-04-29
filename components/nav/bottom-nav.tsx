@@ -7,12 +7,19 @@ import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
 
+const MANAGER_CYCLE = ['/dashboard', '/vacanze', '/turnisala', '/turniferie']
+function nextManagerPage(current: string): string {
+  const idx = MANAGER_CYCLE.indexOf(current)
+  return MANAGER_CYCLE[(idx + 1) % MANAGER_CYCLE.length]
+}
+
 interface Props {
   feedbackUnread?: number
   isAdmin?: boolean
+  isManager?: boolean
 }
 
-export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
+export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = false }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const isVacanze = pathname === '/vacanze'
@@ -63,7 +70,11 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
       return
     }
     setAdminFabOpen(false)
-    router.push('/turniferie')
+    if (isManager && !isAdmin) {
+      router.push(nextManagerPage(pathname))
+    } else {
+      router.push('/turniferie')
+    }
   }
 
   function dispatchSalaAdmin(event: string) {
@@ -92,7 +103,11 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
       return
     }
     setFerieAdminFabOpen(false)
-    router.push('/turnisala')
+    if (isManager && !isAdmin) {
+      router.push(nextManagerPage(pathname))
+    } else {
+      router.push('/turnisala')
+    }
   }
 
   const leftLinks = [
@@ -105,6 +120,41 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
 
   return (
     <>
+      {/* Manager mini-fabs overlay — turnisala only (no "Modifica piantina") */}
+      {pathname === '/turnisala' && isManager && !isAdmin && adminFabOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setAdminFabOpen(false)}
+        >
+          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Cronologia PDF
+              </span>
+              <button
+                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-history') }}
+                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
+                aria-label="Cronologia PDF"
+              >
+                <History size={18} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Upload PDF
+              </span>
+              <button
+                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-upload') }}
+                className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:bg-primary/90 transition-colors"
+                aria-label="Upload PDF"
+              >
+                <Upload size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Admin mini-fabs overlay — turnisala only */}
       {pathname === '/turnisala' && isAdmin && adminFabOpen && (
         <div
@@ -146,6 +196,33 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                 aria-label="Upload PDF"
               >
                 <Upload size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manager mini-fabs overlay — turniferie only */}
+      {pathname === '/turniferie' && isManager && !isAdmin && ferieAdminFabOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setFerieAdminFabOpen(false)}
+        >
+          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Sposta ferie
+              </span>
+              <button
+                onClick={e => {
+                  e.stopPropagation()
+                  document.dispatchEvent(new CustomEvent('ferie-admin-swap'))
+                  setFerieAdminFabOpen(false)
+                }}
+                className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:bg-primary/90 transition-colors"
+                aria-label="Sposta dipendente tra periodi"
+              >
+                <ArrowLeftRight size={18} />
               </button>
             </div>
           </div>
@@ -250,7 +327,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                   {notifFabOpen ? <X size={20} /> : <Bell size={20} />}
                 </button>
               ) : isTurni ? (
-                pathname === '/turnisala' && isAdmin ? (
+                pathname === '/turnisala' && (isAdmin || isManager) ? (
                   <button
                     onPointerDown={handleTurniSalaFabPointerDown}
                     onPointerUp={handleTurniSalaFabPointerUp}
@@ -263,11 +340,11 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                         ? 'bg-muted text-foreground border border-border'
                         : 'bg-primary text-primary-foreground',
                     )}
-                    aria-label={adminFabOpen ? 'Chiudi menu admin' : 'Azioni admin sala'}
+                    aria-label={adminFabOpen ? 'Chiudi menu' : 'Azioni sala'}
                   >
                     {adminFabOpen ? <X size={20} /> : <ArrowLeftRight size={20} />}
                   </button>
-                ) : pathname === '/turniferie' && isAdmin ? (
+                ) : pathname === '/turniferie' && (isAdmin || isManager) ? (
                   <button
                     onPointerDown={handleFerieFabPointerDown}
                     onPointerUp={handleFerieFabPointerUp}
@@ -280,7 +357,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                         ? 'bg-muted text-foreground border border-border'
                         : 'bg-primary text-primary-foreground',
                     )}
-                    aria-label={ferieAdminFabOpen ? 'Chiudi menu admin' : 'Azioni admin ferie'}
+                    aria-label={ferieAdminFabOpen ? 'Chiudi menu' : 'Azioni ferie'}
                   >
                     {ferieAdminFabOpen ? <X size={20} /> : <ArrowLeftRight size={20} />}
                   </button>
@@ -294,21 +371,41 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false }: Props) {
                   </button>
                 )
               ) : isVacanze ? (
-                <Link
-                  href="/vacanze?new=1"
-                  className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                  aria-label="Nuova richiesta ferie"
-                >
-                  <Plus size={22} />
-                </Link>
+                isManager ? (
+                  <button
+                    onClick={() => router.push(nextManagerPage(pathname))}
+                    className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+                    aria-label="Pagina successiva"
+                  >
+                    <ArrowLeftRight size={20} />
+                  </button>
+                ) : (
+                  <Link
+                    href="/vacanze?new=1"
+                    className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+                    aria-label="Nuova richiesta ferie"
+                  >
+                    <Plus size={22} />
+                  </Link>
+                )
               ) : (
-                <Link
-                  href="/dashboard?new=1"
-                  className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                  aria-label="Nuovo turno"
-                >
-                  <Plus size={22} />
-                </Link>
+                isManager ? (
+                  <button
+                    onClick={() => router.push(nextManagerPage(pathname))}
+                    className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+                    aria-label="Pagina successiva"
+                  >
+                    <ArrowLeftRight size={20} />
+                  </button>
+                ) : (
+                  <Link
+                    href="/dashboard?new=1"
+                    className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
+                    aria-label="Nuovo turno"
+                  >
+                    <Plus size={22} />
+                  </Link>
+                )
               )}
             </div>
 
