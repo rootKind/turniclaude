@@ -2,31 +2,6 @@ import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function sendToUser(supabase: any, userId: string, payload: string) {
-  const { data: subs } = await supabase
-    .from('push_subscriptions')
-    .select('subscription, endpoint')
-    .eq('user_id', userId)
-
-  if (!subs?.length) return
-
-  const stale: string[] = []
-  await Promise.allSettled(
-    subs.map(async ({ subscription, endpoint }) => {
-      try {
-        await webpush.sendNotification(subscription as webpush.PushSubscription, payload)
-      } catch (err: unknown) {
-        const code = (err as { statusCode?: number })?.statusCode
-        if (code === 410 || code === 404) stale.push(endpoint as string)
-      }
-    })
-  )
-  if (stale.length) {
-    await supabase.from('push_subscriptions').delete().in('endpoint', stale).eq('user_id', userId)
-  }
-}
-
 export async function POST(req: Request) {
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT!,
@@ -43,10 +18,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { type, shiftId, actorName, isSecondary, offeredShift, requestedShifts, shiftDate, requestId, offeredPeriod, targetPeriods, year,
-    // manager action fields
-    targetUserId, managerName, reason, creatorUserId, winnerUserId, otherUserIds,
-  } = body as Record<string, unknown>
+  const { type, shiftId, actorName, isSecondary, offeredShift, requestedShifts, shiftDate, requestId, offeredPeriod, targetPeriods, year } = body as Record<string, unknown>
 
   if (type === 'new_shift' && typeof isSecondary !== 'boolean') {
     return NextResponse.json({ error: 'isSecondary must be boolean' }, { status: 400 })
@@ -268,111 +240,6 @@ export async function POST(req: Request) {
     }
   }
 
-  } else if (type === 'manager_shift_reject') {
-    if (!targetUserId) return NextResponse.json({ error: 'Missing targetUserId' }, { status: 400 })
-    const dateLabel = shiftDate ? formatDate(shiftDate as string) : ''
-    const reasonStr = typeof reason === 'string' && reason ? ` per: ${reason}` : ''
-    const body = `Il turnista ha cancellato la tua richiesta di cambio ${offeredShift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''}${reasonStr}`
-    await sendToUser(supabase, targetUserId as string, JSON.stringify({
-      title: 'Richiesta di cambio cancellata',
-      body,
-      type: 'system',
-    }))
-
-  } else if (type === 'manager_shift_confirm') {
-    if (!creatorUserId) return NextResponse.json({ error: 'Missing creatorUserId' }, { status: 400 })
-    const dateLabel = shiftDate ? formatDate(shiftDate as string) : ''
-
-    if (winnerUserId) {
-      // Load winner name
-      const { data: winnerProfile } = await supabase
-        .from('users')
-        .select('nome, cognome')
-        .eq('id', winnerUserId as string)
-        .single()
-      const winnerName = winnerProfile ? `${winnerProfile.cognome ?? ''} ${winnerProfile.nome ?? ''}`.trim() : 'un collega'
-
-      // Load creator name
-      const { data: creatorProfile } = await supabase
-        .from('users')
-        .select('nome, cognome')
-        .eq('id', creatorUserId as string)
-        .single()
-      const creatorName = creatorProfile ? `${creatorProfile.cognome ?? ''} ${creatorProfile.nome ?? ''}`.trim() : 'un collega'
-
-      const confirmedBody = `Il turnista ha approvato la richiesta di cambio ${offeredShift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''} con ${winnerName}`
-      const confirmedPayload = JSON.stringify({ title: 'Cambio turno approvato', body: confirmedBody, type: 'system' })
-      await sendToUser(supabase, creatorUserId as string, confirmedPayload)
-
-      const winnerBody = `Il turnista ha approvato il cambio ${offeredShift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''} con ${creatorName}`
-      await sendToUser(supabase, winnerUserId as string, JSON.stringify({ title: 'Cambio turno approvato', body: winnerBody, type: 'system' }))
-    }
-
-    // Notify other interested users
-    if (Array.isArray(otherUserIds)) {
-      const othersPayload = JSON.stringify({
-        title: 'Cambio turno assegnato ad altri',
-        body: 'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.',
-        type: 'system',
-      })
-      await Promise.allSettled((otherUserIds as string[]).map(id => sendToUser(supabase, id, othersPayload)))
-    }
-
-  } else if (type === 'manager_vacation_reject') {
-    if (!targetUserId) return NextResponse.json({ error: 'Missing targetUserId' }, { status: 400 })
-    const periodLabels: Record<number, string> = {
-      1: '16–30 Giu', 2: '01–15 Lug', 3: '16–31 Lug',
-      4: '01–15 Ago', 5: '16–31 Ago', 6: '01–15 Set',
-    }
-    const periodLabel = periodLabels[offeredPeriod as number] ?? `Periodo ${offeredPeriod}`
-    const yearLabel = year ? ` (${year})` : ''
-    const reasonStr = typeof reason === 'string' && reason ? ` per: ${reason}` : ''
-    const body = `Il turnista ha cancellato la tua richiesta di cambio ferie ${periodLabel}${yearLabel}${reasonStr}`
-    await sendToUser(supabase, targetUserId as string, JSON.stringify({
-      title: 'Richiesta di cambio ferie cancellata',
-      body,
-      type: 'system',
-    }))
-
-  } else if (type === 'manager_vacation_confirm') {
-    if (!creatorUserId) return NextResponse.json({ error: 'Missing creatorUserId' }, { status: 400 })
-    const periodLabels: Record<number, string> = {
-      1: '16–30 Giu', 2: '01–15 Lug', 3: '16–31 Lug',
-      4: '01–15 Ago', 5: '16–31 Ago', 6: '01–15 Set',
-    }
-    const periodLabel = periodLabels[offeredPeriod as number] ?? `Periodo ${offeredPeriod}`
-    const yearLabel = year ? ` (${year})` : ''
-
-    if (winnerUserId) {
-      const { data: winnerProfile } = await supabase
-        .from('users')
-        .select('nome, cognome')
-        .eq('id', winnerUserId as string)
-        .single()
-      const winnerName = winnerProfile ? `${winnerProfile.cognome ?? ''} ${winnerProfile.nome ?? ''}`.trim() : 'un collega'
-
-      const { data: creatorProfile } = await supabase
-        .from('users')
-        .select('nome, cognome')
-        .eq('id', creatorUserId as string)
-        .single()
-      const creatorName = creatorProfile ? `${creatorProfile.cognome ?? ''} ${creatorProfile.nome ?? ''}`.trim() : 'un collega'
-
-      const creatorBody = `Il turnista ha approvato il tuo cambio ferie ${periodLabel}${yearLabel} con ${winnerName}`
-      await sendToUser(supabase, creatorUserId as string, JSON.stringify({ title: 'Cambio ferie approvato', body: creatorBody, type: 'system' }))
-
-      const winnerBody = `Il turnista ha approvato il cambio ferie ${periodLabel}${yearLabel} con ${creatorName}`
-      await sendToUser(supabase, winnerUserId as string, JSON.stringify({ title: 'Cambio ferie approvato', body: winnerBody, type: 'system' }))
-    }
-
-    if (Array.isArray(otherUserIds)) {
-      const othersPayload = JSON.stringify({
-        title: 'Cambio ferie assegnato ad altri',
-        body: 'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.',
-        type: 'system',
-      })
-      await Promise.allSettled((otherUserIds as string[]).map(id => sendToUser(supabase, id, othersPayload)))
-    }
   }
 
   return NextResponse.json({ ok: true })

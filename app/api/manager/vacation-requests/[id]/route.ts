@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { pushToUser } from '@/lib/push/send-to-user'
+
+const PERIOD_LABELS: Record<number, string> = {
+  1: '16–30 Giu', 2: '01–15 Lug', 3: '16–31 Lug',
+  4: '01–15 Ago', 5: '16–31 Ago', 6: '01–15 Set',
+}
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient()
@@ -38,7 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const { data: vacReq } = await adminSupabase
     .from('vacation_requests')
-    .select('user_id, offered_period, target_periods, year')
+    .select('user_id, offered_period, year')
     .eq('id', requestId)
     .single()
 
@@ -58,40 +64,56 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
-  const managerName = [callerProfile.cognome, callerProfile.nome].filter(Boolean).join(' ') || 'Il turnista'
-  const notifyBase = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const periodLabel = PERIOD_LABELS[vacReq.offered_period as number] ?? `Periodo ${vacReq.offered_period}`
+  const yearLabel = vacReq.year ? ` (${vacReq.year})` : ''
 
   if (action === 'reject') {
     const reasonStr = typeof reason === 'string' && reason.trim() ? reason.trim() : null
-    await fetch(`${notifyBase}/api/push/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'manager_vacation_reject',
-        targetUserId: vacReq.user_id,
-        managerName,
-        offeredPeriod: vacReq.offered_period,
-        year: vacReq.year,
-        reason: reasonStr,
-      }),
+    await pushToUser(vacReq.user_id as string, {
+      title: 'Richiesta di cambio ferie cancellata',
+      body: `Il turnista ha cancellato la tua richiesta di cambio ferie ${periodLabel}${yearLabel}${reasonStr ? ` per: ${reasonStr}` : ''}`,
+      type: 'system',
     }).catch(() => {})
   } else {
     const winnerId = typeof selectedUserId === 'string' ? selectedUserId : (interestedUserIds[0] ?? null)
-    const otherIds = interestedUserIds.filter(id => id !== winnerId)
+    const otherIds = interestedUserIds.filter((id: string) => id !== winnerId)
 
-    await fetch(`${notifyBase}/api/push/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'manager_vacation_confirm',
-        creatorUserId: vacReq.user_id,
-        winnerUserId: winnerId,
-        otherUserIds: otherIds,
-        managerName,
-        offeredPeriod: vacReq.offered_period,
-        year: vacReq.year,
-      }),
-    }).catch(() => {})
+    if (winnerId) {
+      const { data: winnerProfile } = await adminSupabase
+        .from('users').select('nome, cognome').eq('id', winnerId).single()
+      const winnerName = winnerProfile
+        ? `${winnerProfile.cognome ?? ''} ${winnerProfile.nome ?? ''}`.trim()
+        : 'un collega'
+
+      const { data: creatorProfile } = await adminSupabase
+        .from('users').select('nome, cognome').eq('id', vacReq.user_id as string).single()
+      const creatorName = creatorProfile
+        ? `${creatorProfile.cognome ?? ''} ${creatorProfile.nome ?? ''}`.trim()
+        : 'un collega'
+
+      await Promise.allSettled([
+        pushToUser(vacReq.user_id as string, {
+          title: 'Cambio ferie approvato',
+          body: `Il turnista ha approvato la tua richiesta di cambio ferie ${periodLabel}${yearLabel} con ${winnerName}`,
+          type: 'system',
+        }),
+        pushToUser(winnerId, {
+          title: 'Cambio ferie approvato',
+          body: `Il turnista ha approvato il cambio ferie ${periodLabel}${yearLabel} con ${creatorName}`,
+          type: 'system',
+        }),
+      ])
+    }
+
+    if (otherIds.length) {
+      await Promise.allSettled(otherIds.map((id: string) =>
+        pushToUser(id, {
+          title: 'Cambio ferie assegnato ad altri',
+          body: 'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.',
+          type: 'system',
+        })
+      ))
+    }
   }
 
   return NextResponse.json({ ok: true })

@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { pushToUser } from '@/lib/push/send-to-user'
+
+function formatDate(dateStr: string) {
+  const [, mm, dd] = dateStr.split('-')
+  return `${dd}/${mm}`
+}
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient()
@@ -36,10 +42,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Load shift + interested users
   const { data: shift } = await adminSupabase
     .from('shifts')
-    .select('user_id, offered_shift, shift_date, requested_shifts')
+    .select('user_id, offered_shift, shift_date')
     .eq('id', shiftId)
     .single()
 
@@ -52,7 +57,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const interestedUserIds = (interested ?? []).map((i: { user_id: string }) => i.user_id)
 
-  // Delete the shift request
   const { error: deleteError } = await adminSupabase
     .from('shifts')
     .delete()
@@ -60,44 +64,56 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
-  const managerName = [callerProfile.cognome, callerProfile.nome].filter(Boolean).join(' ') || 'Il turnista'
-
-  // Send notifications
-  const notifyBase = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const dateLabel = shift.shift_date ? formatDate(shift.shift_date as string) : ''
 
   if (action === 'reject') {
     const reasonStr = typeof reason === 'string' && reason.trim() ? reason.trim() : null
-    await fetch(`${notifyBase}/api/push/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'manager_shift_reject',
-        targetUserId: shift.user_id,
-        managerName,
-        shiftId,
-        offeredShift: shift.offered_shift,
-        shiftDate: shift.shift_date,
-        reason: reasonStr,
-      }),
+    const bodyText = `Il turnista ha cancellato la tua richiesta di cambio ${shift.offered_shift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''}${reasonStr ? ` per: ${reasonStr}` : ''}`
+    await pushToUser(shift.user_id as string, {
+      title: 'Richiesta di cambio cancellata',
+      body: bodyText,
+      type: 'system',
     }).catch(() => {})
   } else {
-    // confirm
     const winnerId = typeof selectedUserId === 'string' ? selectedUserId : (interestedUserIds[0] ?? null)
-    const otherIds = interestedUserIds.filter(id => id !== winnerId)
+    const otherIds = interestedUserIds.filter((id: string) => id !== winnerId)
 
-    await fetch(`${notifyBase}/api/push/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'manager_shift_confirm',
-        creatorUserId: shift.user_id,
-        winnerUserId: winnerId,
-        otherUserIds: otherIds,
-        managerName,
-        offeredShift: shift.offered_shift,
-        shiftDate: shift.shift_date,
-      }),
-    }).catch(() => {})
+    if (winnerId) {
+      const { data: winnerProfile } = await adminSupabase
+        .from('users').select('nome, cognome').eq('id', winnerId).single()
+      const winnerName = winnerProfile
+        ? `${winnerProfile.cognome ?? ''} ${winnerProfile.nome ?? ''}`.trim()
+        : 'un collega'
+
+      const { data: creatorProfile } = await adminSupabase
+        .from('users').select('nome, cognome').eq('id', shift.user_id as string).single()
+      const creatorName = creatorProfile
+        ? `${creatorProfile.cognome ?? ''} ${creatorProfile.nome ?? ''}`.trim()
+        : 'un collega'
+
+      await Promise.allSettled([
+        pushToUser(shift.user_id as string, {
+          title: 'Cambio turno approvato',
+          body: `Il turnista ha approvato la tua richiesta di cambio ${shift.offered_shift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''} con ${winnerName}`,
+          type: 'system',
+        }),
+        pushToUser(winnerId, {
+          title: 'Cambio turno approvato',
+          body: `Il turnista ha approvato il cambio ${shift.offered_shift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''} con ${creatorName}`,
+          type: 'system',
+        }),
+      ])
+    }
+
+    if (otherIds.length) {
+      await Promise.allSettled(otherIds.map((id: string) =>
+        pushToUser(id, {
+          title: 'Cambio turno assegnato ad altri',
+          body: 'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.',
+          type: 'system',
+        })
+      ))
+    }
   }
 
   return NextResponse.json({ ok: true })
