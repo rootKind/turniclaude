@@ -139,6 +139,9 @@ export interface DeskCard {
   hasTirocinante?: boolean
   tirocinante?: string
   col?: number
+  // display-only (not persisted): populated at render time from schedule
+  surnameSlots?: Array<'T' | 'S' | 'noSlot'>
+  surnameColors?: Record<string, 'salmon' | 'green'>
 }
 
 export interface SalaLayout {
@@ -164,6 +167,7 @@ export interface SalaSchedule {
   month: string               // "2026-04"
   schedule: Record<number, DaySchedule>  // day 1–31
   uploaded_at: string
+  coloredPersons?: Record<number, Record<string, 'salmon' | 'green'>>
 }
 
 // ── Costanti ─────────────────────────────────────────────────────────────────
