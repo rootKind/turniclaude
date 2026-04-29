@@ -7,6 +7,12 @@ import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
 
+const MANAGER_CYCLE = ['/dashboard', '/vacanze', '/turnisala', '/turniferie']
+function nextManagerPage(current: string): string {
+  const idx = MANAGER_CYCLE.indexOf(current)
+  return MANAGER_CYCLE[(idx + 1) % MANAGER_CYCLE.length]
+}
+
 interface Props {
   feedbackUnread?: number
   isAdmin?: boolean
@@ -64,7 +70,11 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
       return
     }
     setAdminFabOpen(false)
-    router.push('/turniferie')
+    if (isManager && !isAdmin) {
+      router.push(nextManagerPage(pathname))
+    } else {
+      router.push('/turniferie')
+    }
   }
 
   function dispatchSalaAdmin(event: string) {
@@ -93,7 +103,11 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
       return
     }
     setFerieAdminFabOpen(false)
-    router.push('/turnisala')
+    if (isManager && !isAdmin) {
+      router.push(nextManagerPage(pathname))
+    } else {
+      router.push('/turnisala')
+    }
   }
 
   const leftLinks = [
@@ -359,9 +373,9 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
               ) : isVacanze ? (
                 isManager ? (
                   <button
-                    onClick={() => router.push('/dashboard')}
+                    onClick={() => router.push(nextManagerPage(pathname))}
                     className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                    aria-label="Vai a cambi turno"
+                    aria-label="Pagina successiva"
                   >
                     <ArrowLeftRight size={20} />
                   </button>
@@ -377,9 +391,9 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
               ) : (
                 isManager ? (
                   <button
-                    onClick={() => router.push('/vacanze')}
+                    onClick={() => router.push(nextManagerPage(pathname))}
                     className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                    aria-label="Vai a cambi ferie"
+                    aria-label="Pagina successiva"
                   >
                     <ArrowLeftRight size={20} />
                   </button>

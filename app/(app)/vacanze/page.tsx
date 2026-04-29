@@ -124,7 +124,7 @@ function VacanzeContent() {
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2 mb-3 pr-12">
         <h1 className="text-lg font-bold">Ferie Sala C.C.C.</h1>
         {profile && canToggleCategory && (
           <button
