@@ -4,13 +4,15 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { User } from 'lucide-react'
 import { useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
+import { useAppSettings } from '@/hooks/use-app-settings'
 import { isManager } from '@/types/database'
 import { ShiftItem } from './shift-item'
 import { EditShiftDialog } from './edit-shift-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import { cn, todayRome } from '@/lib/utils'
 import { useDuplicateCognomi } from '@/hooks/use-users'
 import type { Shift } from '@/types/database'
+import { addDays, parseISO, format } from 'date-fns'
 
 const MONTH_LABELS: Record<string, string> = {
   '01': 'Gen', '02': 'Feb', '03': 'Mar', '04': 'Apr',
@@ -40,6 +42,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   const loggedInUserId = loggedInUserIdProp ?? profile?.id ?? ''
   const isManagerView = profile ? isManager(profile) : false
   const { data: shifts = [], isLoading } = useShifts(isSecondary)
+  const appSettings = useAppSettings()
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [selectedFilter, setSelectedFilter] = useState<FilterValue>(null)
 
@@ -49,12 +52,24 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   // 1 = going to previous (swipe right), -1 = going to next (swipe left)
   const swipeDirection = useRef<1 | -1>(-1)
 
+  const baseShifts = useMemo(() => {
+    if (
+      appSettings?.shift_swap_limit_enabled &&
+      appSettings.hide_shifts_beyond_limit &&
+      appSettings.max_shift_swap_days > 0
+    ) {
+      const maxDateStr = format(addDays(parseISO(todayRome()), appSettings.max_shift_swap_days), 'yyyy-MM-dd')
+      return shifts.filter(s => s.shift_date <= maxDateStr)
+    }
+    return shifts
+  }, [shifts, appSettings])
+
   const months = useMemo(() => {
     const seen = new Set<string>()
-    return shifts
+    return baseShifts
       .map(s => s.shift_date.slice(0, 7))
       .filter(m => { if (seen.has(m)) return false; seen.add(m); return true })
-  }, [shifts])
+  }, [baseShifts])
 
   // Navigation sequence: 'mine'/'compatible', null, ...months
   const navSequence = useMemo<FilterValue[]>(
@@ -63,13 +78,13 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   )
 
   const filtered = useMemo(() => {
-    if (selectedFilter === 'mine') return shifts.filter(s => s.user_id === effectiveUserId)
-    if (selectedFilter === 'compatible') return shifts.filter(s => (s.shift_interested_users?.length ?? 0) > 0)
-    if (!selectedFilter) return shifts
-    return shifts.filter(s => s.shift_date.startsWith(selectedFilter))
-  }, [shifts, selectedFilter, effectiveUserId])
+    if (selectedFilter === 'mine') return baseShifts.filter(s => s.user_id === effectiveUserId)
+    if (selectedFilter === 'compatible') return baseShifts.filter(s => (s.shift_interested_users?.length ?? 0) > 0)
+    if (!selectedFilter) return baseShifts
+    return baseShifts.filter(s => s.shift_date.startsWith(selectedFilter))
+  }, [baseShifts, selectedFilter, effectiveUserId])
 
-  const hasOwnShifts = useMemo(() => shifts.some(s => s.user_id === effectiveUserId), [shifts, effectiveUserId])
+  const hasOwnShifts = useMemo(() => baseShifts.some(s => s.user_id === effectiveUserId), [baseShifts, effectiveUserId])
   const duplicateCognomi = useDuplicateCognomi(isSecondary)
   const showChipBar = months.length > 1 || hasOwnShifts
 
@@ -137,7 +152,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   }
 
   if (isLoading) return <ShiftListSkeleton />
-  if (!shifts.length) return (
+  if (!baseShifts.length) return (
     <div className="text-center py-12 text-muted-foreground text-sm">
       {isManagerView ? 'Nessuna richiesta di cambio turno.' : 'Nessun turno disponibile. Premi + per aggiungerne uno.'}
     </div>

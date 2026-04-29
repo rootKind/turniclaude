@@ -9,9 +9,10 @@ import { useDuplicateCognomi } from '@/hooks/use-users'
 import { createShift, findCompatibleShifts, toggleInterest } from '@/lib/queries/shifts'
 import { SHIFTS_QUERY_KEY, useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
+import { useAppSettings } from '@/hooks/use-app-settings'
 import { toast } from 'sonner'
 import { it } from 'date-fns/locale'
-import { format } from 'date-fns'
+import { format, addDays, parseISO } from 'date-fns'
 import { ArrowRight } from 'lucide-react'
 import type { Shift, ShiftType } from '@/types/database'
 
@@ -44,6 +45,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
   const { profile } = useCurrentUser()
   const { data: shifts = [] } = useShifts(isSecondary)
   const duplicateCognomi = useDuplicateCognomi(isSecondary)
+  const appSettings = useAppSettings()
 
   const effectiveUserId = impersonatingUserId ?? profile?.id ?? ''
 
@@ -220,7 +222,12 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
                     locale={it}
                     disabled={(date) => {
                       const str = format(date, 'yyyy-MM-dd')
-                      return str <= todayRome() || occupiedDates.has(str)
+                      if (str <= todayRome() || occupiedDates.has(str)) return true
+                      if (appSettings?.shift_swap_limit_enabled && appSettings.max_shift_swap_days > 0) {
+                        const maxDate = format(addDays(parseISO(todayRome()), appSettings.max_shift_swap_days), 'yyyy-MM-dd')
+                        if (str > maxDate) return true
+                      }
+                      return false
                     }}
                     className="rounded-xl border w-full"
                   />
