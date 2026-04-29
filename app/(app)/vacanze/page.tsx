@@ -134,7 +134,7 @@ function VacanzeContent() {
       <div className="mb-4 px-3 py-2.5 rounded-xl offered-box border flex items-center gap-2">
         <button
           onClick={() => changeYear(-1)}
-          disabled={selectedYear <= minYear}
+          disabled={minYear === null || selectedYear <= minYear}
           className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
         >
           <ChevronLeft size={16} className="text-offered-label" />
