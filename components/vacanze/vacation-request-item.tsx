@@ -247,7 +247,6 @@ export function VacationRequestItem({
       isSameDateAsPrevious ? 'mt-0.5' : 'mt-3',
       'first:mt-0 rounded-[10px] transition-shadow duration-700',
       showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
-      request.is_pending && 'ring-1 ring-amber-500/60',
     )}>
       {/* Main row */}
       <div
@@ -256,12 +255,15 @@ export function VacationRequestItem({
         aria-expanded={expanded}
         className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius,
           !request.is_pending && isManagerView && hasInterest && 'bg-green-500/[0.08]',
+          request.is_pending && 'bg-amber-500/[0.08]',
         )}
         onClick={() => setExpanded(v => !v)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
       >
         {/* Date block */}
-        <div className={cn('w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
+        <div className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
+          {!request.is_pending && isManagerView && hasInterest && <span className="absolute inset-0 bg-green-500/[0.08] pointer-events-none" />}
+          {request.is_pending && <span className="absolute inset-0 bg-amber-500/[0.08] pointer-events-none" />}
           {dateIndex > 0 ? (
             <span className="text-[16px] font-extrabold leading-none text-muted-foreground">{dateIndex + 1}°</span>
           ) : (
@@ -306,22 +308,28 @@ export function VacationRequestItem({
           {/* Interest count */}
           <div className="flex-shrink-0 text-[11px]">
             {isManagerView ? (
-              <button
-                className={cn(
-                  'flex items-center gap-0.5 rounded px-1 py-0.5 transition-colors',
-                  request.is_pending
-                    ? 'text-amber-500 hover:text-amber-600'
-                    : hasInterest
-                      ? 'text-green-600 hover:text-green-700'
-                      : 'text-muted-foreground hover:text-foreground',
-                  managerLoading && 'opacity-50 pointer-events-none',
+              <div className="flex items-center gap-1">
+                <button
+                  className={cn(
+                    'flex items-center justify-center w-5 h-5 rounded-full border transition-colors',
+                    request.is_pending
+                      ? 'border-amber-500/70 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
+                      : hasInterest
+                        ? 'border-green-600/40 text-green-600 bg-green-500/10 hover:bg-green-500/20'
+                        : 'border-muted-foreground/30 text-muted-foreground hover:border-foreground/50 hover:text-foreground',
+                    managerLoading && 'opacity-50 pointer-events-none',
+                  )}
+                  onClick={handleManagerPending}
+                  aria-label="Segna come in attesa"
+                >
+                  <Clock size={10} />
+                </button>
+                {interestCount > 0 && (
+                  <span className={cn(request.is_pending ? 'text-amber-500' : 'text-green-600')}>
+                    {interestCount}
+                  </span>
                 )}
-                onClick={handleManagerPending}
-                aria-label="Segna come in attesa"
-              >
-                <Clock size={11} className={request.is_pending ? 'fill-amber-500/30' : ''} />
-                {interestCount}
-              </button>
+              </div>
             ) : isOwn ? (
               <span className={hasInterest ? 'text-interest-date' : 'text-muted-foreground'}>
                 {hasInterest ? `${interestCount} ❤️` : '0 ♡'}

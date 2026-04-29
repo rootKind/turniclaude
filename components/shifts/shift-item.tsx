@@ -210,7 +210,6 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
       className={cn(
         'rounded-[10px] transition-shadow duration-700',
         showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
-        shift.is_pending && 'ring-1 ring-amber-500/60',
       )}
     >
       {/* Main row */}
@@ -220,12 +219,15 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         aria-expanded={expanded}
         className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius,
           !shift.is_pending && isManagerView && hasInterest && 'bg-green-500/[0.08]',
+          shift.is_pending && 'bg-amber-500/[0.08]',
         )}
         onClick={() => setExpanded(v => !v)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
       >
         {/* Date block */}
-        <div className={cn('w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
+        <div className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
+          {!shift.is_pending && isManagerView && hasInterest && <span className="absolute inset-0 bg-green-500/[0.08] pointer-events-none" />}
+          {shift.is_pending && <span className="absolute inset-0 bg-amber-500/[0.08] pointer-events-none" />}
           {dateIndex > 0 ? (
             <span className="text-[16px] font-extrabold leading-none text-muted-foreground">{dateIndex + 1}°</span>
           ) : (
@@ -265,22 +267,28 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
           {/* Interest count */}
           <div className="flex-shrink-0 text-[11px]">
             {isManagerView ? (
-              <button
-                className={cn(
-                  'flex items-center gap-0.5 rounded px-1 py-0.5 transition-colors',
-                  shift.is_pending
-                    ? 'text-amber-500 hover:text-amber-600'
-                    : hasInterest
-                      ? 'text-green-600 hover:text-green-700'
-                      : 'text-muted-foreground hover:text-foreground',
-                  managerLoading && 'opacity-50 pointer-events-none',
+              <div className="flex items-center gap-1">
+                <button
+                  className={cn(
+                    'flex items-center justify-center w-5 h-5 rounded-full border transition-colors',
+                    shift.is_pending
+                      ? 'border-amber-500/70 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
+                      : hasInterest
+                        ? 'border-green-600/40 text-green-600 bg-green-500/10 hover:bg-green-500/20'
+                        : 'border-muted-foreground/30 text-muted-foreground hover:border-foreground/50 hover:text-foreground',
+                    managerLoading && 'opacity-50 pointer-events-none',
+                  )}
+                  onClick={handleManagerPending}
+                  aria-label="Segna come in attesa"
+                >
+                  <Clock size={10} />
+                </button>
+                {(shift.shift_interested_users?.length ?? 0) > 0 && (
+                  <span className={cn(shift.is_pending ? 'text-amber-500' : 'text-green-600')}>
+                    {shift.shift_interested_users!.length}
+                  </span>
                 )}
-                onClick={handleManagerPending}
-                aria-label="Segna come in attesa"
-              >
-                <Clock size={11} className={shift.is_pending ? 'fill-amber-500/30' : ''} />
-                {shift.shift_interested_users?.length ?? 0}
-              </button>
+              </div>
             ) : isOwn ? (
               <span className={hasInterest ? 'text-interest-date' : 'text-muted-foreground'}>
                 {hasInterest ? `${shift.shift_interested_users!.length} ❤️` : '0 ♡'}
