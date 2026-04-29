@@ -93,7 +93,7 @@ export function NotificationTestDialog({ open, onClose }: Props) {
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Destinatario</Label>
-            <Select value={targetUserId} onValueChange={setTargetUserId}>
+            <Select value={targetUserId} onValueChange={(v) => setTargetUserId(v ?? '')}>
               <SelectTrigger><SelectValue placeholder="Seleziona dipendente…" /></SelectTrigger>
               <SelectContent>
                 {users.map(u => (
