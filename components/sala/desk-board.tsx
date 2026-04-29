@@ -126,6 +126,7 @@ function matchesCognome(surnames: string[], cognome?: string, nome?: string, dup
 interface Props {
   layout: SalaLayout
   isAdmin: boolean
+  isManager?: boolean
   userId: string
   userCognome?: string
   userNome?: string
@@ -141,6 +142,7 @@ interface Props {
 export function DeskBoard({
   layout: initialLayout,
   isAdmin,
+  isManager = false,
   userCognome,
   userNome,
   onSave,
@@ -151,6 +153,7 @@ export function DeskBoard({
   onUpload,
   onDeleteMonth,
 }: Props) {
+  const canUpload = isAdmin || isManager
   const duplicateCognomi = useAllDuplicateCognomi()
   const [cards, setCards] = useState<DeskCardType[]>(() => initCards(initialLayout.cards))
   const [defaults, setDefaults] = useState<SalaLayoutDefaults>(
@@ -405,19 +408,23 @@ export function DeskBoard({
   }, [])
 
   useEffect(() => {
-    if (!isAdmin) return
-    const onUpload = () => fileInputRef.current?.click()
+    if (!canUpload) return
+    const onUploadEvt = () => fileInputRef.current?.click()
     const onHistory = () => openHistory()
-    const onEdit = () => setIsEditing(true)
-    document.addEventListener('sala-admin-upload', onUpload)
+    document.addEventListener('sala-admin-upload', onUploadEvt)
     document.addEventListener('sala-admin-history', onHistory)
-    document.addEventListener('sala-admin-edit', onEdit)
     return () => {
-      document.removeEventListener('sala-admin-upload', onUpload)
+      document.removeEventListener('sala-admin-upload', onUploadEvt)
       document.removeEventListener('sala-admin-history', onHistory)
-      document.removeEventListener('sala-admin-edit', onEdit)
     }
-  }, [isAdmin, openHistory])
+  }, [canUpload, openHistory])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    const onEdit = () => setIsEditing(true)
+    document.addEventListener('sala-admin-edit', onEdit)
+    return () => { document.removeEventListener('sala-admin-edit', onEdit) }
+  }, [isAdmin])
 
   const handleDeleteMonth = async (month: string) => {
     setDeletingMonth(month)
@@ -533,7 +540,7 @@ export function DeskBoard({
             ))}
           </div>
 
-          {isAdmin && (
+          {canUpload && (
             <input
               ref={fileInputRef}
               type="file"

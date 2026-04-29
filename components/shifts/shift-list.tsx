@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { User } from 'lucide-react'
 import { useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
+import { isManager } from '@/types/database'
 import { ShiftItem } from './shift-item'
 import { EditShiftDialog } from './edit-shift-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -37,6 +38,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   const isSecondary = isSecondaryProp !== undefined ? isSecondaryProp : (profile?.is_secondary ?? false)
   const effectiveUserId = effectiveUserIdProp ?? profile?.id ?? ''
   const loggedInUserId = loggedInUserIdProp ?? profile?.id ?? ''
+  const isManagerView = profile ? isManager(profile) : false
   const { data: shifts = [], isLoading } = useShifts(isSecondary)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [selectedFilter, setSelectedFilter] = useState<FilterValue>(null)
@@ -133,7 +135,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   if (isLoading) return <ShiftListSkeleton />
   if (!shifts.length) return (
     <div className="text-center py-12 text-muted-foreground text-sm">
-      Nessun turno disponibile. Premi + per aggiungerne uno.
+      {isManagerView ? 'Nessuna richiesta di cambio turno.' : 'Nessun turno disponibile. Premi + per aggiungerne uno.'}
     </div>
   )
 
@@ -143,20 +145,22 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
       {showChipBar && <div
         className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar"
       >
-        {/* Solo miei */}
-        <button
-          ref={el => { if (el) chipRefs.current.set('mine', el); else chipRefs.current.delete('mine') }}
-          onClick={() => navigateTo('mine')}
-          className={cn(
-            'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
-            selectedFilter === 'mine'
-              ? 'chip-selected'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
-          )}
-        >
-          <User className="w-3 h-3" />
-          Solo miei
-        </button>
+        {/* Solo miei — hidden for managers */}
+        {!isManagerView && (
+          <button
+            ref={el => { if (el) chipRefs.current.set('mine', el); else chipRefs.current.delete('mine') }}
+            onClick={() => navigateTo('mine')}
+            className={cn(
+              'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
+              selectedFilter === 'mine'
+                ? 'chip-selected'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
+            )}
+          >
+            <User className="w-3 h-3" />
+            Solo miei
+          </button>
+        )}
 
         {/* Tutti */}
         <button
@@ -231,6 +235,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
                     onEdit={setEditingShift}
                     isHighlighted={highlightShiftId === shift.id}
                     duplicateCognomi={duplicateCognomi}
+                    isManagerView={isManagerView}
                   />
                 </motion.div>
               )

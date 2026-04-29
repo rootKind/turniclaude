@@ -19,6 +19,7 @@ function useLandscapeLock() {
 interface Props {
   layout: SalaLayout
   isAdmin: boolean
+  isManager?: boolean
   userId: string
   userCognome?: string
   userNome?: string
@@ -30,6 +31,7 @@ interface Props {
 export function SalaPageClient({
   layout,
   isAdmin,
+  isManager = false,
   userId,
   userCognome,
   userNome,
@@ -108,6 +110,7 @@ export function SalaPageClient({
       <DeskBoard
         layout={layout}
         isAdmin={isAdmin}
+        isManager={isManager}
         userId={userId}
         userCognome={userCognome}
         userNome={userNome}

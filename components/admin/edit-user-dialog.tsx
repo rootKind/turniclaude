@@ -28,7 +28,7 @@ const formSchema = z.object({
 })
 type FormData = z.infer<typeof formSchema>
 
-type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean }
+type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_manager: boolean }
 
 interface Props {
   open: boolean
@@ -42,6 +42,7 @@ export function EditUserDialog({ open, onClose }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [basePeriod, setBasePeriod] = useState<VacationPeriod | null>(null)
   const [isSecondary, setIsSecondary] = useState(false)
+  const [isManagerState, setIsManagerState] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -49,10 +50,10 @@ export function EditUserDialog({ open, onClose }: Props) {
   })
 
   useEffect(() => {
-    if (!open) { setConfirmDelete(false); setBasePeriod(null); setIsSecondary(false); form.reset(); return }
+    if (!open) { setConfirmDelete(false); setBasePeriod(null); setIsSecondary(false); setIsManagerState(false); form.reset(); return }
     const supabase = createClient()
-    supabase.from('users').select('id, nome, cognome, is_secondary').order('cognome').then(({ data }) => {
-      setUsers(data ?? [])
+    supabase.from('users').select('id, nome, cognome, is_secondary, is_manager').order('cognome').then(({ data }) => {
+      setUsers((data ?? []) as UserOption[])
     })
   }, [open, form])
 
@@ -62,6 +63,7 @@ export function EditUserDialog({ open, onClose }: Props) {
       form.setValue('nome', u.nome ?? '')
       form.setValue('cognome', u.cognome ?? '')
       setIsSecondary(u.is_secondary)
+      setIsManagerState(u.is_manager)
     }
     setBasePeriod(null)
     const supabase = createClient()
@@ -83,7 +85,8 @@ export function EditUserDialog({ open, onClose }: Props) {
           userId: values.userId,
           nome: values.nome,
           cognome: values.cognome,
-          isSecondary,
+          isSecondary: isManagerState ? false : isSecondary,
+          isManager: isManagerState,
           ...(values.password ? { password: values.password } : {}),
         }),
       })
@@ -188,8 +191,22 @@ export function EditUserDialog({ open, onClose }: Props) {
               </FormItem>
             )} />
 
-            {/* Categoria utente */}
+            {/* Ruolo Manager */}
             {form.watch('userId') && (
+              <div className="flex items-center justify-between py-1">
+                <div>
+                  <Label className="text-sm font-medium">Manager</Label>
+                  <p className="text-[11px] text-muted-foreground">Né DCO né Noni</p>
+                </div>
+                <Switch checked={isManagerState} onCheckedChange={(v) => {
+                  setIsManagerState(v)
+                  if (v) setIsSecondary(false)
+                }} />
+              </div>
+            )}
+
+            {/* Categoria utente — nascosta se manager */}
+            {form.watch('userId') && !isManagerState && (
               <div className="flex items-center justify-between py-1">
                 <div>
                   <Label className="text-sm font-medium">Categoria</Label>

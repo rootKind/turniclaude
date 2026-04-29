@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { email, password, nome, cognome, is_secondary } = body as Record<string, unknown>
+  const { email, password, nome, cognome, is_secondary, is_manager } = body as Record<string, unknown>
   if (typeof email !== 'string' || typeof password !== 'string' || typeof nome !== 'string' || typeof cognome !== 'string') {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
@@ -32,11 +32,13 @@ export async function POST(req: Request) {
   })
   if (authError) return NextResponse.json({ error: authError.message }, { status: 500 })
 
+  const managerFlag = is_manager === true
   const { error: profileError } = await adminSupabase.from('users').insert({
     id: authData.user.id,
     nome,
     cognome,
-    is_secondary: is_secondary === true,
+    is_secondary: managerFlag ? false : is_secondary === true,
+    is_manager: managerFlag,
   })
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
 

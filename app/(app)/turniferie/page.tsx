@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useDuplicateCognomi } from '@/hooks/use-users'
 import { formatDisplayName } from '@/lib/utils'
-import { isAdmin } from '@/types/database'
+import { isAdmin, isManager } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getAllVacationAssignmentsWithUsers, getVacationYearOverrides, type VacationAssignmentWithUser } from '@/lib/queries/vacations'
 import { VACATION_PERIOD_LABELS, getEffectivePeriodForYear } from '@/lib/vacations'
@@ -28,8 +28,10 @@ export default function TurniFeriePage() {
   const [alwaysExpanded, setAlwaysExpanded] = useState(true)
 
   const adminUser = profile ? isAdmin(profile.id) : false
+  const managerUser = profile ? isManager(profile) : false
+  const canManage = adminUser || managerUser
   const loggedInUserId = profile?.id ?? ''
-  const effectiveIsSecondary = adminUser ? viewSecondary : (profile?.is_secondary ?? false)
+  const effectiveIsSecondary = canManage ? viewSecondary : (profile?.is_secondary ?? false)
 
   const [yearOverrides, setYearOverrides] = useState<Map<string, VacationPeriod>>(new Map())
 
@@ -61,7 +63,7 @@ export default function TurniFeriePage() {
   }, [minYear])
 
   useEffect(() => {
-    if (!adminUser) return
+    if (!canManage) return
     function onSwap() {
       setSwapMode('move')
       setSwapUserId('')
@@ -232,7 +234,7 @@ export default function TurniFeriePage() {
     >
       <div className="flex items-center gap-2 mb-3 bg-card border border-sky-200 dark:border-border rounded-xl pl-3 pr-3 py-2 mr-14">
         <h1 className="text-lg font-bold flex-1">Turni Ferie</h1>
-        {adminUser && (
+        {canManage && (
           <button
             onClick={() => setViewSecondary(v => !v)}
             className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
@@ -328,7 +330,7 @@ export default function TurniFeriePage() {
           )
         })}
       </div>
-      {swapOpen && adminUser && (
+      {swapOpen && canManage && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 pb-20 px-4">
           <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">

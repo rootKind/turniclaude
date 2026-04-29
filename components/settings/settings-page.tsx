@@ -3,6 +3,7 @@ import { useTheme } from 'next-themes'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/hooks/use-current-user'
+import { isManager } from '@/types/database'
 import { usePush } from '@/hooks/use-push'
 import { updateUserProfile } from '@/lib/queries/users'
 import { useQueryClient } from '@tanstack/react-query'
@@ -22,6 +23,7 @@ export function SettingsPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
+  const isManagerUser = profile ? isManager(profile) : false
   const { permission, isSubscribed, requestAndSubscribe } = usePush()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -116,15 +118,17 @@ export function SettingsPage() {
                 onCheckedChange={v => handleToggle('notification_enabled', v)}
               />
             </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notif-interest">Qualcuno è interessato al mio turno</Label>
-              <Switch
-                id="notif-interest"
-                checked={profile?.notify_on_interest ?? true}
-                onCheckedChange={v => handleToggle('notify_on_interest', v)}
-                disabled={!profile?.notification_enabled}
-              />
-            </div>
+            {!isManagerUser && (
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notif-interest">Qualcuno è interessato al mio turno</Label>
+                <Switch
+                  id="notif-interest"
+                  checked={profile?.notify_on_interest ?? true}
+                  onCheckedChange={v => handleToggle('notify_on_interest', v)}
+                  disabled={!profile?.notification_enabled}
+                />
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <Label htmlFor="notif-new">Nuovo turno pubblicato</Label>
               <Switch
@@ -136,15 +140,17 @@ export function SettingsPage() {
             </div>
 
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-1">Ferie</p>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notif-vacation-interest">Qualcuno è interessato al mio cambio ferie</Label>
-              <Switch
-                id="notif-vacation-interest"
-                checked={profile?.notify_on_vacation_interest ?? true}
-                onCheckedChange={v => handleToggle('notify_on_vacation_interest', v)}
-                disabled={!profile?.notification_enabled}
-              />
-            </div>
+            {!isManagerUser && (
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notif-vacation-interest">Qualcuno è interessato al mio cambio ferie</Label>
+                <Switch
+                  id="notif-vacation-interest"
+                  checked={profile?.notify_on_vacation_interest ?? true}
+                  onCheckedChange={v => handleToggle('notify_on_vacation_interest', v)}
+                  disabled={!profile?.notification_enabled}
+                />
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <Label htmlFor="notif-vacation-new">Nuovo cambio ferie disponibile</Label>
               <Switch
@@ -177,7 +183,7 @@ export function SettingsPage() {
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
 
       <p className="text-center text-xs text-muted-foreground pb-2">
-        v1.188 · 474e258 — ultimo aggiornamento: 28/04/2026 23:19
+        v1.189 · a410a6f — ultimo aggiornamento: 29/04/2026 00:00
       </p>
     </main>
   )

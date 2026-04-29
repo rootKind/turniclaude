@@ -9,6 +9,7 @@ export interface UserProfile {
   nome: string | null
   cognome: string | null
   is_secondary: boolean             // false = DCO (primary), true = Noni (secondary)
+  is_manager: boolean               // true = manager (neither DCO nor Noni)
   notification_enabled: boolean | null
   notify_on_interest: boolean | null
   notify_on_new_shift: boolean | null
@@ -166,7 +167,6 @@ export interface SalaSchedule {
 // ── Costanti ─────────────────────────────────────────────────────────────────
 
 export const ADMIN_ID = 'fdd6c008-7a22-42d5-a75b-c44d9edfef12'
-export const TURNISTA_ID = '45406410-cf22-4f79-b493-b6ee766fd3d8'
 
 export function isAdmin(userId: string) { return userId === ADMIN_ID }
-export function isTurnista(userId: string) { return userId === TURNISTA_ID }
+export function isManager(profile: Pick<UserProfile, 'is_manager'>): boolean { return profile.is_manager }

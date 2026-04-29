@@ -5,7 +5,7 @@ import { ShiftList } from '@/components/shifts/shift-list'
 import { ShiftDialog } from '@/components/shifts/shift-dialog'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { usePush } from '@/hooks/use-push'
-import { isAdmin } from '@/types/database'
+import { isAdmin, isManager } from '@/types/database'
 import { X } from 'lucide-react'
 
 type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean }
@@ -28,6 +28,8 @@ function DashboardContent() {
   const { registerServiceWorker } = usePush()
 
   const adminUser = profile ? isAdmin(profile.id) : false
+  const managerUser = profile ? isManager(profile) : false
+  const canToggleCategory = adminUser || managerUser
   const loggedInUserId = profile?.id ?? ''
   const isImpersonating = adminUser && !!asUserId && asUserId !== loggedInUserId
 
@@ -52,11 +54,11 @@ function DashboardContent() {
   }, [registerServiceWorker])
 
   useEffect(() => {
-    if (searchParams.get('new') === '1') {
+    if (searchParams.get('new') === '1' && !managerUser) {
       setDialogOpen(true)
       router.replace('/dashboard')
     }
-  }, [searchParams, router])
+  }, [searchParams, router, managerUser])
 
   // Clear highlight after 4s and clean URL
   useEffect(() => {
@@ -88,7 +90,7 @@ function DashboardContent() {
     : loggedInUserId
   const effectiveIsSecondary = isImpersonating && impersonatedUser
     ? impersonatedUser.is_secondary
-    : (adminUser ? viewSecondary : (profile?.is_secondary ?? false))
+    : (canToggleCategory ? viewSecondary : (profile?.is_secondary ?? false))
 
   const displayName = impersonatedUser
     ? `${impersonatedUser.cognome ?? ''} ${impersonatedUser.nome ?? ''}`.trim()
@@ -114,7 +116,7 @@ function DashboardContent() {
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-bold">Turni Sala C.C.C.</h1>
           {/* Category toggle — hidden when impersonating (category is from impersonated user) */}
-          {profile && adminUser && !isImpersonating && (
+          {profile && canToggleCategory && !isImpersonating && (
             <button
               onClick={() => setViewSecondary(v => !v)}
               className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
@@ -125,7 +127,7 @@ function DashboardContent() {
         </div>
 
         {/* User switcher — admin only */}
-        {profile && adminUser && allUsers.length > 0 && (
+        {profile && adminUser && !managerUser && allUsers.length > 0 && (
           <select
             value={asUserId ?? ''}
             onChange={e => {
