@@ -88,6 +88,7 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
         return (
           <motion.div
             key={request.id}
+            className={index === 0 ? 'mt-0' : isSameDateAsPrevious ? 'mt-0.5' : 'mt-3'}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.15, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
