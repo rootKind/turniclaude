@@ -211,7 +211,6 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         'rounded-[10px] transition-shadow duration-700',
         showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
         shift.is_pending && 'ring-1 ring-amber-500/60',
-        !shift.is_pending && isManagerView && hasInterest && 'ring-1 ring-green-500/60',
       )}
     >
       {/* Main row */}
@@ -219,7 +218,9 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
-        className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius)}
+        className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius,
+          !shift.is_pending && isManagerView && hasInterest && 'bg-green-500/[0.08]',
+        )}
         onClick={() => setExpanded(v => !v)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
       >
