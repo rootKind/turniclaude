@@ -33,6 +33,7 @@ export interface Shift {
   shift_date: string                // YYYY-MM-DD
   requested_shifts: ShiftType[]     // max 2 items
   highlight: boolean | null
+  is_pending: boolean
   created_at: string | null
   user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
   shift_interested_users: ShiftInterestedUser[]
@@ -91,6 +92,7 @@ export interface VacationRequest {
   offered_period: VacationPeriod
   target_periods: VacationPeriod[]   // 1–5 items
   year: number
+  is_pending: boolean
   created_at: string
 }
 

@@ -1,11 +1,13 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { User } from 'lucide-react'
 import { useVacationRequests } from '@/hooks/use-vacation-requests'
 import { VacationRequestItem } from './vacation-request-item'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDuplicateCognomi } from '@/hooks/use-users'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isManager } from '@/types/database'
+import { cn } from '@/lib/utils'
 import type { VacationPeriod } from '@/types/database'
 
 interface Props {
@@ -25,18 +27,24 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
   const { data: requests = [], isLoading } = useVacationRequests(isSecondary, year)
   const { profile } = useCurrentUser()
   const isManagerView = profile ? isManager(profile) : false
+  const [compatibleOnly, setCompatibleOnly] = useState(false)
 
   const duplicateCognomi = useDuplicateCognomi(isSecondary)
 
+  const filtered = useMemo(() => {
+    if (isManagerView && compatibleOnly) return requests.filter(r => r.vacation_request_interests.length > 0)
+    return requests
+  }, [requests, isManagerView, compatibleOnly])
+
   const dateIndexes = useMemo(() => {
     const count = new Map<string, number>()
-    return requests.map(r => {
+    return filtered.map(r => {
       const k = dayKey(r.created_at)
       const idx = count.get(k) ?? 0
       count.set(k, idx + 1)
       return idx
     })
-  }, [requests])
+  }, [filtered])
 
   if (isLoading) return <VacationListSkeleton />
   if (!requests.length) return (
@@ -46,9 +54,35 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
   )
 
   return (
-    <div className="flex flex-col gap-0">
-      {requests.map((request, index) => {
-        const prev = requests[index - 1]
+    <div>
+      {isManagerView && (
+        <div className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar">
+          <button
+            onClick={() => setCompatibleOnly(false)}
+            className={cn(
+              'flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
+              !compatibleOnly ? 'chip-selected' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            )}
+          >
+            Tutti
+          </button>
+          <button
+            onClick={() => setCompatibleOnly(true)}
+            className={cn(
+              'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
+              compatibleOnly
+                ? 'chip-selected'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
+            )}
+          >
+            <User className="w-3 h-3" />
+            Solo compatibili
+          </button>
+        </div>
+      )}
+      <div className="flex flex-col gap-0">
+      {filtered.map((request, index) => {
+        const prev = filtered[index - 1]
         const isSameDateAsPrevious = !!prev && dayKey(prev.created_at) === dayKey(request.created_at)
         return (
           <VacationRequestItem
@@ -67,6 +101,7 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
           />
         )
       })}
+      </div>
     </div>
   )
 }

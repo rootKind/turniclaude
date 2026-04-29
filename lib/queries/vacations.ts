@@ -132,6 +132,7 @@ export async function getVacationRequestsWithInterests(
       offered_period: r.offered_period,
       target_periods: r.target_periods,
       year:           r.year,
+      is_pending:     r.is_pending ?? false,
       created_at:     r.created_at,
       user:           r.user,
       vacation_request_interests: (r.vacation_request_interests ?? []).map((i: any): VacationRequestInterest => ({

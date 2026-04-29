@@ -18,7 +18,7 @@ const MONTH_LABELS: Record<string, string> = {
   '09': 'Set', '10': 'Ott', '11': 'Nov', '12': 'Dic',
 }
 
-type FilterValue = 'mine' | null | string
+type FilterValue = 'mine' | 'compatible' | null | string
 
 interface ShiftListProps {
   isSecondary?: boolean
@@ -56,11 +56,15 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
       .filter(m => { if (seen.has(m)) return false; seen.add(m); return true })
   }, [shifts])
 
-  // Navigation sequence: 'mine', null, ...months
-  const navSequence = useMemo<FilterValue[]>(() => ['mine', null, ...months], [months])
+  // Navigation sequence: 'mine'/'compatible', null, ...months
+  const navSequence = useMemo<FilterValue[]>(
+    () => [isManagerView ? 'compatible' : 'mine', null, ...months],
+    [isManagerView, months]
+  )
 
   const filtered = useMemo(() => {
     if (selectedFilter === 'mine') return shifts.filter(s => s.user_id === effectiveUserId)
+    if (selectedFilter === 'compatible') return shifts.filter(s => (s.shift_interested_users?.length ?? 0) > 0)
     if (!selectedFilter) return shifts
     return shifts.filter(s => s.shift_date.startsWith(selectedFilter))
   }, [shifts, selectedFilter, effectiveUserId])
@@ -145,8 +149,8 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
       {showChipBar && <div
         className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar"
       >
-        {/* Solo miei — hidden for managers */}
-        {!isManagerView && (
+        {/* Solo miei (utenti) / Solo compatibili (manager) */}
+        {!isManagerView ? (
           <button
             ref={el => { if (el) chipRefs.current.set('mine', el); else chipRefs.current.delete('mine') }}
             onClick={() => navigateTo('mine')}
@@ -159,6 +163,20 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
           >
             <User className="w-3 h-3" />
             Solo miei
+          </button>
+        ) : (
+          <button
+            ref={el => { if (el) chipRefs.current.set('compatible', el); else chipRefs.current.delete('compatible') }}
+            onClick={() => navigateTo('compatible')}
+            className={cn(
+              'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
+              selectedFilter === 'compatible'
+                ? 'chip-selected'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
+            )}
+          >
+            <User className="w-3 h-3" />
+            Solo compatibili
           </button>
         )}
 

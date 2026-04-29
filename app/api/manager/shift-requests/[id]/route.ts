@@ -33,8 +33,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const { action, reason, selectedUserId } = body as Record<string, unknown>
-  if (action !== 'confirm' && action !== 'reject') {
-    return NextResponse.json({ error: 'action must be confirm or reject' }, { status: 400 })
+  if (action !== 'confirm' && action !== 'reject' && action !== 'pending') {
+    return NextResponse.json({ error: 'action must be confirm, reject or pending' }, { status: 400 })
   }
 
   const adminSupabase = createAdminClient(
@@ -44,7 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const { data: shift } = await adminSupabase
     .from('shifts')
-    .select('user_id, offered_shift, shift_date')
+    .select('user_id, offered_shift, shift_date, is_pending')
     .eq('id', shiftId)
     .single()
 
@@ -56,6 +56,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .eq('shift_id', shiftId)
 
   const interestedUserIds = (interested ?? []).map((i: { user_id: string }) => i.user_id)
+
+  if (action === 'pending') {
+    if (shift.is_pending) {
+      await adminSupabase.from('shifts').update({ is_pending: false }).eq('id', shiftId)
+      return NextResponse.json({ ok: true })
+    }
+    const winnerId = typeof selectedUserId === 'string' ? selectedUserId : (interestedUserIds[0] ?? null)
+    if (winnerId) {
+      const { data: winnerProfile } = await adminSupabase
+        .from('users').select('nome, cognome').eq('id', winnerId).single()
+      const winnerName = winnerProfile
+        ? `${winnerProfile.cognome ?? ''} ${winnerProfile.nome ?? ''}`.trim()
+        : 'un collega'
+      const dateLabel = shift.shift_date ? formatDate(shift.shift_date as string) : ''
+      const notifBody = `Il cambio ${shift.offered_shift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''} con ${winnerName} non può essere ancora accettato perché ci sono scorte disponibili`
+      await Promise.allSettled([
+        pushToUser(shift.user_id as string, { title: 'Cambio in attesa di conferma', body: notifBody, type: 'system' }),
+        pushToUser(winnerId, { title: 'Cambio in attesa di conferma', body: notifBody, type: 'system' }),
+      ])
+    }
+    await adminSupabase.from('shifts').update({ is_pending: true }).eq('id', shiftId)
+    return NextResponse.json({ ok: true })
+  }
 
   const { error: deleteError } = await adminSupabase
     .from('shifts')

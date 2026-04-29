@@ -33,8 +33,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const { action, reason, selectedUserId } = body as Record<string, unknown>
-  if (action !== 'confirm' && action !== 'reject') {
-    return NextResponse.json({ error: 'action must be confirm or reject' }, { status: 400 })
+  if (action !== 'confirm' && action !== 'reject' && action !== 'pending') {
+    return NextResponse.json({ error: 'action must be confirm, reject or pending' }, { status: 400 })
   }
 
   const adminSupabase = createAdminClient(
@@ -44,7 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const { data: vacReq } = await adminSupabase
     .from('vacation_requests')
-    .select('user_id, offered_period, year')
+    .select('user_id, offered_period, year, is_pending')
     .eq('id', requestId)
     .single()
 
@@ -56,6 +56,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .eq('request_id', requestId)
 
   const interestedUserIds = (interested ?? []).map((i: { user_id: string }) => i.user_id)
+
+  if (action === 'pending') {
+    if (vacReq.is_pending) {
+      await adminSupabase.from('vacation_requests').update({ is_pending: false }).eq('id', requestId)
+      return NextResponse.json({ ok: true })
+    }
+    const winnerId = typeof selectedUserId === 'string' ? selectedUserId : (interestedUserIds[0] ?? null)
+    if (winnerId) {
+      const { data: winnerProfile } = await adminSupabase
+        .from('users').select('nome, cognome').eq('id', winnerId).single()
+      const winnerName = winnerProfile
+        ? `${winnerProfile.cognome ?? ''} ${winnerProfile.nome ?? ''}`.trim()
+        : 'un collega'
+      const periodLabel = PERIOD_LABELS[vacReq.offered_period as number] ?? `Periodo ${vacReq.offered_period}`
+      const yearLabel = vacReq.year ? ` (${vacReq.year})` : ''
+      const notifBody = `Il cambio ${periodLabel}${yearLabel} con ${winnerName} non può essere ancora accettato perché ci sono scorte disponibili`
+      await Promise.allSettled([
+        pushToUser(vacReq.user_id as string, { title: 'Cambio ferie in attesa di conferma', body: notifBody, type: 'system' }),
+        pushToUser(winnerId, { title: 'Cambio ferie in attesa di conferma', body: notifBody, type: 'system' }),
+      ])
+    }
+    await adminSupabase.from('vacation_requests').update({ is_pending: true }).eq('id', requestId)
+    return NextResponse.json({ ok: true })
+  }
 
   const { error: deleteError } = await adminSupabase
     .from('vacation_requests')

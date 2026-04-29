@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, Palette } from 'lucide-react'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, Palette, FlaskConical } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { getAppSettings, updateAppSettings } from '@/lib/queries/app-settings'
 import { NotificationDialog } from './notification-dialog'
+import { NotificationTestDialog } from './notification-test-dialog'
 import { FeedbackList } from './feedback-list'
 import { UserManagementDialog } from './user-management-dialog'
 import { ImpersonateDialog } from './impersonate-dialog'
@@ -13,6 +14,7 @@ import { ImpersonateDialog } from './impersonate-dialog'
 export function AdminPanel() {
   const router = useRouter()
   const [notifOpen, setNotifOpen] = useState(false)
+  const [notifTestOpen, setNotifTestOpen] = useState(false)
   const [usersOpen, setUsersOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackUnread, setFeedbackUnread] = useState(0)
@@ -103,6 +105,12 @@ export function AdminPanel() {
           description="Personalizza tutti i colori dell'interfaccia"
           onClick={() => router.push('/admin/colori')}
         />
+        <ActionTile
+          icon={<FlaskConical size={18} />}
+          title="Test notifiche"
+          description="Invia notifiche di prova a un dipendente specifico"
+          onClick={() => setNotifTestOpen(true)}
+        />
       </div>
 
       {/* Anno minimo ferie */}
@@ -127,6 +135,7 @@ export function AdminPanel() {
       </div>
 
       <NotificationDialog open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <NotificationTestDialog open={notifTestOpen} onClose={() => setNotifTestOpen(false)} />
       <UserManagementDialog open={usersOpen} onClose={() => setUsersOpen(false)} />
       <FeedbackList open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <ImpersonateDialog open={impersonateOpen} onClose={() => setImpersonateOpen(false)} />

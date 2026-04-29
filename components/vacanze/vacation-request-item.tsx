@@ -72,7 +72,7 @@ export function VacationRequestItem({
   const cardRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
   // Manager-specific state
-  const [managerAction, setManagerAction] = useState<'reject' | 'confirm' | null>(null)
+  const [managerAction, setManagerAction] = useState<'reject' | 'confirm' | 'pending' | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [selectedInterestUserId, setSelectedInterestUserId] = useState<string>('')
   const [managerLoading, setManagerLoading] = useState(false)
@@ -195,11 +195,61 @@ export function VacationRequestItem({
     }
   }
 
+  async function handleManagerPending(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (request.is_pending) {
+      setManagerLoading(true)
+      try {
+        const res = await fetch(`/api/manager/vacation-requests/${request.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'pending' }),
+        })
+        if (!res.ok) throw new Error()
+        queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
+      } catch {
+        toast.error('Errore')
+      } finally {
+        setManagerLoading(false)
+      }
+      return
+    }
+    const interestedUsers = request.vacation_request_interests
+    if (interestedUsers.length > 1 && !selectedInterestUserId) {
+      setExpanded(true)
+      setManagerAction('pending')
+      return
+    }
+    const userId = interestedUsers.length === 1 ? interestedUsers[0].user_id : selectedInterestUserId
+    setManagerLoading(true)
+    try {
+      const res = await fetch(`/api/manager/vacation-requests/${request.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pending', selectedUserId: userId || undefined }),
+      })
+      if (!res.ok) throw new Error()
+      queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
+      setManagerAction(null)
+      setSelectedInterestUserId('')
+    } catch {
+      toast.error('Errore')
+    } finally {
+      setManagerLoading(false)
+    }
+  }
+
   const displayName = formatDisplayName(request.user, duplicateCognomi)
   const interestCount = request.vacation_request_interests.length
 
   return (
-    <div ref={cardRef} className={cn(isSameDateAsPrevious ? 'mt-0.5' : 'mt-3', 'first:mt-0 rounded-[10px] transition-shadow duration-700', showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background')}>
+    <div ref={cardRef} className={cn(
+      isSameDateAsPrevious ? 'mt-0.5' : 'mt-3',
+      'first:mt-0 rounded-[10px] transition-shadow duration-700',
+      showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+      request.is_pending && 'ring-1 ring-amber-500/60',
+      !request.is_pending && isManagerView && hasInterest && 'ring-1 ring-green-500/60',
+    )}>
       {/* Main row */}
       <div
         role="button"
@@ -255,10 +305,22 @@ export function VacationRequestItem({
           {/* Interest count */}
           <div className="flex-shrink-0 text-[11px]">
             {isManagerView ? (
-              <span className="flex items-center gap-0.5 text-muted-foreground">
-                <Clock size={11} />
+              <button
+                className={cn(
+                  'flex items-center gap-0.5 rounded px-1 py-0.5 transition-colors',
+                  request.is_pending
+                    ? 'text-amber-500 hover:text-amber-600'
+                    : hasInterest
+                      ? 'text-green-600 hover:text-green-700'
+                      : 'text-muted-foreground hover:text-foreground',
+                  managerLoading && 'opacity-50 pointer-events-none',
+                )}
+                onClick={handleManagerPending}
+                aria-label="Segna come in attesa"
+              >
+                <Clock size={11} className={request.is_pending ? 'fill-amber-500/30' : ''} />
                 {interestCount}
-              </span>
+              </button>
             ) : isOwn ? (
               <span className={hasInterest ? 'text-interest-date' : 'text-muted-foreground'}>
                 {hasInterest ? `${interestCount} ❤️` : '0 ♡'}
@@ -333,6 +395,33 @@ export function VacationRequestItem({
                         </Button>
                         <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" disabled={managerLoading} onClick={e => { e.stopPropagation(); handleManagerReject() }}>
                           {managerLoading ? '...' : 'Conferma rifiuto'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {managerAction === 'pending' && request.vacation_request_interests.length > 1 && (
+                    <div className="mb-3 flex flex-col gap-2">
+                      <p className="text-[11px] text-muted-foreground">Seleziona il dipendente per la notifica di attesa:</p>
+                      <select
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        value={selectedInterestUserId}
+                        onChange={e => setSelectedInterestUserId(e.target.value)}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <option value="">Seleziona…</option>
+                        {request.vacation_request_interests
+                          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                          .map(i => (
+                            <option key={i.user_id} value={i.user_id}>{formatDisplayName(i.user, duplicateCognomi)}</option>
+                          ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setManagerAction(null); setSelectedInterestUserId('') }}>
+                          Annulla
+                        </Button>
+                        <Button size="sm" className="flex-1 h-8 text-[11px] bg-amber-500 hover:bg-amber-600 text-white" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerPending(e) }}>
+                          {managerLoading ? '...' : 'Segna in attesa'}
                         </Button>
                       </div>
                     </div>
