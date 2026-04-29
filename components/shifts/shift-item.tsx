@@ -268,21 +268,21 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
           <div className="flex-shrink-0 text-[11px]">
             {isManagerView ? (
               <div className="flex items-center gap-1">
-                <button
-                  className={cn(
-                    'flex items-center justify-center w-5 h-5 rounded-full border transition-colors',
-                    shift.is_pending
-                      ? 'border-amber-500/70 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
-                      : hasInterest
-                        ? 'border-green-600/40 text-green-600 bg-green-500/10 hover:bg-green-500/20'
-                        : 'border-muted-foreground/30 text-muted-foreground hover:border-foreground/50 hover:text-foreground',
-                    managerLoading && 'opacity-50 pointer-events-none',
-                  )}
-                  onClick={handleManagerPending}
-                  aria-label="Segna come in attesa"
-                >
-                  <Clock size={10} />
-                </button>
+                {(hasInterest || shift.is_pending) && (
+                  <button
+                    className={cn(
+                      'flex items-center justify-center w-5 h-5 rounded-full border transition-colors',
+                      shift.is_pending
+                        ? 'border-amber-500/70 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
+                        : 'border-green-600/40 text-green-600 bg-green-500/10 hover:bg-green-500/20',
+                      managerLoading && 'opacity-50 pointer-events-none',
+                    )}
+                    onClick={handleManagerPending}
+                    aria-label="Segna come in attesa"
+                  >
+                    <Clock size={10} />
+                  </button>
+                )}
                 {(shift.shift_interested_users?.length ?? 0) > 0 && (
                   <span className={cn(shift.is_pending ? 'text-amber-500' : 'text-green-600')}>
                     {shift.shift_interested_users!.length}

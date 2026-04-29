@@ -56,6 +56,7 @@ export function SalaPageClient({
 
   const handleMonthChange = async (month: string) => {
     setCurrentMonth(month)
+    setSchedule(null)
     const supabase = createClient()
     const data = await getSalaSchedule(supabase, month)
     setSchedule(data)

@@ -677,6 +677,15 @@ export function DeskBoard({
         </div>
       )}
 
+      {/* PDF upload timestamp — fixed above bottom navbar */}
+      {!isEditing && schedule?.uploaded_at && (
+        <div className="fixed bottom-16 inset-x-0 flex justify-center pointer-events-none z-30">
+          <span className="text-[10px] text-muted-foreground/60 bg-background/80 backdrop-blur-sm px-2 py-0.5 rounded-full">
+            PDF: {formatDateTime(schedule.uploaded_at)}
+          </span>
+        </div>
+      )}
+
       {/* History dialog */}
       {showHistory && (
         <div
