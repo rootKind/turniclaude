@@ -222,8 +222,13 @@ export default function TurniFeriePage() {
   }
 
   if (minYear === null) return (
-    <main className="mx-auto px-3 pt-5 max-w-2xl flex flex-col items-center justify-center" style={{ height: 'calc(100dvh - 4rem)' }}>
-      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    <main className="mx-auto px-3 pt-5 max-w-2xl flex flex-col" style={{ height: 'calc(100dvh - 4rem)' }}>
+      <div className="h-11 mb-3 mr-14 rounded-xl bg-muted animate-pulse" />
+      <div className="grid grid-cols-2 gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-28 rounded-xl bg-muted animate-pulse" />
+        ))}
+      </div>
     </main>
   )
 

@@ -1,5 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
 import { User } from 'lucide-react'
 import { useVacationRequests } from '@/hooks/use-vacation-requests'
 import { VacationRequestItem } from './vacation-request-item'
@@ -85,20 +86,26 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
         const prev = filtered[index - 1]
         const isSameDateAsPrevious = !!prev && dayKey(prev.created_at) === dayKey(request.created_at)
         return (
-          <VacationRequestItem
+          <motion.div
             key={request.id}
-            request={request}
-            currentUserId={effectiveUserId}
-            loggedInUserId={loggedInUserId}
-            isSecondary={isSecondary}
-            myPeriodThisYear={myPeriodThisYear}
-            isSameDateAsPrevious={isSameDateAsPrevious}
-            dateIndex={dateIndexes[index]}
-            year={year}
-            isHighlighted={highlightRequestIds.includes(request.id)}
-            duplicateCognomi={duplicateCognomi}
-            isManagerView={isManagerView}
-          />
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
+          >
+            <VacationRequestItem
+              request={request}
+              currentUserId={effectiveUserId}
+              loggedInUserId={loggedInUserId}
+              isSecondary={isSecondary}
+              myPeriodThisYear={myPeriodThisYear}
+              isSameDateAsPrevious={isSameDateAsPrevious}
+              dateIndex={dateIndexes[index]}
+              year={year}
+              isHighlighted={highlightRequestIds.includes(request.id)}
+              duplicateCognomi={duplicateCognomi}
+              isManagerView={isManagerView}
+            />
+          </motion.div>
         )
       })}
       </div>

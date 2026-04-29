@@ -116,12 +116,6 @@ function VacanzeContent() {
     }
   }, [minYear])
 
-  if (minYear === null) return (
-    <main className="max-w-lg mx-auto px-4 pt-6 pb-4 flex items-center justify-center" style={{ minHeight: 'calc(100dvh - 4rem)' }}>
-      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-    </main>
-  )
-
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
       <div className="flex items-center gap-2 mb-3 pr-12">
