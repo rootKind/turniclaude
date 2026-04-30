@@ -430,11 +430,13 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
 
   let coloredPersons: Record<number, Record<string, 'salmon' | 'green'>> | undefined
   let extractDebug: ExtractDebug | undefined
+  let extractError: string | undefined
   try {
     const extracted = await extractColoredPersons(buffer, daysInMonth)
     coloredPersons = extracted.result
     extractDebug = extracted.debug
   } catch (err) {
+    extractError = String(err)
     console.error('PDF color extraction error (non-fatal)', err)
   }
 
@@ -444,5 +446,6 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
     uploaded_at: new Date().toISOString(),
     ...(coloredPersons && Object.keys(coloredPersons).length > 0 ? { coloredPersons } : {}),
     _debug: extractDebug,
+    _extractError: extractError,
   }
 }
