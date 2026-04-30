@@ -260,149 +260,6 @@ function buildSchedule(allPersons: PersonData[], daysInMonth: number): Record<nu
   return schedule
 }
 
-// ─── color extraction ─────────────────────────────────────────────────────────
-
-function hexToRgb(hex: string): [number, number, number] | null {
-  const m = hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
-  if (!m) return null
-  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
-}
-
-function classifyColor(hex: string): 'green' | 'salmon' | null {
-  const rgb = hexToRgb(hex)
-  if (!rgb) return null
-  const [r, g, b] = rgb
-  // Light green: high G, G dominates R and B, high brightness
-  if (g > 200 && g > r + 20 && g > b + 20 && r > 150 && b > 150) return 'green'
-  // Light salmon: high R, R dominates G and B, high brightness
-  if (r > 220 && r > g + 20 && r > b + 30 && g > 180 && b > 160) return 'salmon'
-  return null
-}
-
-interface ColoredRect { color: 'green' | 'salmon'; x1: number; y1: number; x2: number; y2: number }
-
-interface ExtractDebug {
-  headersFoundPerPage: number[]
-  uniqueFillColors: string[]
-  constructPathCount: number
-  coloredRectsFound: number
-  sampleMatches: Array<{ color: string; day: number; name: string; rectCy: number; nearestY: number; dist: number }>
-}
-
-// pdfjs v1.10.100 (bundled in pdf-parse) op codes
-const PDFJS_OP_SET_FILL_RGB = 59
-const PDFJS_OP_CONSTRUCT_PATH = 91
-const PDFJS_PATH_RECTANGLE = 19  // path-op within constructPath ops array
-
-function extractColoredPersonsFromPageData(
-  pages: Array<{ textItems: TextItem[]; fnArray: number[]; argsArray: any[][] }>,
-  daysInMonth: number,
-): { result: Record<number, Record<string, 'salmon' | 'green'>>; debug: ExtractDebug } {
-  const result: Record<number, Record<string, 'salmon' | 'green'>> = {}
-  const debug: ExtractDebug = {
-    headersFoundPerPage: [],
-    uniqueFillColors: [],
-    constructPathCount: 0,
-    coloredRectsFound: 0,
-    sampleMatches: [],
-  }
-  const seenColors = new Set<string>()
-
-  for (const { textItems, fnArray, argsArray } of pages) {
-    const rowMap: Record<number, TextItem[]> = {}
-    for (const t of textItems) (rowMap[t.y] = rowMap[t.y] || []).push(t)
-
-    const headers: Array<{ xmap: Record<number, number> }> = []
-    for (const items of Object.values(rowMap)) {
-      const nums = items.filter(i => /^\d+$/.test(i.str)).map(i => parseInt(i.str))
-      if (nums.length >= daysInMonth - 2 && Math.min(...nums) === 1 && Math.max(...nums) === daysInMonth) {
-        const xmap: Record<number, number> = {}
-        items.filter(i => /^\d+$/.test(i.str)).forEach(i => { xmap[parseInt(i.str)] = i.x })
-        headers.push({ xmap })
-      }
-    }
-    debug.headersFoundPerPage.push(headers.length)
-    if (headers.length === 0) continue
-
-    const allDayXs = headers.flatMap(h => Object.values(h.xmap))
-    const isNearDayCol = (x: number) => allDayXs.some(hx => Math.abs(x - hx) <= DAY_COL_TOLERANCE)
-
-    const coloredRects: ColoredRect[] = []
-    let currentFillColor: string | null = null
-
-    for (let i = 0; i < fnArray.length; i++) {
-      const fn = fnArray[i]
-      const args = argsArray[i]
-
-      if (fn === PDFJS_OP_SET_FILL_RGB) {
-        // pdfjs v1.10.100 passes args as 0-255 integers (used directly in makeCssRgb)
-        currentFillColor = '#' + [args[0], args[1], args[2]]
-          .map((v: number) => Math.round(v).toString(16).padStart(2, '0')).join('')
-        seenColors.add(currentFillColor)
-      } else if (fn === PDFJS_OP_CONSTRUCT_PATH) {
-        debug.constructPathCount++
-        if (!currentFillColor) continue
-        const cat = classifyColor(currentFillColor)
-        if (!cat) continue
-        // args[0] = path ops array, args[1] = flat coords array
-        const pathOps: number[] = Array.from(args[0] ?? [])
-        const coords: number[] = Array.from(args[1] ?? [])
-        let ci = 0
-        for (const op of pathOps) {
-          if (op === PDFJS_PATH_RECTANGLE) {
-            const x = coords[ci], y = coords[ci + 1], w = coords[ci + 2], h = coords[ci + 3]
-            ci += 4
-            if (w > 0 && w < 120 && Math.abs(h) > 0 && Math.abs(h) < 60) {
-              const x1 = x, y1 = h >= 0 ? y : y + h
-              const x2 = x + w, y2 = h >= 0 ? y + h : y
-              coloredRects.push({ color: cat, x1, y1, x2, y2 })
-            }
-          } else {
-            if (op === 13 || op === 14) ci += 2        // moveTo, lineTo
-            else if (op === 15) ci += 6                 // curveTo
-            else if (op === 16 || op === 17) ci += 4    // curveTo2, curveTo3
-          }
-        }
-      }
-    }
-    debug.coloredRectsFound += coloredRects.length
-
-    for (const rect of coloredRects) {
-      const cx = (rect.x1 + rect.x2) / 2
-      let bestDay: number | null = null; let bestDist = Infinity
-      for (const { xmap } of headers) {
-        for (const [day, hx] of Object.entries(xmap)) {
-          const d = Math.abs(cx - hx)
-          if (d < bestDist) { bestDist = d; bestDay = parseInt(day) }
-        }
-      }
-      if (bestDay === null || bestDist > 20) continue
-
-      // Find the nearest name-row by y-distance to rect center (avoids multi-row bleed)
-      const rectCy = (rect.y1 + rect.y2) / 2
-      const candidates = textItems.filter(t => !isNearDayCol(t.x) && looksLikeName(t.str))
-      if (candidates.length === 0) continue
-      const nearestY = candidates.reduce((best, t) =>
-        Math.abs(t.y - rectCy) < Math.abs(best - rectCy) ? t.y : best
-      , candidates[0].y)
-      if (Math.abs(nearestY - rectCy) > 6) continue
-      const nameItems = candidates.filter(t => Math.abs(t.y - nearestY) <= 3)
-      if (nameItems.length === 0 || nameItems.length > 4) continue
-      const name = nameItems.map(t => t.str).join(' ').trim()
-      if (!name) continue
-
-      if (!result[bestDay]) result[bestDay] = {}
-      if (result[bestDay][name] !== 'green') result[bestDay][name] = rect.color
-      if (debug.sampleMatches.length < 30) {
-        debug.sampleMatches.push({ color: rect.color, day: bestDay, name, rectCy: Math.round(rectCy), nearestY: Math.round(nearestY), dist: Math.round(Math.abs(nearestY - rectCy)) })
-      }
-    }
-  }
-
-  debug.uniqueFillColors = [...seenColors]
-  return { result, debug }
-}
-
 // ─── public API ───────────────────────────────────────────────────────────────
 
 export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<SalaSchedule> {
@@ -414,7 +271,6 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
   const daysInMonth = new Date(year, monthIdx, 0).getDate()
 
   const allPersons: PersonData[] = []
-  const colorPages: Array<{ textItems: TextItem[]; fnArray: number[]; argsArray: any[][] }> = []
 
   async function pagerender(pageData: any): Promise<string> {
     try {
@@ -427,18 +283,6 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
       }
       const rows = groupByRow(textItems)
       allPersons.push(...processPageRows(rows, daysInMonth))
-
-      // collect operator list for color extraction using the same pdfjs instance
-      try {
-        const opList = await pageData.getOperatorList()
-        colorPages.push({
-          textItems,
-          fnArray: Array.from(opList.fnArray),
-          argsArray: opList.argsArray,
-        })
-      } catch {
-        // non-fatal: color extraction for this page skipped
-      }
     } catch (err) {
       console.error('PDF parse error (page render)', err)
     }
@@ -454,24 +298,9 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
 
   const schedule = buildSchedule(allPersons, daysInMonth)
 
-  let coloredPersons: Record<number, Record<string, 'salmon' | 'green'>> | undefined
-  let extractDebug: ExtractDebug | undefined
-  let extractError: string | undefined
-  try {
-    const extracted = extractColoredPersonsFromPageData(colorPages, daysInMonth)
-    coloredPersons = extracted.result
-    extractDebug = extracted.debug
-  } catch (err) {
-    extractError = String(err)
-    console.error('PDF color extraction error (non-fatal)', err)
-  }
-
   return {
     month,
     schedule,
     uploaded_at: new Date().toISOString(),
-    ...(coloredPersons && Object.keys(coloredPersons).length > 0 ? { coloredPersons } : {}),
-    _debug: extractDebug,
-    _extractError: extractError,
   }
 }

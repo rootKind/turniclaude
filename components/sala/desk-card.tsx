@@ -1,6 +1,6 @@
 'use client'
-import { useRef } from 'react'
-import { Trash2, UserPlus, Link2, ArrowLeftRight, ArrowUpDown, GripVertical } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Trash2, UserPlus, Link2, ArrowLeftRight, ArrowUpDown, GripVertical, Palette } from 'lucide-react'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { DeskCard as DeskCardType } from '@/types/database'
@@ -15,15 +15,20 @@ interface Props {
   onUpdate: (card: DeskCardType) => void
   onDelete: (id: string) => void
   isDragOverlay?: boolean
+  canEditColors?: boolean
+  onColorChange?: (name: string, color: 'green' | 'salmon' | null) => void
 }
 
 const toTitleCase = (s: string) =>
   s ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : s
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth: _, scheduleSections, onUpdate, onDelete, isDragOverlay }: Props) {
+const COLOR_CYCLE: Array<'green' | 'salmon' | null> = ['green', 'salmon', null]
+
+export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth: _, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
+  const [colorPickerOpen, setColorPickerOpen] = useState(false)
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: card.id,
@@ -46,6 +51,14 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
     if (tirocinanti.length === 0) onUpdate({ ...card, tirocinanti: [''] })
     else if (tirocinanti.length === 1) onUpdate({ ...card, tirocinanti: [tirocinanti[0], ''] })
     else onUpdate({ ...card, tirocinanti: [] })
+  }
+
+  const cycleColor = (name: string) => {
+    if (!onColorChange || !name) return
+    const current = card.surnameColors?.[name] ?? null
+    const idx = COLOR_CYCLE.indexOf(current)
+    const next = COLOR_CYCLE[(idx + 1) % COLOR_CYCLE.length]
+    onColorChange(name, next)
   }
 
   const isDoubleCol = card.type === 'double' && card.doubleLayout === 'col'
@@ -86,6 +99,8 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
   const displayTitle = isEditing
     ? card.title
     : card.title.replace(/\s*doppia\s*/gi, '').trim()
+
+  const editableNames = filledNames
 
   return (
     <div
@@ -148,6 +163,15 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
               </button>
             </div>
           )}
+          {!isEditing && canEditColors && editableNames.length > 0 && (
+            <button
+              onClick={() => setColorPickerOpen(v => !v)}
+              className={`p-0.5 rounded transition-colors shrink-0 ${colorPickerOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              title="Imposta colori"
+            >
+              <Palette size={12} />
+            </button>
+          )}
         </div>
 
         {/* Section key picker */}
@@ -165,6 +189,46 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
+          </div>
+        )}
+
+        {/* Inline color picker */}
+        {colorPickerOpen && !isEditing && (
+          <div className="border-b border-border bg-muted/20 px-2 py-1.5 flex flex-col gap-1">
+            {editableNames.map(name => {
+              const current = card.surnameColors?.[name] ?? null
+              return (
+                <div key={name} className="flex items-center justify-between gap-1">
+                  <span className="text-[10px] text-muted-foreground truncate flex-1">{toTitleCase(name)}</span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* none */}
+                    <button
+                      onClick={() => cycleColor(name)}
+                      className={`w-4 h-4 rounded-full border-2 transition-colors ${
+                        current === null ? 'border-primary bg-primary/20' : 'border-border bg-transparent hover:border-muted-foreground'
+                      }`}
+                      title="Nessun colore"
+                    />
+                    {/* green */}
+                    <button
+                      onClick={() => onColorChange?.(name, 'green')}
+                      className={`w-4 h-4 rounded-full border-2 transition-colors bg-emerald-500 ${
+                        current === 'green' ? 'border-primary scale-110' : 'border-transparent opacity-60 hover:opacity-100'
+                      }`}
+                      title="Verde"
+                    />
+                    {/* salmon */}
+                    <button
+                      onClick={() => onColorChange?.(name, 'salmon')}
+                      className={`w-4 h-4 rounded-full border-2 transition-colors bg-red-400 ${
+                        current === 'salmon' ? 'border-primary scale-110' : 'border-transparent opacity-60 hover:opacity-100'
+                      }`}
+                      title="Salmone"
+                    />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
 
