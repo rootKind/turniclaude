@@ -137,6 +137,7 @@ interface Props {
   onMonthChange: (month: string) => Promise<void>
   onUpload: (file: File, month: string) => Promise<void>
   onDeleteMonth: (month: string) => Promise<void>
+  onColorChange?: (month: string, day: number, name: string, color: 'green' | 'salmon' | null) => void
 }
 
 export function DeskBoard({
@@ -152,6 +153,7 @@ export function DeskBoard({
   onMonthChange,
   onUpload,
   onDeleteMonth,
+  onColorChange,
 }: Props) {
   const canUpload = isAdmin || isManager
   const duplicateCognomi = useAllDuplicateCognomi()
@@ -602,6 +604,10 @@ export function DeskBoard({
                         scheduleSections={scheduleSections}
                         onUpdate={updateCard}
                         onDelete={deleteCard}
+                        canEditColors={canUpload && !isEditing && !!schedule}
+                        onColorChange={canUpload && onColorChange
+                          ? (name, color) => onColorChange(currentMonth, selectedDay, name, color)
+                          : undefined}
                       />
                     ))}
                   </DroppableCell>

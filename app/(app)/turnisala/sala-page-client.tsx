@@ -80,6 +80,31 @@ export function SalaPageClient({
     )
   }
 
+  const handleColorChange = async (month: string, day: number, name: string, color: 'green' | 'salmon' | null) => {
+    const res = await fetch('/api/admin/sala-colors', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ month, day, name, color }),
+    })
+    if (!res.ok) return
+    setSchedule(prev => {
+      if (!prev) return prev
+      const coloredPersons = { ...(prev.coloredPersons ?? {}) }
+      const dayColors = { ...(coloredPersons[day] ?? {}) }
+      if (color === null) {
+        delete dayColors[name]
+      } else {
+        dayColors[name] = color
+      }
+      if (Object.keys(dayColors).length === 0) {
+        delete coloredPersons[day]
+      } else {
+        coloredPersons[day] = dayColors
+      }
+      return { ...prev, coloredPersons }
+    })
+  }
+
   const handleDeleteMonth = async (month: string) => {
     const res = await fetch(`/api/admin/sala-schedule?month=${month}`, { method: 'DELETE' })
     if (!res.ok) {
@@ -122,6 +147,7 @@ export function SalaPageClient({
         onMonthChange={handleMonthChange}
         onUpload={handleUpload}
         onDeleteMonth={handleDeleteMonth}
+        onColorChange={handleColorChange}
       />
     </main>
   )

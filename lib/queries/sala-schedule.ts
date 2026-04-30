@@ -49,10 +49,46 @@ export async function upsertSalaSchedule(
     .upsert({
       month: payload.month,
       schedule: payload.schedule,
-      colored_persons: payload.coloredPersons ?? null,
       uploaded_at: new Date().toISOString(),
       uploaded_by: userId,
     })
+
+  if (error) throw error
+}
+
+export async function updatePersonColor(
+  supabase: SupabaseClient,
+  month: string,
+  day: number,
+  name: string,
+  color: 'green' | 'salmon' | null,
+): Promise<void> {
+  const { data } = await supabase
+    .from('sala_schedule')
+    .select('colored_persons')
+    .eq('month', month)
+    .maybeSingle()
+
+  const existing: Record<number, Record<string, 'salmon' | 'green'>> = data?.colored_persons ?? {}
+  const dayColors = { ...(existing[day] ?? {}) }
+
+  if (color === null) {
+    delete dayColors[name]
+  } else {
+    dayColors[name] = color
+  }
+
+  const updated = { ...existing }
+  if (Object.keys(dayColors).length === 0) {
+    delete updated[day]
+  } else {
+    updated[day] = dayColors
+  }
+
+  const { error } = await supabase
+    .from('sala_schedule')
+    .update({ colored_persons: updated })
+    .eq('month', month)
 
   if (error) throw error
 }
