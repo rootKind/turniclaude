@@ -137,7 +137,7 @@ interface Props {
   onMonthChange: (month: string) => Promise<void>
   onUpload: (file: File, month: string) => Promise<void>
   onDeleteMonth: (month: string) => Promise<void>
-  onColorChange?: (month: string, day: number, name: string, color: 'green' | 'salmon' | null) => void
+  onColorChange?: (month: string, day: number, name: string, color: string | null) => void
 }
 
 export function DeskBoard({
@@ -461,8 +461,8 @@ export function DeskBoard({
           ...nNames.map(() => 'noSlot' as const),
         ]
         const dayColors = schedule.coloredPersons?.[selectedDay] ?? {}
-        const surnameColors: Record<string, 'salmon' | 'green'> = {}
-        for (const name of allNames) {
+        const surnameColors: Record<string, string> = {}
+        for (const name of [...allNames, ...sectionData.tirocinanti]) {
           const col = dayColors[name]
           if (col) surnameColors[name] = col
         }
