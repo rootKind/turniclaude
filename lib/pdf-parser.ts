@@ -385,7 +385,7 @@ function extractColoredPersonsFromPageData(
       const nearestY = candidates.reduce((best, t) =>
         Math.abs(t.y - rectCy) < Math.abs(best - rectCy) ? t.y : best
       , candidates[0].y)
-      if (Math.abs(nearestY - rectCy) > 5) continue
+      if (Math.abs(nearestY - rectCy) > 6) continue
       const nameItems = candidates.filter(t => Math.abs(t.y - nearestY) <= 3)
       if (nameItems.length === 0 || nameItems.length > 4) continue
       const name = nameItems.map(t => t.str).join(' ').trim()
