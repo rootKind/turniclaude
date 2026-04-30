@@ -262,12 +262,20 @@ function buildSchedule(allPersons: PersonData[], daysInMonth: number): Record<nu
 
 // ─── color extraction ─────────────────────────────────────────────────────────
 
-const GREEN_COLORS = new Set(['#c1f0c8', '#daf2d0'])
-const SALMON_COLORS = new Set(['#fbe2d5'])
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+  if (!m) return null
+  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
+}
 
 function classifyColor(hex: string): 'green' | 'salmon' | null {
-  if (GREEN_COLORS.has(hex)) return 'green'
-  if (SALMON_COLORS.has(hex)) return 'salmon'
+  const rgb = hexToRgb(hex)
+  if (!rgb) return null
+  const [r, g, b] = rgb
+  // Light green: high G, G dominates R and B, high brightness
+  if (g > 200 && g > r + 20 && g > b + 20 && r > 150 && b > 150) return 'green'
+  // Light salmon: high R, R dominates G and B, high brightness
+  if (r > 220 && r > g + 20 && r > b + 30 && g > 180 && b > 160) return 'salmon'
   return null
 }
 
@@ -313,29 +321,33 @@ async function extractColoredPersons(
     }
     if (headers.length === 0) continue
 
-    // Collect small colored rects (cell size: width < 80, height < 30)
+    // All day-column x positions — used to exclude shift codes from name extraction
+    const allDayXs = headers.flatMap(h => Object.values(h.xmap))
+    const isNearDayCol = (x: number) => allDayXs.some(hx => Math.abs(x - hx) <= DAY_COL_TOLERANCE)
+
+    // Collect small colored rects (per-day cell: width < 120, height < 60)
+    // Track current fill color without resetting on intermediate ops (setStrokeRGBColor,
+    // setLineWidth, etc. can appear between rg and re f in Excel-generated PDFs).
     const coloredRects: ColoredRect[] = []
-    let pendingColor: string | null = null
+    let currentFillColor: string | null = null
     for (let i = 0; i < ops.fnArray.length; i++) {
       const name = opNames[ops.fnArray[i]]
       const args = ops.argsArray[i]
       if (name === 'setFillRGBColor') {
-        const [r, g, b] = args as number[]
-        pendingColor = '#' + [r, g, b].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+        const raw = args[0]
+        currentFillColor = typeof raw === 'string' ? raw
+          : '#' + [raw, args[1], args[2]].map((v: number) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
       } else if (name === 'constructPath') {
-        if (pendingColor) {
-          const cat = classifyColor(pendingColor)
+        if (currentFillColor) {
+          const cat = classifyColor(currentFillColor)
           if (cat && args[2]) {
             const b = args[2] as Record<number, number>
             const w = b[2] - b[0]; const h = b[3] - b[1]
-            if (w < 80 && h < 30) {
+            if (w > 0 && w < 120 && h > 0 && h < 60) {
               coloredRects.push({ color: cat, x1: b[0], y1: b[1], x2: b[2], y2: b[3] })
             }
           }
         }
-        pendingColor = null
-      } else {
-        pendingColor = null
       }
     }
 
@@ -352,15 +364,13 @@ async function extractColoredPersons(
       }
       if (bestDay === null || bestDist > 20) continue
 
-      // Find person name: leftmost text items in the same y-band, x < 200
-      const cy = (rect.y1 + rect.y2) / 2
-      const nameItems = textItems.filter(t => Math.abs(t.y - cy) < 12 && t.x < 200)
-      if (nameItems.length === 0 || nameItems.length > 3) continue
-      const name = nameItems
+      // Find person name: text items within the rect's y-bounds, excluding day columns.
+      // Apply looksLikeName before the count check so spurious items don't cause skips.
+      const nameItems = textItems
+        .filter(t => t.y >= rect.y1 - 3 && t.y <= rect.y2 + 3 && !isNearDayCol(t.x))
         .filter(t => looksLikeName(t.str))
-        .map(t => t.str)
-        .join(' ')
-        .trim()
+      if (nameItems.length === 0 || nameItems.length > 4) continue
+      const name = nameItems.map(t => t.str).join(' ').trim()
       if (!name) continue
 
       if (!result[bestDay]) result[bestDay] = {}
