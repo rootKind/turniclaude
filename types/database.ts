@@ -169,6 +169,7 @@ export interface SalaSchedule {
   uploaded_at: string
   coloredPersons?: Record<number, Record<string, 'salmon' | 'green'>>
   _debug?: unknown
+  _extractError?: string
 }
 
 // ── Costanti ─────────────────────────────────────────────────────────────────
