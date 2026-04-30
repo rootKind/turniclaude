@@ -281,10 +281,17 @@ function classifyColor(hex: string): 'green' | 'salmon' | null {
 
 interface ColoredRect { color: 'green' | 'salmon'; x1: number; y1: number; x2: number; y2: number }
 
+interface ExtractDebug {
+  headersFoundPerPage: number[]
+  uniqueFillColors: string[]
+  constructPathCount: number
+  coloredRectsFound: number
+}
+
 async function extractColoredPersons(
   buffer: Buffer,
   daysInMonth: number,
-): Promise<Record<number, Record<string, 'salmon' | 'green'>>> {
+): Promise<{ result: Record<number, Record<string, 'salmon' | 'green'>>; debug: ExtractDebug }> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { getDocument, OPS } = await import('pdfjs-dist/legacy/build/pdf.mjs') as any
   const data = new Uint8Array(buffer)
@@ -294,6 +301,8 @@ async function extractColoredPersons(
   )
 
   const result: Record<number, Record<string, 'salmon' | 'green'>> = {}
+  const debug: ExtractDebug = { headersFoundPerPage: [], uniqueFillColors: [], constructPathCount: 0, coloredRectsFound: 0 }
+  const seenColors = new Set<string>()
 
   for (let p = 1; p <= pdfDoc.numPages; p++) {
     const page = await pdfDoc.getPage(p)
@@ -319,6 +328,7 @@ async function extractColoredPersons(
         headers.push({ xmap })
       }
     }
+    debug.headersFoundPerPage.push(headers.length)
     if (headers.length === 0) continue
 
     // All day-column x positions — used to exclude shift codes from name extraction
@@ -326,8 +336,6 @@ async function extractColoredPersons(
     const isNearDayCol = (x: number) => allDayXs.some(hx => Math.abs(x - hx) <= DAY_COL_TOLERANCE)
 
     // Collect small colored rects (per-day cell: width < 120, height < 60)
-    // Track current fill color without resetting on intermediate ops (setStrokeRGBColor,
-    // setLineWidth, etc. can appear between rg and re f in Excel-generated PDFs).
     const coloredRects: ColoredRect[] = []
     let currentFillColor: string | null = null
     for (let i = 0; i < ops.fnArray.length; i++) {
@@ -337,7 +345,9 @@ async function extractColoredPersons(
         const raw = args[0]
         currentFillColor = typeof raw === 'string' ? raw
           : '#' + [raw, args[1], args[2]].map((v: number) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+        seenColors.add(currentFillColor)
       } else if (name === 'constructPath') {
+        debug.constructPathCount++
         if (currentFillColor) {
           const cat = classifyColor(currentFillColor)
           if (cat && args[2]) {
@@ -350,11 +360,11 @@ async function extractColoredPersons(
         }
       }
     }
+    debug.coloredRectsFound += coloredRects.length
 
     // For each colored rect: find day (x) and person name (y)
     for (const rect of coloredRects) {
       const cx = (rect.x1 + rect.x2) / 2
-      // Find which day column this rect falls under
       let bestDay: number | null = null; let bestDist = Infinity
       for (const { xmap } of headers) {
         for (const [day, hx] of Object.entries(xmap)) {
@@ -364,8 +374,6 @@ async function extractColoredPersons(
       }
       if (bestDay === null || bestDist > 20) continue
 
-      // Find person name: text items within the rect's y-bounds, excluding day columns.
-      // Apply looksLikeName before the count check so spurious items don't cause skips.
       const nameItems = textItems
         .filter(t => t.y >= rect.y1 - 3 && t.y <= rect.y2 + 3 && !isNearDayCol(t.x))
         .filter(t => looksLikeName(t.str))
@@ -374,12 +382,12 @@ async function extractColoredPersons(
       if (!name) continue
 
       if (!result[bestDay]) result[bestDay] = {}
-      // green takes precedence over salmon if same person appears in both
       if (result[bestDay][name] !== 'green') result[bestDay][name] = rect.color
     }
   }
 
-  return result
+  debug.uniqueFillColors = [...seenColors]
+  return { result, debug }
 }
 
 // ─── public API ───────────────────────────────────────────────────────────────
@@ -421,8 +429,11 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
   const schedule = buildSchedule(allPersons, daysInMonth)
 
   let coloredPersons: Record<number, Record<string, 'salmon' | 'green'>> | undefined
+  let extractDebug: ExtractDebug | undefined
   try {
-    coloredPersons = await extractColoredPersons(buffer, daysInMonth)
+    const extracted = await extractColoredPersons(buffer, daysInMonth)
+    coloredPersons = extracted.result
+    extractDebug = extracted.debug
   } catch (err) {
     console.error('PDF color extraction error (non-fatal)', err)
   }
@@ -432,5 +443,6 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
     schedule,
     uploaded_at: new Date().toISOString(),
     ...(coloredPersons && Object.keys(coloredPersons).length > 0 ? { coloredPersons } : {}),
+    _debug: extractDebug,
   }
 }
