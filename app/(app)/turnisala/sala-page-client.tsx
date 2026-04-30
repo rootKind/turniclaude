@@ -80,7 +80,7 @@ export function SalaPageClient({
     )
   }
 
-  const handleColorChange = async (month: string, day: number, name: string, color: 'green' | 'salmon' | null) => {
+  const handleColorChange = async (month: string, day: number, name: string, color: string | null) => {
     const res = await fetch('/api/admin/sala-colors', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

@@ -61,7 +61,7 @@ export async function updatePersonColor(
   month: string,
   day: number,
   name: string,
-  color: 'green' | 'salmon' | null,
+  color: string | null,
 ): Promise<void> {
   const { data } = await supabase
     .from('sala_schedule')
@@ -69,7 +69,7 @@ export async function updatePersonColor(
     .eq('month', month)
     .maybeSingle()
 
-  const existing: Record<number, Record<string, 'salmon' | 'green'>> = data?.colored_persons ?? {}
+  const existing: Record<number, Record<string, string>> = data?.colored_persons ?? {}
   const dayColors = { ...(existing[day] ?? {}) }
 
   if (color === null) {

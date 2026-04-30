@@ -16,19 +16,33 @@ interface Props {
   onDelete: (id: string) => void
   isDragOverlay?: boolean
   canEditColors?: boolean
-  onColorChange?: (name: string, color: 'green' | 'salmon' | null) => void
+  onColorChange?: (name: string, color: string | null) => void
 }
 
 const toTitleCase = (s: string) =>
   s ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : s
 
-const COLOR_CYCLE: Array<'green' | 'salmon' | null> = ['green', 'salmon', null]
+// preset colors cycle on the ⬜ button: none → green → salmon → none
+const PRESET_CYCLE: Array<string | null> = ['green', 'salmon', null]
+
+function colorToHex(color: string | null | undefined): string {
+  if (!color) return '#000000'
+  if (color === 'green') return '#10b981'
+  if (color === 'salmon') return '#f87171'
+  return color
+}
+
+function isCustomColor(color: string | null | undefined): boolean {
+  return !!color && color !== 'green' && color !== 'salmon'
+}
 
 export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth: _, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
   const [colorPickerOpen, setColorPickerOpen] = useState(false)
+  // One color-input ref per picker row — keyed by name
+  const colorInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: card.id,
@@ -53,17 +67,18 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
     else onUpdate({ ...card, tirocinanti: [] })
   }
 
-  const cycleColor = (name: string) => {
+  const cyclePreset = (name: string) => {
     if (!onColorChange || !name) return
     const current = card.surnameColors?.[name] ?? null
-    const idx = COLOR_CYCLE.indexOf(current)
-    const next = COLOR_CYCLE[(idx + 1) % COLOR_CYCLE.length]
+    // If currently a custom color, go straight to null
+    const base = isCustomColor(current) ? null : current
+    const idx = PRESET_CYCLE.indexOf(base)
+    const next = PRESET_CYCLE[(idx + 1) % PRESET_CYCLE.length]
     onColorChange(name, next)
   }
 
   const isDoubleCol = card.type === 'double' && card.doubleLayout === 'col'
   const filledNames = card.surnames.filter(Boolean)
-  // Use col (stacked) layout when: explicit doubleCol, OR single card with 2+ names, OR 3+ names in any card
   const useColLayout = isDoubleCol || filledNames.length > 2 || (card.type === 'single' && filledNames.length > 1)
 
   const getSlotClass = (i: number): string => {
@@ -72,19 +87,19 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
     return ''
   }
 
-  const getColor = (surname: string) => card.surnameColors?.[surname]
+  const getColor = (name: string) => card.surnameColors?.[name]
 
-  const getDotClass = (surname: string): string => {
-    const col = getColor(surname)
-    if (col === 'green') return 'text-emerald-500'
-    if (col === 'salmon') return 'text-red-400'
-    return ''
+  const renderDot = (name: string) => {
+    const col = getColor(name)
+    if (!col) return null
+    if (col === 'green') return <span className="text-emerald-500 select-none">●</span>
+    if (col === 'salmon') return <span className="text-red-400 select-none">●</span>
+    return <span style={{ color: col }} className="select-none">●</span>
   }
 
   const renderName = (surname: string, i: number) => {
-    const dotClass = getDotClass(surname)
+    const dot = renderDot(surname)
     const slotClass = getSlotClass(i)
-    const dot = dotClass ? <span className={`${dotClass} select-none`}>●</span> : null
     return (
       <span className={`text-sm whitespace-nowrap leading-tight flex items-center gap-0.5 ${slotClass}`}>
         {dot}
@@ -93,6 +108,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
       </span>
     )
   }
+
   const toggleDoubleLayout = () => onUpdate({ ...card, doubleLayout: isDoubleCol ? 'row' : 'col' })
 
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
@@ -100,7 +116,11 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
     ? card.title
     : card.title.replace(/\s*doppia\s*/gi, '').trim()
 
-  const editableNames = filledNames
+  // All names that appear in the color picker: surnames + tirocinanti
+  const pickerNames: Array<{ name: string; label: string }> = [
+    ...filledNames.map(n => ({ name: n, label: toTitleCase(n) })),
+    ...tirocinanti.filter(Boolean).map(n => ({ name: n, label: `Tir. ${toTitleCase(n)}` })),
+  ]
 
   return (
     <div
@@ -163,7 +183,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
               </button>
             </div>
           )}
-          {!isEditing && canEditColors && editableNames.length > 0 && (
+          {!isEditing && canEditColors && pickerNames.length > 0 && (
             <button
               onClick={() => setColorPickerOpen(v => !v)}
               className={`p-0.5 rounded transition-colors shrink-0 ${colorPickerOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -194,16 +214,17 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
 
         {/* Inline color picker */}
         {colorPickerOpen && !isEditing && (
-          <div className="border-b border-border bg-muted/20 px-2 py-1.5 flex flex-col gap-1">
-            {editableNames.map(name => {
+          <div className="border-b border-border bg-muted/20 px-2 py-1.5 flex flex-col gap-1.5">
+            {pickerNames.map(({ name, label }) => {
               const current = card.surnameColors?.[name] ?? null
+              const custom = isCustomColor(current)
               return (
                 <div key={name} className="flex items-center justify-between gap-1">
-                  <span className="text-[10px] text-muted-foreground truncate flex-1">{toTitleCase(name)}</span>
+                  <span className="text-[10px] text-muted-foreground truncate flex-1">{label}</span>
                   <div className="flex items-center gap-1 shrink-0">
                     {/* none */}
                     <button
-                      onClick={() => cycleColor(name)}
+                      onClick={() => onColorChange?.(name, null)}
                       className={`w-4 h-4 rounded-full border-2 transition-colors ${
                         current === null ? 'border-primary bg-primary/20' : 'border-border bg-transparent hover:border-muted-foreground'
                       }`}
@@ -225,6 +246,22 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
                       }`}
                       title="Salmone"
                     />
+                    {/* custom color */}
+                    <label
+                      className={`w-4 h-4 rounded-full border-2 cursor-pointer transition-colors overflow-hidden ${
+                        custom ? 'border-primary scale-110' : 'border-border hover:border-muted-foreground'
+                      }`}
+                      style={custom ? { background: current! } : { background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }}
+                      title="Colore personalizzato"
+                    >
+                      <input
+                        ref={el => { colorInputRefs.current[name] = el }}
+                        type="color"
+                        className="sr-only"
+                        value={colorToHex(current)}
+                        onChange={e => onColorChange?.(name, e.target.value)}
+                      />
+                    </label>
                   </div>
                 </div>
               )
@@ -282,8 +319,10 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
                     placeholder="Cogn."
                   />
                 ) : (
-                  <span className="text-xs whitespace-nowrap italic text-muted-foreground">
+                  <span className="text-xs whitespace-nowrap italic text-muted-foreground flex items-center gap-0.5">
+                    {renderDot(tir)}
                     {tir ? toTitleCase(tir) : <span className="text-muted-foreground/40">—</span>}
+                    {renderDot(tir)}
                   </span>
                 )}
               </div>

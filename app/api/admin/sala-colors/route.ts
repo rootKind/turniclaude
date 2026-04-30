@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest) {
   if (!month || typeof day !== 'number' || !name) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
-  if (color !== null && color !== 'green' && color !== 'salmon') {
+  if (color !== null && (typeof color !== 'string' || color.length > 20)) {
     return NextResponse.json({ error: 'Invalid color' }, { status: 400 })
   }
 
