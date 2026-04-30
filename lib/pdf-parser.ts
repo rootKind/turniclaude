@@ -288,10 +288,64 @@ interface ExtractDebug {
   coloredRectsFound: number
 }
 
+function ensureDOMMatrix() {
+  if (typeof (globalThis as any).DOMMatrix !== 'undefined') return
+  ;(globalThis as any).DOMMatrix = class DOMMatrix {
+    m11 = 1; m12 = 0; m13 = 0; m14 = 0
+    m21 = 0; m22 = 1; m23 = 0; m24 = 0
+    m31 = 0; m32 = 0; m33 = 1; m34 = 0
+    m41 = 0; m42 = 0; m43 = 0; m44 = 1
+    is2D = true; isIdentity = true
+    get a() { return this.m11 } get b() { return this.m12 }
+    get c() { return this.m21 } get d() { return this.m22 }
+    get e() { return this.m41 } get f() { return this.m42 }
+    constructor(init?: string | number[]) {
+      if (Array.isArray(init) && init.length === 6) {
+        this.m11 = init[0]; this.m12 = init[1]
+        this.m21 = init[2]; this.m22 = init[3]
+        this.m41 = init[4]; this.m42 = init[5]
+        this.isIdentity = false
+      }
+    }
+    multiply(m: any) {
+      return new (globalThis as any).DOMMatrix([
+        this.m11*m.m11+this.m12*m.m21, this.m11*m.m12+this.m12*m.m22,
+        this.m21*m.m11+this.m22*m.m21, this.m21*m.m12+this.m22*m.m22,
+        this.m41*m.m11+this.m42*m.m21+m.m41, this.m41*m.m12+this.m42*m.m22+m.m42,
+      ])
+    }
+    translate(tx: number, ty: number) {
+      return new (globalThis as any).DOMMatrix([this.m11,this.m12,this.m21,this.m22,this.m41+tx,this.m42+ty])
+    }
+    scale(sx: number, sy = sx) {
+      return new (globalThis as any).DOMMatrix([this.m11*sx,this.m12*sx,this.m21*sy,this.m22*sy,this.m41,this.m42])
+    }
+    inverse() {
+      const det = this.m11*this.m22-this.m12*this.m21
+      if (!det) return new (globalThis as any).DOMMatrix()
+      return new (globalThis as any).DOMMatrix([
+        this.m22/det,-this.m12/det,-this.m21/det,this.m11/det,
+        (this.m21*this.m42-this.m22*this.m41)/det,(this.m12*this.m41-this.m11*this.m42)/det,
+      ])
+    }
+    transformPoint(p: any = {}) {
+      const x=p.x??0,y=p.y??0
+      return {x:this.m11*x+this.m21*y+this.m41,y:this.m12*x+this.m22*y+this.m42,z:0,w:1}
+    }
+    static fromMatrix(m: any) {
+      return new (globalThis as any).DOMMatrix([m.m11??m.a??1,m.m12??m.b??0,m.m21??m.c??0,m.m22??m.d??1,m.m41??m.e??0,m.m42??m.f??0])
+    }
+    static fromFloat32Array(a: Float32Array) { return new (globalThis as any).DOMMatrix([...a]) }
+    static fromFloat64Array(a: Float64Array) { return new (globalThis as any).DOMMatrix([...a]) }
+    toString() { return `matrix(${this.m11},${this.m12},${this.m21},${this.m22},${this.m41},${this.m42})` }
+  }
+}
+
 async function extractColoredPersons(
   buffer: Buffer,
   daysInMonth: number,
 ): Promise<{ result: Record<number, Record<string, 'salmon' | 'green'>>; debug: ExtractDebug }> {
+  ensureDOMMatrix()
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { getDocument, OPS } = await import('pdfjs-dist/legacy/build/pdf.mjs') as any
   const data = new Uint8Array(buffer)
