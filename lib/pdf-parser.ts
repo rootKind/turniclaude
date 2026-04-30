@@ -313,22 +313,29 @@ async function extractColoredPersons(
     }
     if (headers.length === 0) continue
 
-    // Collect small colored rects (cell size: width < 80, height < 30)
+    // All day-column x positions — used to exclude shift codes from name extraction
+    const allDayXs = headers.flatMap(h => Object.values(h.xmap))
+    const isNearDayCol = (x: number) => allDayXs.some(hx => Math.abs(x - hx) <= DAY_COL_TOLERANCE)
+
+    // Collect small colored rects (per-day cell: width < 120, height < 40)
     const coloredRects: ColoredRect[] = []
     let pendingColor: string | null = null
     for (let i = 0; i < ops.fnArray.length; i++) {
       const name = opNames[ops.fnArray[i]]
       const args = ops.argsArray[i]
       if (name === 'setFillRGBColor') {
-        const [r, g, b] = args as number[]
-        pendingColor = '#' + [r, g, b].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+        // pdfjs-dist returns args[0] as a pre-formatted hex string (e.g. "#fbe2d5"),
+        // not as separate [r, g, b] floats
+        const raw = args[0]
+        pendingColor = typeof raw === 'string' ? raw
+          : '#' + [raw, args[1], args[2]].map((v: number) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
       } else if (name === 'constructPath') {
         if (pendingColor) {
           const cat = classifyColor(pendingColor)
           if (cat && args[2]) {
             const b = args[2] as Record<number, number>
             const w = b[2] - b[0]; const h = b[3] - b[1]
-            if (w < 80 && h < 30) {
+            if (w > 0 && w < 120 && h > 0 && h < 40) {
               coloredRects.push({ color: cat, x1: b[0], y1: b[1], x2: b[2], y2: b[3] })
             }
           }
@@ -352,9 +359,10 @@ async function extractColoredPersons(
       }
       if (bestDay === null || bestDist > 20) continue
 
-      // Find person name: leftmost text items in the same y-band, x < 200
+      // Find person name: leftmost text items in the same y-band, excluding day columns
+      // (same separation logic as tryParseMainRowByX to ensure name keys match schedule)
       const cy = (rect.y1 + rect.y2) / 2
-      const nameItems = textItems.filter(t => Math.abs(t.y - cy) < 12 && t.x < 200)
+      const nameItems = textItems.filter(t => Math.abs(t.y - cy) < 12 && t.x < 200 && !isNearDayCol(t.x))
       if (nameItems.length === 0 || nameItems.length > 3) continue
       const name = nameItems
         .filter(t => looksLikeName(t.str))
