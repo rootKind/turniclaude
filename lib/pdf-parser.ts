@@ -288,88 +288,25 @@ interface ExtractDebug {
   coloredRectsFound: number
 }
 
-function ensureDOMMatrix() {
-  if (typeof (globalThis as any).DOMMatrix !== 'undefined') return
-  ;(globalThis as any).DOMMatrix = class DOMMatrix {
-    m11 = 1; m12 = 0; m13 = 0; m14 = 0
-    m21 = 0; m22 = 1; m23 = 0; m24 = 0
-    m31 = 0; m32 = 0; m33 = 1; m34 = 0
-    m41 = 0; m42 = 0; m43 = 0; m44 = 1
-    is2D = true; isIdentity = true
-    get a() { return this.m11 } get b() { return this.m12 }
-    get c() { return this.m21 } get d() { return this.m22 }
-    get e() { return this.m41 } get f() { return this.m42 }
-    constructor(init?: string | number[]) {
-      if (Array.isArray(init) && init.length === 6) {
-        this.m11 = init[0]; this.m12 = init[1]
-        this.m21 = init[2]; this.m22 = init[3]
-        this.m41 = init[4]; this.m42 = init[5]
-        this.isIdentity = false
-      }
-    }
-    multiply(m: any) {
-      return new (globalThis as any).DOMMatrix([
-        this.m11*m.m11+this.m12*m.m21, this.m11*m.m12+this.m12*m.m22,
-        this.m21*m.m11+this.m22*m.m21, this.m21*m.m12+this.m22*m.m22,
-        this.m41*m.m11+this.m42*m.m21+m.m41, this.m41*m.m12+this.m42*m.m22+m.m42,
-      ])
-    }
-    translate(tx: number, ty: number) {
-      return new (globalThis as any).DOMMatrix([this.m11,this.m12,this.m21,this.m22,this.m41+tx,this.m42+ty])
-    }
-    scale(sx: number, sy = sx) {
-      return new (globalThis as any).DOMMatrix([this.m11*sx,this.m12*sx,this.m21*sy,this.m22*sy,this.m41,this.m42])
-    }
-    inverse() {
-      const det = this.m11*this.m22-this.m12*this.m21
-      if (!det) return new (globalThis as any).DOMMatrix()
-      return new (globalThis as any).DOMMatrix([
-        this.m22/det,-this.m12/det,-this.m21/det,this.m11/det,
-        (this.m21*this.m42-this.m22*this.m41)/det,(this.m12*this.m41-this.m11*this.m42)/det,
-      ])
-    }
-    transformPoint(p: any = {}) {
-      const x=p.x??0,y=p.y??0
-      return {x:this.m11*x+this.m21*y+this.m41,y:this.m12*x+this.m22*y+this.m42,z:0,w:1}
-    }
-    static fromMatrix(m: any) {
-      return new (globalThis as any).DOMMatrix([m.m11??m.a??1,m.m12??m.b??0,m.m21??m.c??0,m.m22??m.d??1,m.m41??m.e??0,m.m42??m.f??0])
-    }
-    static fromFloat32Array(a: Float32Array) { return new (globalThis as any).DOMMatrix([...a]) }
-    static fromFloat64Array(a: Float64Array) { return new (globalThis as any).DOMMatrix([...a]) }
-    toString() { return `matrix(${this.m11},${this.m12},${this.m21},${this.m22},${this.m41},${this.m42})` }
-  }
-}
+// pdfjs v1.10.100 (bundled in pdf-parse) op codes
+const PDFJS_OP_SET_FILL_RGB = 59
+const PDFJS_OP_CONSTRUCT_PATH = 91
+const PDFJS_PATH_RECTANGLE = 19  // path-op within constructPath ops array
 
-async function extractColoredPersons(
-  buffer: Buffer,
+function extractColoredPersonsFromPageData(
+  pages: Array<{ textItems: TextItem[]; fnArray: number[]; argsArray: any[][] }>,
   daysInMonth: number,
-): Promise<{ result: Record<number, Record<string, 'salmon' | 'green'>>; debug: ExtractDebug }> {
-  ensureDOMMatrix()
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { getDocument, OPS } = await import('pdfjs-dist/legacy/build/pdf.mjs') as any
-  const data = new Uint8Array(buffer)
-  const pdfDoc = await getDocument({ data, verbosity: 0 }).promise
-  const opNames: Record<number, string> = Object.fromEntries(
-    Object.entries(OPS as Record<string, number>).map(([k, v]) => [v, k])
-  )
-
+): { result: Record<number, Record<string, 'salmon' | 'green'>>; debug: ExtractDebug } {
   const result: Record<number, Record<string, 'salmon' | 'green'>> = {}
-  const debug: ExtractDebug = { headersFoundPerPage: [], uniqueFillColors: [], constructPathCount: 0, coloredRectsFound: 0 }
+  const debug: ExtractDebug = {
+    headersFoundPerPage: [],
+    uniqueFillColors: [],
+    constructPathCount: 0,
+    coloredRectsFound: 0,
+  }
   const seenColors = new Set<string>()
 
-  for (let p = 1; p <= pdfDoc.numPages; p++) {
-    const page = await pdfDoc.getPage(p)
-    const [ops, textContent] = await Promise.all([
-      page.getOperatorList(),
-      page.getTextContent(),
-    ])
-
-    const textItems: TextItem[] = (textContent.items as any[])
-      .filter(i => i.str?.trim())
-      .map(i => ({ str: i.str.trim(), x: Math.round(i.transform[4]), y: Math.round(i.transform[5]) }))
-
-    // Find header row(s): row containing all day numbers 1..daysInMonth
+  for (const { textItems, fnArray, argsArray } of pages) {
     const rowMap: Record<number, TextItem[]> = {}
     for (const t of textItems) (rowMap[t.y] = rowMap[t.y] || []).push(t)
 
@@ -385,38 +322,48 @@ async function extractColoredPersons(
     debug.headersFoundPerPage.push(headers.length)
     if (headers.length === 0) continue
 
-    // All day-column x positions — used to exclude shift codes from name extraction
     const allDayXs = headers.flatMap(h => Object.values(h.xmap))
     const isNearDayCol = (x: number) => allDayXs.some(hx => Math.abs(x - hx) <= DAY_COL_TOLERANCE)
 
-    // Collect small colored rects (per-day cell: width < 120, height < 60)
     const coloredRects: ColoredRect[] = []
     let currentFillColor: string | null = null
-    for (let i = 0; i < ops.fnArray.length; i++) {
-      const name = opNames[ops.fnArray[i]]
-      const args = ops.argsArray[i]
-      if (name === 'setFillRGBColor') {
-        const raw = args[0]
-        currentFillColor = typeof raw === 'string' ? raw
-          : '#' + [raw, args[1], args[2]].map((v: number) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+
+    for (let i = 0; i < fnArray.length; i++) {
+      const fn = fnArray[i]
+      const args = argsArray[i]
+
+      if (fn === PDFJS_OP_SET_FILL_RGB) {
+        currentFillColor = '#' + [args[0], args[1], args[2]]
+          .map((v: number) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
         seenColors.add(currentFillColor)
-      } else if (name === 'constructPath') {
+      } else if (fn === PDFJS_OP_CONSTRUCT_PATH) {
         debug.constructPathCount++
-        if (currentFillColor) {
-          const cat = classifyColor(currentFillColor)
-          if (cat && args[2]) {
-            const b = args[2] as Record<number, number>
-            const w = b[2] - b[0]; const h = b[3] - b[1]
-            if (w > 0 && w < 120 && h > 0 && h < 60) {
-              coloredRects.push({ color: cat, x1: b[0], y1: b[1], x2: b[2], y2: b[3] })
+        if (!currentFillColor) continue
+        const cat = classifyColor(currentFillColor)
+        if (!cat) continue
+        // args[0] = path ops array, args[1] = flat coords array
+        const pathOps: number[] = Array.from(args[0] ?? [])
+        const coords: number[] = Array.from(args[1] ?? [])
+        let ci = 0
+        for (const op of pathOps) {
+          if (op === PDFJS_PATH_RECTANGLE) {
+            const x = coords[ci], y = coords[ci + 1], w = coords[ci + 2], h = coords[ci + 3]
+            ci += 4
+            if (w > 0 && w < 120 && Math.abs(h) > 0 && Math.abs(h) < 60) {
+              const x1 = x, y1 = h >= 0 ? y : y + h
+              const x2 = x + w, y2 = h >= 0 ? y + h : y
+              coloredRects.push({ color: cat, x1, y1, x2, y2 })
             }
+          } else {
+            if (op === 13 || op === 14) ci += 2        // moveTo, lineTo
+            else if (op === 15) ci += 6                 // curveTo
+            else if (op === 16 || op === 17) ci += 4    // curveTo2, curveTo3
           }
         }
       }
     }
     debug.coloredRectsFound += coloredRects.length
 
-    // For each colored rect: find day (x) and person name (y)
     for (const rect of coloredRects) {
       const cx = (rect.x1 + rect.x2) / 2
       let bestDay: number | null = null; let bestDist = Infinity
@@ -455,6 +402,7 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
   const daysInMonth = new Date(year, monthIdx, 0).getDate()
 
   const allPersons: PersonData[] = []
+  const colorPages: Array<{ textItems: TextItem[]; fnArray: number[]; argsArray: any[][] }> = []
 
   async function pagerender(pageData: any): Promise<string> {
     try {
@@ -467,6 +415,18 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
       }
       const rows = groupByRow(textItems)
       allPersons.push(...processPageRows(rows, daysInMonth))
+
+      // collect operator list for color extraction using the same pdfjs instance
+      try {
+        const opList = await pageData.getOperatorList()
+        colorPages.push({
+          textItems,
+          fnArray: Array.from(opList.fnArray),
+          argsArray: opList.argsArray,
+        })
+      } catch {
+        // non-fatal: color extraction for this page skipped
+      }
     } catch (err) {
       console.error('PDF parse error (page render)', err)
     }
@@ -486,7 +446,7 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
   let extractDebug: ExtractDebug | undefined
   let extractError: string | undefined
   try {
-    const extracted = await extractColoredPersons(buffer, daysInMonth)
+    const extracted = extractColoredPersonsFromPageData(colorPages, daysInMonth)
     coloredPersons = extracted.result
     extractDebug = extracted.debug
   } catch (err) {
