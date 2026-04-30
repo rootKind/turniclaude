@@ -320,7 +320,8 @@ async function extractColoredPersons(
       const name = opNames[ops.fnArray[i]]
       const args = ops.argsArray[i]
       if (name === 'setFillRGBColor') {
-        pendingColor = args[0] as string
+        const [r, g, b] = args as number[]
+        pendingColor = '#' + [r, g, b].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
       } else if (name === 'constructPath') {
         if (pendingColor) {
           const cat = classifyColor(pendingColor)
