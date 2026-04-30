@@ -59,20 +59,28 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
     return ''
   }
 
+  const getColor = (surname: string) => card.surnameColors?.[surname]
+
   const getColorClass = (surname: string): string => {
-    const col = card.surnameColors?.[surname]
-    if (col === 'green') return 'text-emerald-600 dark:text-emerald-400'
-    if (col === 'salmon') return 'text-orange-400 dark:text-orange-300'
+    const col = getColor(surname)
+    if (col === 'green') return 'text-emerald-700 dark:text-emerald-300'
+    if (col === 'salmon') return 'text-orange-600 dark:text-orange-300'
+    return ''
+  }
+
+  const getNameBgClass = (surname: string): string => {
+    const col = getColor(surname)
+    if (col === 'green') return 'bg-emerald-100 dark:bg-emerald-900/50 rounded'
+    if (col === 'salmon') return 'bg-orange-100 dark:bg-orange-900/50 rounded'
     return ''
   }
 
   const renderName = (surname: string, i: number) => {
     const colorClass = getColorClass(surname)
     const slotClass = getSlotClass(i)
-    const prefix = colorClass ? '🌕 ' : ''
     return (
       <span className={`text-sm whitespace-nowrap leading-tight ${slotClass} ${colorClass}`}>
-        {surname ? `${prefix}${toTitleCase(surname)}` : <span className="text-muted-foreground/40">—</span>}
+        {surname ? toTitleCase(surname) : <span className="text-muted-foreground/40">—</span>}
       </span>
     )
   }
@@ -168,7 +176,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
         {useColLayout ? (
           <div className="flex flex-col flex-1 bg-muted/60 items-center justify-center">
             {card.surnames.map((surname, i) => (
-              <div key={i} className="flex items-center px-2 py-0.5">
+              <div key={i} className={`flex items-center px-2 py-0.5 ${!isEditing ? getNameBgClass(surname) : ''}`}>
                 {isEditing ? (
                   <input
                     className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground w-full"
@@ -183,7 +191,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
         ) : (
           <div className="flex flex-1 items-center justify-center px-2 py-2 gap-3 bg-muted/60">
             {card.surnames.map((surname, i) => (
-              <div key={i} className="shrink-0">
+              <div key={i} className={`shrink-0 px-1 py-0.5 ${!isEditing ? getNameBgClass(surname) : ''}`}>
                 {isEditing ? (
                   <input
                     className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
