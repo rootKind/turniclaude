@@ -260,6 +260,118 @@ function buildSchedule(allPersons: PersonData[], daysInMonth: number): Record<nu
   return schedule
 }
 
+// ─── color extraction ─────────────────────────────────────────────────────────
+
+const GREEN_COLORS = new Set(['#c1f0c8', '#daf2d0'])
+const SALMON_COLORS = new Set(['#fbe2d5'])
+
+function classifyColor(hex: string): 'green' | 'salmon' | null {
+  if (GREEN_COLORS.has(hex)) return 'green'
+  if (SALMON_COLORS.has(hex)) return 'salmon'
+  return null
+}
+
+interface ColoredRect { color: 'green' | 'salmon'; x1: number; y1: number; x2: number; y2: number }
+
+async function extractColoredPersons(
+  buffer: Buffer,
+  daysInMonth: number,
+): Promise<Record<number, Record<string, 'salmon' | 'green'>>> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getDocument, OPS } = await import('pdfjs-dist/legacy/build/pdf.mjs') as any
+  const data = new Uint8Array(buffer)
+  const pdfDoc = await getDocument({ data, verbosity: 0 }).promise
+  const opNames: Record<number, string> = Object.fromEntries(
+    Object.entries(OPS as Record<string, number>).map(([k, v]) => [v, k])
+  )
+
+  const result: Record<number, Record<string, 'salmon' | 'green'>> = {}
+
+  for (let p = 1; p <= pdfDoc.numPages; p++) {
+    const page = await pdfDoc.getPage(p)
+    const [ops, textContent] = await Promise.all([
+      page.getOperatorList(),
+      page.getTextContent(),
+    ])
+
+    const textItems: TextItem[] = (textContent.items as any[])
+      .filter(i => i.str?.trim())
+      .map(i => ({ str: i.str.trim(), x: Math.round(i.transform[4]), y: Math.round(i.transform[5]) }))
+
+    // Find header row(s): row containing all day numbers 1..daysInMonth
+    const rowMap: Record<number, TextItem[]> = {}
+    for (const t of textItems) (rowMap[t.y] = rowMap[t.y] || []).push(t)
+
+    const headers: Array<{ xmap: Record<number, number> }> = []
+    for (const items of Object.values(rowMap)) {
+      const nums = items.filter(i => /^\d+$/.test(i.str)).map(i => parseInt(i.str))
+      if (nums.length >= daysInMonth - 2 && Math.min(...nums) === 1 && Math.max(...nums) === daysInMonth) {
+        const xmap: Record<number, number> = {}
+        items.filter(i => /^\d+$/.test(i.str)).forEach(i => { xmap[parseInt(i.str)] = i.x })
+        headers.push({ xmap })
+      }
+    }
+    if (headers.length === 0) continue
+
+    // Collect small colored rects (cell size: width < 80, height < 30)
+    const coloredRects: ColoredRect[] = []
+    let pendingColor: string | null = null
+    for (let i = 0; i < ops.fnArray.length; i++) {
+      const name = opNames[ops.fnArray[i]]
+      const args = ops.argsArray[i]
+      if (name === 'setFillRGBColor') {
+        const [r, g, b] = args as number[]
+        pendingColor = '#' + [r, g, b].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+      } else if (name === 'constructPath') {
+        if (pendingColor) {
+          const cat = classifyColor(pendingColor)
+          if (cat && args[2]) {
+            const b = args[2] as Record<number, number>
+            const w = b[2] - b[0]; const h = b[3] - b[1]
+            if (w < 80 && h < 30) {
+              coloredRects.push({ color: cat, x1: b[0], y1: b[1], x2: b[2], y2: b[3] })
+            }
+          }
+        }
+        pendingColor = null
+      } else {
+        pendingColor = null
+      }
+    }
+
+    // For each colored rect: find day (x) and person name (y)
+    for (const rect of coloredRects) {
+      const cx = (rect.x1 + rect.x2) / 2
+      // Find which day column this rect falls under
+      let bestDay: number | null = null; let bestDist = Infinity
+      for (const { xmap } of headers) {
+        for (const [day, hx] of Object.entries(xmap)) {
+          const d = Math.abs(cx - hx)
+          if (d < bestDist) { bestDist = d; bestDay = parseInt(day) }
+        }
+      }
+      if (bestDay === null || bestDist > 20) continue
+
+      // Find person name: leftmost text items in the same y-band, x < 200
+      const cy = (rect.y1 + rect.y2) / 2
+      const nameItems = textItems.filter(t => Math.abs(t.y - cy) < 12 && t.x < 200)
+      if (nameItems.length === 0 || nameItems.length > 3) continue
+      const name = nameItems
+        .filter(t => looksLikeName(t.str))
+        .map(t => t.str)
+        .join(' ')
+        .trim()
+      if (!name) continue
+
+      if (!result[bestDay]) result[bestDay] = {}
+      // green takes precedence over salmon if same person appears in both
+      if (result[bestDay][name] !== 'green') result[bestDay][name] = rect.color
+    }
+  }
+
+  return result
+}
+
 // ─── public API ───────────────────────────────────────────────────────────────
 
 export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<SalaSchedule> {
@@ -298,9 +410,17 @@ export async function parsePdfSchedule(buffer: Buffer, month: string): Promise<S
 
   const schedule = buildSchedule(allPersons, daysInMonth)
 
+  let coloredPersons: Record<number, Record<string, 'salmon' | 'green'>> | undefined
+  try {
+    coloredPersons = await extractColoredPersons(buffer, daysInMonth)
+  } catch (err) {
+    console.error('PDF color extraction error (non-fatal)', err)
+  }
+
   return {
     month,
     schedule,
     uploaded_at: new Date().toISOString(),
+    ...(coloredPersons && Object.keys(coloredPersons).length > 0 ? { coloredPersons } : {}),
   }
 }

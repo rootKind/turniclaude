@@ -447,16 +447,28 @@ export function DeskBoard({
         const lookupKey = card.sectionKey ?? card.title
         const sectionData = schedule.schedule[selectedDay]?.sections[lookupKey]?.[selectedShift]
         if (!sectionData) {
-          return { ...card, surnames: card.type === 'double' ? ['', ''] : [''], tirocinanti: [] }
+          return { ...card, surnames: card.type === 'double' ? ['', ''] : [''], tirocinanti: [], surnameSlots: undefined, surnameColors: undefined }
         }
-        const allNames = [
-          ...sectionData.surnames.T,
-          ...sectionData.surnames.S,
-          ...sectionData.surnames.noSlot,
+        const tNames = sectionData.surnames.T
+        const sNames = sectionData.surnames.S
+        const nNames = sectionData.surnames.noSlot
+        const allNames = [...tNames, ...sNames, ...nNames]
+        const surnameSlots: Array<'T' | 'S' | 'noSlot'> = [
+          ...tNames.map(() => 'T' as const),
+          ...sNames.map(() => 'S' as const),
+          ...nNames.map(() => 'noSlot' as const),
         ]
+        const dayColors = schedule.coloredPersons?.[selectedDay] ?? {}
+        const surnameColors: Record<string, 'salmon' | 'green'> = {}
+        for (const name of allNames) {
+          const col = dayColors[name]
+          if (col) surnameColors[name] = col
+        }
         return {
           ...card,
           surnames: allNames.length > 0 ? allNames : (card.type === 'double' ? ['', ''] : ['']),
+          surnameSlots: allNames.length > 0 ? surnameSlots : undefined,
+          surnameColors: Object.keys(surnameColors).length > 0 ? surnameColors : undefined,
           tirocinanti: sectionData.tirocinanti,
         }
       })

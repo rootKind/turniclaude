@@ -49,6 +49,37 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
   }
 
   const isDoubleCol = card.type === 'double' && card.doubleLayout === 'col'
+  const filledNames = card.surnames.filter(Boolean)
+  // Use col (stacked) layout when: explicit doubleCol, OR single card with 2+ names, OR 3+ names in any card
+  const useColLayout = isDoubleCol || filledNames.length > 2 || (card.type === 'single' && filledNames.length > 1)
+
+  const getSlotClass = (i: number): string => {
+    const slot = card.surnameSlots?.[i]
+    if (slot === 'S') return 'italic text-muted-foreground'
+    return ''
+  }
+
+  const getColor = (surname: string) => card.surnameColors?.[surname]
+
+  const getDotClass = (surname: string): string => {
+    const col = getColor(surname)
+    if (col === 'green') return 'text-emerald-500'
+    if (col === 'salmon') return 'text-red-400'
+    return ''
+  }
+
+  const renderName = (surname: string, i: number) => {
+    const dotClass = getDotClass(surname)
+    const slotClass = getSlotClass(i)
+    const dot = dotClass ? <span className={`${dotClass} select-none`}>●</span> : null
+    return (
+      <span className={`text-sm whitespace-nowrap leading-tight flex items-center gap-0.5 ${slotClass}`}>
+        {dot}
+        {surname ? toTitleCase(surname) : <span className="text-muted-foreground/40">—</span>}
+        {dot}
+      </span>
+    )
+  }
   const toggleDoubleLayout = () => onUpdate({ ...card, doubleLayout: isDoubleCol ? 'row' : 'col' })
 
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
@@ -138,7 +169,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
         )}
 
         {/* Surnames */}
-        {isDoubleCol ? (
+        {useColLayout ? (
           <div className="flex flex-col flex-1 bg-muted/60 items-center justify-center">
             {card.surnames.map((surname, i) => (
               <div key={i} className="flex items-center px-2 py-0.5">
@@ -149,11 +180,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
                     onChange={e => updateSurname(i, e.target.value)}
                     placeholder="Cognome"
                   />
-                ) : (
-                  <span className={`text-sm whitespace-nowrap leading-tight ${i === 1 ? 'italic text-muted-foreground' : ''}`}>
-                    {surname ? toTitleCase(surname) : <span className="text-muted-foreground/40">—</span>}
-                  </span>
-                )}
+                ) : renderName(surname, i)}
               </div>
             ))}
           </div>
@@ -169,11 +196,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
                     onChange={e => updateSurname(i, e.target.value)}
                     placeholder="Cognome"
                   />
-                ) : (
-                  <span className={`text-sm whitespace-nowrap ${card.type === 'double' && i === 1 ? 'italic text-muted-foreground' : ''}`}>
-                    {surname ? toTitleCase(surname) : <span className="text-muted-foreground/40">—</span>}
-                  </span>
-                )}
+                ) : renderName(surname, i)}
               </div>
             ))}
           </div>
@@ -195,7 +218,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
                     placeholder="Cogn."
                   />
                 ) : (
-                  <span className="text-xs whitespace-nowrap">
+                  <span className="text-xs whitespace-nowrap italic text-muted-foreground">
                     {tir ? toTitleCase(tir) : <span className="text-muted-foreground/40">—</span>}
                   </span>
                 )}
