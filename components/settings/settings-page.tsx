@@ -183,7 +183,7 @@ export function SettingsPage() {
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
 
       <p className="text-center text-xs text-muted-foreground pb-2">
-        v1.216 · 9ff2f9f — ultimo aggiornamento: 30/04/2026 13:15
+        v1.217 · 088b442 — ultimo aggiornamento: 30/04/2026 13:30
       </p>
     </main>
   )

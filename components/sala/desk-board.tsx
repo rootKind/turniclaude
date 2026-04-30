@@ -462,7 +462,7 @@ export function DeskBoard({
         ]
         const dayColors = schedule.coloredPersons?.[selectedDay] ?? {}
         const surnameColors: Record<string, string> = {}
-        for (const name of allNames) {
+        for (const name of [...allNames, ...sectionData.tirocinanti]) {
           const col = dayColors[name]
           if (col) surnameColors[name] = col
         }
