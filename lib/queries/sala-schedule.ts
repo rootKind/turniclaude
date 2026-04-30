@@ -14,7 +14,7 @@ export async function getSalaSchedule(
 ): Promise<SalaSchedule | null> {
   const { data, error } = await supabase
     .from('sala_schedule')
-    .select('month, schedule, uploaded_at')
+    .select('month, schedule, colored_persons, uploaded_at')
     .eq('month', month)
     .maybeSingle()
 
@@ -25,6 +25,7 @@ export async function getSalaSchedule(
     month: data.month,
     schedule: data.schedule,
     uploaded_at: data.uploaded_at,
+    ...(data.colored_persons ? { coloredPersons: data.colored_persons } : {}),
   }
 }
 
@@ -48,6 +49,7 @@ export async function upsertSalaSchedule(
     .upsert({
       month: payload.month,
       schedule: payload.schedule,
+      colored_persons: payload.coloredPersons ?? null,
       uploaded_at: new Date().toISOString(),
       uploaded_by: userId,
     })
