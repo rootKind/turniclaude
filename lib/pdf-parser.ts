@@ -262,12 +262,20 @@ function buildSchedule(allPersons: PersonData[], daysInMonth: number): Record<nu
 
 // ─── color extraction ─────────────────────────────────────────────────────────
 
-const GREEN_COLORS = new Set(['#c1f0c8', '#daf2d0'])
-const SALMON_COLORS = new Set(['#fbe2d5'])
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+  if (!m) return null
+  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)]
+}
 
 function classifyColor(hex: string): 'green' | 'salmon' | null {
-  if (GREEN_COLORS.has(hex)) return 'green'
-  if (SALMON_COLORS.has(hex)) return 'salmon'
+  const rgb = hexToRgb(hex)
+  if (!rgb) return null
+  const [r, g, b] = rgb
+  // Light green: high G, G dominates R and B, high brightness
+  if (g > 200 && g > r + 20 && g > b + 20 && r > 150 && b > 150) return 'green'
+  // Light salmon: high R, R dominates G and B, high brightness
+  if (r > 220 && r > g + 20 && r > b + 30 && g > 180 && b > 160) return 'salmon'
   return null
 }
 
