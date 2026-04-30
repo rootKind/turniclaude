@@ -41,5 +41,8 @@ export async function POST(req: NextRequest) {
   await upsertSalaSchedule(supabase, result, user.id)
   await saveUploadHistory(supabase, month, file.name, user.id)
 
-  return NextResponse.json({ ok: true, month, persons: Object.keys(result.schedule).length })
+  const coloredCount = result.coloredPersons
+    ? Object.values(result.coloredPersons).reduce((acc, d) => acc + Object.keys(d).length, 0)
+    : 0
+  return NextResponse.json({ ok: true, month, persons: Object.keys(result.schedule).length, coloredPersons: result.coloredPersons ?? null, coloredCount })
 }
