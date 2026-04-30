@@ -11,8 +11,15 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user || !isAdmin(user.id)) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
+  if (!isAdmin(user.id)) {
+    const { data: profile } = await supabase.from('users').select('is_manager').eq('id', user.id).single()
+    if (!profile?.is_manager) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
   }
 
   const formData = await req.formData()

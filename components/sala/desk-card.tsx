@@ -56,8 +56,6 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
   const getSlotClass = (i: number): string => {
     const slot = card.surnameSlots?.[i]
     if (slot === 'S') return 'italic text-muted-foreground'
-    if (slot === 'noSlot') return 'text-muted-foreground'
-    if (!slot && card.type === 'double' && i === 1) return 'italic text-muted-foreground'
     return ''
   }
 
@@ -216,7 +214,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
                     placeholder="Cogn."
                   />
                 ) : (
-                  <span className="text-xs whitespace-nowrap">
+                  <span className="text-xs whitespace-nowrap italic text-muted-foreground">
                     {tir ? toTitleCase(tir) : <span className="text-muted-foreground/40">—</span>}
                   </span>
                 )}
