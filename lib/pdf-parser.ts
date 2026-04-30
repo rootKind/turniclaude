@@ -286,6 +286,7 @@ interface ExtractDebug {
   uniqueFillColors: string[]
   constructPathCount: number
   coloredRectsFound: number
+  sampleMatches: Array<{ color: string; day: number; name: string; rectCy: number; nearestY: number; dist: number }>
 }
 
 // pdfjs v1.10.100 (bundled in pdf-parse) op codes
@@ -303,6 +304,7 @@ function extractColoredPersonsFromPageData(
     uniqueFillColors: [],
     constructPathCount: 0,
     coloredRectsFound: 0,
+    sampleMatches: [],
   }
   const seenColors = new Set<string>()
 
@@ -391,6 +393,9 @@ function extractColoredPersonsFromPageData(
 
       if (!result[bestDay]) result[bestDay] = {}
       if (result[bestDay][name] !== 'green') result[bestDay][name] = rect.color
+      if (debug.sampleMatches.length < 30) {
+        debug.sampleMatches.push({ color: rect.color, day: bestDay, name, rectCy: Math.round(rectCy), nearestY: Math.round(nearestY), dist: Math.round(Math.abs(nearestY - rectCy)) })
+      }
     }
   }
 
