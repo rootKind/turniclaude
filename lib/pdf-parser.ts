@@ -333,8 +333,9 @@ function extractColoredPersonsFromPageData(
       const args = argsArray[i]
 
       if (fn === PDFJS_OP_SET_FILL_RGB) {
+        // pdfjs v1.10.100 passes args as 0-255 integers (used directly in makeCssRgb)
         currentFillColor = '#' + [args[0], args[1], args[2]]
-          .map((v: number) => Math.round(v * 255).toString(16).padStart(2, '0')).join('')
+          .map((v: number) => Math.round(v).toString(16).padStart(2, '0')).join('')
         seenColors.add(currentFillColor)
       } else if (fn === PDFJS_OP_CONSTRUCT_PATH) {
         debug.constructPathCount++
