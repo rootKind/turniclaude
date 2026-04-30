@@ -376,9 +376,15 @@ function extractColoredPersonsFromPageData(
       }
       if (bestDay === null || bestDist > 20) continue
 
-      const nameItems = textItems
-        .filter(t => t.y >= rect.y1 - 3 && t.y <= rect.y2 + 3 && !isNearDayCol(t.x))
-        .filter(t => looksLikeName(t.str))
+      // Find the nearest name-row by y-distance to rect center (avoids multi-row bleed)
+      const rectCy = (rect.y1 + rect.y2) / 2
+      const candidates = textItems.filter(t => !isNearDayCol(t.x) && looksLikeName(t.str))
+      if (candidates.length === 0) continue
+      const nearestY = candidates.reduce((best, t) =>
+        Math.abs(t.y - rectCy) < Math.abs(best - rectCy) ? t.y : best
+      , candidates[0].y)
+      if (Math.abs(nearestY - rectCy) > 20) continue
+      const nameItems = candidates.filter(t => Math.abs(t.y - nearestY) <= 3)
       if (nameItems.length === 0 || nameItems.length > 4) continue
       const name = nameItems.map(t => t.str).join(' ').trim()
       if (!name) continue
