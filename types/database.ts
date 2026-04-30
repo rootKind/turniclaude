@@ -168,6 +168,7 @@ export interface SalaSchedule {
   schedule: Record<number, DaySchedule>  // day 1–31
   uploaded_at: string
   coloredPersons?: Record<number, Record<string, 'salmon' | 'green'>>
+  _debug?: unknown
 }
 
 // ── Costanti ─────────────────────────────────────────────────────────────────

@@ -44,5 +44,5 @@ export async function POST(req: NextRequest) {
   const coloredCount = result.coloredPersons
     ? Object.values(result.coloredPersons).reduce((acc, d) => acc + Object.keys(d).length, 0)
     : 0
-  return NextResponse.json({ ok: true, month, persons: Object.keys(result.schedule).length, coloredPersons: result.coloredPersons ?? null, coloredCount })
+  return NextResponse.json({ ok: true, month, persons: Object.keys(result.schedule).length, coloredPersons: result.coloredPersons ?? null, coloredCount, _debug: result._debug ?? null })
 }
