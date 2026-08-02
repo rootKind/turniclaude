@@ -141,6 +141,18 @@ mancanti, RLS, realtime publication, RPC `set_person_color`). Il cosiddetto "sch
 di CODEBASE_ANALYSIS.md è già risolto. NON riscrivere le policy RLS, NON aggiungere colonne
 o tabelle duplicate.
 
+**FIX migrazioni applicati il 02/08/2026 — INTENZIONALI, da preservare:**
+- Le colonne `is_manager`, `notify_on_vacation_interest`, `notify_on_new_vacation` sono
+  definite nella CREATE TABLE di `public.users` in **migration 001** (spostate da 010):
+  condizione necessaria perché un fresh `supabase db push`/`db reset` superi migration 009
+  (le policy sala-manager leggono `is_manager`). NON riportarle in 010, NON rimuoverle da 001.
+- `app_events.id` è **uuid `gen_random_uuid()`** (migration 010, allineato a prod dove la
+  tabella fu creata manualmente con uuid). La sequence `app_events_id_seq` NON è più creata
+  dalle migrazioni ed è stata rimossa dal DB dev (in prod eventuale residuo, inutilizzato).
+  L'app non usa mai l'id degli eventi (solo `user_id`/`event_type`). NON ripristinare la sequence.
+- Migration **007** (`alter publication ... add table app_settings`) è idempotente grazie
+  alla guardia DO-block (stesso pattern di 012). NON rimuovere la guardia.
+
 **Cookie `co` = base64(JSON)** (`app/api/admin/save-colors` + SSR in `app/layout.tsx`):
 volutamente NON CSS raw (RFC 6265 vieta `;`/newline nei valori). NON "fixare".
 
