@@ -1,6 +1,6 @@
 import type { VacationPeriod } from '@/types/database'
 
-export const ROTATION_SEQ: VacationPeriod[] = [1, 3, 5, 6, 4, 2]
+const ROTATION_SEQ: VacationPeriod[] = [1, 3, 5, 6, 4, 2]
 
 export interface VacationPeriodMeta {
   label: string
@@ -47,13 +47,4 @@ export function getEffectivePeriodForYear(
   return overrides.get(userId) ?? getVacationPeriodForYear(basePeriod, year)
 }
 
-/** Inverso: dato il periodo target in un anno, restituisce il base_period necessario. */
-export function getBasePeriodForYear(
-  targetPeriod: VacationPeriod,
-  year: number,
-): VacationPeriod {
-  const offset    = ((year - 2026) % 6 + 6) % 6
-  const targetIdx = ROTATION_SEQ.indexOf(targetPeriod)
-  const baseIdx   = (targetIdx - offset + 6) % 6
-  return ROTATION_SEQ[baseIdx]
-}
+

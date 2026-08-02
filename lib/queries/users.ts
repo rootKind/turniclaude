@@ -28,13 +28,6 @@ export async function updateUserProfile(updates: Partial<Pick<UserProfile,
   if (error) throw error
 }
 
-export async function fetchAllUsers(): Promise<UserProfile[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase.from('users').select('*').order('cognome')
-  if (error) throw error
-  return data as UserProfile[]
-}
-
 export async function fetchAllUsersMinimal(): Promise<Pick<UserProfile, 'id' | 'nome' | 'cognome'>[]> {
   const supabase = createClient()
   const { data, error } = await supabase

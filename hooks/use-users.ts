@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchUsersByGroup, fetchAllUsersMinimal } from '@/lib/queries/users'
 import { buildDuplicateCognomi } from '@/lib/utils'
 
-export const USERS_QUERY_KEY = (isSecondary: boolean) => ['users', isSecondary]
+const USERS_QUERY_KEY = (isSecondary: boolean) => ['users', isSecondary]
 
-export function useGroupUsers(isSecondary: boolean) {
+function useGroupUsers(isSecondary: boolean) {
   return useQuery({
     queryKey: USERS_QUERY_KEY(isSecondary),
     queryFn: () => fetchUsersByGroup(isSecondary),

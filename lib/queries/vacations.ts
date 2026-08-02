@@ -39,18 +39,6 @@ export async function getMyVacationAssignment(
   }
 }
 
-export async function getAllVacationAssignments(
-  supabase: SupabaseClient,
-): Promise<VacationAssignment[]> {
-  const { data, error } = await supabase
-    .from('vacation_assignments')
-    .select('*')
-    .order('created_at')
-
-  if (error) throw error
-  return (data ?? []) as VacationAssignment[]
-}
-
 export async function getAllVacationAssignmentsWithUsers(
   supabase: SupabaseClient,
 ): Promise<VacationAssignmentWithUser[]> {

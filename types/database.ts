@@ -19,7 +19,7 @@ export interface UserProfile {
   updated_at: string
 }
 
-export interface ShiftInterestedUser {
+interface ShiftInterestedUser {
   shift_id: number                  // bigint → number
   user_id: string
   created_at: string | null
@@ -37,26 +37,6 @@ export interface Shift {
   created_at: string | null
   user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
   shift_interested_users: ShiftInterestedUser[]
-}
-
-export interface PushSubscriptionRecord {
-  id: string
-  user_id: string
-  subscription: object
-  endpoint: string
-  browser: string | null
-  platform: string | null
-  last_update: string | null
-  created_at: string | null
-}
-
-export interface Feedback {
-  id: string
-  user_id: string
-  categories: string
-  message: string
-  read: boolean | null
-  created_at: string
 }
 
 export interface NotificationEntry {
@@ -111,7 +91,7 @@ export interface VacationRequestWithInterests extends VacationRequest {
 
 // ── Sala Layout ──────────────────────────────────────────────────────────────
 
-export type DeskType = 'single' | 'double'
+type DeskType = 'single' | 'double'
 
 export interface SalaLayoutDefaults {
   singleMinWidth: number

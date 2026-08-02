@@ -55,9 +55,3 @@ export function applyColorOverrides(overrides: ColorOverrides) {
   styleEl.textContent = buildStyleString(overrides)
 }
 
-export function clearColorOverrides() {
-  if (typeof document === 'undefined') return
-  const el = document.getElementById('custom-color-overrides')
-  if (el) el.textContent = ''
-  styleEl = null
-}

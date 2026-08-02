@@ -11,7 +11,7 @@ const CACHE_PREFIX = 'cache:'
 export const LAST_USER_KEY = 'cache:last-user-id'
 
 /** Synchronous current user id (or 'anon' before any session). */
-export function getCacheUser(): string {
+function getCacheUser(): string {
   if (typeof window === 'undefined') return 'anon'
   try {
     const last = localStorage.getItem(LAST_USER_KEY)
