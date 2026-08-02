@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { ADMIN_ID } from '@/types/database'
-import { buildStyleString, type ColorOverrides } from '@/lib/color-overrides'
+import { encodeColorOverrides, type ColorOverrides } from '@/lib/color-overrides'
 
 export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
@@ -18,7 +18,9 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const cookieStore = await cookies()
-  cookieStore.set('co', buildStyleString(overrides), {
+  // Store base64(JSON) — raw CSS contains ';'/newlines which are invalid cookie
+  // octets per RFC 6265 and would make the Set-Cookie fail or truncate.
+  cookieStore.set('co', encodeColorOverrides(overrides), {
     path: '/',
     maxAge: 60 * 60 * 24 * 365,
     sameSite: 'lax',

@@ -41,5 +41,22 @@ export async function POST(req: NextRequest) {
   await upsertSalaSchedule(supabase, result, user.id)
   await saveUploadHistory(supabase, month, file.name, user.id)
 
-  return NextResponse.json({ ok: true, month, persons: Object.keys(result.schedule).length })
+  // Count DISTINCT people, not days: result.schedule is keyed by day (1..31).
+  const persons = new Set<string>()
+  for (const day of Object.values(result.schedule)) {
+    for (const section of Object.values(day.sections ?? {})) {
+      for (const shift of Object.values(section ?? {})) {
+        for (const list of [shift.surnames?.T ?? [], shift.surnames?.S ?? [], shift.surnames?.noSlot ?? [], shift.tirocinanti ?? []]) {
+          for (const name of list) {
+            if (name) persons.add(name)
+          }
+        }
+      }
+    }
+    for (const name of day.altriPresenti ?? []) {
+      if (name) persons.add(name)
+    }
+  }
+
+  return NextResponse.json({ ok: true, month, persons: persons.size })
 }

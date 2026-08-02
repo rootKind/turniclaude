@@ -63,32 +63,14 @@ export async function updatePersonColor(
   name: string,
   color: string | null,
 ): Promise<void> {
-  const { data } = await supabase
-    .from('sala_schedule')
-    .select('colored_persons')
-    .eq('month', month)
-    .maybeSingle()
-
-  const existing: Record<number, Record<string, string>> = data?.colored_persons ?? {}
-  const dayColors = { ...(existing[day] ?? {}) }
-
-  if (color === null) {
-    delete dayColors[name]
-  } else {
-    dayColors[name] = color
-  }
-
-  const updated = { ...existing }
-  if (Object.keys(dayColors).length === 0) {
-    delete updated[day]
-  } else {
-    updated[day] = dayColors
-  }
-
-  const { error } = await supabase
-    .from('sala_schedule')
-    .update({ colored_persons: updated })
-    .eq('month', month)
+  // Atomic RPC (migration 013) — the old read-modify-write here could lose
+  // concurrent updates to the same month's colors.
+  const { error } = await supabase.rpc('set_person_color', {
+    p_month: month,
+    p_day: day,
+    p_name: name,
+    p_color: color,
+  })
 
   if (error) throw error
 }

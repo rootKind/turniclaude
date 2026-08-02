@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isManager } from '@/types/database'
+import { clearUserCaches } from '@/lib/cache'
 import { usePush } from '@/hooks/use-push'
 import { updateUserProfile } from '@/lib/queries/users'
 import { useQueryClient } from '@tanstack/react-query'
@@ -36,6 +37,9 @@ export function SettingsPage() {
   }
 
   async function handleLogout() {
+    // Wipe user-scoped caches + persisted profile BEFORE signOut so the next
+    // user on a shared device never sees this account's cached data.
+    clearUserCaches()
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
@@ -183,7 +187,7 @@ export function SettingsPage() {
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
 
       <p className="text-center text-xs text-muted-foreground pb-2">
-        v1.217 · 088b442 — ultimo aggiornamento: 30/04/2026 13:30
+        v1.218 · 46cb7ff — ultimo aggiornamento: 02/08/2026
       </p>
     </main>
   )

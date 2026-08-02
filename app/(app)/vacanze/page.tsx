@@ -125,7 +125,7 @@ function VacanzeContent() {
             onClick={() => setViewSecondary(v => !v)}
             className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
           >
-            {viewSecondary ? 'Noni' : 'DCO'}
+            {viewSecondary ? 'DCO' : 'Noni'}
           </button>
         )}
       </div>

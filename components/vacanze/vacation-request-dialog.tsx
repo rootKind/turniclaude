@@ -12,9 +12,10 @@ import {
   findCompatibleVacationRequests,
   findVacationChains,
   toggleVacationInterest,
+  getVacationYearOverrides,
 } from '@/lib/queries/vacations'
 import { VACATION_REQUESTS_QUERY_KEY, useVacationRequests } from '@/hooks/use-vacation-requests'
-import { VACATION_PERIOD_LABELS, getVacationPeriodForYear } from '@/lib/vacations'
+import { VACATION_PERIOD_LABELS, getEffectivePeriodForYear } from '@/lib/vacations'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { VacationPeriod, VacationRequestWithInterests } from '@/types/database'
@@ -44,8 +45,20 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
   const { profile } = useCurrentUser()
   const { data: allRequests = [] } = useVacationRequests(isSecondary, year)
   const duplicateCognomi = useDuplicateCognomi(isSecondary)
+  const [yearOverrides, setYearOverrides] = useState<Map<string, VacationPeriod>>(new Map())
 
-  const myPeriodThisYear = basePeriod != null ? getVacationPeriodForYear(basePeriod, year) : null
+  // Fetch admin overrides for the selected year so the offered period matches turniferie
+  useEffect(() => {
+    let cancelled = false
+    getVacationYearOverrides(createClient(), year)
+      .then(map => { if (!cancelled) setYearOverrides(map) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [year])
+
+  const myPeriodThisYear = basePeriod != null
+    ? getEffectivePeriodForYear(basePeriod, year, yearOverrides, userId)
+    : null
   const selectablePeriods = ALL_PERIODS.filter(p => p !== myPeriodThisYear)
 
   useEffect(() => {

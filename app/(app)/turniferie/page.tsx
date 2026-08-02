@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getAllVacationAssignmentsWithUsers, getVacationYearOverrides, type VacationAssignmentWithUser } from '@/lib/queries/vacations'
 import { VACATION_PERIOD_LABELS, getEffectivePeriodForYear } from '@/lib/vacations'
 import { getAppSettings } from '@/lib/queries/app-settings'
+import { makeCacheKey } from '@/lib/cache'
 import type { VacationPeriod } from '@/types/database'
 
 const MAX_YEAR = 2099
@@ -86,7 +87,7 @@ export default function TurniFeriePage() {
   }, [])
 
   useEffect(() => {
-    const CACHE_KEY = 'cache:vacation-assignments'
+    const CACHE_KEY = makeCacheKey('vacation-assignments')
     try {
       const raw = localStorage.getItem(CACHE_KEY)
       if (raw) setAssignments(JSON.parse(raw))
@@ -101,7 +102,7 @@ export default function TurniFeriePage() {
   }, [])
 
   useEffect(() => {
-    const CACHE_KEY = `cache:vacation-overrides-${selectedYear}`
+    const CACHE_KEY = makeCacheKey(`vacation-overrides-${selectedYear}`)
     try {
       const raw = localStorage.getItem(CACHE_KEY)
       if (raw) setYearOverrides(new Map(JSON.parse(raw)))
@@ -184,20 +185,21 @@ export default function TurniFeriePage() {
     const p2 = getEffectivePeriodForYear(a2.base_period as VacationPeriod, selectedYear, yearOverrides, switchUser2Id)
     setSwapLoading(true)
     try {
-      const [r1, r2] = await Promise.all([
+      const swap = (userId: string, period: VacationPeriod) =>
         fetch('/api/admin/vacation-swap', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: switchUser1Id, period: p2, year: selectedYear }),
-        }),
-        fetch('/api/admin/vacation-swap', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: switchUser2Id, period: p1, year: selectedYear }),
-        }),
-      ])
+          body: JSON.stringify({ user_id: userId, period, year: selectedYear }),
+        })
+      // Sequential with rollback: if the second call fails, revert the first
+      const r1 = await swap(switchUser1Id, p2)
       if (!r1.ok) throw new Error(await r1.text())
-      if (!r2.ok) throw new Error(await r2.text())
+      const r2 = await swap(switchUser2Id, p1)
+      if (!r2.ok) {
+        // Rollback del primo scambio
+        await swap(switchUser1Id, p1).catch(() => {})
+        throw new Error(await r2.text())
+      }
       const supabase = createClient()
       const [data, overrides] = await Promise.all([
         getAllVacationAssignmentsWithUsers(supabase),
@@ -244,7 +246,7 @@ export default function TurniFeriePage() {
             onClick={() => setViewSecondary(v => !v)}
             className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
           >
-            {viewSecondary ? 'Noni' : 'DCO'}
+            {viewSecondary ? 'DCO' : 'Noni'}
           </button>
         )}
         <div className="flex items-center gap-1">

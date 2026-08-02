@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server'
-import webpush from 'web-push'
 import { createClient } from '@/lib/supabase/server'
 import { ADMIN_ID } from '@/types/database'
+import { pushToUser } from '@/lib/push/send-to-user'
 
 export async function POST(req: Request) {
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT!,
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!
-  )
-
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || user.id !== ADMIN_ID) {
@@ -29,40 +23,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing title or body' }, { status: 400 })
   }
 
-  const { data: subs } = await supabase
-    .from('push_subscriptions')
-    .select('id, subscription, endpoint')
-    .eq('user_id', userId)
-
-  if (!subs?.length) return NextResponse.json({ sent: 0 })
-
-  const payload = JSON.stringify({ title, body: msgBody, type: 'system', shiftId: shiftId ?? null })
-  const staleEndpoints: string[] = []
-  let sent = 0
-
-  await Promise.allSettled(
-    subs.map(async ({ subscription, endpoint }) => {
-      try {
-        await webpush.sendNotification(subscription as webpush.PushSubscription, payload)
-        sent++
-      } catch (err: unknown) {
-        // 410 Gone = subscription expired, prune it
-        const statusCode = (err as { statusCode?: number })?.statusCode
-        if (statusCode === 410 || statusCode === 404) {
-          staleEndpoints.push(endpoint as string)
-        }
-      }
-    })
-  )
-
-  // Remove stale subscriptions
-  if (staleEndpoints.length > 0) {
-    await supabase
-      .from('push_subscriptions')
-      .delete()
-      .in('endpoint', staleEndpoints)
-      .eq('user_id', userId)
-  }
-
+  // pushToUser usa il service role: RLS su push_subscriptions è own-row-only,
+  // quindi leggere le subscription di un altro utente richiede il service role.
+  const sent = await pushToUser(userId, { title, body: msgBody, type: 'system', shiftId: shiftId ?? null })
   return NextResponse.json({ sent })
 }

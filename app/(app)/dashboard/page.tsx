@@ -8,7 +8,7 @@ import { usePush } from '@/hooks/use-push'
 import { isAdmin, isManager } from '@/types/database'
 import { X } from 'lucide-react'
 
-type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean }
+type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_manager?: boolean }
 
 function DashboardContent() {
   const router = useRouter()
@@ -38,7 +38,8 @@ function DashboardContent() {
     if (!adminUser) return
     fetch('/api/admin/users')
       .then(r => r.json())
-      .then(({ users }: { users: UserOption[] }) => setAllUsers(users ?? []))
+      // Exclude managers from impersonation: they have no DCO/Noni category
+      .then(({ users }: { users: UserOption[] }) => setAllUsers((users ?? []).filter(u => !u.is_manager)))
       .catch(() => {})
   }, [adminUser])
 
@@ -121,7 +122,7 @@ function DashboardContent() {
               onClick={() => setViewSecondary(v => !v)}
               className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
             >
-              {viewSecondary ? 'Noni' : 'DCO'}
+              {viewSecondary ? 'DCO' : 'Noni'}
             </button>
           )}
         </div>

@@ -1,12 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminSupabase } from '@/lib/supabase/admin'
 import { pushToUser } from '@/lib/push/send-to-user'
-
-function formatDate(dateStr: string) {
-  const [, mm, dd] = dateStr.split('-')
-  return `${dd}/${mm}`
-}
+import { formatDateShort } from '@/lib/utils'
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient()
@@ -37,10 +33,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'action must be confirm, reject or pending' }, { status: 400 })
   }
 
-  const adminSupabase = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const adminSupabase = createAdminSupabase()
 
   const { data: shift } = await adminSupabase
     .from('shifts')
@@ -69,7 +62,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const winnerName = winnerProfile
         ? `${winnerProfile.cognome ?? ''} ${winnerProfile.nome ?? ''}`.trim()
         : 'un collega'
-      const dateLabel = shift.shift_date ? formatDate(shift.shift_date as string) : ''
+      const dateLabel = shift.shift_date ? formatDateShort(shift.shift_date as string) : ''
       const notifBody = `Il cambio ${shift.offered_shift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''} con ${winnerName} non può essere ancora accettato perché ci sono scorte disponibili`
       await Promise.allSettled([
         pushToUser(shift.user_id as string, { title: 'Cambio in attesa di conferma', body: notifBody, type: 'system' }),
@@ -87,7 +80,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
-  const dateLabel = shift.shift_date ? formatDate(shift.shift_date as string) : ''
+  const dateLabel = shift.shift_date ? formatDateShort(shift.shift_date as string) : ''
 
   if (action === 'reject') {
     const reasonStr = typeof reason === 'string' && reason.trim() ? reason.trim() : null

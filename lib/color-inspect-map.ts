@@ -220,7 +220,15 @@ export function getVarsForElement(el: HTMLElement): string[] {
     const classList = Array.from(current.classList)
     for (const cls of classList) {
       for (const entry of CLASS_MAP) {
-        if (cls === entry.match || cls.startsWith(entry.match)) {
+        // Boundary match: exact class, or Tailwind opacity variant (e.g.
+        // `bg-primary/10` matches `bg-primary`). A plain startsWith would also
+        // match `bg-primary-foreground` against `bg-primary`, adding unrelated
+        // vars to the sheet — `-` variants are separate tokens with their own
+        // entries (e.g. text-primary-foreground).
+        if (
+          cls === entry.match ||
+          cls.startsWith(entry.match + '/')
+        ) {
           entry.vars.forEach(v => found.add(v))
         }
       }

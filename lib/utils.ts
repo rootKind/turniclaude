@@ -1,8 +1,6 @@
 // lib/utils.ts
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { format } from 'date-fns'
-import { it } from 'date-fns/locale'
 import type { UserProfile, ShiftType } from '@/types/database'
 
 export function cn(...inputs: ClassValue[]) {
@@ -70,35 +68,63 @@ export function buildDuplicateCognomi(users: Array<{ id?: string; cognome?: stri
   return result
 }
 
-/** Returns { day: "14", month: "apr", weekday: "LUN" } from a YYYY-MM-DD string */
+/** Returns { day: "14", month: "apr", weekday: "LUN" } from a YYYY-MM-DD string (Rome). */
 export function formatShiftDate(dateStr: string): { day: string; month: string; weekday: string } {
-  const date = new Date(dateStr + 'T00:00:00')
+  // Parse as UTC noon to avoid device-timezone drift on date-only strings
+  const date = new Date(dateStr + 'T12:00:00Z')
+  const parts = new Intl.DateTimeFormat('it-IT', {
+    timeZone: 'Europe/Rome',
+    day: 'numeric',
+    month: 'short',
+    weekday: 'short',
+  }).formatToParts(date)
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? ''
   return {
-    day: format(date, 'd', { locale: it }),
-    month: format(date, 'MMM', { locale: it }).replace('.', ''),
-    weekday: format(date, 'EEE', { locale: it }).replace('.', '').toUpperCase().slice(0, 3),
+    day: get('day'),
+    month: get('month').replace('.', ''),
+    weekday: get('weekday').replace('.', '').toUpperCase().slice(0, 3),
   }
 }
 
-/** Relative time: "oggi 09:12", "ieri 18:44", "2 gg fa" */
+/** Relative time: "oggi 09:12", "ieri 18:44", "2 gg fa" (Europe/Rome dates). */
 export function formatRelativeTime(timestampStr: string): string {
   const date = new Date(timestampStr)
-  const now = new Date()
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000)
-  const safeDiff = Math.max(0, diffDays)
-  if (safeDiff === 0) return `oggi ${format(date, 'HH:mm')}`
-  if (safeDiff === 1) return `ieri ${format(date, 'HH:mm')}`
-  return `${safeDiff} gg fa`
+  const fmt = new Intl.DateTimeFormat('it-IT', {
+    timeZone: 'Europe/Rome',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  const parts = fmt.formatToParts(date)
+  const get = (t: string) => parts.find(p => p.type === t)?.value ?? ''
+  const today = todayRome()
+  const thisDate = `${get('year')}-${get('month')}-${get('day')}`
+  const time = `${get('hour')}:${get('minute')}`
+  if (thisDate === today) return `oggi ${time}`
+  // yesterday in Rome
+  const y = new Date(today + 'T12:00:00Z')
+  y.setUTCDate(y.getUTCDate() - 1)
+  const yesterdayStr = y.toISOString().slice(0, 10)
+  if (thisDate === yesterdayStr) return `ieri ${time}`
+  const diffDays = Math.max(0, Math.round((Date.now() - date.getTime()) / 86400000))
+  return `${diffDays} gg fa`
 }
 
-export type ShiftItemState = 'others' | 'own-empty' | 'own-interest' | 'highlight'
+/** "2026-04-30" → "30/04" (per notifiche/messaggi). */
+export function formatDateShort(dateStr: string): string {
+  const [, mm, dd] = dateStr.split('-')
+  return `${dd}/${mm}`
+}
+
+export type ShiftItemState = 'others' | 'own-empty' | 'own-interest'
 
 export function getShiftItemState(opts: {
   isOwn: boolean
   hasInterest: boolean
-  highlight: boolean
 }): ShiftItemState {
-  if (opts.highlight) return 'highlight'
   if (opts.isOwn && opts.hasInterest) return 'own-interest'
   if (opts.isOwn) return 'own-empty'
   return 'others'
@@ -109,14 +135,12 @@ export const SHIFT_STATE_CLASSES: Record<ShiftItemState, string> = {
   'others':        'shift-state-others',
   'own-empty':     'shift-state-own-empty',
   'own-interest':  'shift-state-own-interest',
-  'highlight':     'shift-state-highlight',
 }
 
 export const SHIFT_DATE_CLASSES: Record<ShiftItemState, string> = {
   'others':        'shift-date-others',
   'own-empty':     'shift-date-own-empty',
   'own-interest':  'shift-date-own-interest',
-  'highlight':     'shift-date-highlight',
 }
 
 export const SHIFT_PILL_CLASSES: Record<ShiftType, string> = {

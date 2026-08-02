@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ADMIN_ID } from '@/types/database'
 
 export async function GET() {
@@ -10,12 +10,9 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const adminSupabase = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const adminSupabase = createAdminSupabase()
 
-  const { data, error } = await adminSupabase.from('users').select('id, nome, cognome, is_secondary').order('cognome')
+  const { data, error } = await adminSupabase.from('users').select('id, nome, cognome, is_secondary, is_manager').order('cognome')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ users: data ?? [] })

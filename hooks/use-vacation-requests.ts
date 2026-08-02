@@ -3,12 +3,13 @@ import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { getVacationRequestsWithInterests } from '@/lib/queries/vacations'
+import { makeCacheKey } from '@/lib/cache'
 import type { VacationRequestWithInterests } from '@/types/database'
 
 export const VACATION_REQUESTS_QUERY_KEY = (isSecondary: boolean, year: number) =>
   ['vacation_requests', isSecondary, year]
 
-const cacheKey = (isSecondary: boolean, year: number) => `cache:vacation-requests-${isSecondary}-${year}`
+const cacheKey = (isSecondary: boolean, year: number) => makeCacheKey(`vacation-requests-${isSecondary}-${year}`)
 
 function getCached(isSecondary: boolean, year: number) {
   try {

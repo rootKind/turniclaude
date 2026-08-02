@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ADMIN_ID } from '@/types/database'
 
 export async function POST(req: Request) {
@@ -20,10 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
   }
 
-  const adminSupabase = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const adminSupabase = createAdminSupabase()
 
   if (typeof nome === 'string' || typeof cognome === 'string' || typeof isSecondary === 'boolean' || typeof isManager === 'boolean') {
     const updates: Record<string, unknown> = {}
@@ -39,7 +36,10 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  if (typeof password === 'string' && password.length >= 6) {
+  if (typeof password === 'string') {
+    if (password.length < 6) {
+      return NextResponse.json({ error: 'Password troppo corta (min 6 caratteri)' }, { status: 400 })
+    }
     const { error } = await adminSupabase.auth.admin.updateUserById(userId, { password })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }

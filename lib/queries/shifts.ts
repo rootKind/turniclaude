@@ -61,6 +61,12 @@ export async function deleteShift(shiftId: number) {
   if (error) throw error
 }
 
+/**
+ * Inverted semantics: pass the CURRENT state. `isInterested === true` means the
+ * user is currently interested → delete the row (toggling off); `false` means
+ * they are not interested yet → insert (toggling on). Do not "fix" without
+ * updating every caller, which intentionally passes the current state.
+ */
 export async function toggleInterest(shiftId: number, userId: string, isInterested: boolean) {
   const supabase = createClient()
   if (isInterested) {
@@ -76,15 +82,6 @@ export async function toggleInterest(shiftId: number, userId: string, isInterest
       .insert({ shift_id: shiftId, user_id: userId })
     if (error) throw error
   }
-}
-
-export async function toggleHighlight(shiftId: number, current: boolean) {
-  const supabase = createClient()
-  const { error } = await supabase
-    .from('shifts')
-    .update({ highlight: !current })
-    .eq('id', shiftId)
-  if (error) throw error
 }
 
 export function findCompatibleShifts(

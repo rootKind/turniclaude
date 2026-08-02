@@ -4,6 +4,7 @@ import { X, ChevronDown } from 'lucide-react'
 import { it } from 'date-fns/locale'
 import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
+import { toast } from 'sonner'
 import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType } from '@/types/database'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
@@ -181,11 +182,10 @@ export function DeskBoard({
 
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
+  // Default the upload month to the month currently being viewed (not next month)
   const [uploadMonth, setUploadMonth] = useState(() => {
     const [y, m] = currentMonth.split('-').map(Number)
-    const nm = m === 12 ? 1 : m + 1
-    const ny = m === 12 ? y + 1 : y
-    return { year: ny, month: nm }
+    return { year: y, month: m }
   })
 
   const sensors = useSensors(
@@ -234,6 +234,7 @@ export function DeskBoard({
   useEffect(() => { totalDaysRef.current = totalDays }, [totalDays])
 
   const [cy, cm] = currentMonth.split('-').map(Number)
+  const currentYear = cy
   const activeDays = schedule
     ? new Set(Object.keys(schedule.schedule).map(Number))
     : null
@@ -377,9 +378,7 @@ export function DeskBoard({
     if (!file) return
     e.target.value = ''
     const [y, m] = currentMonth.split('-').map(Number)
-    const nm = m === 12 ? 1 : m + 1
-    const ny = m === 12 ? y + 1 : y
-    setUploadMonth({ year: ny, month: nm })
+    setUploadMonth({ year: y, month: m })
     setPendingFile(file)
   }
 
@@ -391,7 +390,7 @@ export function DeskBoard({
     try {
       await onUpload(pendingFile, month)
     } catch (err) {
-      alert('Errore upload: ' + (err as Error).message)
+      toast.error('Errore upload: ' + (err as Error).message)
     } finally {
       setUploading(false)
     }
@@ -432,6 +431,9 @@ export function DeskBoard({
     setDeletingMonth(month)
     try {
       await onDeleteMonth(month)
+      toast.success(`Dati di ${formatMonthLabel(month)} eliminati`)
+    } catch (err) {
+      toast.error('Errore eliminazione: ' + (err as Error).message)
     } finally {
       setDeletingMonth(null)
     }
@@ -600,7 +602,7 @@ export function DeskBoard({
                         isEditing={isEditing}
                         highlighted={!isEditing && matchesCognome(card.surnames, userCognome, userNome, duplicateCognomi)}
                         minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
-                        tirocinanteWidth={defaults.tirocinanteWidth}
+                        
                         scheduleSections={scheduleSections}
                         onUpdate={updateCard}
                         onDelete={deleteCard}
@@ -627,7 +629,7 @@ export function DeskBoard({
                 isEditing={true}
                 isDragOverlay={true}
                 minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
-                tirocinanteWidth={defaults.tirocinanteWidth}
+                
                 scheduleSections={scheduleSections}
                 onUpdate={() => {}}
                 onDelete={() => {}}
@@ -672,7 +674,8 @@ export function DeskBoard({
                 onChange={e => setUploadMonth(prev => ({ ...prev, year: Number(e.target.value) }))}
                 className="w-24 px-2 py-1.5 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary"
               >
-                {[currentMonth.split('-')[0], String(Number(currentMonth.split('-')[0]) + 1)].map(y => (
+                {/* Current year plus past years (uploads are often backfilled) */}
+                {[currentYear, currentYear - 1, currentYear - 2].map(y => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>

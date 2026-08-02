@@ -3,12 +3,13 @@ import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useUserStore } from '@/stores/user-store'
 import { fetchCurrentUserProfile } from '@/lib/queries/users'
+import { makeCacheKey } from '@/lib/cache'
 
-const CACHE_KEY = 'cache:user-profile'
+const CACHE_KEY = () => makeCacheKey('user-profile')
 
 function getCached() {
   try {
-    const raw = localStorage.getItem(CACHE_KEY)
+    const raw = localStorage.getItem(CACHE_KEY())
     if (!raw) return { data: undefined, ts: 0 }
     const parsed = JSON.parse(raw)
     return { data: parsed.data, ts: parsed.ts as number }
@@ -16,7 +17,7 @@ function getCached() {
 }
 
 function setCached(data: unknown) {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ data, ts: Date.now() })) } catch {}
+  try { localStorage.setItem(CACHE_KEY(), JSON.stringify({ data, ts: Date.now() })) } catch {}
 }
 
 export function useCurrentUser() {

@@ -6,42 +6,10 @@ import { useColorInspectStore } from '@/stores/color-inspect-store'
 import { useUserStore } from '@/stores/user-store'
 import { getVarsForElement, VAR_LABELS } from '@/lib/color-inspect-map'
 import { applyColorOverrides, type ColorOverrides } from '@/lib/color-overrides'
+import { LIGHT_DEFAULTS, DARK_DEFAULTS } from '@/lib/color-defaults'
 import { ADMIN_ID } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-
-const LIGHT_DEFAULTS: Record<string, string> = {
-  '--background': '#f0f7fc', '--foreground': '#1c1c1c', '--card': '#f5f9fc',
-  '--card-foreground': '#1c1c1c', '--primary': '#2a2a2a', '--primary-foreground': '#f8f8f8',
-  '--secondary': '#e6edf5', '--secondary-foreground': '#2a2a2a', '--muted': '#e6edf5',
-  '--muted-foreground': '#727272', '--accent': '#e6edf5', '--accent-foreground': '#2a2a2a',
-  '--destructive': '#d94f37', '--border': '#d5e0ec', '--input': '#d5e0ec',
-  '--shift-others-bg': '#dde8f0', '--shift-others-date-bg': '#d0dde8',
-  '--shift-others-date-border': '#bdd0e0', '--shift-own-empty-bg': '#e4e4f0',
-  '--shift-own-empty-date-bg': '#d8d8ec', '--shift-own-empty-border': '#c8c8e0',
-  '--shift-own-interest-bg': '#dcfce7', '--shift-own-interest-date-bg': '#bbf7d0',
-  '--shift-own-interest-border': '#86efac', '--shift-highlight-bg': '#fef9e7',
-  '--shift-highlight-date-bg': '#fef3c7', '--pill-mattina-bg': '#dbeafe',
-  '--pill-mattina-text': '#1d4ed8', '--pill-pomeriggio-bg': '#fef3c7',
-  '--pill-pomeriggio-text': '#b45309', '--pill-notte-bg': '#ede9fe',
-  '--pill-notte-text': '#6d28d9',
-}
-const DARK_DEFAULTS: Record<string, string> = {
-  '--background': '#1a1a1a', '--foreground': '#f5f5f5', '--card': '#282828',
-  '--card-foreground': '#f5f5f5', '--primary': '#ebebeb', '--primary-foreground': '#282828',
-  '--secondary': '#363636', '--secondary-foreground': '#f5f5f5', '--muted': '#363636',
-  '--muted-foreground': '#b5b5b5', '--accent': '#363636', '--accent-foreground': '#f5f5f5',
-  '--destructive': '#d94f37', '--border': '#2e2e2e', '--input': '#2e2e2e',
-  '--shift-others-bg': '#1a1a1a', '--shift-others-date-bg': '#252525',
-  '--shift-others-date-border': '#2e2e2e', '--shift-own-empty-bg': '#2a2a35',
-  '--shift-own-empty-date-bg': '#32323f', '--shift-own-empty-border': '#3a3a4a',
-  '--shift-own-interest-bg': '#162416', '--shift-own-interest-date-bg': '#1a2e1a',
-  '--shift-own-interest-border': '#22c55e', '--shift-highlight-bg': '#2a2000',
-  '--shift-highlight-date-bg': '#332800', '--pill-mattina-bg': '#1e3a5f',
-  '--pill-mattina-text': '#60a5fa', '--pill-pomeriggio-bg': '#3b2300',
-  '--pill-pomeriggio-text': '#fbbf24', '--pill-notte-bg': '#2d1b69',
-  '--pill-notte-text': '#a78bfa',
-}
 
 interface HighlightRect { top: number; left: number; width: number; height: number }
 

@@ -6,9 +6,15 @@ import { readHistory, writeHistory, MAX, HISTORY_CHANGED_EVENT } from '@/lib/not
 const DB_NAME = 'turni-notifications'
 const STORE_NAME = 'pending'
 
+// Multiple hooks (Bell, BottomNav, List) mount simultaneously and would each drain
+// IndexedDB. Share a single in-flight drain so concurrent mounts drain once;
+// reset afterwards so a later mount picks up entries the SW wrote meanwhile.
+let drainPromise: Promise<NotificationEntry[]> | null = null
+
 async function drainIDB(): Promise<NotificationEntry[]> {
   if (typeof indexedDB === 'undefined') return []
-  return new Promise((resolve) => {
+  if (drainPromise) return drainPromise
+  drainPromise = new Promise<NotificationEntry[]>((resolve) => {
     const req = indexedDB.open(DB_NAME, 1)
     req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME, { keyPath: 'id' })
     req.onsuccess = () => {
@@ -23,7 +29,10 @@ async function drainIDB(): Promise<NotificationEntry[]> {
       getAll.onerror = () => resolve([])
     }
     req.onerror = () => resolve([])
+  }).finally(() => {
+    drainPromise = null
   })
+  return drainPromise
 }
 
 export function useNotificationHistory() {

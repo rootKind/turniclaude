@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminSupabase } from '@/lib/supabase/admin'
 import { pushToUser } from '@/lib/push/send-to-user'
-
-const PERIOD_LABELS: Record<number, string> = {
-  1: '16–30 Giu', 2: '01–15 Lug', 3: '16–31 Lug',
-  4: '01–15 Ago', 5: '16–31 Ago', 6: '01–15 Set',
-}
+import { VACATION_PERIOD_LABELS_SHORT } from '@/lib/vacations'
+import type { VacationPeriod } from '@/types/database'
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient()
@@ -37,10 +34,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'action must be confirm, reject or pending' }, { status: 400 })
   }
 
-  const adminSupabase = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const adminSupabase = createAdminSupabase()
 
   const { data: vacReq } = await adminSupabase
     .from('vacation_requests')
@@ -69,7 +63,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const winnerName = winnerProfile
         ? `${winnerProfile.cognome ?? ''} ${winnerProfile.nome ?? ''}`.trim()
         : 'un collega'
-      const periodLabel = PERIOD_LABELS[vacReq.offered_period as number] ?? `Periodo ${vacReq.offered_period}`
+      const periodLabel = VACATION_PERIOD_LABELS_SHORT[vacReq.offered_period as VacationPeriod] ?? `Periodo ${vacReq.offered_period}`
       const yearLabel = vacReq.year ? ` (${vacReq.year})` : ''
       const notifBody = `Il cambio ${periodLabel}${yearLabel} con ${winnerName} non può essere ancora accettato perché ci sono scorte disponibili`
       await Promise.allSettled([
@@ -88,7 +82,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
-  const periodLabel = PERIOD_LABELS[vacReq.offered_period as number] ?? `Periodo ${vacReq.offered_period}`
+  const periodLabel = VACATION_PERIOD_LABELS_SHORT[vacReq.offered_period as VacationPeriod] ?? `Periodo ${vacReq.offered_period}`
   const yearLabel = vacReq.year ? ` (${vacReq.year})` : ''
 
   if (action === 'reject') {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ADMIN_ID } from '@/types/database'
 
 export async function POST(req: Request) {
@@ -20,10 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const adminSupabase = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const adminSupabase = createAdminSupabase()
 
   const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
     email,
@@ -40,7 +37,11 @@ export async function POST(req: Request) {
     is_secondary: managerFlag ? false : is_secondary === true,
     is_manager: managerFlag,
   })
-  if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
+  if (profileError) {
+    // Rollback: delete the auth user so no orphan account is left behind
+    await adminSupabase.auth.admin.deleteUser(authData.user.id).catch(() => {})
+    return NextResponse.json({ error: profileError.message }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true, userId: authData.user.id })
 }

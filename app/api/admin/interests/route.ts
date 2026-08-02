@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ADMIN_ID } from '@/types/database'
 
 async function getAdminClient() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || user.id !== ADMIN_ID) return null
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  return createAdminSupabase()
 }
 
 // POST — add interest on behalf of user
@@ -28,7 +25,11 @@ export async function POST(req: Request) {
   if (!shift_id || !user_id) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
   const { error } = await admin.from('shift_interested_users').insert({ shift_id: Number(shift_id), user_id })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Duplicate interest → idempotent 409 instead of a raw 500
+    if (error.code === '23505') return NextResponse.json({ error: 'already_interested' }, { status: 409 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ ok: true })
 }
 

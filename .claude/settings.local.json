@@ -57,5 +57,8 @@
       "Bash(mkdir -p \"C:\\\\Users\\\\david\\\\Downloads\\\\pwa-v2\\\\app\\\\api\\\\manager\\\\shift-requests\\\\[id]\")",
       "Bash(mkdir -p \"C:\\\\Users\\\\david\\\\Downloads\\\\pwa-v2\\\\app\\\\api\\\\manager\\\\vacation-requests\\\\[id]\")"
     ]
+  },
+  "enabledPlugins": {
+    "ponytail@ponytail": true
   }
 }

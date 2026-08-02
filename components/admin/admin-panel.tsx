@@ -114,7 +114,7 @@ export function AdminPanel() {
           title="Feedback"
           description="Leggi le segnalazioni degli utenti"
           badge={feedbackUnread}
-          onClick={() => { setFeedbackOpen(true); setFeedbackUnread(0) }}
+          onClick={() => setFeedbackOpen(true)}
         />
         <ActionTile
           icon={<Palette size={18} />}

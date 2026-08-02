@@ -21,7 +21,8 @@ interface Props {
 }
 
 function dayKey(createdAt: string) {
-  return new Date(createdAt).toISOString().slice(0, 10)
+  // Group by Europe/Rome day, not UTC (Italian evenings would land on the next day)
+  return new Intl.DateTimeFormat('sv', { timeZone: 'Europe/Rome' }).format(new Date(createdAt))
 }
 
 export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUserId, myPeriodThisYear, year, highlightRequestIds = [] }: Props) {

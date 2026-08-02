@@ -54,7 +54,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
   const hasInterest = (shift.shift_interested_users?.length ?? 0) > 0
   const isInterested = shift.shift_interested_users?.some(i => i.user_id === currentUserId) ?? false
 
-  const state = getShiftItemState({ isOwn, hasInterest, highlight: false })
+  const state = getShiftItemState({ isOwn, hasInterest })
   const stateClass = SHIFT_STATE_CLASSES[state]
   const { day, month, weekday } = formatShiftDate(shift.shift_date)
 

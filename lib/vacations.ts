@@ -17,6 +17,12 @@ export const VACATION_PERIOD_LABELS: Record<VacationPeriod, VacationPeriodMeta> 
   6: { label: '01–15 Settembre',   start: '09-01', end: '09-15' },
 }
 
+/** Etichette corte (per notifiche push e messaggi). */
+export const VACATION_PERIOD_LABELS_SHORT: Record<VacationPeriod, string> = {
+  1: '16–30 Giu', 2: '01–15 Lug', 3: '16–31 Lug',
+  4: '01–15 Ago', 5: '16–31 Ago', 6: '01–15 Set',
+}
+
 /**
  * Calcola il periodo ferie di un utente per un dato anno,
  * partendo dal suo base_period (2026) e applicando la rotazione ciclica.

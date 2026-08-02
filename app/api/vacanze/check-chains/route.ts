@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server'
-import webpush from 'web-push'
-import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { findVacationChains } from '@/lib/queries/vacations'
-import { getVacationPeriodForYear } from '@/lib/vacations'
-import type { VacationPeriod, VacationRequestWithInterests, VacationRequestInterest } from '@/types/database'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminSupabase } from '@/lib/supabase/admin'
+import { pushToUser } from '@/lib/push/send-to-user'
+import {
+  findVacationChains,
+  VACATION_REQUESTS_WITH_INTERESTS_SELECT,
+  mapVacationRequestsWithInterests,
+} from '@/lib/queries/vacations'
+import type { VacationPeriod, VacationRequestWithInterests } from '@/types/database'
 
 export async function POST(req: Request) {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -22,50 +25,39 @@ export async function POST(req: Request) {
     year: number
   }
 
-  // Admin client per leggere tutte le richieste senza RLS
-  const admin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+  if (typeof year !== 'number' || !Number.isInteger(year)) {
+    return NextResponse.json({ error: 'year is required' }, { status: 400 })
+  }
+  if (typeof newRequestUserId !== 'string' || !newRequestUserId) {
+    return NextResponse.json({ error: 'newRequestUserId is required' }, { status: 400 })
+  }
+
+  // Service role per leggere tutte le richieste senza RLS
+  const admin = createAdminSupabase()
 
   // Fetch tutte le richieste della categoria + anno con la stessa struttura di getVacationRequestsWithInterests
   const { data: raw } = await admin
     .from('vacation_requests')
-    .select(`
-      *,
-      user:users!vacation_requests_user_id_fkey(id, nome, cognome, is_secondary),
-      vacation_request_interests(
-        request_id, user_id, created_at,
-        user:users!vacation_request_interests_user_id_fkey(
-          id, nome, cognome, is_secondary,
-          vacation_assignments(base_period)
-        )
-      )
-    `)
+    .select(VACATION_REQUESTS_WITH_INTERESTS_SELECT)
     .eq('year', year)
     .order('created_at', { ascending: true })
 
-  const allRequests: VacationRequestWithInterests[] = ((raw ?? []) as any[])
-    .filter((r: any) => r.user?.is_secondary === isSecondary)
-    .map((r: any): VacationRequestWithInterests => ({
-      id:             r.id,
-      user_id:        r.user_id,
-      offered_period: r.offered_period,
-      target_periods: r.target_periods,
-      year:           r.year,
-      is_pending:     r.is_pending ?? false,
-      created_at:     r.created_at,
-      user:           r.user,
-      vacation_request_interests: (r.vacation_request_interests ?? []).map((i: any): VacationRequestInterest => ({
-        request_id:      i.request_id,
-        user_id:         i.user_id,
-        created_at:      i.created_at,
-        user:            i.user,
-        period_this_year: i.user?.vacation_assignments?.[0]?.base_period != null
-          ? getVacationPeriodForYear(i.user.vacation_assignments[0].base_period as VacationPeriod, year)
-          : (1 as VacationPeriod),
-      })),
-    }))
+  // Honor admin overrides when computing each user's period this year
+  const { data: overrideRows } = await admin
+    .from('vacation_year_overrides')
+    .select('user_id, period')
+    .eq('year', year)
+  const overrides = new Map<string, VacationPeriod>()
+  for (const row of (overrideRows ?? []) as Array<{ user_id: string; period: VacationPeriod }>) {
+    overrides.set(row.user_id, row.period)
+  }
+
+  const allRequests: VacationRequestWithInterests[] = mapVacationRequestsWithInterests(
+    raw as unknown[],
+    isSecondary,
+    year,
+    overrides,
+  )
 
   // Per ogni utente con richiesta esistente (escluso chi ha appena inserito),
   // controlla se la nuova richiesta completa una catena
@@ -90,13 +82,6 @@ export async function POST(req: Request) {
 
   if (toNotify.size === 0) return NextResponse.json({ notified: 0 })
 
-  // Invia push notifiche agli utenti coinvolti
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT!,
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!,
-  )
-
   const newReq = allRequests.find(r => r.user_id === newRequestUserId)
   const actorName = newReq ? [newReq.user.nome, newReq.user.cognome].filter(Boolean).join(' ') : 'Qualcuno'
 
@@ -107,12 +92,6 @@ export async function POST(req: Request) {
       .eq('id', userId)
       .single()
     if (!owner || owner.notification_enabled === false || owner.notify_on_new_vacation === false) return
-
-    const { data: subs } = await admin
-      .from('push_subscriptions')
-      .select('subscription, endpoint')
-      .eq('user_id', userId)
-    if (!subs?.length) return
 
     const userReq = allRequests.find(r => r.user_id === userId)
     const chainRequestIds: number[] = userReq ? (() => {
@@ -128,27 +107,12 @@ export async function POST(req: Request) {
         : [userReq.id]
     })() : []
 
-    const payload = JSON.stringify({
+    await pushToUser(userId, {
       title: 'Nuova catena ferie disponibile',
       body: `${actorName} ha inserito una richiesta che completa una catena con la tua (${year})`,
       type: 'new_vacation',
       requestIds: chainRequestIds,
     })
-
-    const stale: string[] = []
-    await Promise.allSettled(
-      subs.map(async ({ subscription, endpoint }) => {
-        try {
-          await webpush.sendNotification(subscription as webpush.PushSubscription, payload)
-        } catch (err: unknown) {
-          const code = (err as { statusCode?: number })?.statusCode
-          if (code === 410 || code === 404) stale.push(endpoint as string)
-        }
-      })
-    )
-    if (stale.length) {
-      await admin.from('push_subscriptions').delete().in('endpoint', stale).eq('user_id', userId)
-    }
   }))
 
   return NextResponse.json({ notified: toNotify.size })

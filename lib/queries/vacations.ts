@@ -8,7 +8,7 @@ import type {
   VacationPeriod,
   VacationYearOverride,
 } from '@/types/database'
-import { getVacationPeriodForYear } from '@/lib/vacations'
+import { getEffectivePeriodForYear } from '@/lib/vacations'
 
 export interface VacationAssignmentWithUser extends VacationAssignment {
   user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
@@ -30,9 +30,12 @@ export async function getMyVacationAssignment(
   if (error) throw error
   if (!data) return null
 
+  // Honor admin overrides (vacation_year_overrides) like turniferie does
+  const overrides = await getVacationYearOverrides(supabase, year)
+
   return {
     ...(data as VacationAssignment),
-    period_this_year: getVacationPeriodForYear(data.base_period as VacationPeriod, year),
+    period_this_year: getEffectivePeriodForYear(data.base_period as VacationPeriod, year, overrides, userId),
   }
 }
 
@@ -93,38 +96,33 @@ export async function getVacationRequests(
   return (data ?? []) as VacationRequest[]
 }
 
+/** Select string shared by getVacationRequestsWithInterests and check-chains. */
+export const VACATION_REQUESTS_WITH_INTERESTS_SELECT = `
+  *,
+  user:users!vacation_requests_user_id_fkey(id, nome, cognome, is_secondary),
+  vacation_request_interests(
+    request_id,
+    user_id,
+    created_at,
+    user:users!vacation_request_interests_user_id_fkey(
+      id, nome, cognome, is_secondary,
+      vacation_assignments(base_period)
+    )
+  )
+`
+
 /**
- * Fetch tutte le richieste ferie di una categoria (DCO o Noni)
- * per l'anno corrente, con utente richiedente e lista interessati
- * (incluso il loro vacation_assignment per calcolare il periodo dell'anno).
+ * Shared mapper: filter by requester category and compute period_this_year for
+ * every interested user, honoring admin overrides. Used by the vacanze page and
+ * by /api/vacanze/check-chains (keeps the two in sync).
  */
-export async function getVacationRequestsWithInterests(
-  supabase: SupabaseClient,
+export function mapVacationRequestsWithInterests(
+  raw: unknown[] | null | undefined,
   isSecondary: boolean,
-  year: number = new Date().getFullYear(),
-): Promise<VacationRequestWithInterests[]> {
-  const { data, error } = await supabase
-    .from('vacation_requests')
-    .select(`
-      *,
-      user:users!vacation_requests_user_id_fkey(id, nome, cognome, is_secondary),
-      vacation_request_interests(
-        request_id,
-        user_id,
-        created_at,
-        user:users!vacation_request_interests_user_id_fkey(
-          id, nome, cognome, is_secondary,
-          vacation_assignments(base_period)
-        )
-      )
-    `)
-    .eq('year', year)
-    .order('created_at', { ascending: true })
-
-  if (error) throw error
-
-  // Filtra per categoria del richiedente e calcola period_this_year per ogni interessato
-  return ((data ?? []) as any[])
+  year: number,
+  overrides: Map<string, VacationPeriod>,
+): VacationRequestWithInterests[] {
+  return ((raw ?? []) as any[])
     .filter((r: any) => r.user?.is_secondary === isSecondary)
     .map((r: any): VacationRequestWithInterests => ({
       id:             r.id,
@@ -141,10 +139,34 @@ export async function getVacationRequestsWithInterests(
         created_at:      i.created_at,
         user:            i.user,
         period_this_year: i.user?.vacation_assignments?.[0]?.base_period != null
-          ? getVacationPeriodForYear(i.user.vacation_assignments[0].base_period as VacationPeriod, year)
+          ? getEffectivePeriodForYear(i.user.vacation_assignments[0].base_period as VacationPeriod, year, overrides, i.user_id)
           : (1 as VacationPeriod),
       })),
     }))
+}
+
+/**
+ * Fetch tutte le richieste ferie di una categoria (DCO o Noni)
+ * per l'anno corrente, con utente richiedente e lista interessati
+ * (incluso il loro vacation_assignment per calcolare il periodo dell'anno).
+ */
+export async function getVacationRequestsWithInterests(
+  supabase: SupabaseClient,
+  isSecondary: boolean,
+  year: number = new Date().getFullYear(),
+): Promise<VacationRequestWithInterests[]> {
+  const { data, error } = await supabase
+    .from('vacation_requests')
+    .select(VACATION_REQUESTS_WITH_INTERESTS_SELECT)
+    .eq('year', year)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+
+  // Honor admin overrides when computing each interested user's period this year
+  const overrides = await getVacationYearOverrides(supabase, year)
+
+  return mapVacationRequestsWithInterests(data as unknown[], isSecondary, year, overrides)
 }
 
 // ── Write ────────────────────────────────────────────────────────────────────
@@ -238,6 +260,12 @@ export function findVacationChains(
   return chains
 }
 
+/**
+ * Inverted semantics: pass the CURRENT state. `isInterested === true` means the
+ * user is currently interested → delete the row (toggling off); `false` means
+ * they are not interested yet → insert (toggling on). Every caller passes the
+ * current state — keep it that way.
+ */
 export async function toggleVacationInterest(
   supabase: SupabaseClient,
   requestId: number,

@@ -10,7 +10,6 @@ interface Props {
   isEditing: boolean
   highlighted?: boolean
   minWidth: number
-  tirocinanteWidth: number
   scheduleSections: string[]
   onUpdate: (card: DeskCardType) => void
   onDelete: (id: string) => void
@@ -22,8 +21,6 @@ interface Props {
 const toTitleCase = (s: string) =>
   s ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : s
 
-// preset colors cycle on the ⬜ button: none → green → salmon → none
-const PRESET_CYCLE: Array<string | null> = ['green', 'salmon', null]
 
 function colorToHex(color: string | null | undefined): string {
   if (!color) return '#000000'
@@ -36,7 +33,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWidth: _, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -65,16 +62,6 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, tirocinanteWi
     if (tirocinanti.length === 0) onUpdate({ ...card, tirocinanti: [''] })
     else if (tirocinanti.length === 1) onUpdate({ ...card, tirocinanti: [tirocinanti[0], ''] })
     else onUpdate({ ...card, tirocinanti: [] })
-  }
-
-  const cyclePreset = (name: string) => {
-    if (!onColorChange || !name) return
-    const current = card.surnameColors?.[name] ?? null
-    // If currently a custom color, go straight to null
-    const base = isCustomColor(current) ? null : current
-    const idx = PRESET_CYCLE.indexOf(base)
-    const next = PRESET_CYCLE[(idx + 1) % PRESET_CYCLE.length]
-    onColorChange(name, next)
   }
 
   const isDoubleCol = card.type === 'double' && card.doubleLayout === 'col'

@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ADMIN_ID } from '@/types/database'
 
 async function getAdminOrFail() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || user.id !== ADMIN_ID) return null
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  return createAdminSupabase()
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +19,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (isNaN(numId) || numId <= 0) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
 
   const { requested_shifts } = await req.json()
-  if (!requested_shifts) return NextResponse.json({ error: 'Missing requested_shifts' }, { status: 400 })
+  if (!Array.isArray(requested_shifts) || requested_shifts.length === 0) {
+    return NextResponse.json({ error: 'requested_shifts must be a non-empty array' }, { status: 400 })
+  }
 
   const { error } = await admin.from('shifts').update({ requested_shifts }).eq('id', numId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

@@ -55,3 +55,6 @@ ferie.pdf
 supabase/.temp/
 android.png
 iphone.jpg
+
+.vercel
+.env*

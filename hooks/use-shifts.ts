@@ -3,11 +3,12 @@ import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { fetchShifts } from '@/lib/queries/shifts'
+import { makeCacheKey } from '@/lib/cache'
 import type { Shift } from '@/types/database'
 
 export const SHIFTS_QUERY_KEY = (isSecondary: boolean) => ['shifts', isSecondary]
 
-const cacheKey = (isSecondary: boolean) => `cache:shifts-${isSecondary}`
+const cacheKey = (isSecondary: boolean) => makeCacheKey(`shifts-${isSecondary}`)
 
 function getCached(isSecondary: boolean) {
   try {

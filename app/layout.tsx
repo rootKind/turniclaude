@@ -7,8 +7,10 @@ import { QueryProvider } from '@/components/providers/query-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { ThemeColor } from '@/components/providers/theme-color'
 import { ColorThemeProvider } from '@/components/providers/color-theme-provider'
+import { buildStyleString, decodeColorOverrides } from '@/lib/color-overrides'
 import { ColorInspector } from '@/components/admin/color-inspector'
 import { PwaGuard } from '@/components/providers/pwa-guard'
+import { AuthCacheGuard } from '@/components/providers/auth-cache-guard'
 import { SwRegistrar } from '@/components/providers/sw-registrar'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
@@ -41,7 +43,8 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
-  const ssrStyles = cookieStore.get('co')?.value ?? ''
+  // Cookie is base64(JSON) since RFC 6265 forbids ';'/newlines in values
+  const ssrStyles = buildStyleString(decodeColorOverrides(cookieStore.get('co')?.value))
 
   return (
     <html lang="it" suppressHydrationWarning>
@@ -52,6 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       )}
       <body className={geist.className}>
         <ThemeProvider>
+          <AuthCacheGuard />
           <SwRegistrar />
           <ThemeColor />
           <ColorThemeProvider />
