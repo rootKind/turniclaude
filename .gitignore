@@ -50,6 +50,7 @@ docs/
 # AI tool config folders (non più usati)
 .claude/
 .serena/
+.codegraph/
 
 # graphify generated output
 graphify-out/

@@ -1,15 +1,8 @@
-## Navigazione codebase
-
-Se esiste `.codegraph/codegraph.db`, leggilo **sempre** prima di
-qualsiasi Glob, Grep o apertura di file. Usa il grafo per identificare
-i nodi coinvolti, poi apri solo quei file specifici.
-
 ## Workflow obbligatorio
 
 ### 1. ESPLORA (subagent isolato)
 Prima di qualsiasi codice,
-- Leggi `.codegraph/codegraph.db`
-- Identifica i file coinvolti dal grafo
+- Identifica i file coinvolti (search/glob)
 - Riporta solo i file rilevanti e le dipendenze a rischio
 
 
