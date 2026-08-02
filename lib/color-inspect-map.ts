@@ -158,6 +158,10 @@ const CLASS_MAP: Array<{ match: string; vars: string[] }> = [
   { match: 'shift-date-own-interest',    vars: ['--shift-own-interest-date-bg', '--shift-own-interest-border'] },
   { match: 'shift-state-highlight',      vars: ['--shift-highlight-bg'] },
   { match: 'shift-date-highlight',       vars: ['--shift-highlight-date-bg'] },
+  // Expanded panel (monolithic card — same vars as the row)
+  { match: 'shift-expanded-others',      vars: ['--shift-others-bg'] },
+  { match: 'shift-expanded-own-empty',   vars: ['--shift-own-empty-bg'] },
+  { match: 'shift-expanded-own-interest',vars: ['--shift-own-interest-bg'] },
   // Shift pills
   { match: 'pill-mattina',               vars: ['--pill-mattina-bg', '--pill-mattina-text'] },
   { match: 'pill-pomeriggio',            vars: ['--pill-pomeriggio-bg', '--pill-pomeriggio-text'] },
@@ -190,6 +194,7 @@ const CLASS_MAP: Array<{ match: string; vars: string[] }> = [
   { match: 'my-period-content',         vars: ['--my-period-content-bg'] },
   { match: 'text-my-period',            vars: ['--my-period-text'] },
   { match: 'my-period-dot',             vars: ['--my-period-dot'] },
+  { match: 'text-my-period-dot',        vars: ['--my-period-dot'] },
   // Period pills
   { match: 'p1-pill',                   vars: ['--period-1-pill-bg', '--period-1-pill-text'] },
   { match: 'p2-pill',                   vars: ['--period-2-pill-bg', '--period-2-pill-text'] },

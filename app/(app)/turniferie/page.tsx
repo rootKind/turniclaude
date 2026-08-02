@@ -239,7 +239,7 @@ export default function TurniFeriePage() {
       className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
       style={{ height: 'calc(100dvh - 4rem)' }}
     >
-      <div className="flex items-center gap-2 mb-3 bg-card border border-sky-200 dark:border-border rounded-xl pl-3 pr-3 py-2 mr-14">
+      <div className="flex items-center gap-2 mb-3 bg-card border border-border rounded-xl pl-3 pr-3 py-2 mr-14">
         <h1 className="text-lg font-bold flex-1">Turni Ferie</h1>
         {canManage && (
           <button
@@ -320,11 +320,11 @@ export default function TurniFeriePage() {
                             key={a.user_id}
                             className={`flex items-center gap-1 py-0.5 text-xs rounded px-1 ${
                               isMe
-                                ? 'font-semibold text-sky-800 dark:text-sky-200'
+                                ? 'font-semibold text-my-period'
                                 : 'text-foreground'
                             }`}
                           >
-                            {isMe && <span className="text-sky-500 text-[9px] leading-none">★</span>}
+                            {isMe && <span className="text-my-period-dot text-[9px] leading-none">★</span>}
                             <span>{a.user ? formatDisplayName(a.user, duplicateCognomi) : ''}</span>
                           </div>
                         )

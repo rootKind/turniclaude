@@ -348,6 +348,11 @@
   .shift-state-own-interest { background: var(--shift-own-interest-bg); border: 1px solid var(--shift-own-interest-border); }
   .shift-state-highlight    { background: var(--shift-highlight-bg); border: 1px solid var(--shift-highlight-border); }
 
+  /* Expanded panel backgrounds — same vars as the row (monolithic card) */
+  .shift-expanded-others       { background: var(--shift-others-bg); }
+  .shift-expanded-own-empty    { background: var(--shift-own-empty-bg); }
+  .shift-expanded-own-interest { background: var(--shift-own-interest-bg); }
+
   /* Date block classes */
   .shift-date-others        { background: var(--shift-others-date-bg); border-right: 1px solid var(--shift-others-date-border); }
   .shift-date-own-empty     { background: var(--shift-own-empty-date-bg); border-right: 1px solid var(--shift-own-empty-border); }
@@ -393,6 +398,7 @@
   .my-period-content { background: var(--my-period-content-bg); }
   .text-my-period    { color: var(--my-period-text); }
   .my-period-dot     { background: var(--my-period-dot); }
+  .text-my-period-dot{ color: var(--my-period-dot); }
 
   .badge-noni { background: var(--badge-noni-bg); color: var(--badge-noni-text); }
   .badge-dco  { background: var(--badge-dco-bg);  color: var(--badge-dco-text); }

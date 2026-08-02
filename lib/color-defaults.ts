@@ -1,6 +1,7 @@
 // lib/color-defaults.ts
 // Full default palette for every color CSS var. Shared by the color settings
 // page and the color inspector so both always show the same "current" value.
+
 export const LIGHT_DEFAULTS: Record<string, string> = {
   '--background': '#f0f7fc', '--foreground': '#1c1c1c', '--card': '#f5f9fc',
   '--card-foreground': '#1c1c1c', '--primary': '#2a2a2a', '--primary-foreground': '#f8f8f8',
@@ -102,3 +103,8 @@ export const DARK_DEFAULTS: Record<string, string> = {
   '--interest-btn-bg': '#16a34a', '--feedback-check-color': '#22c55e',
   '--desk-schedule-border': '#2e2e2e',
 }
+
+// Single source of truth for the browser chrome (meta theme-color) colors.
+// Derived from the --background defaults so they can never drift.
+export const LIGHT_BACKGROUND = LIGHT_DEFAULTS['--background']
+export const DARK_BACKGROUND = DARK_DEFAULTS['--background']

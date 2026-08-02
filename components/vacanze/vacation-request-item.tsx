@@ -361,9 +361,9 @@ export function VacationRequestItem({
           >
             <div className={cn(
               'px-3 py-3 rounded-b-[10px] border-t border-white/5',
-              isOwn && hasInterest ? 'bg-[#f0fdf4] dark:bg-[#0c180c]' :
-              isOwn ? 'bg-[#dcdcf0] dark:bg-[#22223a]' :
-              'bg-[#e0e0e0] dark:bg-[#111]'
+              isOwn && hasInterest ? 'shift-expanded-own-interest' :
+              isOwn ? 'shift-expanded-own-empty' :
+              'shift-expanded-others'
             )}>
               {/* ── MANAGER VIEW ── */}
               {isManagerView && (

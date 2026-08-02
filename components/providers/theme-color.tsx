@@ -1,19 +1,29 @@
 'use client'
 import { useEffect } from 'react'
 import { useTheme } from 'next-themes'
-
-const LIGHT_COLOR = '#f0f7fc'
-const DARK_COLOR = '#0a0a0a'
+import { LIGHT_BACKGROUND, DARK_BACKGROUND } from '@/lib/color-defaults'
 
 export function ThemeColor() {
   const { resolvedTheme } = useTheme()
 
   useEffect(() => {
+    function currentBackground(isDark: boolean): string {
+      // Follow admin overrides applied at runtime (color_overrides), so the
+      // browser chrome matches the real app background. Only hex is accepted:
+      // the CSS defaults are oklch() which isn't supported in every browser's
+      // meta theme-color — fall back to the hex constants in that case.
+      const bg = getComputedStyle(document.documentElement)
+        .getPropertyValue('--background')
+        .trim()
+      if (bg.startsWith('#')) return bg
+      return isDark ? DARK_BACKGROUND : LIGHT_BACKGROUND
+    }
+
     function applyColor() {
       const isDark = resolvedTheme
         ? resolvedTheme === 'dark'
         : document.documentElement.classList.contains('dark')
-      const color = isDark ? DARK_COLOR : LIGHT_COLOR
+      const color = currentBackground(isDark)
 
       const existing = document.querySelectorAll('meta[name="theme-color"]')
       if (existing.length === 0) {

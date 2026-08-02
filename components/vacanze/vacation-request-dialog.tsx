@@ -446,7 +446,7 @@ function VacationCompatibilityPanel({
                       )}
                     </span>
                   ))}
-                  <span className="text-violet-400">→</span>
+                  <span className="text-chain-node">→</span>
                   <span className="font-semibold text-foreground">Tu</span>
                 </div>
 

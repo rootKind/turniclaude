@@ -9,6 +9,7 @@ import { ThemeColor } from '@/components/providers/theme-color'
 import { ColorThemeProvider } from '@/components/providers/color-theme-provider'
 import { buildStyleString, decodeColorOverrides } from '@/lib/color-overrides'
 import { ColorInspector } from '@/components/admin/color-inspector'
+import { LIGHT_BACKGROUND, DARK_BACKGROUND } from '@/lib/color-defaults'
 import { PwaGuard } from '@/components/providers/pwa-guard'
 import { AuthCacheGuard } from '@/components/providers/auth-cache-guard'
 import { SwRegistrar } from '@/components/providers/sw-registrar'
@@ -36,8 +37,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)',  color: '#000000' },
+    { media: '(prefers-color-scheme: light)', color: LIGHT_BACKGROUND },
+    { media: '(prefers-color-scheme: dark)',  color: DARK_BACKGROUND },
   ],
 }
 
