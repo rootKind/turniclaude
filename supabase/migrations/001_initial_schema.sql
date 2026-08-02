@@ -9,6 +9,9 @@ create table if not exists public.users (
   notification_enabled boolean default true,
   notify_on_interest boolean default true,
   notify_on_new_shift boolean default false,
+  is_manager boolean default false,
+  notify_on_vacation_interest boolean default true,
+  notify_on_new_vacation boolean default false,
   created_at timestamptz default timezone('utc', now()),
   updated_at timestamptz default timezone('utc', now())
 );

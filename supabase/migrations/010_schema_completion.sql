@@ -53,9 +53,8 @@ create table if not exists public.vacation_request_interests (
 
 -- ── app_events (written by /api/events, read by /api/admin/stats) ───────────
 
-create sequence if not exists app_events_id_seq;
 create table if not exists public.app_events (
-  id          bigint primary key default nextval('app_events_id_seq'),
+  id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references public.users(id) on delete cascade,
   event_type  text not null check (event_type in ('access', 'new_shift', 'interest')),
   metadata    jsonb,
@@ -63,11 +62,6 @@ create table if not exists public.app_events (
 );
 
 -- ── Missing columns on existing tables ──────────────────────────────────────
-
-alter table public.users
-  add column if not exists is_manager boolean default false,
-  add column if not exists notify_on_vacation_interest boolean default true,
-  add column if not exists notify_on_new_vacation boolean default false;
 
 alter table public.shifts
   add column if not exists is_pending boolean default false;
