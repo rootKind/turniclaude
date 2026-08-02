@@ -104,8 +104,8 @@ export const DARK_DEFAULTS: Record<string, string> = {
   '--interest-date-color': '#4ade80', '--own-name-color': '#fef08a',
   '--interest-btn-bg': '#16a34a', '--feedback-check-color': '#22c55e',
   '--desk-schedule-border': '#2e2e2e',
-  '--sala-highlight-border': '#0284c7', '--sala-highlight-ring': 'rgba(14,165,233,0.25)',
-  '--sala-own-badge-bg': 'rgba(8,47,73,0.35)', '--sala-own-badge-border': '#0284c7', '--sala-own-badge-text': '#7dd3fc',
+  '--sala-highlight-border': '#fbbf24', '--sala-highlight-ring': 'rgba(245,158,11,0.25)',
+  '--sala-own-badge-bg': 'rgba(66,32,6,0.35)', '--sala-own-badge-border': '#fbbf24', '--sala-own-badge-text': '#fde047',
 }
 
 // Single source of truth for the browser chrome (meta theme-color) colors.

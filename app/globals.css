@@ -328,11 +328,11 @@
 
   /* Sala — dark */
   --desk-schedule-border: var(--border);
-  --sala-highlight-border: #0284c7;
-  --sala-highlight-ring: rgba(14,165,233,0.25);
-  --sala-own-badge-bg: rgba(8,47,73,0.35);
-  --sala-own-badge-border: #0284c7;
-  --sala-own-badge-text: #7dd3fc;
+  --sala-highlight-border: #fbbf24;
+  --sala-highlight-ring: rgba(245,158,11,0.25);
+  --sala-own-badge-bg: rgba(66,32,6,0.35);
+  --sala-own-badge-border: #fbbf24;
+  --sala-own-badge-text: #fde047;
 }
 
 @layer base {
