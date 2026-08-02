@@ -47,6 +47,10 @@ next-env.d.ts
 .superpowers/
 docs/
 
+# AI tool config folders (non più usati)
+.claude/
+.serena/
+
 # graphify generated output
 graphify-out/
 
