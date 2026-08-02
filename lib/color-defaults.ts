@@ -85,7 +85,7 @@ export const DARK_DEFAULTS: Record<string, string> = {
   '--chain-action-bg': '#7c3aed', '--chain-action-text': '#ffffff',
   '--chain-node-text': '#c4b5fd',
   '--chip-selected-bg': '#18181b', '--chip-selected-text': '#ffffff', '--chip-selected-border': '#3f3f46',
-  '--offered-box-bg': '#282828', '--offered-box-border': '#2e2e2e',
+  '--offered-box-bg': '#0a0a0a', '--offered-box-border': '#2e2e2e',
   '--offered-box-label': '#b5b5b5', '--offered-box-value': '#f5f5f5',
   '--my-period-border': '#fbbf24', '--my-period-header-bg': 'rgba(66,32,6,0.38)',
   '--my-period-content-bg': 'rgba(66,32,6,0.22)', '--my-period-text': '#fde047', '--my-period-dot': '#fbbf24',
