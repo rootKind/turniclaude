@@ -53,6 +53,11 @@ export const LIGHT_DEFAULTS: Record<string, string> = {
   '--desk-schedule-border': '#bae6fd',
   '--sala-highlight-border': '#38bdf8', '--sala-highlight-ring': 'rgba(14,165,233,0.30)',
   '--sala-own-badge-bg': '#dbeafe', '--sala-own-badge-border': '#38bdf8', '--sala-own-badge-text': '#0369a1',
+  '--sala-card-bg': '#f5f9fc', '--sala-card-border': '#d5e0ec',
+  '--sala-card-title-bg': '#eff4f9', '--sala-card-body-bg': '#ecf2f8', '--sala-card-tir-bg': '#eef3f9',
+  '--sala-present-pill-bg': '#e6edf5', '--sala-present-pill-text': '#1c1c1c',
+  '--sala-toolbar-chip-bg': '#38bdf8', '--sala-toolbar-chip-text': '#ffffff', '--sala-toolbar-chip-border': '#38bdf8',
+  '--sala-toolbar-nav-bg': 'rgba(255,255,255,0)', '--sala-toolbar-nav-border': '#d5e0ec', '--sala-toolbar-nav-text': '#1c1c1c',
 }
 
 export const DARK_DEFAULTS: Record<string, string> = {
@@ -80,10 +85,10 @@ export const DARK_DEFAULTS: Record<string, string> = {
   '--chain-action-bg': '#7c3aed', '--chain-action-text': '#ffffff',
   '--chain-node-text': '#c4b5fd',
   '--chip-selected-bg': '#18181b', '--chip-selected-text': '#ffffff', '--chip-selected-border': '#3f3f46',
-  '--offered-box-bg': '#082f49', '--offered-box-border': '#0c4a6e',
-  '--offered-box-label': '#38bdf8', '--offered-box-value': '#e0f2fe',
-  '--my-period-border': '#0284c7', '--my-period-header-bg': '#0d2535',
-  '--my-period-content-bg': '#061820', '--my-period-text': '#e0f2fe', '--my-period-dot': '#0ea5e9',
+  '--offered-box-bg': 'rgba(66,32,6,0.25)', '--offered-box-border': '#b45309',
+  '--offered-box-label': '#fbbf24', '--offered-box-value': '#fde047',
+  '--my-period-border': '#fbbf24', '--my-period-header-bg': 'rgba(66,32,6,0.38)',
+  '--my-period-content-bg': 'rgba(66,32,6,0.22)', '--my-period-text': '#fde047', '--my-period-dot': '#fbbf24',
   '--period-1-pill-bg': '#064e3b', '--period-1-pill-text': '#6ee7b7',
   '--period-2-pill-bg': '#422006', '--period-2-pill-text': '#fde047',
   '--period-3-pill-bg': '#451a03', '--period-3-pill-text': '#fcd34d',
@@ -106,6 +111,11 @@ export const DARK_DEFAULTS: Record<string, string> = {
   '--desk-schedule-border': '#2e2e2e',
   '--sala-highlight-border': '#fbbf24', '--sala-highlight-ring': 'rgba(245,158,11,0.25)',
   '--sala-own-badge-bg': 'rgba(66,32,6,0.35)', '--sala-own-badge-border': '#fbbf24', '--sala-own-badge-text': '#fde047',
+  '--sala-card-bg': '#282828', '--sala-card-border': '#2e2e2e',
+  '--sala-card-title-bg': '#2e2e2e', '--sala-card-body-bg': '#303030', '--sala-card-tir-bg': '#2f2f2f',
+  '--sala-present-pill-bg': '#363636', '--sala-present-pill-text': '#f5f5f5',
+  '--sala-toolbar-chip-bg': '#18181b', '--sala-toolbar-chip-text': '#ffffff', '--sala-toolbar-chip-border': '#3f3f46',
+  '--sala-toolbar-nav-bg': 'rgba(255,255,255,0)', '--sala-toolbar-nav-border': '#2e2e2e', '--sala-toolbar-nav-text': '#f5f5f5',
 }
 
 // Single source of truth for the browser chrome (meta theme-color) colors.

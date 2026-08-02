@@ -113,15 +113,15 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-card rounded-lg overflow-hidden flex flex-col h-full border transition-opacity ${
-        highlighted ? 'desk-card-highlight' : 'border-border'
+      className={`sala-card-bg sala-card-border rounded-lg overflow-hidden flex flex-col h-full border transition-opacity ${
+        highlighted ? 'desk-card-highlight' : ''
       } ${isDragging && !isDragOverlay ? 'opacity-40' : ''}`}
     >
       {/* Main area */}
       <div className="flex flex-col flex-1 min-h-0" style={{ minWidth: `${minWidth}px` }}>
         {/* Title row */}
         <div
-          className={`flex items-center gap-1 px-2 border-b border-border bg-muted/40 shrink-0 ${!isEditing ? 'justify-center' : ''}`}
+          className={`flex items-center gap-1 px-2 border-b border-border sala-card-title shrink-0 ${!isEditing ? 'justify-center' : ''}`}
           style={{ height: '28px' }}
         >
           {isEditing && (
@@ -258,7 +258,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
 
         {/* Surnames */}
         {useColLayout ? (
-          <div className="flex flex-col flex-1 bg-muted/60 items-center justify-center">
+          <div className="flex flex-col flex-1 sala-card-body items-center justify-center">
             {card.surnames.map((surname, i) => (
               <div key={i} className="flex items-center px-2 py-0.5">
                 {isEditing ? (
@@ -273,7 +273,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
             ))}
           </div>
         ) : (
-          <div className="flex flex-1 items-center justify-center px-2 py-2 gap-3 bg-muted/60">
+          <div className="flex flex-1 items-center justify-center px-2 py-2 gap-3 sala-card-body">
             {card.surnames.map((surname, i) => (
               <div key={i} className="shrink-0">
                 {isEditing ? (
@@ -294,7 +294,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       {/* Tirocinante bottom extension */}
       {tirCount > 0 && (
         <div className="border-t border-border shrink-0">
-          <div className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 bg-muted/50">
+          <div className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 sala-card-tir">
             {tirocinanti.map((tir, i) => (
               <div key={i} ref={i === 0 ? firstTirRef : undefined} className="flex items-center gap-1">
                 <span className="text-[8px] text-muted-foreground font-medium uppercase leading-none">Tir.</span>

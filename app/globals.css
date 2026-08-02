@@ -190,6 +190,22 @@
   --sala-own-badge-bg: #dbeafe;
   --sala-own-badge-border: #38bdf8;
   --sala-own-badge-text: #0369a1;
+  /* Sala desk card (dedicate — non condividono --card/--border con le impostazioni) */
+  --sala-card-bg: #f5f9fc;
+  --sala-card-border: #d5e0ec;
+  --sala-card-title-bg: #eff4f9;
+  --sala-card-body-bg: #ecf2f8;
+  --sala-card-tir-bg: #eef3f9;
+  /* Sala — pill "Altri presenti" (dedicate, non usano --muted) */
+  --sala-present-pill-bg: #e6edf5;
+  --sala-present-pill-text: #1c1c1c;
+  /* Sala — toolbar (chip selezionato + navigazione mese) */
+  --sala-toolbar-chip-bg: #38bdf8;
+  --sala-toolbar-chip-text: #ffffff;
+  --sala-toolbar-chip-border: #38bdf8;
+  --sala-toolbar-nav-bg: rgba(255,255,255,0);
+  --sala-toolbar-nav-border: #d5e0ec;
+  --sala-toolbar-nav-text: #1c1c1c;
 }
 
 .dark {
@@ -277,17 +293,17 @@
   --chip-selected-border: #3f3f46;
 
   /* Offered period info box — dark */
-  --offered-box-bg: rgba(8,47,73,0.25);
-  --offered-box-border: #0c4a6e;
-  --offered-box-label: #38bdf8;
-  --offered-box-value: #e0f2fe;
+  --offered-box-bg: rgba(66,32,6,0.25);
+  --offered-box-border: #b45309;
+  --offered-box-label: #fbbf24;
+  --offered-box-value: #fde047;
 
   /* My period — dark */
-  --my-period-border: #0284c7;
-  --my-period-header-bg: rgba(8,47,73,0.38);
-  --my-period-content-bg: rgba(8,47,73,0.22);
-  --my-period-text: #e0f2fe;
-  --my-period-dot: #0ea5e9;
+  --my-period-border: #fbbf24;
+  --my-period-header-bg: rgba(66,32,6,0.38);
+  --my-period-content-bg: rgba(66,32,6,0.22);
+  --my-period-text: #fde047;
+  --my-period-dot: #fbbf24;
 
   /* Period pills — dark */
   --period-1-pill-bg: rgba(6,78,59,0.38);   --period-1-pill-text: #6ee7b7;
@@ -333,6 +349,22 @@
   --sala-own-badge-bg: rgba(66,32,6,0.35);
   --sala-own-badge-border: #fbbf24;
   --sala-own-badge-text: #fde047;
+  /* Sala desk card — dark */
+  --sala-card-bg: #282828;
+  --sala-card-border: #2e2e2e;
+  --sala-card-title-bg: #2e2e2e;
+  --sala-card-body-bg: #303030;
+  --sala-card-tir-bg: #2f2f2f;
+  /* Sala — pill "Altri presenti" — dark */
+  --sala-present-pill-bg: #363636;
+  --sala-present-pill-text: #f5f5f5;
+  /* Sala — toolbar — dark */
+  --sala-toolbar-chip-bg: #18181b;
+  --sala-toolbar-chip-text: #ffffff;
+  --sala-toolbar-chip-border: #3f3f46;
+  --sala-toolbar-nav-bg: rgba(255,255,255,0);
+  --sala-toolbar-nav-border: #2e2e2e;
+  --sala-toolbar-nav-text: #f5f5f5;
 }
 
 @layer base {
@@ -419,6 +451,20 @@
   .text-feedback-check{ color: var(--feedback-check-color); }
 
   .desk-schedule-border { border-color: var(--desk-schedule-border); }
+
+  /* Sala desk card — parti dedicate (sfondo/bordo/titolo/corpo/tirocinante) */
+  .sala-card-bg     { background-color: var(--sala-card-bg); }
+  .sala-card-border { border-color: var(--sala-card-border); }
+  .sala-card-title  { background-color: var(--sala-card-title-bg); }
+  .sala-card-body   { background-color: var(--sala-card-body-bg); }
+  .sala-card-tir    { background-color: var(--sala-card-tir-bg); }
+  .sala-present-pill { background-color: var(--sala-present-pill-bg); color: var(--sala-present-pill-text); }
+
+  /* Sala toolbar — chip selezionato + navigazione mese */
+  .sala-toolbar-chip { background: var(--sala-toolbar-chip-bg) !important; color: var(--sala-toolbar-chip-text) !important; border-color: var(--sala-toolbar-chip-border) !important; }
+  .sala-toolbar-nav-bg     { background-color: var(--sala-toolbar-nav-bg); }
+  .sala-toolbar-nav-border { border-color: var(--sala-toolbar-nav-border); }
+  .sala-toolbar-nav-text   { color: var(--sala-toolbar-nav-text); }
 
   .desk-card-highlight {
     border-color: var(--sala-highlight-border);

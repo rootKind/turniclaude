@@ -495,7 +495,7 @@ export function DeskBoard({
           <div className="relative">
             <button
               onClick={() => setShowDayPicker(v => !v)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none sala-toolbar-nav-bg sala-toolbar-nav-text"
             >
               <span className="text-sm font-semibold text-muted-foreground uppercase leading-none">{weekdayLabel}</span>
               <span className="text-sm font-semibold tabular-nums leading-none">{selectedDay}</span>
@@ -540,14 +540,14 @@ export function DeskBoard({
 
           <div className="flex-1" />
 
-          <div className="flex rounded-lg overflow-hidden border border-border text-xs font-semibold shrink-0">
+          <div className="flex rounded-lg overflow-hidden border sala-toolbar-nav-border text-xs font-semibold shrink-0">
             {(['N', 'M', 'P'] as const).map(s => (
               <button
                 key={s}
                 onClick={() => setSelectedShift(s)}
                 className={`px-2 py-1.5 transition-colors ${
                   selectedShift === s
-                    ? 'chip-selected'
+                    ? 'sala-toolbar-chip'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
@@ -651,7 +651,7 @@ export function DeskBoard({
             return (
               <span
                 key={i}
-                className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : 'bg-muted'}`}
+                className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : 'sala-present-pill'}`}
               >
                 {name}
               </span>

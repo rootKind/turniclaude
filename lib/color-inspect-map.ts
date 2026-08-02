@@ -133,6 +133,19 @@ export const VAR_LABELS: Record<string, VarInfo> = {
   '--sala-own-badge-bg':        { label: 'Sala badge proprio — sfondo',   type: 'bg' },
   '--sala-own-badge-border':    { label: 'Sala badge proprio — bordo',    type: 'border' },
   '--sala-own-badge-text':      { label: 'Sala badge proprio — testo',    type: 'text' },
+  '--sala-card-bg':             { label: 'Sala card — sfondo',            type: 'bg' },
+  '--sala-card-border':         { label: 'Sala card — bordo',             type: 'border' },
+  '--sala-card-title-bg':       { label: 'Sala card — titolo',            type: 'bg' },
+  '--sala-card-body-bg':        { label: 'Sala card — corpo',             type: 'bg' },
+  '--sala-card-tir-bg':         { label: 'Sala card — tirocinante',       type: 'bg' },
+  '--sala-present-pill-bg':     { label: 'Sala presenti — sfondo',        type: 'bg' },
+  '--sala-present-pill-text':   { label: 'Sala presenti — testo',         type: 'text' },
+  '--sala-toolbar-chip-bg':     { label: 'Toolbar sala chip — sfondo',    type: 'bg' },
+  '--sala-toolbar-chip-text':   { label: 'Toolbar sala chip — testo',     type: 'text' },
+  '--sala-toolbar-chip-border': { label: 'Toolbar sala chip — bordo',     type: 'border' },
+  '--sala-toolbar-nav-bg':      { label: 'Toolbar sala nav — sfondo',     type: 'bg' },
+  '--sala-toolbar-nav-border':  { label: 'Toolbar sala nav — bordo',      type: 'border' },
+  '--sala-toolbar-nav-text':    { label: 'Toolbar sala nav — testo',      type: 'text' },
 }
 
 const CLASS_MAP: Array<{ match: string; vars: string[] }> = [
@@ -222,6 +235,17 @@ const CLASS_MAP: Array<{ match: string; vars: string[] }> = [
   { match: 'desk-schedule-border',      vars: ['--desk-schedule-border'] },
   { match: 'desk-card-highlight',       vars: ['--sala-highlight-border', '--sala-highlight-ring'] },
   { match: 'desk-own-badge',            vars: ['--sala-own-badge-bg', '--sala-own-badge-border', '--sala-own-badge-text'] },
+  { match: 'sala-card-bg',              vars: ['--sala-card-bg'] },
+  { match: 'sala-card-border',          vars: ['--sala-card-border'] },
+  { match: 'sala-card-title',           vars: ['--sala-card-title-bg'] },
+  { match: 'sala-card-body',            vars: ['--sala-card-body-bg'] },
+  { match: 'sala-card-tir',             vars: ['--sala-card-tir-bg'] },
+  { match: 'sala-present-pill',         vars: ['--sala-present-pill-bg', '--sala-present-pill-text'] },
+  { match: 'sala-toolbar-chip',         vars: ['--sala-toolbar-chip-bg', '--sala-toolbar-chip-text', '--sala-toolbar-chip-border'] },
+  // Classi reali del DOM (desk-board.tsx): selettore giorno → bg+text, gruppo N/M/P → border
+  { match: 'sala-toolbar-nav-bg',       vars: ['--sala-toolbar-nav-bg'] },
+  { match: 'sala-toolbar-nav-border',   vars: ['--sala-toolbar-nav-border'] },
+  { match: 'sala-toolbar-nav-text',     vars: ['--sala-toolbar-nav-text'] },
 ]
 
 export function getVarsForElement(el: HTMLElement): string[] {
