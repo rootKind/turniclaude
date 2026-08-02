@@ -26,7 +26,7 @@ const COLOR_GROUPS: { label: string; tokens: string[] }[] = [
   { label: 'Mio periodo',         tokens: ['--my-period-border','--my-period-header-bg','--my-period-content-bg','--my-period-text','--my-period-dot'] },
   { label: 'Pill periodi 1–6',    tokens: ['--period-1-pill-bg','--period-1-pill-text','--period-2-pill-bg','--period-2-pill-text','--period-3-pill-bg','--period-3-pill-text','--period-4-pill-bg','--period-4-pill-text','--period-5-pill-bg','--period-5-pill-text','--period-6-pill-bg','--period-6-pill-text'] },
   { label: 'Card periodi 1–6',    tokens: ['--period-1-card-border','--period-1-card-header','--period-1-card-content','--period-2-card-border','--period-2-card-header','--period-2-card-content','--period-3-card-border','--period-3-card-header','--period-3-card-content','--period-4-card-border','--period-4-card-header','--period-4-card-content','--period-5-card-border','--period-5-card-header','--period-5-card-content','--period-6-card-border','--period-6-card-header','--period-6-card-content'] },
-  { label: 'Chip / Sala',         tokens: ['--chip-selected-bg','--chip-selected-text','--chip-selected-border','--desk-schedule-border'] },
+  { label: 'Chip / Sala',         tokens: ['--chip-selected-bg','--chip-selected-text','--chip-selected-border','--desk-schedule-border','--sala-highlight-border','--sala-highlight-ring','--sala-own-badge-bg','--sala-own-badge-border','--sala-own-badge-text'] },
   { label: 'Badge / Misc',        tokens: ['--banner-impersonate-bg','--banner-impersonate-text','--badge-noni-bg','--badge-noni-text','--badge-dco-bg','--badge-dco-text','--interest-date-color','--own-name-color','--interest-btn-bg','--feedback-check-color'] },
 ]
 

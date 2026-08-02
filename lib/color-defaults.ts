@@ -51,6 +51,8 @@ export const LIGHT_DEFAULTS: Record<string, string> = {
   '--interest-date-color': '#4ade80', '--own-name-color': '#854d0e',
   '--interest-btn-bg': '#16a34a', '--feedback-check-color': '#22c55e',
   '--desk-schedule-border': '#bae6fd',
+  '--sala-highlight-border': '#38bdf8', '--sala-highlight-ring': 'rgba(14,165,233,0.30)',
+  '--sala-own-badge-bg': '#dbeafe', '--sala-own-badge-border': '#38bdf8', '--sala-own-badge-text': '#0369a1',
 }
 
 export const DARK_DEFAULTS: Record<string, string> = {
@@ -102,6 +104,8 @@ export const DARK_DEFAULTS: Record<string, string> = {
   '--interest-date-color': '#4ade80', '--own-name-color': '#fef08a',
   '--interest-btn-bg': '#16a34a', '--feedback-check-color': '#22c55e',
   '--desk-schedule-border': '#2e2e2e',
+  '--sala-highlight-border': '#0284c7', '--sala-highlight-ring': 'rgba(14,165,233,0.25)',
+  '--sala-own-badge-bg': 'rgba(8,47,73,0.35)', '--sala-own-badge-border': '#0284c7', '--sala-own-badge-text': '#7dd3fc',
 }
 
 // Single source of truth for the browser chrome (meta theme-color) colors.

@@ -128,6 +128,11 @@ export const VAR_LABELS: Record<string, VarInfo> = {
   '--interest-btn-bg':          { label: 'Pulsante interesse — sfondo',   type: 'bg' },
   '--feedback-check-color':     { label: 'Feedback check — colore',       type: 'text' },
   '--desk-schedule-border':     { label: 'Sala schedule — bordo',         type: 'border' },
+  '--sala-highlight-border':    { label: 'Sala highlight — bordo',        type: 'border' },
+  '--sala-highlight-ring':      { label: 'Sala highlight — alone',        type: 'border' },
+  '--sala-own-badge-bg':        { label: 'Sala badge proprio — sfondo',   type: 'bg' },
+  '--sala-own-badge-border':    { label: 'Sala badge proprio — bordo',    type: 'border' },
+  '--sala-own-badge-text':      { label: 'Sala badge proprio — testo',    type: 'text' },
 }
 
 const CLASS_MAP: Array<{ match: string; vars: string[] }> = [
@@ -215,6 +220,8 @@ const CLASS_MAP: Array<{ match: string; vars: string[] }> = [
   { match: 'text-own-name',             vars: ['--own-name-color'] },
   { match: 'text-feedback-check',       vars: ['--feedback-check-color'] },
   { match: 'desk-schedule-border',      vars: ['--desk-schedule-border'] },
+  { match: 'desk-card-highlight',       vars: ['--sala-highlight-border', '--sala-highlight-ring'] },
+  { match: 'desk-own-badge',            vars: ['--sala-own-badge-bg', '--sala-own-badge-border', '--sala-own-badge-text'] },
 ]
 
 export function getVarsForElement(el: HTMLElement): string[] {

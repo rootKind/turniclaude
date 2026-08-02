@@ -600,7 +600,10 @@ export function DeskBoard({
                         key={card.id}
                         card={card}
                         isEditing={isEditing}
-                        highlighted={!isEditing && matchesCognome(card.surnames, userCognome, userNome, duplicateCognomi)}
+                        highlighted={!isEditing && (
+                          matchesCognome(card.surnames, userCognome, userNome, duplicateCognomi) ||
+                          matchesCognome(card.tirocinanti ?? [], userCognome, userNome, duplicateCognomi)
+                        )}
                         minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
                         
                         scheduleSections={scheduleSections}
@@ -643,11 +646,17 @@ export function DeskBoard({
       {altriPresenti.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40">
           <span className="text-xs text-muted-foreground shrink-0">Altri presenti:</span>
-          {altriPresenti.map((name, i) => (
-            <span key={i} className="text-xs bg-muted px-2 py-0.5 rounded-full">
-              {name}
-            </span>
-          ))}
+          {altriPresenti.map((name, i) => {
+            const isMe = matchesCognome([name], userCognome, userNome, duplicateCognomi)
+            return (
+              <span
+                key={i}
+                className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : 'bg-muted'}`}
+              >
+                {name}
+              </span>
+            )
+          })}
         </div>
       )}
 

@@ -185,6 +185,11 @@
 
   /* Sala desk board */
   --desk-schedule-border: #bae6fd;
+  --sala-highlight-border: #38bdf8;
+  --sala-highlight-ring: rgba(14,165,233,0.30);
+  --sala-own-badge-bg: #dbeafe;
+  --sala-own-badge-border: #38bdf8;
+  --sala-own-badge-text: #0369a1;
 }
 
 .dark {
@@ -323,6 +328,11 @@
 
   /* Sala — dark */
   --desk-schedule-border: var(--border);
+  --sala-highlight-border: #0284c7;
+  --sala-highlight-ring: rgba(14,165,233,0.25);
+  --sala-own-badge-bg: rgba(8,47,73,0.35);
+  --sala-own-badge-border: #0284c7;
+  --sala-own-badge-text: #7dd3fc;
 }
 
 @layer base {
@@ -409,6 +419,17 @@
   .text-feedback-check{ color: var(--feedback-check-color); }
 
   .desk-schedule-border { border-color: var(--desk-schedule-border); }
+
+  .desk-card-highlight {
+    border-color: var(--sala-highlight-border);
+    box-shadow: 0 0 0 2px var(--sala-highlight-ring);
+  }
+
+  .desk-own-badge {
+    background: var(--sala-own-badge-bg);
+    box-shadow: inset 0 0 0 1px var(--sala-own-badge-border);
+    color: var(--sala-own-badge-text);
+  }
 
   /* Period pills (6 ferie periods) */
   .p1-pill { background: var(--period-1-pill-bg); color: var(--period-1-pill-text); }

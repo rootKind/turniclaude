@@ -114,7 +114,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       ref={setNodeRef}
       style={style}
       className={`bg-card rounded-lg overflow-hidden flex flex-col h-full border transition-opacity ${
-        highlighted ? 'border-amber-400 ring-2 ring-amber-300/40' : 'border-border'
+        highlighted ? 'desk-card-highlight' : 'border-border'
       } ${isDragging && !isDragOverlay ? 'opacity-40' : ''}`}
     >
       {/* Main area */}
