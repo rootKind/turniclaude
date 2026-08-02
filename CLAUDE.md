@@ -1,5 +1,3 @@
-@AGENTS.md
-
 ## Navigazione codebase
 
 Se esiste `.codegraph/codegraph.db`, leggilo **sempre** prima di
@@ -162,25 +160,23 @@ workflow §5 di questo file. NON refactorarlo in dinamico.
 
 ### 2. INVENTARIO CODICE/FILE INUTILI O DUPLICATI (rilevato e RIPULITO il 02/08/2026)
 
-> La maggior parte degli item è stata eliminata/consolidata (vedi sotto). Restano solo:
-> rimozioni da committare, dipendenze da spostare e la tabella morta `otp_codes`.
+> Pulizia completata e committata il 02/08/2026. Restano solo: `shadcn` da spostare in
+> devDependencies e la tabella morta `otp_codes`.
 
-**File eliminati (rimozioni già sul disco, da committare):**
+**Già eliminati e committati:**
 - File UI mai importati: `components/ui/avatar.tsx`, `checkbox.tsx`, `badge.tsx`, `toggle.tsx`, `card.tsx`, `sheet.tsx`
-- `scripts/test-aprile.mjs`, `scripts/test-pdf-parse.mjs` (prototipi rotti: i PDF non esistono più; erano gli unici utenti di `pdfjs-dist`)
+- `scripts/` (test-aprile.mjs, test-pdf-parse.mjs — prototipi rotti), `dictionaries/` (it.ts) — cartelle ormai vuote, rimosse
+- File "fantasma": `stores/loading-store.ts`, `supabase/functions/notify-push/index.ts`,
+  `AGENTS.md`, `finalize_graph.py`, `Aprile_28-04-2026.pdf`, `Maggio_29-04-2026.pdf`
 - `CODEBASE_ANALYSIS.md` (obsoleto, sostituito da questo file)
 - Codice morto rimosso: `cyclePreset()`/`PRESET_CYCLE` e prop `tirocinanteWidth` in `desk-card.tsx`; ramo `highlight` di `getShiftItemState()` + voci `SHIFT_STATE_CLASSES.highlight`/`SHIFT_DATE_CLASSES.highlight` in `lib/utils.ts`
-
-**File "fantasma" (già cancellati dal disco ma ancora tracciati in git — serve solo `git add -A`):**
-- `stores/loading-store.ts`, `dictionaries/it.ts`, `supabase/functions/notify-push/index.ts`,
-  `AGENTS.md` (referenziato da `@AGENTS.md` in testa a questo file → riferimento pendente),
-  `finalize_graph.py`, `Aprile_28-04-2026.pdf`, `Maggio_29-04-2026.pdf`
+- `pdfjs-dist` rimosso da `dependencies` (100% inutilizzato) — `pnpm-lock.yaml` rigenerato con `pnpm install`
+- `package-lock.json` (lockfile npm accidentale in un progetto pnpm) eliminato
+- Artefatti locali ripuliti: `docs/` (vecchi piani AI), `.vercel/`, `.worktrees/`, `tsconfig.tsbuildinfo`, `.codegraph/errors.log`, `.claude/settings.json` (vuoto)
 
 **Rimasti volutamente (NON eliminare senza motivo):**
 - `otp_codes` (migration 001): tabella morta, mai letta/scritta dal codice. NON toccare le migrations (già applicate).
-- `pdfjs-dist` in `dependencies`: ora 100% inutilizzato (scripts eliminati). Rimuoverlo richiede rigenerare i lockfile (`pnpm install`) — fare SOLO insieme a un'installazione.
-- `shadcn` (CLI) in `dependencies`: da spostare in devDependencies (stesso vincolo lockfile).
-- Doppio lockfile: `pnpm-lock.yaml` (tracked) + `package-lock.json` (untracked, su disco).
+- `shadcn` (CLI) in `dependencies`: da spostare in devDependencies (richiede `pnpm install`). NOTA: `app/globals.css` fa `@import "shadcn/tailwind.css"` — serve in build.
 
 **Codice duplicato — CONSOLIDATO in helper condivisi (02/08/2026):**
 - `VACATION_PERIOD_LABELS_SHORT` in `lib/vacations.ts` (ex mappe locali in notify, manager/vacation-requests, join-chain)
