@@ -5,6 +5,18 @@
 // NOTA: la funzionalità admin di modifica colori (override in
 // app_settings.color_overrides) è stata rimossa — qui restano solo le costanti
 // usate dal meta theme-color (app/layout.tsx viewport + ThemeColor).
+//
+// IMPORTANTE (splash PWA al primo avvio): il colore dello splash è reso ADATTIVO
+// al tema dal <meta name="theme-color"> con media queries (app/layout.tsx viewport +
+// ThemeColor): chiaro = LIGHT_BACKGROUND, scuro = DARK_BACKGROUND.
+// Le icone PWA (icon-192/512, apple-icon) sono volutamente TRASPARENTI: il logo
+// "fluttua" sullo splash in entrambi i temi (Android e iOS). NON cuocere sfondi
+// dentro le icone: su Android l'icona sta comunque in un riquadro, quindi un'unica
+// icona non può combaciare con splash chiari E scuri — la trasparenza è l'unica
+// scelta che funziona su tutti e 4 gli scenari. `manifest.json` background_color/
+// theme_color = #0a0a0a resta come FALLBACK (browser legacy che ignorano il meta).
+// Se si cambia uno dei colori qui, aggiornare la viewport in layout.tsx; per il
+// manifest/icone serve il bump di CACHE_NAME in public/sw.js (cache-first).
 
 export const LIGHT_BACKGROUND = '#f0f7fc'
 

@@ -28,7 +28,7 @@ function uuid() {
 
 // Minimal offline support: cache-first for static assets (icons/manifest), so the
 // app shell renders when offline. Dynamic API calls still require network.
-const CACHE_NAME = 'turni-static-v1'
+const CACHE_NAME = 'turni-static-v2'
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache =>
