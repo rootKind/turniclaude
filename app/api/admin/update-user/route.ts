@@ -26,11 +26,13 @@ export async function POST(req: Request) {
     const updates: Record<string, unknown> = {}
     if (typeof nome === 'string') updates.nome = nome
     if (typeof cognome === 'string') updates.cognome = cognome
+    if (typeof isSecondary === 'boolean') {
+      updates.is_secondary = isSecondary
+    }
     if (typeof isManager === 'boolean') {
       updates.is_manager = isManager
+      // Un manager non è né DCO né Noni
       if (isManager) updates.is_secondary = false
-    } else if (typeof isSecondary === 'boolean') {
-      updates.is_secondary = isSecondary
     }
     const { error } = await adminSupabase.from('users').update(updates).eq('id', userId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
