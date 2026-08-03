@@ -519,19 +519,27 @@
    (adattivo al tema, identico all'app) + logo icon-512.png centrato.
    Copre il launch screen nativo iOS (che mostra SOLO un colore solido senza
    icona) e sfuma via dopo il primo paint + window load (BootSplash).
-   Il colore NERO scuro dello splash è volutamente #0a0a0a come il manifest. */
+   SOLO iOS: il blocco @supports (-webkit-touch-callout: none) è l'unico modo CSS
+   affidabile per rilevare iOS — su Android lo splash è display:none perché la
+   splash nativa Android ha GIÀ il logo (altrimenti si vedrebbero due splash in
+   fila). Il colore scuro dello splash è volutamente #0a0a0a come il manifest. */
 .boot-splash {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  display: flex;
+  display: none; /* Android: la splash nativa ha già il logo → niente doppio splash */
   align-items: center;
   justify-content: center;
   background-color: var(--background);
-  transition: opacity 450ms ease-out;
+  transition: opacity 350ms ease-out;
   pointer-events: none;
 }
+@supports (-webkit-touch-callout: none) {
+  .boot-splash { display: flex; } /* solo iOS */
+}
 .boot-splash-logo {
+  width: min(60vw, 260px);
+  height: auto;
   user-select: none;
   -webkit-user-select: none;
 }

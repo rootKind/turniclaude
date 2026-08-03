@@ -159,21 +159,22 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `<meta name="theme-color">` con media queries (in `layout.tsx` viewport + ThemeColor) →
   chiaro `#f0f7fc` / scuro `#0a0a0a` a seconda del tema di sistema. Strategia finale per
   piattaforma (validata su device reali 03/08/2026):
-  - **Android**: splash nativo con logo fluttuante su sfondo nero in ENTRAMBI i temi
-    (accettato dall'utente). Icone `icon-192/512` TRASPARENTI, NIENTE `purpose: maskable`
-    (rimosso dal manifest).
-  - **iOS**: il launch screen nativo mostra SOLO un colore solido (bianco/nero) — l'icona
-    NON compare MAI lì (la `apple-touch-icon` serve solo per l'icona home). Soluzione:
-    **splash IN-APP** (`components/providers/boot-splash.tsx`, montato come primo elemento
-    del `<body>` in `layout.tsx`): overlay full-screen con sfondo `var(--background)`
-    (identico all'app → transizione seamless dal launch nativo) + logo `icon-512.png`
-    centrato, che sfuma via dopo il primo paint + window load (min 900ms, max 5s).
-    `apple-icon.png` resta con sfondo nero cotto (flatten sharp) SOLO per l'icona home iOS.
+  - **Android**: SOLO splash nativa (logo fluttuante su sfondo nero in entrambi i temi,
+    accettato dall'utente). Icone `icon-192/512` TRASPARENTI, NIENTE `purpose: maskable`.
+  - **iOS**: il launch screen nativo NON mostra MAI l'icona (solo colore solido). Soluzione:
+    **splash IN-APP** (`components/providers/boot-splash.tsx`, primo elemento del `<body>`
+    in `layout.tsx`): overlay full-screen con sfondo `var(--background)` + logo
+    `icon-512.png` centrato (`width: min(60vw, 260px)`), fade dopo primo paint + window
+    load (min 600ms, max 4s). MOSTRATO SOLO SU iOS via `@supports (-webkit-touch-callout:
+    none)` in `globals.css` (l'unico detection CSS affidabile di iOS): su Android è
+    `display:none` per evitare il doppio splash in fila con quella nativa.
+    `apple-icon.png` (icona home iOS) ha sfondo BIANCO `#ffffff` cotto (flatten sharp,
+    logo scuro centrato, 180x180 opaca). `badge-96.png` resta trasparente (badge mono).
   `manifest.json` `background_color`/`theme_color` = `#0a0a0a` resta come FALLBACK per
-  browser legacy. Bump `CACHE_NAME` sw.js a `turni-static-v2` (manifest è cache-first: senza
-  bump i client installati avrebbero continuato a usare il vecchio). `badge-96.png` resta
-  trasparente (badge mono notifiche). Per rigenerare `apple-icon.png`: sharp `flatten({ background: '#0a0a0a' })`
-  sull'originale trasparente (reperibile da git).
+  browser legacy. Bump `CACHE_NAME` sw.js a `turni-static-v3` (manifest+icone cache-first:
+  senza bump i client installati avrebbero continuato a usare l'icona nera). Per
+  rigenerare `apple-icon.png` bianca: `git show 43affc6:public/icons/apple-icon.png`
+  (trasparente originale) poi sharp `flatten({ background: '#ffffff' })`.
 - **Funzionalità DCO+ (03/08/2026):** nuovo attributo `is_dco_plus` (DCO che vedono anche la
   tabella cambi turno dei Noni) + `notify_on_cross_shifts` (toggle notifiche "altro gruppo"
   visibile solo a DCO+ e Noni). Notifiche push `new_shift` allineate alla visibilità (DCO+

@@ -16,8 +16,9 @@
 //   tile adattiva. NON cuocere sfondi dentro queste: combacia solo con UN tema.
 // - iOS: il launch screen nativo NON mostra MAI l'icona (solo colore solido). Il logo
 //   a caricamento arriva dallo splash IN-APP `components/providers/boot-splash.tsx`
-//   (overlay full-screen con sfondo var(--background) + icon-512.png centrata).
-//   `apple-icon.png` ha sfondo #0a0a0a cotto SOLO per l'icona home iOS.
+//   (mostrato SOLO su iOS via @supports -webkit-touch-callout; overlay full-screen
+//   con sfondo var(--background) + icon-512.png centrata). `apple-icon.png` (icona
+//   home iOS) ha sfondo BIANCO #ffffff cotto, logo scuro centrato.
 // `manifest.json` background_color/theme_color = #0a0a0a resta come FALLBACK
 // (browser legacy che ignorano il meta). Se si cambia uno dei colori qui, aggiornare
 // la viewport in layout.tsx; per il manifest/icone serve il bump di CACHE_NAME in

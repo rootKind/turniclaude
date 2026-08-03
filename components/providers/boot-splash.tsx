@@ -6,10 +6,12 @@ import { useEffect, useRef, useState } from 'react'
 // - Sfondo = var(--background) → adattivo al tema (chiaro #f0f7fc / scuro #0a0a0a),
 //   identico allo sfondo dell'app: transizione seamless dal launch nativo iOS.
 // - Logo = icon-512.png (trasparente, logo grigio centrato) → visibile su entrambi i temi.
-// - Sfuma via dopo il primo paint + window load (min ~900ms), massimo 5s di sicurezza.
-const MIN_SHOW_MS = 900
-const FADE_MS = 450
-const MAX_SHOW_MS = 5000
+// - SOLO iOS: su Android è nascosto via CSS (@supports -webkit-touch-callout) perché la
+//   splash nativa Android ha già il logo — senza il gate si vedrebbero due splash in fila.
+// - Sfuma via dopo il primo paint + window load (min ~600ms), massimo 4s di sicurezza.
+const MIN_SHOW_MS = 600
+const FADE_MS = 350
+const MAX_SHOW_MS = 4000
 
 export function BootSplash() {
   const [fading, setFading] = useState(false)
@@ -62,8 +64,8 @@ export function BootSplash() {
       <img
         src="/icons/icon-512.png"
         alt=""
-        width={132}
-        height={132}
+        width={260}
+        height={260}
         className="boot-splash-logo"
       />
     </div>
