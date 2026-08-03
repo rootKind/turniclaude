@@ -73,9 +73,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **PostgREST:** nelle query embedded usare SEMPRE la FK esplicita
   (`user:users!shifts_user_id_fkey(...)`), altrimenti falliscono silenziosamente.
 - **Cache user-scoped:** `lib/cache.ts` → chiavi `cache:{userId}:{suffix}` + `LAST_USER_KEY`;
-  `AuthCacheGuard` pulisce le cache al cambio utente; `clearUserCaches()` su logout;
-  `user-store` resettato da `clearUserCaches`. NOTA: `notification-history`
-  (`lib/notification-storage.ts`) NON è user-scoped.
+  `AuthCacheGuard` pulisce le cache al cambio utente (`clearUserCaches`); su logout
+  `clearAllLocalData()` svuota TUTTO (localStorage, sessionStorage, IndexedDB, cache SW,
+  cookie) DOPO il signOut. NOTA: `notification-history` (`lib/notification-storage.ts`)
+  NON è user-scoped, ma viene eliminata dal logout completo.
 - **Push:** un solo path attivo — route Next.js (`/api/push/notify|send|subscribe`) +
   `lib/push/send-to-user.ts` (usa il service role: la RLS su `push_subscriptions` è own-row-only).
   `sw.js`: solo push + click (cache statica minima, NESSUNA pagina offline).
@@ -86,12 +87,13 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   in `globals.css`; `lib/color-defaults.ts` resta solo con `LIGHT_BACKGROUND`/`DARK_BACKGROUND`
   (meta theme-color). NON reintrodurre il sistema di override. Nota: il cookie `co`
   residuo nei browser di chi aveva salvato colori è INERTE (nessun codice lo legge più).
-  `public/color-studio.html` (tool dev standalone) va tenuto sincronizzato con i token di
-  `globals.css` (blocchi `:root`/`.dark`, classi componente, `VAR_LABELS`/`CLASS_MAP`).
+  `public/color-studio.html` è stato ELIMINATO (04/08/2026) — NON ricrearlo.
 - **Tema a 2 colori (03/08/2026):** scuro = bianco/nero puro; chiaro = nero + celeste molto
   lieve ("negativo" dello scuro). COLORATE solo le pill semantiche: fasce orarie
   (mattina/pomeriggio/notte, incluse le toggle pill del dialog turno) e stagioni ferie
-  (P1–P6). Tutto il resto del chrome è neutro: highlight bianco (non più ambra), my-period
+  (P1–P6). Le pill colorate hanno bordo 1px (`color-mix(in srgb, currentColor 30%, transparent)`,
+  adattivo ai 2 temi) e le chip dei filtri un contatore `.chip-count` (badge a contrasto:
+  traslucido da spento, invertito da selezionato). Tutto il resto del chrome è neutro: highlight bianco (non più ambra), my-period
   con accento nero/bianco, chip selezionati nero/bianco, match/chain/badge DCO-NONI/banner
   impersonazione/interesse/own-interest NEUTRI (verde/viola/ambra rimossi). Resta verde solo
   il "conferma" del manager (come le pill). Il cuore interessato usa `text-interest-date`

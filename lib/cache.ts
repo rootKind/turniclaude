@@ -38,3 +38,41 @@ export function clearUserCaches(): void {
   } catch { /* ignore */ }
   useUserStore.setState({ profile: null })
 }
+
+/**
+ * Wipes ALL local browser data on logout: localStorage, sessionStorage,
+ * IndexedDB (incl. la coda notifiche del service worker), Cache Storage (SW)
+ * e cookie. Chiamato da handleLogout DOPO signOut, così un account diverso
+ * sullo stesso dispositivo non carica mai tabelle/dati errati.
+ */
+export function clearAllLocalData(): void {
+  if (typeof window === 'undefined') return
+  try { localStorage.clear() } catch { /* ignore */ }
+  try { sessionStorage.clear() } catch { /* ignore */ }
+  try {
+    // Cache Storage del service worker (asset statici)
+    if ('caches' in window) {
+      caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {})
+    }
+  } catch { /* ignore */ }
+  try {
+    if ('indexedDB' in window) {
+      if (typeof indexedDB.databases === 'function') {
+        indexedDB.databases().then(dbs =>
+          Promise.all(dbs.map(d => d.name && indexedDB.deleteDatabase(d.name)))
+        ).catch(() => {})
+      } else {
+        // Fallback per browser senza indexedDB.databases(): elimina il DB noto
+        indexedDB.deleteDatabase('turni-notifications')
+      }
+    }
+  } catch { /* ignore */ }
+  try {
+    document.cookie.split(';').forEach(c => {
+      const eq = c.indexOf('=')
+      const name = eq > -1 ? c.substring(0, eq).trim() : c.trim()
+      if (name) document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+    })
+  } catch { /* ignore */ }
+  useUserStore.setState({ profile: null })
+}

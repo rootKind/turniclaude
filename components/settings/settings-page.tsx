@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isManager } from '@/types/database'
-import { clearUserCaches } from '@/lib/cache'
+import { clearAllLocalData } from '@/lib/cache'
 import { usePush } from '@/hooks/use-push'
 import { updateUserProfile } from '@/lib/queries/users'
 import { useQueryClient } from '@tanstack/react-query'
@@ -37,13 +37,16 @@ export function SettingsPage() {
   }
 
   async function handleLogout() {
-    // Wipe user-scoped caches + persisted profile BEFORE signOut so the next
-    // user on a shared device never sees this account's cached data.
-    clearUserCaches()
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+    } finally {
+      // Svuota TUTTI i dati locali (cache, storage, IndexedDB, cache SW, cookie) DOPO il
+      // signOut: un account diverso sullo stesso dispositivo non caricherà mai dati errati.
+      clearAllLocalData()
+      router.push('/login')
+      router.refresh()
+    }
   }
 
   return (
