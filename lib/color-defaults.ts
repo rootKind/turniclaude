@@ -61,7 +61,10 @@ export const LIGHT_DEFAULTS: Record<string, string> = {
 }
 
 export const DARK_DEFAULTS: Record<string, string> = {
-  '--background': '#1a1a1a', '--foreground': '#f5f5f5', '--card': '#282828',
+  // #0a0a0a = sRGB esatto di oklch(0.145 0 0) (base dark di globals.css) — il "true black"
+  // che la PWA mostra. NON usare #1a1a1a qui: coincide con --shift-others-bg e il meta
+  // theme-color (chrome browser: status bar + area navbar di sistema) non combacia con lo sfondo.
+  '--background': '#0a0a0a', '--foreground': '#f5f5f5', '--card': '#282828',
   '--card-foreground': '#f5f5f5', '--primary': '#ebebeb', '--primary-foreground': '#282828',
   '--secondary': '#363636', '--secondary-foreground': '#f5f5f5', '--muted': '#363636',
   '--muted-foreground': '#b5b5b5', '--accent': '#363636', '--accent-foreground': '#f5f5f5',
