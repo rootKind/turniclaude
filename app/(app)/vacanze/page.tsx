@@ -26,6 +26,7 @@ function VacanzeContent() {
   const [myPeriodThisYear, setMyPeriodThisYear] = useState<VacationPeriod | null>(null)
   const [basePeriod, setBasePeriod] = useState<VacationPeriod | null>(null)
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
+  const [periodLabelYear, setPeriodLabelYear] = useState<number | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [minYear, setMinYear] = useState<number | null>(null)
   const [highlightRequestIds, setHighlightRequestIds] = useState<number[]>(() => {
@@ -41,18 +42,25 @@ function VacanzeContent() {
   const loggedInUserId = profile?.id ?? ''
   const effectiveIsSecondary = canToggleCategory ? viewSecondary : (profile?.is_secondary ?? false)
 
+  // Anno effettivamente mostrato: clamp immediato al min_year (niente flash del periodo dell'anno precedente)
+  const displayYear = minYear !== null ? Math.max(selectedYear, minYear) : selectedYear
+
   useEffect(() => {
-    if (!loggedInUserId) return
+    if (!loggedInUserId || minYear === null) return
+    let cancelled = false
     const supabase = createClient()
-    getMyVacationAssignment(supabase, loggedInUserId, selectedYear)
+    getMyVacationAssignment(supabase, loggedInUserId, displayYear)
       .then(assignment => {
-        if (!assignment) { setMyPeriodThisYear(null); setPeriodLabel(null); setBasePeriod(null); return }
+        if (cancelled) return
+        if (!assignment) { setMyPeriodThisYear(null); setPeriodLabel(null); setBasePeriod(null); setPeriodLabelYear(displayYear); return }
         setBasePeriod(assignment.base_period as VacationPeriod)
         setMyPeriodThisYear(assignment.period_this_year)
         setPeriodLabel(VACATION_PERIOD_LABELS[assignment.period_this_year].label)
+        setPeriodLabelYear(displayYear)
       })
       .catch(() => {})
-  }, [loggedInUserId, selectedYear])
+    return () => { cancelled = true }
+  }, [loggedInUserId, minYear, displayYear])
 
   useEffect(() => {
     if (searchParams.get('new') === '1') {
@@ -138,7 +146,7 @@ function VacanzeContent() {
 
       {/* Periodo ferie con navigazione anno */}
       <motion.div
-        key={selectedYear}
+        key={displayYear}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.15, ease: 'easeOut' }}
@@ -146,22 +154,22 @@ function VacanzeContent() {
       >
         <button
           onClick={() => changeYear(-1)}
-          disabled={minYear === null || selectedYear <= minYear}
+          disabled={displayYear <= minYear}
           className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
         >
           <ChevronLeft size={16} className="text-offered-label" />
         </button>
         <div className="flex-1 min-w-0">
           <p className="text-[11px] text-offered-label font-medium uppercase tracking-wide mb-0.5">
-            Il tuo periodo {selectedYear}
+            Il tuo periodo {displayYear}
           </p>
           <p className="text-[14px] font-semibold text-offered-value">
-            {periodLabel ?? '—'}
+            {periodLabelYear === displayYear ? (periodLabel ?? '—') : '—'}
           </p>
         </div>
         <button
           onClick={() => changeYear(1)}
-          disabled={selectedYear >= MAX_YEAR}
+          disabled={displayYear >= MAX_YEAR}
           className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
         >
           <ChevronRight size={16} className="text-offered-label" />
@@ -172,8 +180,8 @@ function VacanzeContent() {
         isSecondary={effectiveIsSecondary}
         effectiveUserId={loggedInUserId}
         loggedInUserId={loggedInUserId}
-        myPeriodThisYear={myPeriodThisYear}
-        year={selectedYear}
+        myPeriodThisYear={periodLabelYear === displayYear ? myPeriodThisYear : null}
+        year={displayYear}
         highlightRequestIds={highlightRequestIds}
       />
 
@@ -183,7 +191,7 @@ function VacanzeContent() {
         isSecondary={effectiveIsSecondary}
         userId={loggedInUserId}
         basePeriod={basePeriod}
-        defaultYear={selectedYear}
+        defaultYear={displayYear}
         minYear={minYear ?? new Date().getFullYear()}
       />
     </main>
