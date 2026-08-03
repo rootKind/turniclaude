@@ -10,7 +10,7 @@
 
 PWA per la gestione dei turni della sala C.C.C.: turni giornalieri (DCO / Noni), scambi con
 interessi, ferie/vacanze con rotazione e catene, layout sala con desk e pallini colorati
-(anche da PDF), notifiche push, pannello admin (utenti, colori, statistiche, feedback).
+(anche da PDF), notifiche push, pannello admin (utenti, statistiche, feedback).
 
 **Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, `@tanstack/react-query`,
 `zustand` (persist), Supabase (auth + Postgres + realtime + storage), `web-push`, `framer-motion`,
@@ -44,9 +44,9 @@ app/            App Router: (app)/ protetto, (auth)/ login-OTP-reset, admin/, ap
 components/     admin, auth, nav, notifications, providers, sala, settings, shifts, ui, vacanze
 hooks/          use-* (react-query) — use-shifts, use-users, use-vacation-requests, use-push, ...
 lib/            queries/* (accesso dati), supabase/*, push/send-to-user, cache, utils, pdf-parser
-stores/         zustand: user-store (profilo persist), color-inspect-store
+stores/         zustand: user-store (profilo persist)
 types/          database.ts — tipi schema + ADMIN_ID + isAdmin/isManager
-supabase/       migrations/ 001–013 (schema completo), functions/cleanup-shifts (edge function cron)
+supabase/       migrations/ 001–014 (schema completo), functions/cleanup-shifts (edge function cron)
 public/         manifest.json, sw.js (solo push + click)
 proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato proxy.ts)
 ```
@@ -68,12 +68,16 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `lib/push/send-to-user.ts` (usa il service role: la RLS su `push_subscriptions` è own-row-only).
   `sw.js`: solo push + click (cache statica minima, NESSUNA pagina offline).
   `Notification.requestPermission()` in forma Promise (standard) — non reintrodurre la callback.
-- **Colori:** override in `app_settings.color_overrides`, applicati a runtime
-  (`ColorThemeProvider`) e in SSR via cookie `co` = base64(JSON) — NON CSS raw (RFC 6265).
-  Default completi in `lib/color-defaults.ts`.
-- **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013).
-  Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).
-- **Migrations 001–013 completano lo schema** (turni, vacanze, sala, app_settings, RLS,
+- **Colori (funzionalità admin RIMOSSA 03/08/2026):** niente più pagina `/admin/colori`,
+  inspector, `/api/admin/save-colors`, né override: `app_settings.color_overrides` è stata
+  eliminata (migration 014) e il cookie `co` non è più letto/scritto. I colori reali sono solo
+  in `globals.css`; `lib/color-defaults.ts` resta solo con `LIGHT_BACKGROUND`/`DARK_BACKGROUND`
+  (meta theme-color). NON reintrodurre il sistema di override. Nota: il cookie `co`
+  residuo nei browser di chi aveva salvato colori è INERTE (nessun codice lo legge più).
+- **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013) —
+  colori PER PERSONA dei desk (board /turnisala, admin o manager), diverso dall'ex-funzionalità
+  colori tema. Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).
+- **Migrations 001–014 completano lo schema** (turni, vacanze, sala, app_settings, RLS,
   realtime publication, RPC). NON riscrivere le policy RLS, NON aggiungere colonne/tabelle duplicate.
 - **Next.js 16:** API e convenzioni diverse dalle versioni precedenti (`proxy.ts` ecc.).
   In caso di dubbio leggere `node_modules/next/dist/docs/` prima di scrivere codice.
@@ -103,8 +107,16 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 ---
 
-## Stato attuale (snapshot 02/08/2026)
+## Stato attuale (snapshot 03/08/2026)
 
+- **Admin colori rimosso:** eliminati `/admin/colori`, `color-settings-page`, `color-inspector`,
+  `/api/admin/save-colors`, `ColorThemeProvider`, `color-inspect-store`, `color-inspect-map`,
+  `color-overrides` + migration 014 (DROP `app_settings.color_overrides`). Il tile "Colori app"
+  è sparito dal pannello admin. `public/color-studio.html` (tool dev standalone, localStorage)
+  è stato volutamente mantenuto.
+- **⚠ Migration 014 già applicata SOLO al DB di dev** (03/08/2026, progetto linkato
+  `uokfixddsuqcjddbfkln`). Al MERGE su `master` va applicata ANCHE al DB di produzione/main
+  (`supabase db push` con progetto main linkato, o SQL equivalente).
 - **Pulizia completata:** rimossi i tool folders (`.claude/`, `.serena/`, `.codegraph/`, `.next/`,
   `.worktrees/`, `docs/`, `.vercel/`), `package-lock.json`, le dipendenze morte
   (`pdfjs-dist`, `@dnd-kit/sortable`), funzioni e tipi inutilizzati. Le cartelle tool sono

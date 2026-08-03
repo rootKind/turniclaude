@@ -8,10 +8,9 @@ export function ThemeColor() {
 
   useEffect(() => {
     function currentBackground(isDark: boolean): string {
-      // Follow admin overrides applied at runtime (color_overrides), so the
-      // browser chrome matches the real app background. Only hex is accepted:
-      // the CSS defaults are oklch() which isn't supported in every browser's
-      // meta theme-color — fall back to the hex constants in that case.
+      // Keep the browser chrome in sync with the real app background. Only hex
+      // is accepted: the CSS defaults are oklch() which isn't supported in every
+      // browser's meta theme-color — fall back to the hex constants in that case.
       const bg = getComputedStyle(document.documentElement)
         .getPropertyValue('--background')
         .trim()

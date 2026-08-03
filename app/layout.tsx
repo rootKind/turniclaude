@@ -1,14 +1,10 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist } from 'next/font/google'
-import { cookies } from 'next/headers'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { ThemeColor } from '@/components/providers/theme-color'
-import { ColorThemeProvider } from '@/components/providers/color-theme-provider'
-import { buildStyleString, decodeColorOverrides } from '@/lib/color-overrides'
-import { ColorInspector } from '@/components/admin/color-inspector'
 import { LIGHT_BACKGROUND, DARK_BACKGROUND } from '@/lib/color-defaults'
 import { PwaGuard } from '@/components/providers/pwa-guard'
 import { AuthCacheGuard } from '@/components/providers/auth-cache-guard'
@@ -42,31 +38,20 @@ export const viewport: Viewport = {
   ],
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies()
-  // Cookie is base64(JSON) since RFC 6265 forbids ';'/newlines in values
-  const ssrStyles = buildStyleString(decodeColorOverrides(cookieStore.get('co')?.value))
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="it" suppressHydrationWarning>
-      {ssrStyles && (
-        <head>
-          <style dangerouslySetInnerHTML={{ __html: ssrStyles }} />
-        </head>
-      )}
       <body className={geist.className}>
         <ThemeProvider>
           <AuthCacheGuard />
           <SwRegistrar />
           <ThemeColor />
-          <ColorThemeProvider />
           <QueryProvider>
             <PwaGuard>
               {children}
             </PwaGuard>
             <Toaster richColors position="top-center" />
           </QueryProvider>
-          <ColorInspector />
           <Analytics />
           <SpeedInsights />
         </ThemeProvider>

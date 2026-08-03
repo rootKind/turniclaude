@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, Palette, FlaskConical } from 'lucide-react'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, FlaskConical } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { getAppSettings, updateAppSettings } from '@/lib/queries/app-settings'
@@ -115,12 +115,6 @@ export function AdminPanel() {
           description="Leggi le segnalazioni degli utenti"
           badge={feedbackUnread}
           onClick={() => setFeedbackOpen(true)}
-        />
-        <ActionTile
-          icon={<Palette size={18} />}
-          title="Colori app"
-          description="Personalizza tutti i colori dell'interfaccia"
-          onClick={() => router.push('/admin/colori')}
         />
         <ActionTile
           icon={<FlaskConical size={18} />}
