@@ -9,14 +9,21 @@
 // IMPORTANTE (splash PWA al primo avvio): il colore dello splash è reso ADATTIVO
 // al tema dal <meta name="theme-color"> con media queries (app/layout.tsx viewport +
 // ThemeColor): chiaro = LIGHT_BACKGROUND, scuro = DARK_BACKGROUND.
-// Le icone PWA (icon-192/512, apple-icon) sono volutamente TRASPARENTI: il logo
-// "fluttua" sullo splash in entrambi i temi (Android e iOS). NON cuocere sfondi
-// dentro le icone: su Android l'icona sta comunque in un riquadro, quindi un'unica
-// icona non può combaciare con splash chiari E scuri — la trasparenza è l'unica
-// scelta che funziona su tutti e 4 gli scenari. `manifest.json` background_color/
-// theme_color = #0a0a0a resta come FALLBACK (browser legacy che ignorano il meta).
-// Se si cambia uno dei colori qui, aggiornare la viewport in layout.tsx; per il
-// manifest/icone serve il bump di CACHE_NAME in public/sw.js (cache-first).
+//
+// Strategia icone (validata 03/08/2026 su Android chiaro+scuro e iOS):
+// - Android (icon-192.png / icon-512.png, manifest): TRASPARENTI, logo che fluttua
+//   sullo splash — senza `purpose: maskable` (rimosso) Android non applica la tile
+//   adattiva e il logo fluttua sia su splash scuro che chiaro. NON cuocere sfondi
+//   dentro queste: combacia solo con UN tema.
+// - iOS (apple-icon.png, link apple-touch-icon sizes=180x180): SFONDO #0a0a0a
+//   cotto (flatten) — su iOS il launch screen mostra l'icona COME È FATTA e una
+//   PNG trasparente risultava invisibile (solo sfondo nero/bianco). Con lo sfondo
+//   cotto il logo è sempre visibile: scuro = quadrato nero su launch nero (uniforme),
+//   chiaro = quadrato nero su launch chiaro (riquadro, ma logo ben visibile).
+// `manifest.json` background_color/theme_color = #0a0a0a resta come FALLBACK
+// (browser legacy che ignorano il meta). Se si cambia uno dei colori qui, aggiornare
+// la viewport in layout.tsx; per il manifest/icone serve il bump di CACHE_NAME in
+// public/sw.js (cache-first).
 
 export const LIGHT_BACKGROUND = '#f0f7fc'
 

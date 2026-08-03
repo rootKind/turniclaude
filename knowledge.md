@@ -155,21 +155,24 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 ## Stato attuale (snapshot 03/08/2026)
 
-- **Splash PWA adattivo al tema (03/08/2026):** lo splash/launch usa il colore del
-  `<meta name="theme-color">` con media queries (già in `layout.tsx` viewport + ThemeColor) →
-  chiaro `#f0f7fc` / scuro `#0a0a0a` a seconda del tema di sistema, sia su Android sia su iOS.
-  Le icone PWA (`icon-192.png`, `icon-512.png`, `apple-icon.png`) sono volutamente
-  TRASPARENTI (logo che "fluttua" sullo splash, visibile in entrambi i temi — il logo è
-  grigio ardesia, contrasta su scuro e discretamente su chiaro). NIENTE sfondi cotti nelle
-  icone: su Android l'icona è comunque mostrata in un riquadro, quindi una sola icona non
-  può combaciare con splash chiari E scuri (la tile grigia vista in dark mode era il
-  rendering maskable di icona trasparente → rimosso `purpose: "maskable"` dal manifest,
-  solo "any"). `manifest.json` `background_color`/`theme_color` = `#0a0a0a` resta come
-  FALLBACK per browser legacy. Bump `CACHE_NAME` sw.js a `turni-static-v2` (manifest è
-  cache-first: senza bump i client installati avrebbero continuato a usare il vecchio).
-  `badge-96.png` resta trasparente (badge mono notifiche). DA VERIFICARE su device reali:
-  se su Android comparisse ancora una tile dietro al logo, valutare di nuovo l'icona
-  con sfondo cotto (scuro o chiaro) — tradeoff: perfetta in un solo tema.
+- **Splash PWA adattivo al tema (03/08/2026, validato su device):** lo splash/launch usa il
+  colore del `<meta name="theme-color">` con media queries (già in `layout.tsx` viewport +
+  ThemeColor) → chiaro `#f0f7fc` / scuro `#0a0a0a` a seconda del tema di sistema, sia su
+  Android sia su iOS. Strategia icone DIVERSA per piattaforma (validata su device reali):
+  - **Android** (`icon-192.png`, `icon-512.png`, manifest): TRASPARENTI — senza
+    `purpose: "maskable"` (rimosso) il logo fluttua sullo splash sia scuro che chiaro
+    (verificato: splash nero uniforme con logo al centro in ENTRAMBI i temi).
+  - **iOS** (`apple-icon.png`, link `apple-touch-icon` `sizes="180x180"` in `layout.tsx`):
+    SFONDO `#0a0a0a` COTTO (flatten con sharp, 180x180 opaca, logo centrato) — su iOS il
+    launch screen mostra l'icona COME È FATTA e una PNG trasparente risultava INVISIBILE
+    (solo sfondo nero/bianco senza icona). Con lo sfondo cotto il logo è sempre visibile:
+    tema scuro = quadrato nero su launch nero (uniforme); tema chiaro = quadrato nero su
+    launch chiaro (riquadro, ma icona ben visibile — accettato).
+  `manifest.json` `background_color`/`theme_color` = `#0a0a0a` resta come FALLBACK per
+  browser legacy. Bump `CACHE_NAME` sw.js a `turni-static-v2` (manifest è cache-first: senza
+  bump i client installati avrebbero continuato a usare il vecchio). `badge-96.png` resta
+  trasparente (badge mono notifiche). Per rigenerare `apple-icon.png`: sharp `flatten({ background: '#0a0a0a' })`
+  sull'originale trasparente (reperibile da git).
 - **Funzionalità DCO+ (03/08/2026):** nuovo attributo `is_dco_plus` (DCO che vedono anche la
   tabella cambi turno dei Noni) + `notify_on_cross_shifts` (toggle notifiche "altro gruppo"
   visibile solo a DCO+ e Noni). Notifiche push `new_shift` allineate alla visibilità (DCO+
