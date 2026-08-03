@@ -538,7 +538,7 @@
   .boot-splash { display: flex; } /* solo iOS */
 }
 .boot-splash-logo {
-  width: min(60vw, 260px);
+  width: min(64vw, 280px);
   height: auto;
   user-select: none;
   -webkit-user-select: none;

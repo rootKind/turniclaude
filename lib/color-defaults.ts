@@ -14,11 +14,13 @@
 // - Android (icon-192.png / icon-512.png, manifest): TRASPARENTI, logo che fluttua
 //   sullo splash nero — senza `purpose: maskable` (rimosso) Android non applica la
 //   tile adattiva. NON cuocere sfondi dentro queste: combacia solo con UN tema.
+//   Il logo copre ~92% della larghezza del canvas (ingrandito 03/08/2026).
 // - iOS: il launch screen nativo NON mostra MAI l'icona (solo colore solido). Il logo
 //   a caricamento arriva dallo splash IN-APP `components/providers/boot-splash.tsx`
 //   (mostrato SOLO su iOS via @supports -webkit-touch-callout; overlay full-screen
-//   con sfondo var(--background) + icon-512.png centrata). `apple-icon.png` (icona
-//   home iOS) ha sfondo BIANCO #ffffff cotto, logo scuro centrato.
+//   con sfondo var(--background) + icon-512.png centrata, width min(64vw, 280px)).
+//   `apple-icon.png` (icona home iOS) ha sfondo BIANCO #ffffff cotto, logo scuro
+//   centrato (stesso logo ingrandito).
 // `manifest.json` background_color/theme_color = #0a0a0a resta come FALLBACK
 // (browser legacy che ignorano il meta). Se si cambia uno dei colori qui, aggiornare
 // la viewport in layout.tsx; per il manifest/icone serve il bump di CACHE_NAME in

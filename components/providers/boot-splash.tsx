@@ -64,8 +64,8 @@ export function BootSplash() {
       <img
         src="/icons/icon-512.png"
         alt=""
-        width={260}
-        height={260}
+        width={280}
+        height={280}
         className="boot-splash-logo"
       />
     </div>

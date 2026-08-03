@@ -164,17 +164,22 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   - **iOS**: il launch screen nativo NON mostra MAI l'icona (solo colore solido). Soluzione:
     **splash IN-APP** (`components/providers/boot-splash.tsx`, primo elemento del `<body>`
     in `layout.tsx`): overlay full-screen con sfondo `var(--background)` + logo
-    `icon-512.png` centrato (`width: min(60vw, 260px)`), fade dopo primo paint + window
+    `icon-512.png` centrato (`width: min(64vw, 280px)`), fade dopo primo paint + window
     load (min 600ms, max 4s). MOSTRATO SOLO SU iOS via `@supports (-webkit-touch-callout:
     none)` in `globals.css` (l'unico detection CSS affidabile di iOS): su Android è
     `display:none` per evitare il doppio splash in fila con quella nativa.
     `apple-icon.png` (icona home iOS) ha sfondo BIANCO `#ffffff` cotto (flatten sharp,
     logo scuro centrato, 180x180 opaca). `badge-96.png` resta trasparente (badge mono).
+  **Icone con logo INGRANDITO (03/08/2026):** tutte e 3 le icone (icon-512, icon-192,
+  apple-icon) rigenerate con il logo che copre ~92% della larghezza del canvas (prima
+  ~79%) — derivate dallo stesso logo tramite sharp trim + resize + composite centrato
+  (script temporaneo `_tmp-enlarge-icons.mjs`, non committato). Per rigenerarle: trim
+  dei bordi trasparenti, resize a `FILL=0.92` della larghezza, composite centrato.
   `manifest.json` `background_color`/`theme_color` = `#0a0a0a` resta come FALLBACK per
-  browser legacy. Bump `CACHE_NAME` sw.js a `turni-static-v3` (manifest+icone cache-first:
-  senza bump i client installati avrebbero continuato a usare l'icona nera). Per
-  rigenerare `apple-icon.png` bianca: `git show 43affc6:public/icons/apple-icon.png`
-  (trasparente originale) poi sharp `flatten({ background: '#ffffff' })`.
+  browser legacy. Bump `CACHE_NAME` sw.js a `turni-static-v4` (manifest+icone cache-first:
+  senza bump i client installati avrebbero continuato a usare le vecchie icone). Per
+  rigenerare `apple-icon.png` bianca: dalla icon-512 trasparente ridimensionata a 180
+  poi sharp `flatten({ background: '#ffffff' })`.
 - **Funzionalità DCO+ (03/08/2026):** nuovo attributo `is_dco_plus` (DCO che vedono anche la
   tabella cambi turno dei Noni) + `notify_on_cross_shifts` (toggle notifiche "altro gruppo"
   visibile solo a DCO+ e Noni). Notifiche push `new_shift` allineate alla visibilità (DCO+
