@@ -74,6 +74,16 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   in `globals.css`; `lib/color-defaults.ts` resta solo con `LIGHT_BACKGROUND`/`DARK_BACKGROUND`
   (meta theme-color). NON reintrodurre il sistema di override. Nota: il cookie `co`
   residuo nei browser di chi aveva salvato colori è INERTE (nessun codice lo legge più).
+  `public/color-studio.html` (tool dev standalone) va tenuto sincronizzato con i token di
+  `globals.css` (blocchi `:root`/`.dark`, classi componente, `VAR_LABELS`/`CLASS_MAP`).
+- **Tema a 2 colori (03/08/2026):** scuro = bianco/nero puro; chiaro = nero + celeste molto
+  lieve ("negativo" dello scuro). COLORATE solo le pill semantiche: fasce orarie
+  (mattina/pomeriggio/notte, incluse le toggle pill del dialog turno) e stagioni ferie
+  (P1–P6). Tutto il resto del chrome è neutro: highlight bianco (non più ambra), my-period
+  con accento nero/bianco, chip selezionati nero/bianco, match/chain/badge DCO-NONI/banner
+  impersonazione/interesse/own-interest NEUTRI (verde/viola/ambra rimossi). Resta verde solo
+  il "conferma" del manager (come le pill). Il cuore interessato usa `text-interest-date`
+  (neutro), non più `text-red-500`. Separatori: `border-black/10 dark:border-white/10`.
 - **Sistema colori 2-tinte (03/08/2026):** tema scuro = solo bianco/nero (nessun ambra nel
   chrome: highlight, my-period, chip selezionati, badge sala sono bianchi); tema chiaro =
   negativo del scuro: nero + celeste molto lieve (accent `#38bdf8` sostituito col nero).

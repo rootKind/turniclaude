@@ -63,9 +63,9 @@
   --shift-own-empty-bg: #e8eef5;
   --shift-own-empty-date-bg: #dde6f0;
   --shift-own-empty-border: #c9d6e4;
-  --shift-own-interest-bg: #dcfce7;
-  --shift-own-interest-date-bg: #bbf7d0;
-  --shift-own-interest-border: #86efac;
+  --shift-own-interest-bg: #ffffff;
+  --shift-own-interest-date-bg: #eef4f9;
+  --shift-own-interest-border: rgba(15,23,42,0.16);
   /* Highlight — bianco su bordo nero leggero (niente ambra: non collide con la pill Pomeriggio) */
   --shift-highlight-bg: #ffffff;
   --shift-highlight-date-bg: #f4f8fb;
@@ -79,29 +79,29 @@
   --pill-notte-bg: #ede9fe;
   --pill-notte-text: #6d28d9;
 
-  /* Impersonation banner */
-  --banner-impersonate-bg: #f97316;
+  /* Impersonation banner — inverso (nero in chiaro, bianco in scuro) */
+  --banner-impersonate-bg: #1c1c1c;
   --banner-impersonate-text: #ffffff;
 
-  /* Match panel (green) */
-  --match-panel-bg: rgba(5,46,22,0.10);
-  --match-panel-border: rgba(22,163,74,0.35);
-  --match-text: #16a34a;
-  --match-badge-bg: rgba(20,83,45,0.40);
-  --match-action-bg: #15803d;
+  /* Match panel — neutro (2 colori) */
+  --match-panel-bg: rgba(15,23,42,0.04);
+  --match-panel-border: rgba(15,23,42,0.15);
+  --match-text: #1c1c1c;
+  --match-badge-bg: rgba(15,23,42,0.08);
+  --match-action-bg: #1c1c1c;
   --match-action-text: #ffffff;
   --match-count-text: #1c1c1c;
-  --match-pos-text: #65a30d;
-  --match-none-text: #16a34a;
+  --match-pos-text: #1c1c1c;
+  --match-none-text: #1c1c1c;
 
-  /* Chain panel (violet) */
-  --chain-panel-bg: rgba(46,16,101,0.08);
-  --chain-panel-border: rgba(109,40,217,0.35);
-  --chain-text: #6d28d9;
-  --chain-badge-bg: rgba(46,16,101,0.40);
-  --chain-action-bg: #6d28d9;
+  /* Chain panel — neutro (2 colori) */
+  --chain-panel-bg: rgba(15,23,42,0.04);
+  --chain-panel-border: rgba(15,23,42,0.15);
+  --chain-text: #1c1c1c;
+  --chain-badge-bg: rgba(15,23,42,0.08);
+  --chain-action-bg: #1c1c1c;
   --chain-action-text: #ffffff;
-  --chain-node-text: #7c3aed;
+  --chain-node-text: #1c1c1c;
 
   /* Chip / filter selection — nero (negative del tema scuro) */
   --chip-selected-bg: #1c1c1c;
@@ -144,15 +144,16 @@
   --dialog-pill-notte-active-bg: #ede9fe;
   --dialog-pill-notte-active-border: #a78bfa;
 
-  /* User type badges */
-  --badge-noni-bg: #f3e8ff; --badge-noni-text: #7e22ce;
-  --badge-dco-bg: #dbeafe;  --badge-dco-text: #1d4ed8;
+  /* User type badges — neutri (2 colori) */
+  --badge-noni-bg: #e8eef5; --badge-noni-text: #1c1c1c;
+  --badge-dco-bg: #e8eef5;  --badge-dco-text: #1c1c1c;
 
-  /* Shift item interest indicators */
-  --interest-date-color: #16a34a;
+  /* Shift item interest indicators — neutri (2 colori) */
+  --interest-date-color: #1c1c1c;
   --own-name-color: #1c1c1c;
-  --interest-btn-bg: #16a34a;
-  --feedback-check-color: #22c55e;
+  --interest-btn-bg: #1c1c1c;
+  --interest-btn-text: #ffffff;
+  --feedback-check-color: #1c1c1c;
 
   /* Manager state — pending (neutro) / confirm (verde semantico) */
   --state-pending-text: #4b5563;
@@ -222,9 +223,9 @@
   --shift-own-empty-bg: #232328;
   --shift-own-empty-date-bg: #2b2b32;
   --shift-own-empty-border: #34343d;
-  --shift-own-interest-bg: #162416;
-  --shift-own-interest-date-bg: #1a2e1a;
-  --shift-own-interest-border: rgba(34,197,94,0.25);
+  --shift-own-interest-bg: #2b2b2b;
+  --shift-own-interest-date-bg: #333333;
+  --shift-own-interest-border: rgba(255,255,255,0.20);
   /* Highlight — bianco traslucido (B&W) */
   --shift-highlight-bg: rgba(255,255,255,0.10);
   --shift-highlight-date-bg: rgba(255,255,255,0.14);
@@ -238,29 +239,29 @@
   --pill-notte-bg: #2d1b69;
   --pill-notte-text: #a78bfa;
 
-  /* Impersonation banner — dark */
-  --banner-impersonate-bg: #ea580c;
-  --banner-impersonate-text: #ffffff;
+  /* Impersonation banner — dark (inverso: bianco) */
+  --banner-impersonate-bg: #ffffff;
+  --banner-impersonate-text: #0a0a0a;
 
-  /* Match panel — dark */
-  --match-panel-bg: rgba(5,46,22,0.28);
-  --match-panel-border: rgba(22,163,74,0.35);
-  --match-text: #4ade80;
-  --match-badge-bg: rgba(20,83,45,0.45);
-  --match-action-bg: #16a34a;
-  --match-action-text: #ffffff;
+  /* Match panel — dark (neutro) */
+  --match-panel-bg: rgba(255,255,255,0.06);
+  --match-panel-border: rgba(255,255,255,0.18);
+  --match-text: #ffffff;
+  --match-badge-bg: rgba(255,255,255,0.12);
+  --match-action-bg: #ffffff;
+  --match-action-text: #0a0a0a;
   --match-count-text: #e5e5e5;
-  --match-pos-text: #a3e635;
-  --match-none-text: #86efac;
+  --match-pos-text: #e5e5e5;
+  --match-none-text: #e5e5e5;
 
-  /* Chain panel — dark */
-  --chain-panel-bg: rgba(46,16,101,0.28);
-  --chain-panel-border: rgba(109,40,217,0.35);
-  --chain-text: #a78bfa;
-  --chain-badge-bg: rgba(46,16,101,0.45);
-  --chain-action-bg: #7c3aed;
-  --chain-action-text: #ffffff;
-  --chain-node-text: #c4b5fd;
+  /* Chain panel — dark (neutro) */
+  --chain-panel-bg: rgba(255,255,255,0.06);
+  --chain-panel-border: rgba(255,255,255,0.18);
+  --chain-text: #ffffff;
+  --chain-badge-bg: rgba(255,255,255,0.12);
+  --chain-action-bg: #ffffff;
+  --chain-action-text: #0a0a0a;
+  --chain-node-text: #ffffff;
 
   /* Chip — dark: bianco pieno (B&W, visibile) */
   --chip-selected-bg: #ffffff;
@@ -303,15 +304,16 @@
   --dialog-pill-notte-active-bg: rgba(46,16,101,0.40);
   --dialog-pill-notte-active-border: #7c3aed;
 
-  /* User type badges — dark */
-  --badge-noni-bg: rgba(46,16,101,0.30); --badge-noni-text: #d8b4fe;
-  --badge-dco-bg: rgba(30,58,95,0.30);  --badge-dco-text: #93c5fd;
+  /* User type badges — dark (neutri) */
+  --badge-noni-bg: rgba(255,255,255,0.10); --badge-noni-text: #ffffff;
+  --badge-dco-bg: rgba(255,255,255,0.10);  --badge-dco-text: #ffffff;
 
-  /* Shift item — dark */
-  --interest-date-color: #4ade80;
+  /* Shift item — dark (neutri) */
+  --interest-date-color: #ffffff;
   --own-name-color: #ffffff;
-  --interest-btn-bg: #16a34a;
-  --feedback-check-color: #22c55e;
+  --interest-btn-bg: #ffffff;
+  --interest-btn-text: #0a0a0a;
+  --feedback-check-color: #ffffff;
 
   /* Manager state — pending (neutro) / confirm (verde semantico) */
   --state-pending-text: #e5e5e5;
@@ -438,7 +440,7 @@
   .badge-noni { background: var(--badge-noni-bg); color: var(--badge-noni-text); }
   .badge-dco  { background: var(--badge-dco-bg);  color: var(--badge-dco-text); }
 
-  .btn-interest-on { background: var(--interest-btn-bg) !important; color: #fff !important; }
+  .btn-interest-on { background: var(--interest-btn-bg) !important; color: var(--interest-btn-text) !important; }
   .text-interest-date { color: var(--interest-date-color); }
   .text-own-name      { color: var(--own-name-color); }
   .text-feedback-check{ color: var(--feedback-check-color); }

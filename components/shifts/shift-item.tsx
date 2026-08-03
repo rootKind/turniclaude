@@ -294,7 +294,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
               </span>
             ) : (
               <button
-                className={cn('leading-none', isInterested ? 'text-red-500' : 'text-muted-foreground')}
+                className={cn('leading-none', isInterested ? 'text-interest-date' : 'text-muted-foreground')}
                 onClick={handleInterestToggle}
                 aria-label={isInterested ? 'Rimuovi interesse' : 'Sono interessato'}
               >
