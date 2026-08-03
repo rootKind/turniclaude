@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { YearGateSkeleton } from '@/components/ui/year-gate-skeleton'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useDuplicateCognomi } from '@/hooks/use-users'
@@ -47,7 +48,9 @@ export default function TurniFeriePage() {
   useEffect(() => {
     localStorage.setItem('turni-last-page', '/turniferie')
     const supabase = createClient()
-    getAppSettings(supabase).then(s => setMinYear(s.min_year_turniferie)).catch(() => {})
+    getAppSettings(supabase)
+      .then(s => setMinYear(s.min_year_turniferie))
+      .catch(() => setMinYear(new Date().getFullYear()))
     const channel = supabase
       .channel('app-settings-turniferie')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
@@ -223,16 +226,7 @@ export default function TurniFeriePage() {
     })
   }
 
-  if (minYear === null) return (
-    <main className="mx-auto px-3 pt-5 max-w-2xl flex flex-col" style={{ height: 'calc(100dvh - 4rem)' }}>
-      <div className="h-11 mb-3 mr-14 rounded-xl bg-muted animate-pulse" />
-      <div className="grid grid-cols-2 gap-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-28 rounded-xl bg-muted animate-pulse" />
-        ))}
-      </div>
-    </main>
-  )
+  if (minYear === null) return <YearGateSkeleton variant="turniferie" />
 
   return (
     <main

@@ -49,69 +49,77 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
   }, [filtered])
 
   if (isLoading) return <VacationListSkeleton />
-  if (!requests.length) return (
-    <div className="text-center py-12 text-muted-foreground text-sm">
-      Nessuna richiesta di cambio ferie.
-    </div>
-  )
 
   return (
-    <div>
-      {isManagerView && (
-        <div className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar">
-          <button
-            onClick={() => setCompatibleOnly(false)}
-            className={cn(
-              'flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
-              !compatibleOnly ? 'chip-selected' : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            )}
-          >
-            Tutti
-          </button>
-          <button
-            onClick={() => setCompatibleOnly(true)}
-            className={cn(
-              'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
-              compatibleOnly
-                ? 'chip-selected'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
-            )}
-          >
-            <User className="w-3 h-3" />
-            Solo compatibili
-          </button>
+    <motion.div
+      key={year}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
+    >
+      {!requests.length ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">
+          Nessuna richiesta di cambio ferie.
         </div>
+      ) : (
+        <>
+          {isManagerView && (
+            <div className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar">
+              <button
+                onClick={() => setCompatibleOnly(false)}
+                className={cn(
+                  'flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
+                  !compatibleOnly ? 'chip-selected' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                )}
+              >
+                Tutti
+              </button>
+              <button
+                onClick={() => setCompatibleOnly(true)}
+                className={cn(
+                  'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
+                  compatibleOnly
+                    ? 'chip-selected'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
+                )}
+              >
+                <User className="w-3 h-3" />
+                Solo compatibili
+              </button>
+            </div>
+          )}
+          <div className="flex flex-col gap-0">
+            {filtered.map((request, index) => {
+              const prev = filtered[index - 1]
+              const isSameDateAsPrevious = !!prev && dayKey(prev.created_at) === dayKey(request.created_at)
+              return (
+                <motion.div
+                  key={request.id}
+                  className={index === 0 ? 'mt-0' : isSameDateAsPrevious ? 'mt-0.5' : 'mt-3'}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.15, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
+                >
+                  <VacationRequestItem
+                    request={request}
+                    currentUserId={effectiveUserId}
+                    loggedInUserId={loggedInUserId}
+                    isSecondary={isSecondary}
+                    myPeriodThisYear={myPeriodThisYear}
+                    isSameDateAsPrevious={isSameDateAsPrevious}
+                    dateIndex={dateIndexes[index]}
+                    year={year}
+                    isHighlighted={highlightRequestIds.includes(request.id)}
+                    duplicateCognomi={duplicateCognomi}
+                    isManagerView={isManagerView}
+                  />
+                </motion.div>
+              )
+            })}
+          </div>
+        </>
       )}
-      <div className="flex flex-col gap-0">
-      {filtered.map((request, index) => {
-        const prev = filtered[index - 1]
-        const isSameDateAsPrevious = !!prev && dayKey(prev.created_at) === dayKey(request.created_at)
-        return (
-          <motion.div
-            key={request.id}
-            className={index === 0 ? 'mt-0' : isSameDateAsPrevious ? 'mt-0.5' : 'mt-3'}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.15, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
-          >
-            <VacationRequestItem
-              request={request}
-              currentUserId={effectiveUserId}
-              loggedInUserId={loggedInUserId}
-              isSecondary={isSecondary}
-              myPeriodThisYear={myPeriodThisYear}
-              isSameDateAsPrevious={isSameDateAsPrevious}
-              dateIndex={dateIndexes[index]}
-              year={year}
-              isHighlighted={highlightRequestIds.includes(request.id)}
-              duplicateCognomi={duplicateCognomi}
-              isManagerView={isManagerView}
-            />
-          </motion.div>
-        )
-      })}
-      </div>
-    </div>
+    </motion.div>
   )
 }
 

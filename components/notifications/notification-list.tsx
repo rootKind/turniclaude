@@ -80,7 +80,7 @@ export function NotificationList() {
           key={key}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.15, delay: index * 0.05, ease: 'easeOut' }}
+          transition={{ duration: 0.15, delay: index * 0.04, ease: 'easeOut' }}
           className="flex flex-col"
         >
           <div className="flex items-center gap-2 mb-1 px-1">

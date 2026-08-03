@@ -22,7 +22,6 @@ import type { VacationPeriod, VacationRequestWithInterests } from '@/types/datab
 import { useCurrentUser } from '@/hooks/use-current-user'
 
 const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
-const MIN_YEAR = 2026
 const MAX_YEAR = 2099
 
 interface Props {
@@ -32,9 +31,10 @@ interface Props {
   userId: string
   basePeriod: VacationPeriod | null
   defaultYear: number
+  minYear: number
 }
 
-export function VacationRequestDialog({ open, onClose, isSecondary, userId, basePeriod, defaultYear }: Props) {
+export function VacationRequestDialog({ open, onClose, isSecondary, userId, basePeriod, defaultYear, minYear }: Props) {
   const [year, setYear] = useState(defaultYear)
   const [selected, setSelected] = useState<VacationPeriod[]>([])
   const [qualsiasi, setQualsiasi] = useState(false)
@@ -240,8 +240,8 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
             {/* Anno */}
             <div className="flex items-center justify-between mb-4">
               <button
-                onClick={() => setYear(y => Math.max(MIN_YEAR, y - 1))}
-                disabled={year <= MIN_YEAR}
+                onClick={() => setYear(y => Math.max(minYear, y - 1))}
+                disabled={year <= minYear}
                 className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
               >
                 <ChevronLeft size={18} />

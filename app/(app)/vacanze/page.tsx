@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, Suspense } from 'react'
+import { motion } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -10,6 +11,7 @@ import { VACATION_PERIOD_LABELS } from '@/lib/vacations'
 import { getAppSettings } from '@/lib/queries/app-settings'
 import { VacationRequestList } from '@/components/vacanze/vacation-request-list'
 import { VacationRequestDialog } from '@/components/vacanze/vacation-request-dialog'
+import { YearGateSkeleton } from '@/components/ui/year-gate-skeleton'
 import type { VacationPeriod } from '@/types/database'
 
 const MAX_YEAR = 2099
@@ -73,7 +75,9 @@ function VacanzeContent() {
 
   useEffect(() => {
     const supabase = createClient()
-    getAppSettings(supabase).then(s => setMinYear(s.min_year_vacanze)).catch(() => {})
+    getAppSettings(supabase)
+      .then(s => setMinYear(s.min_year_vacanze))
+      .catch(() => setMinYear(new Date().getFullYear()))
     const channel = supabase
       .channel('app-settings-vacanze')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
@@ -116,6 +120,8 @@ function VacanzeContent() {
     }
   }, [minYear])
 
+  if (minYear === null) return <YearGateSkeleton variant="vacanze" />
+
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
       <div className="flex items-center gap-2 mb-3 pr-12">
@@ -131,7 +137,13 @@ function VacanzeContent() {
       </div>
 
       {/* Periodo ferie con navigazione anno */}
-      <div className="mb-4 px-3 py-2.5 rounded-xl offered-box border flex items-center gap-2">
+      <motion.div
+        key={selectedYear}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.15, ease: 'easeOut' }}
+        className="mb-4 px-3 py-2.5 rounded-xl offered-box border flex items-center gap-2"
+      >
         <button
           onClick={() => changeYear(-1)}
           disabled={minYear === null || selectedYear <= minYear}
@@ -154,7 +166,7 @@ function VacanzeContent() {
         >
           <ChevronRight size={16} className="text-offered-label" />
         </button>
-      </div>
+      </motion.div>
 
       <VacationRequestList
         isSecondary={effectiveIsSecondary}
@@ -172,6 +184,7 @@ function VacanzeContent() {
         userId={loggedInUserId}
         basePeriod={basePeriod}
         defaultYear={selectedYear}
+        minYear={minYear ?? new Date().getFullYear()}
       />
     </main>
   )
