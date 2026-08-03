@@ -64,8 +64,9 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   cambi turno di ENTRAMBE le categorie. Regole di visibilità (`isShiftVisibleTo` in
   `lib/queries/shifts.ts`): DCO+ → tutto; Noni → Noni + richieste dei DCO+; DCO normale → solo
   DCO (i DCO+ restano formalmente DCO). Le FERIE restano quelle DCO (nessun cambiamento).
-  Le richieste dell'altro gruppo portano badge neutro **NONO** (viste dal DCO+) o **DCO+**
-  (viste dai Noni) + bordo sottile `border-foreground/25` sulla card. `is_dco_plus` è forzato
+  Le richieste dell'altro gruppo portano SOLO il badge neutro **NONO** (viste dal DCO+) o
+  **DCO+** (viste dai Noni): la card ha lo STESSO bordo delle altre (il bordo speciale
+  `border-foreground/25` è stato rimosso 04/08/2026). `is_dco_plus` è forzato
   `false` per manager e Noni (route create/update utente + dialog admin). Query key/cache dei
   turni includono `isDcoPlus` (`shifts-{isSecondary}-{isDcoPlus}`).
 - **`ADMIN_ID`** hardcoded `fdd6c008-7a22-42d5-a75b-c44d9edfef12` in `types/database.ts` — NON spostarlo in env.
@@ -187,6 +188,11 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 ## Note per il testing E2E in dev
 
+- **Due PWA installate sul telefono del titolare (IMPORTANTE, 04/08/2026):** sul cellulare
+  sono installate DUE PWA: una punta a `master` (produzione) e una alla preview Vercel di
+  `dev`. Un push su `dev` è quindi subito verificabile da telefono tramite la PWA dev — NON
+  serve il merge su `master` per i controlli grafici (il titolare sceglie quale PWA aprire).
+  La PWA di produzione si aggiorna SOLO al merge su `master` + deploy Vercel.
 - **Progetti Supabase:** dev = `uokfixddsuqcjddbfkln`, main/produzione = `zrbbzfingrdpdflkndgl`.
   L'account admin esiste su ENTRAMBI con lo stesso UUID (`fdd6c008-...` = ADMIN_ID): dev è un
   clone di main, quindi il pannello admin si può testare anche su dev.
