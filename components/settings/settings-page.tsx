@@ -113,68 +113,80 @@ export function SettingsPage() {
         )}
 
         {permission === 'granted' && isSubscribed && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notif-enabled">Notifiche attive</Label>
-              <Switch
-                id="notif-enabled"
-                checked={profile?.notification_enabled ?? true}
-                onCheckedChange={v => handleToggle('notification_enabled', v)}
-              />
-            </div>
-            {!isManagerUser && (
+          <div className="space-y-4">
+            {/* Gruppo generale: toggle master attivo/disattivo */}
+            <div className="space-y-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Generali</p>
               <div className="flex items-center justify-between">
-                <Label htmlFor="notif-interest">Qualcuno è interessato al mio turno</Label>
+                <Label htmlFor="notif-enabled">Notifiche attive</Label>
                 <Switch
-                  id="notif-interest"
-                  checked={profile?.notify_on_interest ?? true}
-                  onCheckedChange={v => handleToggle('notify_on_interest', v)}
-                  disabled={!profile?.notification_enabled}
+                  id="notif-enabled"
+                  checked={profile?.notification_enabled ?? true}
+                  onCheckedChange={v => handleToggle('notification_enabled', v)}
                 />
               </div>
-            )}
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notif-new">Nuovo turno pubblicato</Label>
-              <Switch
-                id="notif-new"
-                checked={profile?.notify_on_new_shift ?? false}
-                onCheckedChange={v => handleToggle('notify_on_new_shift', v)}
-                disabled={!profile?.notification_enabled}
-              />
             </div>
-            {/* DCO+ e Noni vedono anche i turni dell'altro gruppo → toggle dedicato */}
-            {(profile?.is_dco_plus || profile?.is_secondary) && (
-              <div className="flex items-center justify-between">
-                <Label htmlFor="notif-cross">Cambi turno dell&apos;altro gruppo</Label>
-                <Switch
-                  id="notif-cross"
-                  checked={profile?.notify_on_cross_shifts ?? true}
-                  onCheckedChange={v => handleToggle('notify_on_cross_shifts', v)}
-                  disabled={!profile?.notification_enabled}
-                />
-              </div>
-            )}
 
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-1">Ferie</p>
-            {!isManagerUser && (
+            {/* Gruppo Turni */}
+            <div className="space-y-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Turni</p>
+              {!isManagerUser && (
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notif-interest">Qualcuno è interessato al mio turno</Label>
+                  <Switch
+                    id="notif-interest"
+                    checked={profile?.notify_on_interest ?? true}
+                    onCheckedChange={v => handleToggle('notify_on_interest', v)}
+                    disabled={!profile?.notification_enabled}
+                  />
+                </div>
+              )}
               <div className="flex items-center justify-between">
-                <Label htmlFor="notif-vacation-interest">Qualcuno è interessato al mio cambio ferie</Label>
+                <Label htmlFor="notif-new">Nuovo turno pubblicato</Label>
                 <Switch
-                  id="notif-vacation-interest"
-                  checked={profile?.notify_on_vacation_interest ?? true}
-                  onCheckedChange={v => handleToggle('notify_on_vacation_interest', v)}
+                  id="notif-new"
+                  checked={profile?.notify_on_new_shift ?? false}
+                  onCheckedChange={v => handleToggle('notify_on_new_shift', v)}
                   disabled={!profile?.notification_enabled}
                 />
               </div>
-            )}
-            <div className="flex items-center justify-between">
-              <Label htmlFor="notif-vacation-new">Nuovo cambio ferie disponibile</Label>
-              <Switch
-                id="notif-vacation-new"
-                checked={profile?.notify_on_new_vacation ?? false}
-                onCheckedChange={v => handleToggle('notify_on_new_vacation', v)}
-                disabled={!profile?.notification_enabled}
-              />
+              {/* DCO+ e Noni ricevono notifiche dei turni dell'altro gruppo (mansioni superiori) */}
+              {(profile?.is_dco_plus || profile?.is_secondary) && (
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notif-cross">Nuovo turno pubblicato mansioni superiori</Label>
+                  <Switch
+                    id="notif-cross"
+                    checked={profile?.notify_on_cross_shifts ?? true}
+                    onCheckedChange={v => handleToggle('notify_on_cross_shifts', v)}
+                    disabled={!profile?.notification_enabled}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Gruppo Ferie */}
+            <div className="space-y-3">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Ferie</p>
+              {!isManagerUser && (
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notif-vacation-interest">Qualcuno è interessato al mio cambio ferie</Label>
+                  <Switch
+                    id="notif-vacation-interest"
+                    checked={profile?.notify_on_vacation_interest ?? true}
+                    onCheckedChange={v => handleToggle('notify_on_vacation_interest', v)}
+                    disabled={!profile?.notification_enabled}
+                  />
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notif-vacation-new">Nuovo cambio ferie disponibile</Label>
+                <Switch
+                  id="notif-vacation-new"
+                  checked={profile?.notify_on_new_vacation ?? false}
+                  onCheckedChange={v => handleToggle('notify_on_new_vacation', v)}
+                  disabled={!profile?.notification_enabled}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -199,7 +211,7 @@ export function SettingsPage() {
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
 
       <p className="text-center text-xs text-muted-foreground pb-2">
-        v1.224 · 616901f — ultimo aggiornamento: 03/08/2026 22:46
+        v1.225 · 05d58ac — ultimo aggiornamento: 04/08/2026 00:34
       </p>
     </main>
   )

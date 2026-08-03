@@ -181,8 +181,8 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   rigenerare `apple-icon.png` bianca: dalla icon-512 trasparente ridimensionata a 180
   poi sharp `flatten({ background: '#ffffff' })`.
 - **Funzionalità DCO+ (03/08/2026):** nuovo attributo `is_dco_plus` (DCO che vedono anche la
-  tabella cambi turno dei Noni) + `notify_on_cross_shifts` (toggle notifiche "altro gruppo"
-  visibile solo a DCO+ e Noni). Notifiche push `new_shift` allineate alla visibilità (DCO+
+  tabella cambi turno dei Noni) + `notify_on_cross_shifts` (toggle "Nuovo turno pubblicato
+  mansioni superiori" in /impostazioni, visibile solo a DCO+ e Noni). Notifiche push `new_shift` allineate alla visibilità (DCO+
   pubblica → tutti; Noni → Noni + DCO+; DCO → DCO) con gating del toggle cross per chi riceve
   dall'altro gruppo. Badge NONO/DCO+ + bordo sottile nelle viste miste. Migration **015_dco_plus**
   (add columns users.is_dco_plus, users.notify_on_cross_shifts) APPLICATA al DB dev
