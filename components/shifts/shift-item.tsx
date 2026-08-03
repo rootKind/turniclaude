@@ -76,10 +76,12 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
 
   // Card dello stesso giorno agglomerate in un blocco unico: angoli rotondi solo sul
   // primo (top) e sull'ultimo (bottom) del gruppo; le intermedie sono squadrate.
+  // Espansa, la card estende il bordo sul pannello: tondo in alto solo se è la prima
+  // del giorno, tondo in basso (sul pannello) solo se è l'ultima.
   const isFirstOfDay = !isSameDateAsPrevious
   const isLastOfDay = !isSameDateAsNext
   const borderRadius = expanded
-    ? 'rounded-t-[10px]'
+    ? (isFirstOfDay ? 'rounded-t-[10px]' : '')
     : isFirstOfDay && isLastOfDay
       ? 'rounded-[10px]'
       : isFirstOfDay
@@ -87,6 +89,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         : isLastOfDay
           ? 'rounded-b-[10px]'
           : ''
+  const panelRadius = isLastOfDay ? 'rounded-b-[10px]' : ''
 
   async function handleInterestToggle(e: React.MouseEvent) {
     e.stopPropagation()
@@ -240,6 +243,9 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         tabIndex={0}
         aria-expanded={expanded}
         className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius,
+          // Bordi interni del gruppo di giorno: più chiari del riempimento
+          isSameDateAsPrevious && 'shift-inner-border-t',
+          (isSameDateAsNext || expanded) && 'shift-inner-border-b',
           !shift.is_pending && isManagerView && hasInterest && 'confirm-overlay',
           shift.is_pending && 'pending-overlay',
         )}
@@ -345,7 +351,11 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
             className="overflow-hidden"
           >
             <div className={cn(
-              'px-3 py-3 rounded-b-[10px] border-t border-black/10 dark:border-white/10',
+              // Bordo esteso sul pannello: lati e fondo con il colore della card,
+              // niente bordo in alto (il separatore è il bordo inferiore della riga).
+              'px-3 py-3 border-x border-b',
+              panelRadius,
+              isSameDateAsNext && 'shift-inner-border-b',
               isOwn && hasInterest ? 'shift-expanded-own-interest' :
               isOwn ? 'shift-expanded-own-empty' :
               'shift-expanded-others'
