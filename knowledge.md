@@ -74,6 +74,16 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   in `globals.css`; `lib/color-defaults.ts` resta solo con `LIGHT_BACKGROUND`/`DARK_BACKGROUND`
   (meta theme-color). NON reintrodurre il sistema di override. Nota: il cookie `co`
   residuo nei browser di chi aveva salvato colori è INERTE (nessun codice lo legge più).
+- **Sistema colori 2-tinte (03/08/2026):** tema scuro = solo bianco/nero (nessun ambra nel
+  chrome: highlight, my-period, chip selezionati, badge sala sono bianchi); tema chiaro =
+  negativo del scuro: nero + celeste molto lieve (accent `#38bdf8` sostituito col nero).
+  Restano COLORATI (semantici, NON toccare): pill Mattina/Pomeriggio/Notte (fasce orarie),
+  pill periodi ferie P1–P6 (stagioni), pannelli match (verde) / chain (viola), badge DCO/NONI,
+  banner impersonazione (arancione). Vista manager: stato "in attesa" = neutro
+  (`--state-pending-*`), "conferma" = verde (`--state-confirm-*`) — classi
+  `btn-pending|btn-confirm|ring-pending|ring-confirm|pending-overlay|confirm-overlay|text-pending|text-confirm`.
+  Card periodi /turniferie: header uniforme `period-card-header` che stacca dal corpo `bg-card`;
+  la card "il tuo periodo" usa `my-period-header` (più scura in chiaro / più chiara in scuro).
 - **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013) —
   colori PER PERSONA dei desk (board /turnisala, admin o manager), diverso dall'ex-funzionalità
   colori tema. Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).

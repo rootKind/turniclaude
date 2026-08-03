@@ -61,7 +61,7 @@ export function LoginForm() {
         </Button>
       </form>
       <p className="text-center text-sm">
-        <a href="/reset-password" className="text-muted-foreground hover:underline">Password dimenticata?</a>
+        <a href="/reset-password" className="text-primary font-medium underline underline-offset-2 hover:opacity-70 transition-opacity">Password dimenticata?</a>
       </p>
     </div>
   )

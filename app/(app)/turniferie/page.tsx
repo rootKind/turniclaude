@@ -273,12 +273,12 @@ export default function TurniFeriePage() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.15, delay: index * 0.04, ease: 'easeOut' }}
-              className={`rounded-xl border overflow-hidden transition-colors flex flex-col ${isMyPeriod ? 'my-period-border' : ''}`}
+              className={`rounded-xl border bg-card overflow-hidden transition-colors flex flex-col ${isMyPeriod ? 'my-period-border' : ''}`}
             >
               <button
                 onClick={() => togglePeriod(period)}
                 disabled={alwaysExpanded}
-                className={`w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default ${isMyPeriod ? 'my-period-header' : ''}`}
+                className={`w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default ${isMyPeriod ? 'my-period-header' : 'period-card-header'}`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {isMyPeriod && (

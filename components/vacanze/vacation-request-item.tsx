@@ -254,16 +254,16 @@ export function VacationRequestItem({
         tabIndex={0}
         aria-expanded={expanded}
         className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius,
-          !request.is_pending && isManagerView && hasInterest && 'bg-green-500/[0.08]',
-          request.is_pending && 'bg-amber-500/[0.08]',
+          !request.is_pending && isManagerView && hasInterest && 'confirm-overlay',
+          request.is_pending && 'pending-overlay',
         )}
         onClick={() => setExpanded(v => !v)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
       >
         {/* Date block */}
         <div className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
-          {!request.is_pending && isManagerView && hasInterest && <span className="absolute inset-0 bg-green-500/[0.08] pointer-events-none" />}
-          {request.is_pending && <span className="absolute inset-0 bg-amber-500/[0.08] pointer-events-none" />}
+          {!request.is_pending && isManagerView && hasInterest && <span className="absolute inset-0 confirm-overlay pointer-events-none" />}
+          {request.is_pending && <span className="absolute inset-0 pending-overlay pointer-events-none" />}
           {dateIndex > 0 ? (
             <span className="text-[16px] font-extrabold leading-none text-muted-foreground">{dateIndex + 1}°</span>
           ) : (
@@ -284,7 +284,7 @@ export function VacationRequestItem({
                 {displayName}
               </span>
               {isOwn && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground">TUO</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-foreground/10 text-foreground">TUO</span>
               )}
             </div>
             <div className="flex items-center gap-1 flex-wrap">
@@ -314,8 +314,8 @@ export function VacationRequestItem({
                     className={cn(
                       'flex items-center justify-center w-5 h-5 rounded-full border transition-colors',
                       request.is_pending
-                        ? 'border-amber-500/70 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
-                        : 'border-green-600/40 text-green-600 bg-green-500/10 hover:bg-green-500/20',
+                        ? 'ring-pending'
+                        : 'ring-confirm',
                       managerLoading && 'opacity-50 pointer-events-none',
                     )}
                     onClick={handleManagerPending}
@@ -325,7 +325,7 @@ export function VacationRequestItem({
                   </button>
                 )}
                 {interestCount > 0 && (
-                  <span className={cn(request.is_pending ? 'text-amber-500' : 'text-green-600')}>
+                  <span className={cn(request.is_pending ? 'text-pending' : 'text-confirm')}>
                     {interestCount}
                   </span>
                 )}
@@ -360,7 +360,7 @@ export function VacationRequestItem({
             className="overflow-hidden"
           >
             <div className={cn(
-              'px-3 py-3 rounded-b-[10px] border-t border-white/5',
+              'px-3 py-3 rounded-b-[10px] border-t border-black/10 dark:border-white/10',
               isOwn && hasInterest ? 'shift-expanded-own-interest' :
               isOwn ? 'shift-expanded-own-empty' :
               'shift-expanded-others'
@@ -375,7 +375,7 @@ export function VacationRequestItem({
                         {request.vacation_request_interests
                           .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                           .map(i => (
-                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 gap-2">
+                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0 gap-2">
                               <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
                               <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[i.period_this_year] ?? 'offered-box text-offered-label')}>
                                 {VACATION_PERIOD_LABELS[i.period_this_year].label}
@@ -429,7 +429,7 @@ export function VacationRequestItem({
                         <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setManagerAction(null); setSelectedInterestUserId('') }}>
                           Annulla
                         </Button>
-                        <Button size="sm" className="flex-1 h-8 text-[11px] bg-amber-500 hover:bg-amber-600 text-white" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerPending(e) }}>
+                        <Button size="sm" className="flex-1 h-8 text-[11px] btn-pending" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerPending(e) }}>
                           {managerLoading ? '...' : 'Segna in attesa'}
                         </Button>
                       </div>
@@ -456,7 +456,7 @@ export function VacationRequestItem({
                         <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setManagerAction(null); setSelectedInterestUserId('') }}>
                           Annulla
                         </Button>
-                        <Button size="sm" className="flex-1 h-8 text-[11px] bg-green-600 hover:bg-green-700 text-white" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerConfirm() }}>
+                        <Button size="sm" className="flex-1 h-8 text-[11px] btn-confirm" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerConfirm() }}>
                           {managerLoading ? '...' : 'Conferma'}
                         </Button>
                       </div>
@@ -475,7 +475,7 @@ export function VacationRequestItem({
                       </Button>
                       <Button
                         size="sm"
-                        className="flex-1 h-8 text-[11px] bg-green-600 hover:bg-green-700 text-white"
+                        className="flex-1 h-8 text-[11px] btn-confirm"
                         disabled={managerLoading}
                         onClick={e => { e.stopPropagation(); handleManagerConfirm() }}
                       >
@@ -498,7 +498,7 @@ export function VacationRequestItem({
                         {request.vacation_request_interests
                           .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                           .map(i => (
-                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 gap-2">
+                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0 gap-2">
                               <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
                               <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[i.period_this_year] ?? 'offered-box text-offered-label')}>
                                 {VACATION_PERIOD_LABELS[i.period_this_year].label}
@@ -523,7 +523,7 @@ export function VacationRequestItem({
                         {request.vacation_request_interests
                           .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                           .map(i => (
-                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0 gap-2">
+                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0 gap-2">
                               <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
                               <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[i.period_this_year] ?? 'offered-box text-offered-label')}>
                                 {VACATION_PERIOD_LABELS[i.period_this_year].label}

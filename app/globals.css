@@ -10,19 +10,6 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -67,34 +54,22 @@
   --border: oklch(0.875 0.025 225);
   --input: oklch(0.875 0.025 225);
   --ring: oklch(0.650 0.050 225);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.960 0.013 228);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.920 0.022 225);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.875 0.025 225);
-  --sidebar-ring: oklch(0.650 0.050 225);
 
   /* Shift row backgrounds */
   --shift-others-bg: #dde8f0;
   --shift-others-date-bg: #d0dde8;
   --shift-others-date-border: #bdd0e0;
-  --shift-own-empty-bg: #e4e4f0;
-  --shift-own-empty-date-bg: #d8d8ec;
-  --shift-own-empty-border: #c8c8e0;
+  --shift-own-empty-bg: #e8eef5;
+  --shift-own-empty-date-bg: #dde6f0;
+  --shift-own-empty-border: #c9d6e4;
   --shift-own-interest-bg: #dcfce7;
   --shift-own-interest-date-bg: #bbf7d0;
   --shift-own-interest-border: #86efac;
-  --shift-highlight-bg: #fef9e7;
-  --shift-highlight-date-bg: #fef3c7;
-  --shift-highlight-border: rgba(245,158,11,0.3);
+  /* Highlight — bianco su bordo nero leggero (niente ambra: non collide con la pill Pomeriggio) */
+  --shift-highlight-bg: #ffffff;
+  --shift-highlight-date-bg: #f4f8fb;
+  --shift-highlight-border: rgba(15,23,42,0.14);
 
   /* Shift type pill colors */
   --pill-mattina-bg: #dbeafe;
@@ -115,7 +90,7 @@
   --match-badge-bg: rgba(20,83,45,0.40);
   --match-action-bg: #15803d;
   --match-action-text: #ffffff;
-  --match-count-text: #d97706;
+  --match-count-text: #1c1c1c;
   --match-pos-text: #65a30d;
   --match-none-text: #16a34a;
 
@@ -128,23 +103,26 @@
   --chain-action-text: #ffffff;
   --chain-node-text: #7c3aed;
 
-  /* Chip / filter selection */
-  --chip-selected-bg: #38bdf8;
+  /* Chip / filter selection — nero (negative del tema scuro) */
+  --chip-selected-bg: #1c1c1c;
   --chip-selected-text: #ffffff;
-  --chip-selected-border: #38bdf8;
+  --chip-selected-border: #1c1c1c;
 
-  /* Offered period info box */
-  --offered-box-bg: #f0f9ff;
-  --offered-box-border: #bae6fd;
-  --offered-box-label: #0284c7;
-  --offered-box-value: #0c4a6e;
+  /* Offered period info box — celeste lieve + testo nero */
+  --offered-box-bg: #eef5fb;
+  --offered-box-border: #c9dcee;
+  --offered-box-label: #475569;
+  --offered-box-value: #0f172a;
 
-  /* My period section (turniferie) */
-  --my-period-border: #38bdf8;
-  --my-period-header-bg: #e0f2fe;
-  --my-period-content-bg: #f0f9ff;
-  --my-period-text: #0c4a6e;
-  --my-period-dot: #0ea5e9;
+  /* My period section (turniferie) — header più scuro delle altre + accento nero */
+  --my-period-border: #1c1c1c;
+  --my-period-header-bg: #d3e4f2;
+  --my-period-content-bg: #eaf3fb;
+  --my-period-text: #0f172a;
+  --my-period-dot: #1c1c1c;
+
+  /* Period cards (turniferie) — header uniforme che stacca dal corpo bg-card */
+  --period-card-header-bg: #e8eef5;
 
   /* Period pills (6 ferie periods) */
   --period-1-pill-bg: #d1fae5; --period-1-pill-text: #065f46;
@@ -154,13 +132,6 @@
   --period-5-pill-bg: #ffe4e6; --period-5-pill-text: #9f1239;
   --period-6-pill-bg: #ede9fe; --period-6-pill-text: #5b21b6;
 
-  /* Period cards (turniferie) border / header / content */
-  --period-1-card-border: #6ee7b7; --period-1-card-header: #d1fae5; --period-1-card-content: #ecfdf5;
-  --period-2-card-border: #fde047; --period-2-card-header: #fef9c3; --period-2-card-content: #fefce8;
-  --period-3-card-border: #fcd34d; --period-3-card-header: #fef3c7; --period-3-card-content: #fffbeb;
-  --period-4-card-border: #fdba74; --period-4-card-header: #ffedd5; --period-4-card-content: #fff7ed;
-  --period-5-card-border: #fda4af; --period-5-card-header: #ffe4e6; --period-5-card-content: #fff1f2;
-  --period-6-card-border: #c4b5fd; --period-6-card-header: #ede9fe; --period-6-card-content: #f5f3ff;
 
   /* Shift dialog toggle pills */
   --dialog-pill-mattina-border: #bfdbfe;
@@ -178,31 +149,47 @@
   --badge-dco-bg: #dbeafe;  --badge-dco-text: #1d4ed8;
 
   /* Shift item interest indicators */
-  --interest-date-color: #4ade80;
-  --own-name-color: #854d0e;
+  --interest-date-color: #16a34a;
+  --own-name-color: #1c1c1c;
   --interest-btn-bg: #16a34a;
   --feedback-check-color: #22c55e;
 
-  /* Sala desk board */
-  --desk-schedule-border: #bae6fd;
-  --sala-highlight-border: #38bdf8;
-  --sala-highlight-ring: rgba(14,165,233,0.30);
+  /* Manager state — pending (neutro) / confirm (verde semantico) */
+  --state-pending-text: #4b5563;
+  --state-pending-bg: rgba(15,23,42,0.06);
+  --state-pending-border: rgba(15,23,42,0.25);
+  --state-pending-ring-hover: rgba(15,23,42,0.16);
+  --state-pending-btn-bg: #4b5563;
+  --state-pending-btn-hover: #374151;
+  --state-pending-btn-text: #ffffff;
+  --state-confirm-text: #15803d;
+  --state-confirm-bg: rgba(22,163,74,0.12);
+  --state-confirm-border: rgba(22,163,74,0.40);
+  --state-confirm-ring-hover: rgba(22,163,74,0.24);
+  --state-confirm-btn-bg: #16a34a;
+  --state-confirm-btn-hover: #15803d;
+  --state-confirm-btn-text: #ffffff;
+
+  /* Sala desk board — accento nero */
+  --desk-schedule-border: #c9dcee;
+  --sala-highlight-border: #1c1c1c;
+  --sala-highlight-ring: rgba(15,23,42,0.18);
   --sala-own-badge-bg: #dbeafe;
-  --sala-own-badge-border: #38bdf8;
-  --sala-own-badge-text: #0369a1;
-  /* Sala desk card (dedicate — non condividono --card/--border con le impostazioni) */
+  --sala-own-badge-border: #1c1c1c;
+  --sala-own-badge-text: #1c1c1c;
+  /* Sala desk card — titolo chiaramente separato dal corpo */
   --sala-card-bg: #f5f9fc;
   --sala-card-border: #d5e0ec;
-  --sala-card-title-bg: #eff4f9;
-  --sala-card-body-bg: #ecf2f8;
+  --sala-card-title-bg: #dfe8f2;
+  --sala-card-body-bg: #f8fbfd;
   --sala-card-tir-bg: #eef3f9;
   /* Sala — pill "Altri presenti" (dedicate, non usano --muted) */
   --sala-present-pill-bg: #e6edf5;
   --sala-present-pill-text: #1c1c1c;
-  /* Sala — toolbar (chip selezionato + navigazione mese) */
-  --sala-toolbar-chip-bg: #38bdf8;
+  /* Sala — toolbar (chip selezionato nero + navigazione mese) */
+  --sala-toolbar-chip-bg: #1c1c1c;
   --sala-toolbar-chip-text: #ffffff;
-  --sala-toolbar-chip-border: #38bdf8;
+  --sala-toolbar-chip-border: #1c1c1c;
   --sala-toolbar-nav-bg: rgba(255,255,255,0);
   --sala-toolbar-nav-border: #d5e0ec;
   --sala-toolbar-nav-text: #1c1c1c;
@@ -227,33 +214,21 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
 
   /* Shift row backgrounds — dark */
   --shift-others-bg: #1a1a1a;
   --shift-others-date-bg: #252525;
   --shift-others-date-border: #2e2e2e;
-  --shift-own-empty-bg: #2a2a35;
-  --shift-own-empty-date-bg: #32323f;
-  --shift-own-empty-border: #3a3a4a;
+  --shift-own-empty-bg: #232328;
+  --shift-own-empty-date-bg: #2b2b32;
+  --shift-own-empty-border: #34343d;
   --shift-own-interest-bg: #162416;
   --shift-own-interest-date-bg: #1a2e1a;
   --shift-own-interest-border: rgba(34,197,94,0.25);
-  --shift-highlight-bg: #2a2000;
-  --shift-highlight-date-bg: #332800;
-  --shift-highlight-border: rgba(245,158,11,0.22);
+  /* Highlight — bianco traslucido (B&W) */
+  --shift-highlight-bg: rgba(255,255,255,0.10);
+  --shift-highlight-date-bg: rgba(255,255,255,0.14);
+  --shift-highlight-border: rgba(255,255,255,0.30);
 
   /* Shift type pill colors — dark */
   --pill-mattina-bg: #1e3a5f;
@@ -274,7 +249,7 @@
   --match-badge-bg: rgba(20,83,45,0.45);
   --match-action-bg: #16a34a;
   --match-action-text: #ffffff;
-  --match-count-text: #fbbf24;
+  --match-count-text: #e5e5e5;
   --match-pos-text: #a3e635;
   --match-none-text: #86efac;
 
@@ -287,23 +262,26 @@
   --chain-action-text: #ffffff;
   --chain-node-text: #c4b5fd;
 
-  /* Chip — dark */
-  --chip-selected-bg: #18181b;
-  --chip-selected-text: #ffffff;
-  --chip-selected-border: #3f3f46;
+  /* Chip — dark: bianco pieno (B&W, visibile) */
+  --chip-selected-bg: #ffffff;
+  --chip-selected-text: #0a0a0a;
+  --chip-selected-border: #ffffff;
 
-  /* Offered period info box — dark (stile header /turnisala: neutro, sfondo = pagina, label = muted-foreground) */
-  --offered-box-bg: #0a0a0a;
-  --offered-box-border: #2e2e2e;
-  --offered-box-label: #b5b5b5;
-  --offered-box-value: #f5f5f5;
+  /* Offered period info box — dark: box visibile bianco traslucido */
+  --offered-box-bg: rgba(255,255,255,0.06);
+  --offered-box-border: rgba(255,255,255,0.20);
+  --offered-box-label: rgba(255,255,255,0.65);
+  --offered-box-value: #ffffff;
 
-  /* My period — dark */
-  --my-period-border: #fbbf24;
-  --my-period-header-bg: rgba(66,32,6,0.38);
-  --my-period-content-bg: rgba(66,32,6,0.22);
-  --my-period-text: #fde047;
-  --my-period-dot: #fbbf24;
+  /* My period — dark: header più chiaro delle altre + accento bianco */
+  --my-period-border: #ffffff;
+  --my-period-header-bg: #3a3a3a;
+  --my-period-content-bg: rgba(255,255,255,0.06);
+  --my-period-text: #ffffff;
+  --my-period-dot: #ffffff;
+
+  /* Period cards (turniferie) — header uniforme più chiaro del corpo */
+  --period-card-header-bg: #2b2b2b;
 
   /* Period pills — dark */
   --period-1-pill-bg: rgba(6,78,59,0.38);   --period-1-pill-text: #6ee7b7;
@@ -313,13 +291,6 @@
   --period-5-pill-bg: rgba(76,5,25,0.38);   --period-5-pill-text: #fb7185;
   --period-6-pill-bg: rgba(46,16,101,0.38); --period-6-pill-text: #c4b5fd;
 
-  /* Period cards — dark */
-  --period-1-card-border: #047857; --period-1-card-header: rgba(6,78,59,0.28);  --period-1-card-content: rgba(2,44,34,0.18);
-  --period-2-card-border: #a16207; --period-2-card-header: rgba(66,32,6,0.28);  --period-2-card-content: rgba(66,32,6,0.15);
-  --period-3-card-border: #b45309; --period-3-card-header: rgba(69,26,3,0.28);  --period-3-card-content: rgba(69,26,3,0.15);
-  --period-4-card-border: #c2410c; --period-4-card-header: rgba(67,20,7,0.28);  --period-4-card-content: rgba(67,20,7,0.15);
-  --period-5-card-border: #be123c; --period-5-card-header: rgba(76,5,25,0.28);  --period-5-card-content: rgba(76,5,25,0.15);
-  --period-6-card-border: #6d28d9; --period-6-card-header: rgba(46,16,101,0.28); --period-6-card-content: rgba(46,16,101,0.15);
 
   /* Shift dialog toggle pills — dark */
   --dialog-pill-mattina-border: #1e3a5f;
@@ -338,30 +309,46 @@
 
   /* Shift item — dark */
   --interest-date-color: #4ade80;
-  --own-name-color: #fef08a;
+  --own-name-color: #ffffff;
   --interest-btn-bg: #16a34a;
   --feedback-check-color: #22c55e;
 
-  /* Sala — dark */
+  /* Manager state — pending (neutro) / confirm (verde semantico) */
+  --state-pending-text: #e5e5e5;
+  --state-pending-bg: rgba(255,255,255,0.08);
+  --state-pending-border: rgba(255,255,255,0.30);
+  --state-pending-ring-hover: rgba(255,255,255,0.20);
+  --state-pending-btn-bg: rgba(255,255,255,0.18);
+  --state-pending-btn-hover: rgba(255,255,255,0.28);
+  --state-pending-btn-text: #ffffff;
+  --state-confirm-text: #4ade80;
+  --state-confirm-bg: rgba(34,197,94,0.14);
+  --state-confirm-border: rgba(34,197,94,0.45);
+  --state-confirm-ring-hover: rgba(34,197,94,0.26);
+  --state-confirm-btn-bg: #16a34a;
+  --state-confirm-btn-hover: #15803d;
+  --state-confirm-btn-text: #ffffff;
+
+  /* Sala — dark: highlight bianco, titolo più chiaro del corpo */
   --desk-schedule-border: var(--border);
-  --sala-highlight-border: #fbbf24;
-  --sala-highlight-ring: rgba(245,158,11,0.25);
-  --sala-own-badge-bg: rgba(66,32,6,0.35);
-  --sala-own-badge-border: #fbbf24;
-  --sala-own-badge-text: #fde047;
+  --sala-highlight-border: #ffffff;
+  --sala-highlight-ring: rgba(255,255,255,0.25);
+  --sala-own-badge-bg: rgba(255,255,255,0.14);
+  --sala-own-badge-border: #ffffff;
+  --sala-own-badge-text: #ffffff;
   /* Sala desk card — dark */
-  --sala-card-bg: #282828;
+  --sala-card-bg: #262626;
   --sala-card-border: #2e2e2e;
-  --sala-card-title-bg: #2e2e2e;
-  --sala-card-body-bg: #303030;
+  --sala-card-title-bg: #383838;
+  --sala-card-body-bg: #2b2b2b;
   --sala-card-tir-bg: #2f2f2f;
   /* Sala — pill "Altri presenti" — dark */
   --sala-present-pill-bg: #363636;
   --sala-present-pill-text: #f5f5f5;
-  /* Sala — toolbar — dark */
-  --sala-toolbar-chip-bg: #18181b;
-  --sala-toolbar-chip-text: #ffffff;
-  --sala-toolbar-chip-border: #3f3f46;
+  /* Sala — toolbar — dark: chip selezionato bianco */
+  --sala-toolbar-chip-bg: #ffffff;
+  --sala-toolbar-chip-text: #0a0a0a;
+  --sala-toolbar-chip-border: #ffffff;
   --sala-toolbar-nav-bg: rgba(255,255,255,0);
   --sala-toolbar-nav-border: #2e2e2e;
   --sala-toolbar-nav-text: #f5f5f5;
@@ -399,7 +386,7 @@
   .shift-date-others        { background: var(--shift-others-date-bg); border-right: 1px solid var(--shift-others-date-border); }
   .shift-date-own-empty     { background: var(--shift-own-empty-date-bg); border-right: 1px solid var(--shift-own-empty-border); }
   .shift-date-own-interest  { background: var(--shift-own-interest-date-bg); border-right: 1px solid var(--shift-own-interest-border); }
-  .shift-date-highlight     { background: var(--shift-highlight-date-bg); border-right: 1px solid rgba(245,158,11,0.4); }
+  .shift-date-highlight     { background: var(--shift-highlight-date-bg); border-right: 1px solid var(--shift-highlight-border); }
 
   /* Shift type pill classes */
   .pill-mattina    { background: var(--pill-mattina-bg); color: var(--pill-mattina-text); }
@@ -445,6 +432,9 @@
   .my-period-dot     { background: var(--my-period-dot); }
   .text-my-period-dot{ color: var(--my-period-dot); }
 
+  /* Period cards (turniferie) — header uniforme che stacca dal corpo */
+  .period-card-header { background: var(--period-card-header-bg); }
+
   .badge-noni { background: var(--badge-noni-bg); color: var(--badge-noni-text); }
   .badge-dco  { background: var(--badge-dco-bg);  color: var(--badge-dco-text); }
 
@@ -452,6 +442,20 @@
   .text-interest-date { color: var(--interest-date-color); }
   .text-own-name      { color: var(--own-name-color); }
   .text-feedback-check{ color: var(--feedback-check-color); }
+
+  /* Manager state — pending (neutro) / confirm (verde) */
+  .text-pending { color: var(--state-pending-text); }
+  .text-confirm { color: var(--state-confirm-text); }
+  .ring-pending { border-color: var(--state-pending-border); color: var(--state-pending-text); background: var(--state-pending-bg); }
+  .ring-confirm { border-color: var(--state-confirm-border); color: var(--state-confirm-text); background: var(--state-confirm-bg); }
+  .ring-pending:hover  { background: var(--state-pending-ring-hover); }
+  .ring-confirm:hover  { background: var(--state-confirm-ring-hover); }
+  .btn-pending  { background: var(--state-pending-btn-bg) !important; color: var(--state-pending-btn-text) !important; }
+  .btn-pending:hover  { background: var(--state-pending-btn-hover) !important; }
+  .btn-confirm  { background: var(--state-confirm-btn-bg) !important; color: var(--state-confirm-btn-text) !important; }
+  .btn-confirm:hover  { background: var(--state-confirm-btn-hover) !important; }
+  .pending-overlay { background: var(--state-pending-bg); }
+  .confirm-overlay { background: var(--state-confirm-bg); }
 
   .desk-schedule-border { border-color: var(--desk-schedule-border); }
 

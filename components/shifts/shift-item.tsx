@@ -218,16 +218,16 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         tabIndex={0}
         aria-expanded={expanded}
         className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius,
-          !shift.is_pending && isManagerView && hasInterest && 'bg-green-500/[0.08]',
-          shift.is_pending && 'bg-amber-500/[0.08]',
+          !shift.is_pending && isManagerView && hasInterest && 'confirm-overlay',
+          shift.is_pending && 'pending-overlay',
         )}
         onClick={() => setExpanded(v => !v)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
       >
         {/* Date block */}
         <div className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
-          {!shift.is_pending && isManagerView && hasInterest && <span className="absolute inset-0 bg-green-500/[0.08] pointer-events-none" />}
-          {shift.is_pending && <span className="absolute inset-0 bg-amber-500/[0.08] pointer-events-none" />}
+          {!shift.is_pending && isManagerView && hasInterest && <span className="absolute inset-0 confirm-overlay pointer-events-none" />}
+          {shift.is_pending && <span className="absolute inset-0 pending-overlay pointer-events-none" />}
           {dateIndex > 0 ? (
             <span className="text-[16px] font-extrabold leading-none text-muted-foreground">{dateIndex + 1}°</span>
           ) : (
@@ -247,9 +247,8 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
             <div className="flex items-center gap-1.5 mb-1">
               <span className={cn('font-semibold text-[13px] leading-none', isOwn ? 'text-own-name' : '')}>
                 {displayName}
-              </span>
-              {isOwn && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground">TUO</span>
+              </span>                {isOwn && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-foreground/10 text-foreground">TUO</span>
               )}
             </div>
             <div className="flex items-center gap-1 flex-wrap">
@@ -273,8 +272,8 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                     className={cn(
                       'flex items-center justify-center w-5 h-5 rounded-full border transition-colors',
                       shift.is_pending
-                        ? 'border-amber-500/70 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20'
-                        : 'border-green-600/40 text-green-600 bg-green-500/10 hover:bg-green-500/20',
+                        ? 'ring-pending'
+                        : 'ring-confirm',
                       managerLoading && 'opacity-50 pointer-events-none',
                     )}
                     onClick={handleManagerPending}
@@ -284,7 +283,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                   </button>
                 )}
                 {(shift.shift_interested_users?.length ?? 0) > 0 && (
-                  <span className={cn(shift.is_pending ? 'text-amber-500' : 'text-green-600')}>
+                  <span className={cn(shift.is_pending ? 'text-pending' : 'text-confirm')}>
                     {shift.shift_interested_users!.length}
                   </span>
                 )}
@@ -319,7 +318,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
             className="overflow-hidden"
           >
             <div className={cn(
-              'px-3 py-3 rounded-b-[10px] border-t border-white/5',
+              'px-3 py-3 rounded-b-[10px] border-t border-black/10 dark:border-white/10',
               isOwn && hasInterest ? 'shift-expanded-own-interest' :
               isOwn ? 'shift-expanded-own-empty' :
               'shift-expanded-others'
@@ -335,7 +334,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                         {shift.shift_interested_users!
                           .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
                           .map(i => (
-                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0">
                               <span className="text-[12px]">{formatDisplayName(i.user, duplicateCognomi)}</span>
                               <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
                             </div>
@@ -388,7 +387,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                         <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setManagerAction(null); setSelectedInterestUserId('') }}>
                           Annulla
                         </Button>
-                        <Button size="sm" className="flex-1 h-8 text-[11px] bg-amber-500 hover:bg-amber-600 text-white" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerPending(e) }}>
+                        <Button size="sm" className="flex-1 h-8 text-[11px] btn-pending" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerPending(e) }}>
                           {managerLoading ? '...' : 'Segna in attesa'}
                         </Button>
                       </div>
@@ -416,7 +415,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                         <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setManagerAction(null); setSelectedInterestUserId('') }}>
                           Annulla
                         </Button>
-                        <Button size="sm" className="flex-1 h-8 text-[11px] bg-green-600 hover:bg-green-700 text-white" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerConfirm() }}>
+                        <Button size="sm" className="flex-1 h-8 text-[11px] btn-confirm" disabled={!selectedInterestUserId || managerLoading} onClick={e => { e.stopPropagation(); handleManagerConfirm() }}>
                           {managerLoading ? '...' : 'Conferma'}
                         </Button>
                       </div>
@@ -436,7 +435,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                       </Button>
                       <Button
                         size="sm"
-                        className="flex-1 h-8 text-[11px] bg-green-600 hover:bg-green-700 text-white"
+                        className="flex-1 h-8 text-[11px] btn-confirm"
                         disabled={managerLoading}
                         onClick={e => { e.stopPropagation(); handleManagerConfirm() }}
                       >
@@ -460,7 +459,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                         {shift.shift_interested_users!
                           .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
                           .map(i => (
-                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0">
                               <span className="text-[12px]">{formatDisplayName(i.user, duplicateCognomi)}</span>
                               <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
                             </div>
@@ -484,7 +483,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                         {shift.shift_interested_users!
                           .sort((a, b) => new Date(a.created_at!).getTime() - new Date(b.created_at!).getTime())
                           .map(i => (
-                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-white/5 last:border-0">
+                            <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0">
                               <span className="text-[12px]">{formatDisplayName(i.user, duplicateCognomi)}</span>
                               <span className="text-[10px] text-muted-foreground">{formatRelativeTime(i.created_at!)}</span>
                             </div>

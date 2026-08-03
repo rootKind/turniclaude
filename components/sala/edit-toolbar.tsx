@@ -73,7 +73,7 @@ export function EditToolbar({
         <div className="flex-1" />
 
         {dirty && (
-          <span className="text-xs text-amber-500 font-medium shrink-0">
+          <span className="text-xs text-pending font-medium shrink-0">
             Modifiche non salvate
           </span>
         )}
