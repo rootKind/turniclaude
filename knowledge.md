@@ -77,6 +77,20 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013) —
   colori PER PERSONA dei desk (board /turnisala, admin o manager), diverso dall'ex-funzionalità
   colori tema. Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).
+- **Anno minimo (gate + skeleton condiviso):** `min_year_turniferie` / `min_year_vacanze`
+  caricano in modo asincrono da `app_settings`. Sia `/turniferie` sia `/vacanze` mostrano uno
+  skeleton finché `minYear === null` — l'anno reale (es. 2027) non viene MAI preceduto dal flash
+  dell'anno corrente (2026). Lo skeleton è UNICO: `components/ui/year-gate-skeleton.tsx`
+  (`variant="turniferie" | "vacanze"`), usato sia dal gate inline nelle pagine sia dai rispettivi
+  `loading.tsx` — NON duplicare lo skeleton altrove. Il fetch di `getAppSettings` ha fallback
+  `.catch(() => setMinYear(new Date().getFullYear()))` (niente skeleton infinito se il fetch fallisce).
+  `VacationRequestDialog` riceve `minYear` come prop: niente più `MIN_YEAR = 2026` hardcoded.
+- **Animazioni d'ingresso uniformi:** `initial={{ opacity: 0, y: 6 }}`,
+  `animate={{ opacity: 1, y: 0 }}`, `transition={{ duration: 0.15, ease: 'easeOut' }}`,
+  stagger `index * 0.04` (liste con cap a 0.3). In /vacanze il cambio anno fa rientrare card
+  periodo (`key={selectedYear}`) E lista richieste (`key={year}`) con la stessa animazione.
+  Le animazioni FUNZIONALI (drag, expand, page-transition, slide filtri shift-list) sono
+  volutamente diverse.
 - **Migrations 001–014 completano lo schema** (turni, vacanze, sala, app_settings, RLS,
   realtime publication, RPC). NON riscrivere le policy RLS, NON aggiungere colonne/tabelle duplicate.
 - **Next.js 16:** API e convenzioni diverse dalle versioni precedenti (`proxy.ts` ecc.).
@@ -109,6 +123,11 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 ## Stato attuale (snapshot 03/08/2026)
 
+- **Fix anno minimo senza flash (03/08/2026):** /vacanze e /turniferie non mostrano più
+  brevemente il 2026 prima dell'anno minimo reale (2027 impostato dall'admin): gate su
+  `minYear === null` con `YearGateSkeleton` condiviso (v. Regole architetturali), fallback sul
+  fetch di `app_settings`, animazione keyed-by-year su card periodo e lista richieste,
+  dialog ferie con prop `minYear`, stagger unificato a 0.04 in /notifiche.
 - **Admin colori rimosso:** eliminati `/admin/colori`, `color-settings-page`, `color-inspector`,
   `/api/admin/save-colors`, `ColorThemeProvider`, `color-inspect-store`, `color-inspect-map`,
   `color-overrides` + migration 014 (DROP `app_settings.color_overrides`). Il tile "Colori app"
