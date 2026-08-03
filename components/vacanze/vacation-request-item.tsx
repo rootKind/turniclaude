@@ -25,6 +25,7 @@ interface Props {
   isSecondary: boolean
   myPeriodThisYear: VacationPeriod | null
   isSameDateAsPrevious?: boolean
+  isSameDateAsNext?: boolean
   dateIndex?: number
   year: number
   isHighlighted?: boolean
@@ -60,6 +61,7 @@ export function VacationRequestItem({
   isSecondary,
   myPeriodThisYear,
   isSameDateAsPrevious = false,
+  isSameDateAsNext = false,
   dateIndex = 0,
   year,
   isHighlighted = false,
@@ -102,9 +104,19 @@ export function VacationRequestItem({
     ? 'opacity-20 ' + SHIFT_DATE_CLASSES[state]
     : SHIFT_DATE_CLASSES[state]
 
-  const borderRadius = isSameDateAsPrevious
-    ? expanded ? 'rounded-t-[4px]' : 'rounded-t-[4px] rounded-b-[10px]'
-    : expanded ? 'rounded-t-[10px]' : 'rounded-[10px]'
+  // Card dello stesso giorno agglomerate in un blocco unico: angoli rotondi solo sul
+  // primo (top) e sull'ultimo (bottom) del gruppo; le intermedie sono squadrate.
+  const isFirstOfDay = !isSameDateAsPrevious
+  const isLastOfDay = !isSameDateAsNext
+  const borderRadius = expanded
+    ? 'rounded-t-[10px]'
+    : isFirstOfDay && isLastOfDay
+      ? 'rounded-[10px]'
+      : isFirstOfDay
+        ? 'rounded-t-[10px]'
+        : isLastOfDay
+          ? 'rounded-b-[10px]'
+          : ''
 
   async function handleInterestToggle(e: React.MouseEvent) {
     e.stopPropagation()
@@ -284,7 +296,7 @@ export function VacationRequestItem({
                 {displayName}
               </span>
               {isOwn && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-foreground/10 text-foreground">TUO</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-foreground/10 text-foreground ring-1 ring-foreground/30">TUO</span>
               )}
             </div>
             <div className="flex items-center gap-1 flex-wrap">

@@ -60,12 +60,14 @@
   --shift-others-bg: #dde8f0;
   --shift-others-date-bg: #d0dde8;
   --shift-others-date-border: #bdd0e0;
+  /* Bordo card: tutte le card hanno un bordo; la card dell'utente loggato è nera (più marcata) */
+  --shift-others-border: #c9d6e4;
   --shift-own-empty-bg: #e8eef5;
   --shift-own-empty-date-bg: #dde6f0;
-  --shift-own-empty-border: #c9d6e4;
+  --shift-own-empty-border: #1c1c1c;
   --shift-own-interest-bg: #ffffff;
   --shift-own-interest-date-bg: #eef4f9;
-  --shift-own-interest-border: rgba(15,23,42,0.16);
+  --shift-own-interest-border: #1c1c1c;
   /* Highlight — bianco su bordo nero leggero (niente ambra: non collide con la pill Pomeriggio) */
   --shift-highlight-bg: #ffffff;
   --shift-highlight-date-bg: #f4f8fb;
@@ -220,12 +222,14 @@
   --shift-others-bg: #1a1a1a;
   --shift-others-date-bg: #252525;
   --shift-others-date-border: #2e2e2e;
+  /* Bordo card — dark: tutte hanno bordo; la card dell'utente loggato è bianca (più marcata) */
+  --shift-others-border: #34343d;
   --shift-own-empty-bg: #232328;
   --shift-own-empty-date-bg: #2b2b32;
-  --shift-own-empty-border: #34343d;
+  --shift-own-empty-border: #ffffff;
   --shift-own-interest-bg: #2b2b2b;
   --shift-own-interest-date-bg: #333333;
-  --shift-own-interest-border: rgba(255,255,255,0.20);
+  --shift-own-interest-border: #ffffff;
   /* Highlight — bianco traslucido (B&W) */
   --shift-highlight-bg: rgba(255,255,255,0.10);
   --shift-highlight-date-bg: rgba(255,255,255,0.14);
@@ -374,7 +378,7 @@
 
 @layer components {
   /* Shift row state classes — used by ShiftItem */
-  .shift-state-others       { background: var(--shift-others-bg); border: 1px solid transparent; }
+  .shift-state-others       { background: var(--shift-others-bg); border: 1px solid var(--shift-others-border); }
   .shift-state-own-empty    { background: var(--shift-own-empty-bg); border: 1px solid var(--shift-own-empty-border); }
   .shift-state-own-interest { background: var(--shift-own-interest-bg); border: 1px solid var(--shift-own-interest-border); }
   .shift-state-highlight    { background: var(--shift-highlight-bg); border: 1px solid var(--shift-highlight-border); }
@@ -390,10 +394,10 @@
   .shift-date-own-interest  { background: var(--shift-own-interest-date-bg); border-right: 1px solid var(--shift-own-interest-border); }
   .shift-date-highlight     { background: var(--shift-highlight-date-bg); border-right: 1px solid var(--shift-highlight-border); }
 
-  /* Shift type pill classes */
-  .pill-mattina    { background: var(--pill-mattina-bg); color: var(--pill-mattina-text); }
-  .pill-pomeriggio { background: var(--pill-pomeriggio-bg); color: var(--pill-pomeriggio-text); }
-  .pill-notte      { background: var(--pill-notte-bg); color: var(--pill-notte-text); }
+  /* Shift type pill classes — bordo 1px nel colore del testo al 30% (adattivo ai 2 temi) */
+  .pill-mattina    { background: var(--pill-mattina-bg); color: var(--pill-mattina-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .pill-pomeriggio { background: var(--pill-pomeriggio-bg); color: var(--pill-pomeriggio-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .pill-notte      { background: var(--pill-notte-bg); color: var(--pill-notte-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
 
   /* Safe area for bottom nav */
   .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -422,6 +426,26 @@
   .text-chain-node  { color: var(--chain-node-text); }
 
   .chip-selected { background: var(--chip-selected-bg) !important; color: var(--chip-selected-text) !important; border-color: var(--chip-selected-border) !important; }
+
+  /* Contatore sulle chip dei filtri (stile "badge a contrasto"): traslucido quando la
+     chip è spenta, invertito (testo/bg della chip-selected) quando è selezionata */
+  .chip-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+    background: color-mix(in srgb, currentColor 16%, transparent);
+  }
+  .chip-selected .chip-count {
+    background: var(--chip-selected-text);
+    color: var(--chip-selected-bg);
+  }
 
   .offered-box       { background: var(--offered-box-bg); border-color: var(--offered-box-border); }
   .text-offered-label{ color: var(--offered-box-label); }
@@ -486,13 +510,13 @@
     color: var(--sala-own-badge-text);
   }
 
-  /* Period pills (6 ferie periods) */
-  .p1-pill { background: var(--period-1-pill-bg); color: var(--period-1-pill-text); }
-  .p2-pill { background: var(--period-2-pill-bg); color: var(--period-2-pill-text); }
-  .p3-pill { background: var(--period-3-pill-bg); color: var(--period-3-pill-text); }
-  .p4-pill { background: var(--period-4-pill-bg); color: var(--period-4-pill-text); }
-  .p5-pill { background: var(--period-5-pill-bg); color: var(--period-5-pill-text); }
-  .p6-pill { background: var(--period-6-pill-bg); color: var(--period-6-pill-text); }
+  /* Period pills (6 ferie periods) — bordo 1px nel colore del testo al 30% */
+  .p1-pill { background: var(--period-1-pill-bg); color: var(--period-1-pill-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .p2-pill { background: var(--period-2-pill-bg); color: var(--period-2-pill-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .p3-pill { background: var(--period-3-pill-bg); color: var(--period-3-pill-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .p4-pill { background: var(--period-4-pill-bg); color: var(--period-4-pill-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .p5-pill { background: var(--period-5-pill-bg); color: var(--period-5-pill-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .p6-pill { background: var(--period-6-pill-bg); color: var(--period-6-pill-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
 
   /* Shift dialog toggle pills */
   .dialog-pill-m { border-color: var(--dialog-pill-mattina-border);    color: var(--pill-mattina-text); }

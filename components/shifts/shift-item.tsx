@@ -21,6 +21,7 @@ interface Props {
   isSecondary: boolean
   isDcoPlus?: boolean          // viewer DCO+ (vede anche i turni dei Noni)
   isSameDateAsPrevious?: boolean
+  isSameDateAsNext?: boolean
   dateIndex?: number
   onEdit?: (shift: Shift) => void
   isHighlighted?: boolean
@@ -28,7 +29,7 @@ interface Props {
   isManagerView?: boolean
 }
 
-export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isDcoPlus = false, isSameDateAsPrevious = false, dateIndex = 0, onEdit, isHighlighted = false, duplicateCognomi, isManagerView = false }: Props) {
+export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isDcoPlus = false, isSameDateAsPrevious = false, isSameDateAsNext = false, dateIndex = 0, onEdit, isHighlighted = false, duplicateCognomi, isManagerView = false }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showRing, setShowRing] = useState(isHighlighted)
@@ -73,9 +74,19 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
     ? 'opacity-20 ' + SHIFT_DATE_CLASSES[state]
     : SHIFT_DATE_CLASSES[state]
 
-  const borderRadius = isSameDateAsPrevious
-    ? expanded ? 'rounded-t-[4px]' : 'rounded-t-[4px] rounded-b-[10px]'
-    : expanded ? 'rounded-t-[10px]' : 'rounded-[10px]'
+  // Card dello stesso giorno agglomerate in un blocco unico: angoli rotondi solo sul
+  // primo (top) e sull'ultimo (bottom) del gruppo; le intermedie sono squadrate.
+  const isFirstOfDay = !isSameDateAsPrevious
+  const isLastOfDay = !isSameDateAsNext
+  const borderRadius = expanded
+    ? 'rounded-t-[10px]'
+    : isFirstOfDay && isLastOfDay
+      ? 'rounded-[10px]'
+      : isFirstOfDay
+        ? 'rounded-t-[10px]'
+        : isLastOfDay
+          ? 'rounded-b-[10px]'
+          : ''
 
   async function handleInterestToggle(e: React.MouseEvent) {
     e.stopPropagation()
@@ -231,7 +242,6 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius,
           !shift.is_pending && isManagerView && hasInterest && 'confirm-overlay',
           shift.is_pending && 'pending-overlay',
-          isCrossCategory && 'border border-foreground/25',
         )}
         onClick={() => setExpanded(v => !v)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
@@ -260,7 +270,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
               <span className={cn('font-semibold text-[13px] leading-none', isOwn ? 'text-own-name' : '')}>
                 {displayName}
               </span>                {isOwn && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-foreground/10 text-foreground">TUO</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-foreground/10 text-foreground ring-1 ring-foreground/30">TUO</span>
               )}
               {crossBadgeLabel && (
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-foreground/15 text-foreground ring-1 ring-foreground/30">
@@ -335,10 +345,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
             className="overflow-hidden"
           >
             <div className={cn(
-              'px-3 py-3 rounded-b-[10px]',
-              isCrossCategory
-                ? 'border border-foreground/25'
-                : 'border-t border-black/10 dark:border-white/10',
+              'px-3 py-3 rounded-b-[10px] border-t border-black/10 dark:border-white/10',
               isOwn && hasInterest ? 'shift-expanded-own-interest' :
               isOwn ? 'shift-expanded-own-empty' :
               'shift-expanded-others'

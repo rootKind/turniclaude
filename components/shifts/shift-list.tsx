@@ -79,14 +79,45 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
     [isManagerView, months]
   )
 
+  // DCO+: "Solo mansioni" = propri cambi + cambi dei Noni (esclusi gli altri DCO+)
+  const isOwnOrNoniShift = useMemo(
+    () => (s: Shift) => s.user_id === effectiveUserId || s.user?.is_secondary === true,
+    [effectiveUserId]
+  )
+  const isMineShift = useMemo(
+    () => (s: Shift) => s.user_id === effectiveUserId,
+    [effectiveUserId]
+  )
+
   const filtered = useMemo(() => {
-    if (selectedFilter === 'mine') return baseShifts.filter(s => s.user_id === effectiveUserId)
+    if (selectedFilter === 'mine') {
+      if (isDcoPlus) return baseShifts.filter(isOwnOrNoniShift)
+      return baseShifts.filter(isMineShift)
+    }
     if (selectedFilter === 'compatible') return baseShifts.filter(s => (s.shift_interested_users?.length ?? 0) > 0)
     if (!selectedFilter) return baseShifts
     return baseShifts.filter(s => s.shift_date.startsWith(selectedFilter))
-  }, [baseShifts, selectedFilter, effectiveUserId])
+  }, [baseShifts, selectedFilter, isDcoPlus, isOwnOrNoniShift, isMineShift])
 
-  const hasOwnShifts = useMemo(() => baseShifts.some(s => s.user_id === effectiveUserId), [baseShifts, effectiveUserId])
+  const hasOwnShifts = useMemo(() => {
+    // DCO+: la chip bar mostra "Solo mansioni" anche se esistono solo cambi dei Noni
+    if (isDcoPlus) return baseShifts.some(isOwnOrNoniShift)
+    return baseShifts.some(isMineShift)
+  }, [baseShifts, isDcoPlus, isOwnOrNoniShift, isMineShift])
+
+  // Conteggi per i contatori sulle chip dei filtri
+  const chipCounts = useMemo(() => {
+    const mine = isDcoPlus
+      ? baseShifts.filter(isOwnOrNoniShift).length
+      : baseShifts.filter(isMineShift).length
+    const compatible = baseShifts.filter(s => (s.shift_interested_users?.length ?? 0) > 0).length
+    const byMonth = new Map<string, number>()
+    for (const s of baseShifts) {
+      const m = s.shift_date.slice(0, 7)
+      byMonth.set(m, (byMonth.get(m) ?? 0) + 1)
+    }
+    return { mine, compatible, byMonth, total: baseShifts.length }
+  }, [baseShifts, isDcoPlus, isOwnOrNoniShift, isMineShift])
   const duplicateCognomi = useDuplicateCognomi(isSecondary, isDcoPlus)
   const showChipBar = months.length > 1 || hasOwnShifts
 
@@ -166,7 +197,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
       {showChipBar && <div
         className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar"
       >
-        {/* Solo miei (utenti) / Solo compatibili (manager) */}
+        {/* Solo miei (utenti) / Solo mansioni (DCO+) / Solo compatibili (manager) */}
         {!isManagerView ? (
           <button
             ref={el => { if (el) chipRefs.current.set('mine', el); else chipRefs.current.delete('mine') }}
@@ -179,7 +210,8 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
             )}
           >
             <User className="w-3 h-3" />
-            Solo miei
+            {isDcoPlus ? 'Solo mansioni' : 'Solo miei'}
+            <span className="chip-count" aria-hidden="true">{chipCounts.mine}</span>
           </button>
         ) : (
           <button
@@ -194,6 +226,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
           >
             <User className="w-3 h-3" />
             Solo compatibili
+            <span className="chip-count" aria-hidden="true">{chipCounts.compatible}</span>
           </button>
         )}
 
@@ -202,13 +235,14 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
           ref={el => { if (el) chipRefs.current.set('__tutti__', el); else chipRefs.current.delete('__tutti__') }}
           onClick={() => navigateTo(null)}
           className={cn(
-            'flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
+            'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
             selectedFilter === null
               ? 'chip-selected'
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           )}
         >
           Tutti
+          <span className="chip-count" aria-hidden="true">{chipCounts.total}</span>
         </button>
 
         {/* Month chips */}
@@ -221,13 +255,14 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
               ref={el => { if (el) chipRefs.current.set(m, el); else chipRefs.current.delete(m) }}
               onClick={() => navigateTo(m)}
               className={cn(
-                'flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
+                'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
                 selectedFilter === m
                   ? 'chip-selected'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
               )}
             >
               {label}
+              <span className="chip-count" aria-hidden="true">{chipCounts.byMonth.get(m) ?? 0}</span>
             </button>
           )
         })}
@@ -251,11 +286,13 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
           >
             {filtered.map((shift, index) => {
               const prev = filtered[index - 1]
+              const next = filtered[index + 1]
               const isSameDateAsPrevious = !!prev && prev.shift_date === shift.shift_date
+              const isSameDateAsNext = !!next && next.shift_date === shift.shift_date
               return (
                 <motion.div
                   key={shift.id}
-                  className={index === 0 ? 'mt-0' : isSameDateAsPrevious ? 'mt-0.5' : 'mt-3'}
+                  className={index === 0 ? 'mt-0' : isSameDateAsPrevious ? 'mt-0' : 'mt-3'}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.15, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
@@ -267,6 +304,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
                     isSecondary={isSecondary}
                     isDcoPlus={isDcoPlus}
                     isSameDateAsPrevious={isSameDateAsPrevious}
+                    isSameDateAsNext={isSameDateAsNext}
                     dateIndex={dateIndexes[index]}
                     onEdit={setEditingShift}
                     isHighlighted={highlightShiftId === shift.id}
