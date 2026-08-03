@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean }
+type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_dco_plus?: boolean }
 
 interface Props {
   open: boolean
@@ -60,7 +60,7 @@ export function ImpersonateDialog({ open, onClose }: Props) {
                   'text-[10px] font-semibold px-1.5 py-0.5 rounded',
                   u.is_secondary ? 'badge-noni' : 'badge-dco'
                 )}>
-                  {u.is_secondary ? 'Noni' : 'DCO'}
+                  {u.is_secondary ? 'Noni' : u.is_dco_plus ? 'DCO+' : 'DCO'}
                 </span>
               </button>
             ))}

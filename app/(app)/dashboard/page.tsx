@@ -8,7 +8,7 @@ import { usePush } from '@/hooks/use-push'
 import { isAdmin, isManager } from '@/types/database'
 import { X } from 'lucide-react'
 
-type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_manager?: boolean }
+type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_manager?: boolean; is_dco_plus?: boolean }
 
 function DashboardContent() {
   const router = useRouter()
@@ -92,6 +92,10 @@ function DashboardContent() {
   const effectiveIsSecondary = isImpersonating && impersonatedUser
     ? impersonatedUser.is_secondary
     : (canToggleCategory ? viewSecondary : (profile?.is_secondary ?? false))
+  // DCO+: la vista mista dipende dall'utente effettivo (profilo o impersonato)
+  const viewerIsDcoPlus = isImpersonating && impersonatedUser
+    ? (impersonatedUser.is_dco_plus ?? false)
+    : (profile?.is_dco_plus ?? false)
 
   const displayName = impersonatedUser
     ? `${impersonatedUser.cognome ?? ''} ${impersonatedUser.nome ?? ''}`.trim()
@@ -141,7 +145,7 @@ function DashboardContent() {
             <option value="">Io (admin)</option>
             {allUsers.map(u => (
               <option key={u.id} value={u.id}>
-                {u.cognome} {u.nome}
+                {u.cognome} {u.nome}{u.is_dco_plus ? ' (DCO+)' : ''}
               </option>
             ))}
           </select>
@@ -150,6 +154,7 @@ function DashboardContent() {
 
       <ShiftList
         isSecondary={effectiveIsSecondary}
+        isDcoPlus={viewerIsDcoPlus}
         effectiveUserId={effectiveUserId}
         loggedInUserId={loggedInUserId}
         highlightShiftId={highlightShiftId}
@@ -159,6 +164,7 @@ function DashboardContent() {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         isSecondary={effectiveIsSecondary}
+        isDcoPlus={viewerIsDcoPlus}
         impersonatingUserId={isImpersonating ? effectiveUserId : undefined}
       />
     </main>

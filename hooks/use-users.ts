@@ -5,16 +5,18 @@ import { buildDuplicateCognomi } from '@/lib/utils'
 
 const USERS_QUERY_KEY = (isSecondary: boolean) => ['users', isSecondary]
 
-function useGroupUsers(isSecondary: boolean) {
-  return useQuery({
-    queryKey: USERS_QUERY_KEY(isSecondary),
-    queryFn: () => fetchUsersByGroup(isSecondary),
+/**
+ * Cognomi duplicati per la lista visualizzata. Nelle viste miste
+ * (DCO+ o Noni, che vedono anche i turni dell'altro gruppo) i cognomi
+ * vanno calcolati su TUTTI gli utenti, non solo su una categoria.
+ */
+export function useDuplicateCognomi(isSecondary: boolean, isDcoPlus = false) {
+  const mergedView = isDcoPlus || isSecondary
+  const { data: users = [] } = useQuery({
+    queryKey: mergedView ? ['users', 'all'] : USERS_QUERY_KEY(isSecondary),
+    queryFn: mergedView ? fetchAllUsersMinimal : () => fetchUsersByGroup(isSecondary),
     staleTime: 10 * 60 * 1000,
   })
-}
-
-export function useDuplicateCognomi(isSecondary: boolean) {
-  const { data: users = [] } = useGroupUsers(isSecondary)
   return buildDuplicateCognomi(users)
 }
 

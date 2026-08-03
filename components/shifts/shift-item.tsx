@@ -19,6 +19,7 @@ interface Props {
   currentUserId: string
   loggedInUserId: string
   isSecondary: boolean
+  isDcoPlus?: boolean          // viewer DCO+ (vede anche i turni dei Noni)
   isSameDateAsPrevious?: boolean
   dateIndex?: number
   onEdit?: (shift: Shift) => void
@@ -27,7 +28,7 @@ interface Props {
   isManagerView?: boolean
 }
 
-export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isSameDateAsPrevious = false, dateIndex = 0, onEdit, isHighlighted = false, duplicateCognomi, isManagerView = false }: Props) {
+export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isDcoPlus = false, isSameDateAsPrevious = false, dateIndex = 0, onEdit, isHighlighted = false, duplicateCognomi, isManagerView = false }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showRing, setShowRing] = useState(isHighlighted)
@@ -53,6 +54,16 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
   const isImpersonating = currentUserId !== loggedInUserId
   const hasInterest = (shift.shift_interested_users?.length ?? 0) > 0
   const isInterested = shift.shift_interested_users?.some(i => i.user_id === currentUserId) ?? false
+
+  // Richiesta dell'ALTRO gruppo rispetto allo spettatore: DCO+ vede i Noni,
+  // i Noni vedono i DCO+. I DCO+ sono formalmente DCO → per un DCO normale nulla.
+  const isDcoPlusViewer = isDcoPlus === true
+  const isCrossCategory = isDcoPlusViewer
+    ? shift.user.is_secondary === true
+    : isSecondary
+      ? shift.user.is_dco_plus === true
+      : false
+  const crossBadgeLabel = isCrossCategory ? (isDcoPlusViewer ? 'NONO' : 'DCO+') : null
 
   const state = getShiftItemState({ isOwn, hasInterest })
   const stateClass = SHIFT_STATE_CLASSES[state]
@@ -88,7 +99,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
           }).catch(() => {})
         }
       }
-      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
     } catch {
       toast.error('Errore')
     }
@@ -105,7 +116,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         const res = await fetch(`/api/admin/shifts/${shift.id}`, { method: 'DELETE' })
         if (!res.ok) throw new Error('Delete failed')
       }
-      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
       toast.success('Turno eliminato')
     } catch {
       toast.error('Errore eliminazione')
@@ -121,7 +132,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         body: JSON.stringify({ action: 'reject', reason: rejectReason.trim() || undefined }),
       })
       if (!res.ok) throw new Error()
-      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
       toast.success('Richiesta rifiutata')
       setManagerAction(null)
       setRejectReason('')
@@ -147,7 +158,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         body: JSON.stringify({ action: 'confirm', selectedUserId: userId || undefined }),
       })
       if (!res.ok) throw new Error()
-      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
       toast.success('Richiesta confermata')
       setManagerAction(null)
       setSelectedInterestUserId('')
@@ -169,7 +180,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
           body: JSON.stringify({ action: 'pending' }),
         })
         if (!res.ok) throw new Error()
-        queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+        queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
       } catch {
         toast.error('Errore')
       } finally {
@@ -192,7 +203,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         body: JSON.stringify({ action: 'pending', selectedUserId: userId || undefined }),
       })
       if (!res.ok) throw new Error()
-      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
       setManagerAction(null)
       setSelectedInterestUserId('')
     } catch {
@@ -220,6 +231,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius,
           !shift.is_pending && isManagerView && hasInterest && 'confirm-overlay',
           shift.is_pending && 'pending-overlay',
+          isCrossCategory && 'border border-foreground/25',
         )}
         onClick={() => setExpanded(v => !v)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
@@ -249,6 +261,11 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                 {displayName}
               </span>                {isOwn && (
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-foreground/10 text-foreground">TUO</span>
+              )}
+              {crossBadgeLabel && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-foreground/15 text-foreground ring-1 ring-foreground/30">
+                  {crossBadgeLabel}
+                </span>
               )}
             </div>
             <div className="flex items-center gap-1 flex-wrap">
@@ -318,7 +335,10 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
             className="overflow-hidden"
           >
             <div className={cn(
-              'px-3 py-3 rounded-b-[10px] border-t border-black/10 dark:border-white/10',
+              'px-3 py-3 rounded-b-[10px]',
+              isCrossCategory
+                ? 'border border-foreground/25'
+                : 'border-t border-black/10 dark:border-white/10',
               isOwn && hasInterest ? 'shift-expanded-own-interest' :
               isOwn ? 'shift-expanded-own-empty' :
               'shift-expanded-others'

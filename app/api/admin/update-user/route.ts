@@ -15,24 +15,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { userId, nome, cognome, password, isSecondary, isManager } = body as Record<string, unknown>
+  const { userId, nome, cognome, password, isSecondary, isManager, isDcoPlus } = body as Record<string, unknown>
   if (typeof userId !== 'string' || !userId) {
     return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
   }
 
   const adminSupabase = createAdminSupabase()
 
-  if (typeof nome === 'string' || typeof cognome === 'string' || typeof isSecondary === 'boolean' || typeof isManager === 'boolean') {
+  if (typeof nome === 'string' || typeof cognome === 'string' || typeof isSecondary === 'boolean' || typeof isManager === 'boolean' || typeof isDcoPlus === 'boolean') {
     const updates: Record<string, unknown> = {}
     if (typeof nome === 'string') updates.nome = nome
     if (typeof cognome === 'string') updates.cognome = cognome
     if (typeof isSecondary === 'boolean') {
       updates.is_secondary = isSecondary
+      // I Noni non possono essere DCO+
+      if (isSecondary) updates.is_dco_plus = false
+    }
+    if (typeof isDcoPlus === 'boolean') {
+      updates.is_dco_plus = isDcoPlus
     }
     if (typeof isManager === 'boolean') {
       updates.is_manager = isManager
-      // Un manager non è né DCO né Noni
-      if (isManager) updates.is_secondary = false
+      // Un manager non è né DCO né Noni, e non può essere DCO+
+      if (isManager) {
+        updates.is_secondary = false
+        updates.is_dco_plus = false
+      }
+    }
+    // Garanzia finale: mai DCO+ se la categoria è Noni o se è manager
+    if (updates.is_secondary === true || updates.is_manager === true) {
+      updates.is_dco_plus = false
     }
     const { error } = await adminSupabase.from('users').update(updates).eq('id', userId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

@@ -10,16 +10,36 @@ const SHIFTS_SELECT = `
   highlight,
   is_pending,
   created_at,
-  user:users!shifts_user_id_fkey(id, nome, cognome, is_secondary),
+  user:users!shifts_user_id_fkey(id, nome, cognome, is_secondary, is_dco_plus),
   shift_interested_users(
     shift_id,
     user_id,
     created_at,
-    user:users!shift_interested_users_user_id_fkey(id, nome, cognome, is_secondary)
+    user:users!shift_interested_users_user_id_fkey(id, nome, cognome, is_secondary, is_dco_plus)
   )
 `
 
-export async function fetchShifts(isSecondary: boolean): Promise<Shift[]> {
+export interface ShiftViewer {
+  isSecondary: boolean
+  isDcoPlus: boolean
+}
+
+/**
+ * Regole di visibilità dei cambi turno (funzionalità DCO+):
+ * - DCO+ (isDcoPlus): vede TUTTO (DCO + Noni)
+ * - Noni (isSecondary): vede Noni + richieste dei DCO+
+ * - DCO normale: vede solo DCO (i DCO+ restano formalmente DCO)
+ *
+ * Il filtro preserva l'ordinamento server (shift_date, created_at).
+ */
+export function isShiftVisibleTo(shift: Shift, viewer: ShiftViewer): boolean {
+  if (viewer.isDcoPlus) return true
+  const shiftIsNoni = shift.user.is_secondary === true
+  if (viewer.isSecondary) return shiftIsNoni || shift.user.is_dco_plus === true
+  return !shiftIsNoni
+}
+
+export async function fetchShifts(viewer: ShiftViewer): Promise<Shift[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('shifts')
@@ -29,8 +49,7 @@ export async function fetchShifts(isSecondary: boolean): Promise<Shift[]> {
 
   if (error) throw error
 
-  // Filter by category: only show shifts from same category
-  return (data as unknown as Shift[]).filter(s => s.user.is_secondary === isSecondary)
+  return (data as unknown as Shift[]).filter(s => isShiftVisibleTo(s, viewer))
 }
 
 export async function createShift(payload: {

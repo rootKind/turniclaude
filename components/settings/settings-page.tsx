@@ -29,7 +29,7 @@ export function SettingsPage() {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
 
-  async function handleToggle(field: 'notify_on_interest' | 'notify_on_new_shift' | 'notify_on_vacation_interest' | 'notify_on_new_vacation' | 'notification_enabled', value: boolean) {
+  async function handleToggle(field: 'notify_on_interest' | 'notify_on_new_shift' | 'notify_on_vacation_interest' | 'notify_on_new_vacation' | 'notify_on_cross_shifts' | 'notification_enabled', value: boolean) {
     try {
       await updateUserProfile({ [field]: value })
       queryClient.invalidateQueries({ queryKey: ['current-user'] })
@@ -142,6 +142,18 @@ export function SettingsPage() {
                 disabled={!profile?.notification_enabled}
               />
             </div>
+            {/* DCO+ e Noni vedono anche i turni dell'altro gruppo → toggle dedicato */}
+            {(profile?.is_dco_plus || profile?.is_secondary) && (
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notif-cross">Cambi turno dell&apos;altro gruppo</Label>
+                <Switch
+                  id="notif-cross"
+                  checked={profile?.notify_on_cross_shifts ?? true}
+                  onCheckedChange={v => handleToggle('notify_on_cross_shifts', v)}
+                  disabled={!profile?.notification_enabled}
+                />
+              </div>
+            )}
 
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide pt-1">Ferie</p>
             {!isManagerUser && (
@@ -187,7 +199,7 @@ export function SettingsPage() {
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
 
       <p className="text-center text-xs text-muted-foreground pb-2">
-        v1.222 · 100cd20 — ultimo aggiornamento: 03/08/2026 02:16
+        v1.224 · 616901f — ultimo aggiornamento: 03/08/2026 22:46
       </p>
     </main>
   )

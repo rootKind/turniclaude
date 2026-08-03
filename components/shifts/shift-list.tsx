@@ -5,7 +5,7 @@ import { User } from 'lucide-react'
 import { useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useAppSettings } from '@/hooks/use-app-settings'
-import { isManager } from '@/types/database'
+import { isDcoPlus as isProfileDcoPlus, isManager } from '@/types/database'
 import { ShiftItem } from './shift-item'
 import { EditShiftDialog } from './edit-shift-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -24,6 +24,7 @@ type FilterValue = 'mine' | 'compatible' | null | string
 
 interface ShiftListProps {
   isSecondary?: boolean
+  isDcoPlus?: boolean
   effectiveUserId?: string
   loggedInUserId?: string
   highlightShiftId?: number
@@ -35,13 +36,14 @@ const slideVariants = {
   exit: (dir: number) => ({ x: dir > 0 ? 32 : -32, opacity: 0 }),
 }
 
-export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effectiveUserIdProp, loggedInUserId: loggedInUserIdProp, highlightShiftId }: ShiftListProps = {}) {
+export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusProp, effectiveUserId: effectiveUserIdProp, loggedInUserId: loggedInUserIdProp, highlightShiftId }: ShiftListProps = {}) {
   const { profile } = useCurrentUser()
   const isSecondary = isSecondaryProp !== undefined ? isSecondaryProp : (profile?.is_secondary ?? false)
+  const isDcoPlus = isDcoPlusProp !== undefined ? isDcoPlusProp : (profile ? isProfileDcoPlus(profile) : false)
   const effectiveUserId = effectiveUserIdProp ?? profile?.id ?? ''
   const loggedInUserId = loggedInUserIdProp ?? profile?.id ?? ''
   const isManagerView = profile ? isManager(profile) : false
-  const { data: shifts = [], isLoading } = useShifts(isSecondary)
+  const { data: shifts = [], isLoading } = useShifts(isSecondary, isDcoPlus)
   const appSettings = useAppSettings()
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [selectedFilter, setSelectedFilter] = useState<FilterValue>(null)
@@ -85,7 +87,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
   }, [baseShifts, selectedFilter, effectiveUserId])
 
   const hasOwnShifts = useMemo(() => baseShifts.some(s => s.user_id === effectiveUserId), [baseShifts, effectiveUserId])
-  const duplicateCognomi = useDuplicateCognomi(isSecondary)
+  const duplicateCognomi = useDuplicateCognomi(isSecondary, isDcoPlus)
   const showChipBar = months.length > 1 || hasOwnShifts
 
   // Show all shifts so the highlighted one is visible
@@ -263,6 +265,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
                     currentUserId={effectiveUserId}
                     loggedInUserId={loggedInUserId}
                     isSecondary={isSecondary}
+                    isDcoPlus={isDcoPlus}
                     isSameDateAsPrevious={isSameDateAsPrevious}
                     dateIndex={dateIndexes[index]}
                     onEdit={setEditingShift}
@@ -283,6 +286,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, effectiveUserId: effec
           open={!!editingShift}
           onClose={() => setEditingShift(null)}
           isSecondary={isSecondary}
+          isDcoPlus={isDcoPlus}
           useAdminRoute={loggedInUserId !== editingShift.user_id && loggedInUserId !== ''}
         />
       )}

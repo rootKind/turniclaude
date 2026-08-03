@@ -28,7 +28,7 @@ const formSchema = z.object({
 })
 type FormData = z.infer<typeof formSchema>
 
-type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_manager: boolean }
+type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_manager: boolean; is_dco_plus: boolean }
 
 interface Props {
   open: boolean
@@ -43,6 +43,7 @@ export function EditUserDialog({ open, onClose }: Props) {
   const [basePeriod, setBasePeriod] = useState<VacationPeriod | null>(null)
   const [isSecondary, setIsSecondary] = useState(false)
   const [isManagerState, setIsManagerState] = useState(false)
+  const [isDcoPlus, setIsDcoPlus] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -50,9 +51,9 @@ export function EditUserDialog({ open, onClose }: Props) {
   })
 
   useEffect(() => {
-    if (!open) { setConfirmDelete(false); setBasePeriod(null); setIsSecondary(false); setIsManagerState(false); form.reset(); return }
+    if (!open) { setConfirmDelete(false); setBasePeriod(null); setIsSecondary(false); setIsManagerState(false); setIsDcoPlus(false); form.reset(); return }
     const supabase = createClient()
-    supabase.from('users').select('id, nome, cognome, is_secondary, is_manager').order('cognome').then(({ data }) => {
+    supabase.from('users').select('id, nome, cognome, is_secondary, is_manager, is_dco_plus').order('cognome').then(({ data }) => {
       setUsers((data ?? []) as UserOption[])
     })
   }, [open, form])
@@ -64,6 +65,7 @@ export function EditUserDialog({ open, onClose }: Props) {
       form.setValue('cognome', u.cognome ?? '')
       setIsSecondary(u.is_secondary)
       setIsManagerState(u.is_manager)
+      setIsDcoPlus(u.is_dco_plus)
     }
     setBasePeriod(null)
     const supabase = createClient()
@@ -87,6 +89,8 @@ export function EditUserDialog({ open, onClose }: Props) {
           cognome: values.cognome,
           isSecondary: isManagerState ? false : isSecondary,
           isManager: isManagerState,
+          // DCO+ solo per DCO puri: mai per Noni o manager
+          isDcoPlus: isManagerState || isSecondary ? false : isDcoPlus,
           ...(values.password ? { password: values.password } : {}),
         }),
       })
@@ -200,7 +204,7 @@ export function EditUserDialog({ open, onClose }: Props) {
                 </div>
                 <Switch checked={isManagerState} onCheckedChange={(v) => {
                   setIsManagerState(v)
-                  if (v) setIsSecondary(false)
+                  if (v) { setIsSecondary(false); setIsDcoPlus(false) }
                 }} />
               </div>
             )}
@@ -214,9 +218,23 @@ export function EditUserDialog({ open, onClose }: Props) {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className={!isSecondary ? 'font-semibold text-foreground' : ''}>DCO</span>
-                  <Switch checked={isSecondary} onCheckedChange={setIsSecondary} />
+                  <Switch checked={isSecondary} onCheckedChange={(v) => {
+                    setIsSecondary(v)
+                    if (v) setIsDcoPlus(false)
+                  }} />
                   <span className={isSecondary ? 'font-semibold text-foreground' : ''}>Noni</span>
                 </div>
+              </div>
+            )}
+
+            {/* DCO+ — solo per DCO puri (non Noni, non manager) */}
+            {form.watch('userId') && !isSecondary && !isManagerState && (
+              <div className="flex items-center justify-between py-1">
+                <div>
+                  <Label className="text-sm font-medium">DCO+</Label>
+                  <p className="text-[11px] text-muted-foreground">DCO che vede e interagisce anche con i turni dei Noni</p>
+                </div>
+                <Switch checked={isDcoPlus} onCheckedChange={setIsDcoPlus} />
               </div>
             )}
 

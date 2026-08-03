@@ -28,6 +28,7 @@ interface Props {
   open: boolean
   onClose: () => void
   isSecondary: boolean
+  isDcoPlus?: boolean   // viewer DCO+ (match compatibili anche con i Noni)
   impersonatingUserId?: string
 }
 
@@ -35,7 +36,7 @@ const isIOS =
   typeof window !== 'undefined' &&
   /iPad|iPhone|iPod/.test(navigator.userAgent)
 
-export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }: Props) {
+export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, impersonatingUserId }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [offeredShift, setOfferedShift] = useState<ShiftType | null>(null)
   const [requestedShifts, setRequestedShifts] = useState<ShiftType[]>([])
@@ -43,17 +44,17 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
   const [compatibleMatches, setCompatibleMatches] = useState<Shift[]>([])
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
-  const { data: shifts = [] } = useShifts(isSecondary)
-  const duplicateCognomi = useDuplicateCognomi(isSecondary)
+  const { data: shifts = [] } = useShifts(isSecondary, isDcoPlus)
+  const duplicateCognomi = useDuplicateCognomi(isSecondary, isDcoPlus)
   const appSettings = useAppSettings()
 
   const effectiveUserId = impersonatingUserId ?? profile?.id ?? ''
 
   useEffect(() => {
     if (open) {
-      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
     }
-  }, [open, isSecondary, queryClient])
+  }, [open, isSecondary, isDcoPlus, queryClient])
 
   const occupiedDates = new Set(
     shifts
@@ -103,7 +104,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
           requested_shifts: requestedShifts,
         })
       }
-      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
       if (!impersonatingUserId) {
         // Fire-and-forget push notification
         const actorName = profile ? `${profile.cognome ?? ''} ${profile.nome ?? ''}`.trim() : 'Qualcuno'
@@ -180,7 +181,7 @@ export function ShiftDialog({ open, onClose, isSecondary, impersonatingUserId }:
           body: JSON.stringify({ event_type: 'interest', metadata: { shift_id: shift.id } }),
         }).catch(() => {})
       }
-      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
       toast.success('Interesse registrato')
       handleClose()
     } catch {

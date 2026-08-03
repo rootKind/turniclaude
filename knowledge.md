@@ -57,6 +57,14 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 - **Ruoli utente:** `is_secondary = false` → DCO; `is_secondary = true` → Noni;
   `is_manager = true` → manager (né DCO né Noni). Ogni utente vede solo la propria categoria.
+- **DCO+ (`is_dco_plus`):** utente formalmente DCO che vede/appaia/interagisce con la tabella
+  cambi turno di ENTRAMBE le categorie. Regole di visibilità (`isShiftVisibleTo` in
+  `lib/queries/shifts.ts`): DCO+ → tutto; Noni → Noni + richieste dei DCO+; DCO normale → solo
+  DCO (i DCO+ restano formalmente DCO). Le FERIE restano quelle DCO (nessun cambiamento).
+  Le richieste dell'altro gruppo portano badge neutro **NONO** (viste dal DCO+) o **DCO+**
+  (viste dai Noni) + bordo sottile `border-foreground/25` sulla card. `is_dco_plus` è forzato
+  `false` per manager e Noni (route create/update utente + dialog admin). Query key/cache dei
+  turni includono `isDcoPlus` (`shifts-{isSecondary}-{isDcoPlus}`).
 - **`ADMIN_ID`** hardcoded `fdd6c008-7a22-42d5-a75b-c44d9edfef12` in `types/database.ts` — NON spostarlo in env.
 - **PostgREST:** nelle query embedded usare SEMPRE la FK esplicita
   (`user:users!shifts_user_id_fkey(...)`), altrimenti falliscono silenziosamente.
@@ -147,6 +155,17 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 ## Stato attuale (snapshot 03/08/2026)
 
+- **Funzionalità DCO+ (03/08/2026):** nuovo attributo `is_dco_plus` (DCO che vedono anche la
+  tabella cambi turno dei Noni) + `notify_on_cross_shifts` (toggle notifiche "altro gruppo"
+  visibile solo a DCO+ e Noni). Notifiche push `new_shift` allineate alla visibilità (DCO+
+  pubblica → tutti; Noni → Noni + DCO+; DCO → DCO) con gating del toggle cross per chi riceve
+  dall'altro gruppo. Badge NONO/DCO+ + bordo sottile nelle viste miste. Migration **015_dco_plus**
+  (add columns users.is_dco_plus, users.notify_on_cross_shifts) APPLICATA al DB dev
+  (`uokfixddsuqcjddbfkln`). DCO+ attivi su dev (03/08/2026): Ernesto Gagliotta
+  (`bc8dc7f3-…-512d4`), Luigi Neri (`001c315b-…-f3ff`), Mariapia Di Napoli (`51a6cc71-…-cb2`).
+- **⚠ Migration 015 da applicare anche al DB di produzione/main al merge su `master`**
+  (come la 014).
+
 - **Fix cambio categoria DCO↔NONO (03/08/2026):** `app/api/admin/update-user/route.ts` —
   il ramo `else if (typeof isSecondary === 'boolean')` era codice morto perché
   `edit-user-dialog.tsx` invia SEMPRE `isManager` come booleano → `is_secondary` non veniva
@@ -172,7 +191,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   gitignored (voci `.claude/`, `.serena/`, `.codegraph/` in `.gitignore`).
 - `tsc --noEmit` → PULITO (0 errori).
 - `eslint` → errori preesistenti noti, non bloccanti: `react-hooks/purity` (Math.random, accettato),
-  `react-hooks/refs` in `shift-list.tsx:239,242`, `no-explicit-any` in `lib/pdf-parser.ts:275,279`,
+  `react-hooks/refs` in `shift-list.tsx:241,244`, `no-explicit-any` in `lib/pdf-parser.ts:275,279`,
   `lib/queries/sala-layout.ts:13`, `lib/queries/vacations.ts:125–127,136`.
 - **Attenzione auth/push:** `app/api/vacanze/check-chains` accetta `newRequestUserId`/`isSecondary`
   dal client senza validarli (vettore spam notifiche). Da validare se si tocca quella route.

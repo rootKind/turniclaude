@@ -16,10 +16,11 @@ interface Props {
   open: boolean
   onClose: () => void
   isSecondary: boolean
+  isDcoPlus?: boolean
   useAdminRoute?: boolean  // when true, update via /api/admin/shifts/[id]
 }
 
-export function EditShiftDialog({ shift, open, onClose, isSecondary, useAdminRoute = false }: Props) {
+export function EditShiftDialog({ shift, open, onClose, isSecondary, isDcoPlus = false, useAdminRoute = false }: Props) {
   const [selected, setSelected] = useState<ShiftType[]>(shift.requested_shifts as ShiftType[])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const queryClient = useQueryClient()
@@ -45,7 +46,7 @@ export function EditShiftDialog({ shift, open, onClose, isSecondary, useAdminRou
       } else {
         await updateShiftRequested(shift.id, selected)
       }
-      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary) })
+      queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
       toast.success('Turno aggiornato')
       onClose()
     } catch {

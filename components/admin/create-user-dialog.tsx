@@ -16,6 +16,7 @@ const formSchema = z.object({
   nome: z.string().min(1, 'Nome obbligatorio'),
   cognome: z.string().min(1, 'Cognome obbligatorio'),
   is_secondary: z.boolean(),
+  is_dco_plus: z.boolean(),
   is_manager: z.boolean(),
 })
 type FormData = z.infer<typeof formSchema>
@@ -30,7 +31,7 @@ export function CreateUserDialog({ open, onClose }: Props) {
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: { email: '', password: '', nome: '', cognome: '', is_secondary: false, is_manager: false },
+    defaultValues: { email: '', password: '', nome: '', cognome: '', is_secondary: false, is_dco_plus: false, is_manager: false },
   })
 
   async function onSubmit(values: FormData) {
@@ -104,6 +105,19 @@ export function CreateUserDialog({ open, onClose }: Props) {
               <FormField control={form.control} name="is_secondary" render={({ field }) => (
                 <FormItem className="flex items-center justify-between rounded-lg border p-3">
                   <FormLabel className="cursor-pointer">Reparto Noni (secondario)</FormLabel>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={(v) => {
+                      field.onChange(v)
+                      if (v) form.setValue('is_dco_plus', false)
+                    }} />
+                  </FormControl>
+                </FormItem>
+              )} />
+            )}
+            {!form.watch('is_manager') && !form.watch('is_secondary') && (
+              <FormField control={form.control} name="is_dco_plus" render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                  <FormLabel className="cursor-pointer">DCO+ (vede anche i turni dei Noni)</FormLabel>
                   <FormControl>
                     <Switch checked={field.value} onCheckedChange={field.onChange} />
                   </FormControl>

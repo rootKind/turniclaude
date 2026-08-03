@@ -31,16 +31,46 @@ export async function POST(req: Request) {
   }
 
   if (type === 'new_shift') {
-    // Notify all users in same category with master switch + new-shift opt-in, excluding the actor
+    // Chi può vedere il turno appena pubblicato (regole DCO+):
+    // - DCO+ che pubblica → tutti (DCO + Noni)
+    // - Noni che pubblica → Noni + DCO+
+    // - DCO normale che pubblica → solo DCO (comportamento attuale)
+    const { data: actor } = await supabase
+      .from('users')
+      .select('is_secondary, is_dco_plus')
+      .eq('id', user.id)
+      .single()
+
+    if (!actor) {
+      return NextResponse.json({ error: 'Actor profile not found' }, { status: 500 })
+    }
+
+    const actorIsNoni = actor.is_secondary === true
+    const actorIsDcoPlus = actor.is_dco_plus === true
+
+    const visibilityFilter = actorIsDcoPlus
+      ? 'or(is_secondary.eq.true,is_secondary.eq.false)'
+      : actorIsNoni
+        ? 'or(is_secondary.eq.true,is_dco_plus.eq.true)'
+        : 'is_secondary.eq.false'
+
+    // Notify everyone who can see it, with master switch + new-shift opt-in, excluding the actor
     const { data: targets } = await supabase
       .from('users')
-      .select('id')
-      .eq('is_secondary', isSecondary)
+      .select('id, is_secondary, is_dco_plus, notify_on_cross_shifts')
       .eq('notification_enabled', true)
       .eq('notify_on_new_shift', true)
       .neq('id', user.id)
+      .or(visibilityFilter)
 
-    if (targets?.length) {
+    // Chi riceve i turni dell'ALTRO gruppo deve avere il toggle notify_on_cross_shifts attivo
+    const eligible = (targets ?? []).filter(t => {
+      if (actorIsDcoPlus && t.is_secondary === true) return t.notify_on_cross_shifts === true
+      if (actorIsNoni && t.is_dco_plus === true) return t.notify_on_cross_shifts === true
+      return true
+    })
+
+    if (eligible.length) {
       const dateLabel = shiftDate ? formatDateShort(shiftDate as string) : ''
       const requestedLabel = Array.isArray(requestedShifts) ? (requestedShifts as string[]).join('/') : ''
       const payload = {
@@ -51,7 +81,7 @@ export async function POST(req: Request) {
         type: 'new_shift',
         shiftId: shiftId ? Number(shiftId) : null,
       }
-      await Promise.allSettled(targets.map(t => pushToUser(t.id, payload)))
+      await Promise.allSettled(eligible.map(t => pushToUser(t.id, payload)))
     }
   } else if (type === 'interest') {
     // Notify the shift owner if they have the master switch + interest opt-in

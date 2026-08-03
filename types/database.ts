@@ -9,12 +9,14 @@ export interface UserProfile {
   nome: string | null
   cognome: string | null
   is_secondary: boolean             // false = DCO (primary), true = Noni (secondary)
+  is_dco_plus: boolean              // true = DCO+ (formalmente DCO, vede anche i turni dei Noni)
   is_manager: boolean               // true = manager (neither DCO nor Noni)
   notification_enabled: boolean | null
   notify_on_interest: boolean | null
   notify_on_new_shift: boolean | null
   notify_on_vacation_interest: boolean | null
   notify_on_new_vacation: boolean | null
+  notify_on_cross_shifts: boolean | null  // DCO+/Noni: notifiche dei turni dell'altro gruppo
   created_at: string
   updated_at: string
 }
@@ -23,7 +25,7 @@ interface ShiftInterestedUser {
   shift_id: number                  // bigint → number
   user_id: string
   created_at: string | null
-  user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
+  user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary' | 'is_dco_plus'>
 }
 
 export interface Shift {
@@ -35,7 +37,7 @@ export interface Shift {
   highlight: boolean | null
   is_pending: boolean
   created_at: string | null
-  user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
+  user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary' | 'is_dco_plus'>
   shift_interested_users: ShiftInterestedUser[]
 }
 
@@ -156,3 +158,4 @@ export const ADMIN_ID = 'fdd6c008-7a22-42d5-a75b-c44d9edfef12'
 
 export function isAdmin(userId: string) { return userId === ADMIN_ID }
 export function isManager(profile: Pick<UserProfile, 'is_manager'>): boolean { return profile.is_manager }
+export function isDcoPlus(profile: Pick<UserProfile, 'is_dco_plus'>): boolean { return profile.is_dco_plus }
