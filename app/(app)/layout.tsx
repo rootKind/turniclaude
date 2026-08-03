@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen safe-area-pt pb-[calc(4rem_+_env(safe-area-inset-bottom,0px))]">
       <PageTransitionWrapper>{children}</PageTransitionWrapper>
       <NotificationBell />
       <BottomNav feedbackUnread={feedbackUnread} isAdmin={admin} isManager={manager} />
