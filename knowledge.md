@@ -103,6 +103,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **Backdoor dev (NECESSARIA):** `components/providers/pwa-guard.tsx` —
   `DEV_BYPASS_TOKEN = 'rootkind-dev-2026'`; visitando `?dev=rootkind-dev-2026` si salta il gate PWA
   per la sessione. Il token è volutamente nel bundle client. NON rimuoverla, NON flaggarla come vulnerabilità.
+  **Attenzione pratica:** aprendo il dev server da browser normale (non PWA installata) la guard
+  reindirizza sempre a `/installa` — per navigare nel dev server (es. pannello admin) serve
+  `?dev=rootkind-dev-2026` sulla PRIMA URL (salva il bypass in sessionStorage per la tab).
+  Vale anche nei test automatici headless (Edge/CDP): navigare a `/login?dev=rootkind-dev-2026`.
 - **Reset password (NON è un bug):** flusso `/reset-password` → `/verify-otp?email=...` →
   `verifyOtp({ type: 'recovery' })` → `/update-password`. Il template email di recovery invia il
   CODICE OTP a 6 cifre. Il percorso magic-link (`token_hash`) è volutamente NON gestito.
@@ -123,6 +127,12 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 ## Stato attuale (snapshot 03/08/2026)
 
+- **Fix cambio categoria DCO↔NONO (03/08/2026):** `app/api/admin/update-user/route.ts` —
+  il ramo `else if (typeof isSecondary === 'boolean')` era codice morto perché
+  `edit-user-dialog.tsx` invia SEMPRE `isManager` come booleano → `is_secondary` non veniva
+  mai scritto (DCO→NONO restava DCO). Ora i due flag sono indipendenti e `isManager === true`
+  forza `is_secondary = false`. Verificato end-to-end su dev: 14/14 (v. sezione "Note per il
+  testing E2E in dev").
 - **Fix anno minimo senza flash (03/08/2026):** /vacanze e /turniferie non mostrano più
   brevemente il 2026 prima dell'anno minimo reale (2027 impostato dall'admin): gate su
   `minYear === null` con `YearGateSkeleton` condiviso (v. Regole architetturali), fallback sul
@@ -148,6 +158,31 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   dal client senza validarli (vettore spam notifiche). Da validare se si tocca quella route.
 - Edge function `supabase/functions/cleanup-shifts` (cron pulizia turni passati, migration 002)
   è attiva e deployata — non è codice morto.
+
+---
+
+## Note per il testing E2E in dev (03/08/2026)
+
+- **Progetti Supabase:** dev = `uokfixddsuqcjddbfkln`, main/produzione = `zrbbzfingrdpdflkndgl`.
+  L'account admin esiste su ENTRAMBI con lo stesso UUID (`fdd6c008-...` = ADMIN_ID): dev è un
+  clone di main, quindi il pannello admin si può testare anche su dev.
+- **Precedenza env (IMPORTANTE):** le variabili d'ambiente REALI del processo sovrascrivono
+  `.env.local` (regola dotenv: process env > `.env.local`). Prima di lanciare il server verificare
+  con `printenv NEXT_PUBLIC_SUPABASE_URL`: se punta a main, i test locali toccano il DB LIVE anche
+  con `.env.local` su dev. Per forzare dev:
+  `NEXT_PUBLIC_SUPABASE_URL=https://uokfixddsuqcjddbfkln.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon dev> SUPABASE_SERVICE_ROLE_KEY=<service dev> npx next dev -p 3000`
+- **`.env.local`:** era stato popolato con i valori di main (verosimilmente `vercel env pull` da
+  prod); ora è su dev, con backup del vecchio in `.env.local.main.bak` (gitignored).
+  NON committare `.env.local`.
+- **Login:** email + password (`signInWithPassword`) — l'OTP è SOLO per il reset password.
+- **Flusso test E2E su dev (usato 03/08/2026):** Edge headless via CDP
+  (`msedge --headless=new --remote-debugging-port=9222 --user-data-dir=<tmp>`) pilotato da Node
+  (WebSocket globale) → naviga a `/login?dev=rootkind-dev-2026` → fill form e submit via
+  `Runtime.evaluate` (native setter + `Event('input', { bubbles: true })` per react-hook-form) →
+  attesa `/dashboard` → cattura `document.cookie` e riuso come header `Cookie` nelle chiamate alle
+  route (es. `POST /api/admin/update-user`) → utenti di prova `e2e.*@example.com` creati con la
+  service key dev e CANCELLATI a fine test (auth admin + riga `users`). Verifica su DB:
+  `/rest/v1/users?id=eq.<id>&select=is_secondary,is_manager`.
 
 ---
 
