@@ -3,6 +3,9 @@
 > Questo file è la **memoria persistente** del progetto per l'AI assistant (convenzione Freebuff:
 > `knowledge.md` nella root, iniettato automaticamente nel contesto a ogni sessione).
 > Aggiornarlo quando cambiano convenzioni, architettura o stato noto del progetto.
+> **Igiene:** promuovi le regole durevoli in "Regole architetturali", tieni in "Stato attuale"
+> solo ciò che è ANCORA vero o azione pendente, cancella la cronaca dei fix già committati
+> (vivono in git). Obiettivo: file sotto ~150 righe.
 
 ---
 
@@ -46,7 +49,7 @@ hooks/          use-* (react-query) — use-shifts, use-users, use-vacation-requ
 lib/            queries/* (accesso dati), supabase/*, push/send-to-user, cache, utils, pdf-parser
 stores/         zustand: user-store (profilo persist)
 types/          database.ts — tipi schema + ADMIN_ID + isAdmin/isManager
-supabase/       migrations/ 001–014 (schema completo), functions/cleanup-shifts (edge function cron)
+supabase/       migrations/ 001–015 (schema completo), functions/cleanup-shifts (edge function cron)
 public/         manifest.json, sw.js (solo push + click)
 proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato proxy.ts)
 ```
@@ -66,6 +69,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `false` per manager e Noni (route create/update utente + dialog admin). Query key/cache dei
   turni includono `isDcoPlus` (`shifts-{isSecondary}-{isDcoPlus}`).
 - **`ADMIN_ID`** hardcoded `fdd6c008-7a22-42d5-a75b-c44d9edfef12` in `types/database.ts` — NON spostarlo in env.
+- **Flag categoria indipendenti:** in `app/api/admin/update-user/route.ts` e nel dialog admin, `is_secondary` e `is_manager` sono indipendenti; `isManager === true` forza `is_secondary = false` (un manager non può essere DCO/Noni). Non reintrodurre l'accoppiamento dei due flag.
 - **PostgREST:** nelle query embedded usare SEMPRE la FK esplicita
   (`user:users!shifts_user_id_fkey(...)`), altrimenti falliscono silenziosamente.
 - **Cache user-scoped:** `lib/cache.ts` → chiavi `cache:{userId}:{suffix}` + `LAST_USER_KEY`;
@@ -102,6 +106,12 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `btn-pending|btn-confirm|ring-pending|ring-confirm|pending-overlay|confirm-overlay|text-pending|text-confirm`.
   Card periodi /turniferie: header uniforme `period-card-header` che stacca dal corpo `bg-card`;
   la card "il tuo periodo" usa `my-period-header` (più scura in chiaro / più chiara in scuro).
+- **Splash/launch PWA (03/08/2026):** splash IN-APP (`components/providers/boot-splash.tsx`,
+  primo elemento del `<body>`) SOLO su iOS via `@supports (-webkit-touch-callout: none)` in
+  `globals.css` (su Android è `display:none` per evitare il doppio splash con quella nativa).
+  Icone `icon-192/512` TRASPARENTI, NIENTE `purpose: maskable`; `apple-icon.png` (home iOS)
+  a sfondo BIANCO `#ffffff` cotto. `manifest.json` colori `#0a0a0a` = FALLBACK legacy.
+  Bump `CACHE_NAME` in `sw.js` a ogni cambio icone/manifest (cache-first).
 - **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013) —
   colori PER PERSONA dei desk (board /turnisala, admin o manager), diverso dall'ex-funzionalità
   colori tema. Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).
@@ -119,8 +129,8 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   periodo (`key={selectedYear}`) E lista richieste (`key={year}`) con la stessa animazione.
   Le animazioni FUNZIONALI (drag, expand, page-transition, slide filtri shift-list) sono
   volutamente diverse.
-- **Migrations 001–014 completano lo schema** (turni, vacanze, sala, app_settings, RLS,
-  realtime publication, RPC). NON riscrivere le policy RLS, NON aggiungere colonne/tabelle duplicate.
+- **Migrations 001–015 completano lo schema** (turni, vacanze, sala, app_settings, RLS,
+  realtime publication, RPC, DCO+). NON riscrivere le policy RLS, NON aggiungere colonne/tabelle duplicate.
 - **Next.js 16:** API e convenzioni diverse dalle versioni precedenti (`proxy.ts` ecc.).
   In caso di dubbio leggere `node_modules/next/dist/docs/` prima di scrivere codice.
 
@@ -153,79 +163,27 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 ---
 
-## Stato attuale (snapshot 03/08/2026)
+## Stato attuale (snapshot 04/08/2026)
 
-- **Splash/launch PWA (03/08/2026, validato su device):** il colore dello splash/launch usa il
-  `<meta name="theme-color">` con media queries (in `layout.tsx` viewport + ThemeColor) →
-  chiaro `#f0f7fc` / scuro `#0a0a0a` a seconda del tema di sistema. Strategia finale per
-  piattaforma (validata su device reali 03/08/2026):
-  - **Android**: SOLO splash nativa (logo fluttuante su sfondo nero in entrambi i temi,
-    accettato dall'utente). Icone `icon-192/512` TRASPARENTI, NIENTE `purpose: maskable`.
-  - **iOS**: il launch screen nativo NON mostra MAI l'icona (solo colore solido). Soluzione:
-    **splash IN-APP** (`components/providers/boot-splash.tsx`, primo elemento del `<body>`
-    in `layout.tsx`): overlay full-screen con sfondo `var(--background)` + logo
-    `icon-512.png` centrato (`width: min(64vw, 280px)`), fade dopo primo paint + window
-    load (min 600ms, max 4s). MOSTRATO SOLO SU iOS via `@supports (-webkit-touch-callout:
-    none)` in `globals.css` (l'unico detection CSS affidabile di iOS): su Android è
-    `display:none` per evitare il doppio splash in fila con quella nativa.
-    `apple-icon.png` (icona home iOS) ha sfondo BIANCO `#ffffff` cotto (flatten sharp,
-    logo scuro centrato, 180x180 opaca). `badge-96.png` resta trasparente (badge mono).
-  **Icone con logo INGRANDITO (03/08/2026):** tutte e 3 le icone (icon-512, icon-192,
-  apple-icon) rigenerate con il logo che copre ~92% della larghezza del canvas (prima
-  ~79%) — derivate dallo stesso logo tramite sharp trim + resize + composite centrato
-  (script temporaneo `_tmp-enlarge-icons.mjs`, non committato). Per rigenerarle: trim
-  dei bordi trasparenti, resize a `FILL=0.92` della larghezza, composite centrato.
-  `manifest.json` `background_color`/`theme_color` = `#0a0a0a` resta come FALLBACK per
-  browser legacy. Bump `CACHE_NAME` sw.js a `turni-static-v4` (manifest+icone cache-first:
-  senza bump i client installati avrebbero continuato a usare le vecchie icone). Per
-  rigenerare `apple-icon.png` bianca: dalla icon-512 trasparente ridimensionata a 180
-  poi sharp `flatten({ background: '#ffffff' })`.
-- **Funzionalità DCO+ (03/08/2026):** nuovo attributo `is_dco_plus` (DCO che vedono anche la
-  tabella cambi turno dei Noni) + `notify_on_cross_shifts` (toggle "Nuovo turno pubblicato
-  mansioni superiori" in /impostazioni, visibile solo a DCO+ e Noni). Notifiche push `new_shift` allineate alla visibilità (DCO+
-  pubblica → tutti; Noni → Noni + DCO+; DCO → DCO) con gating del toggle cross per chi riceve
-  dall'altro gruppo. Badge NONO/DCO+ + bordo sottile nelle viste miste. Migration **015_dco_plus**
-  (add columns users.is_dco_plus, users.notify_on_cross_shifts) APPLICATA al DB dev
-  (`uokfixddsuqcjddbfkln`). DCO+ attivi su dev (03/08/2026): Ernesto Gagliotta
-  (`bc8dc7f3-…-512d4`), Luigi Neri (`001c315b-…-f3ff`), Mariapia Di Napoli (`51a6cc71-…-cb2`).
-- **⚠ Migration 015 da applicare anche al DB di produzione/main al merge su `master`**
-  (come la 014).
-
-- **Fix cambio categoria DCO↔NONO (03/08/2026):** `app/api/admin/update-user/route.ts` —
-  il ramo `else if (typeof isSecondary === 'boolean')` era codice morto perché
-  `edit-user-dialog.tsx` invia SEMPRE `isManager` come booleano → `is_secondary` non veniva
-  mai scritto (DCO→NONO restava DCO). Ora i due flag sono indipendenti e `isManager === true`
-  forza `is_secondary = false`. Verificato end-to-end su dev: 14/14 (v. sezione "Note per il
-  testing E2E in dev").
-- **Fix anno minimo senza flash (03/08/2026):** /vacanze e /turniferie non mostrano più
-  brevemente il 2026 prima dell'anno minimo reale (2027 impostato dall'admin): gate su
-  `minYear === null` con `YearGateSkeleton` condiviso (v. Regole architetturali), fallback sul
-  fetch di `app_settings`, animazione keyed-by-year su card periodo e lista richieste,
-  dialog ferie con prop `minYear`, stagger unificato a 0.04 in /notifiche.
-- **Admin colori rimosso:** eliminati `/admin/colori`, `color-settings-page`, `color-inspector`,
-  `/api/admin/save-colors`, `ColorThemeProvider`, `color-inspect-store`, `color-inspect-map`,
-  `color-overrides` + migration 014 (DROP `app_settings.color_overrides`). Il tile "Colori app"
-  è sparito dal pannello admin. `public/color-studio.html` (tool dev standalone, localStorage)
-  è stato volutamente mantenuto.
-- **⚠ Migration 014 già applicata SOLO al DB di dev** (03/08/2026, progetto linkato
-  `uokfixddsuqcjddbfkln`). Al MERGE su `master` va applicata ANCHE al DB di produzione/main
-  (`supabase db push` con progetto main linkato, o SQL equivalente).
-- **Pulizia completata:** rimossi i tool folders (`.claude/`, `.serena/`, `.codegraph/`, `.next/`,
-  `.worktrees/`, `docs/`, `.vercel/`), `package-lock.json`, le dipendenze morte
-  (`pdfjs-dist`, `@dnd-kit/sortable`), funzioni e tipi inutilizzati. Le cartelle tool sono
-  gitignored (voci `.claude/`, `.serena/`, `.codegraph/` in `.gitignore`).
-- `tsc --noEmit` → PULITO (0 errori).
-- `eslint` → errori preesistenti noti, non bloccanti: `react-hooks/purity` (Math.random, accettato),
-  `react-hooks/refs` in `shift-list.tsx:241,244`, `no-explicit-any` in `lib/pdf-parser.ts:275,279`,
-  `lib/queries/sala-layout.ts:13`, `lib/queries/vacations.ts:125–127,136`.
+- **⚠ AZIONE PENDENTE:** migration **014** (drop color_overrides) e **015** (DCO+) applicate
+  SOLO al DB dev (`uokfixddsuqcjddbfkln`). Al MERGE su `master` vanno applicate ANCHE al DB di
+  produzione/main (`zrbbzfingrdpdflkndgl`): `supabase db push` con progetto main linkato, o SQL equivalente.
+- **Password dev per test (04/08/2026):** per facilitare i test su dev, la password di alcuni
+  utenti = email: Luigi Neri, Mariapia Di Napoli, Fortunato Di Monda, Ernesto Gagliotta,
+  Nicola Romano, Maurizio Tammaro (es. `lu.neri@rfi.it` / `lu.neri@rfi.it`). Vale SOLO su dev.
+- **DCO+ attivi su dev (03/08/2026):** Ernesto Gagliotta (`bc8dc7f3-…-512d4`), Luigi Neri
+  (`001c315b-…-f3ff`), Mariapia Di Napoli (`51a6cc71-…-cb2`).
 - **Attenzione auth/push:** `app/api/vacanze/check-chains` accetta `newRequestUserId`/`isSecondary`
   dal client senza validarli (vettore spam notifiche). Da validare se si tocca quella route.
+- **Lint noti, non bloccanti:** `react-hooks/purity` (Math.random, accettato),
+  `react-hooks/refs` in `shift-list.tsx:241,244`, `no-explicit-any` in `lib/pdf-parser.ts:275,279`,
+  `lib/queries/sala-layout.ts:13`, `lib/queries/vacations.ts:125–127,136`.
 - Edge function `supabase/functions/cleanup-shifts` (cron pulizia turni passati, migration 002)
   è attiva e deployata — non è codice morto.
 
 ---
 
-## Note per il testing E2E in dev (03/08/2026)
+## Note per il testing E2E in dev
 
 - **Progetti Supabase:** dev = `uokfixddsuqcjddbfkln`, main/produzione = `zrbbzfingrdpdflkndgl`.
   L'account admin esiste su ENTRAMBI con lo stesso UUID (`fdd6c008-...` = ADMIN_ID): dev è un
@@ -235,8 +193,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   con `printenv NEXT_PUBLIC_SUPABASE_URL`: se punta a main, i test locali toccano il DB LIVE anche
   con `.env.local` su dev. Per forzare dev:
   `NEXT_PUBLIC_SUPABASE_URL=https://uokfixddsuqcjddbfkln.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon dev> SUPABASE_SERVICE_ROLE_KEY=<service dev> npx next dev -p 3000`
-- **`.env.local`:** era stato popolato con i valori di main (verosimilmente `vercel env pull` da
-  prod); ora è su dev, con backup del vecchio in `.env.local.main.bak` (gitignored).
+- **`.env.local`:** ora su dev, con backup del vecchio in `.env.local.main.bak` (gitignored).
   NON committare `.env.local`.
 - **Login:** email + password (`signInWithPassword`) — l'OTP è SOLO per il reset password.
 - **Flusso test E2E su dev (usato 03/08/2026):** Edge headless via CDP
@@ -257,5 +214,6 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **Commit atomici:** un commit per feature/fix, messaggi convenzionali (`tipo: descrizione concisa`),
   es. `fix:`, `feat:`, `chore:`, `docs:`.
 - **Version footer:** a ogni release aggiornare `vX.YYY · <hash> — ultimo aggiornamento: DD/MM/YYYY HH:MM`
-  in `/impostazioni` (footer hardcoded in `settings-page.tsx`).
+  in `/impostazioni` (footer hardcoded in `settings-page.tsx`). Il `<hash>` è lo short hash del commit
+  padre (HEAD prima del commit di bump).
 - **Branch:** sviluppo su `dev`, deploy da `master`.
