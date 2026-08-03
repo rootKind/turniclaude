@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/providers/theme-provider'
 import { ThemeColor } from '@/components/providers/theme-color'
 import { LIGHT_BACKGROUND, DARK_BACKGROUND } from '@/lib/color-defaults'
 import { PwaGuard } from '@/components/providers/pwa-guard'
+import { BootSplash } from '@/components/providers/boot-splash'
 import { AuthCacheGuard } from '@/components/providers/auth-cache-guard'
 import { SwRegistrar } from '@/components/providers/sw-registrar'
 import { Toaster } from '@/components/ui/sonner'
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="it" suppressHydrationWarning>
       <body className={geist.className}>
+        <BootSplash />
         <ThemeProvider>
           <AuthCacheGuard />
           <SwRegistrar />

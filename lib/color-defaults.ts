@@ -10,16 +10,14 @@
 // al tema dal <meta name="theme-color"> con media queries (app/layout.tsx viewport +
 // ThemeColor): chiaro = LIGHT_BACKGROUND, scuro = DARK_BACKGROUND.
 //
-// Strategia icone (validata 03/08/2026 su Android chiaro+scuro e iOS):
+// Strategia icone/splash (validata 03/08/2026 su Android chiaro+scuro e iOS):
 // - Android (icon-192.png / icon-512.png, manifest): TRASPARENTI, logo che fluttua
-//   sullo splash — senza `purpose: maskable` (rimosso) Android non applica la tile
-//   adattiva e il logo fluttua sia su splash scuro che chiaro. NON cuocere sfondi
-//   dentro queste: combacia solo con UN tema.
-// - iOS (apple-icon.png, link apple-touch-icon sizes=180x180): SFONDO #0a0a0a
-//   cotto (flatten) — su iOS il launch screen mostra l'icona COME È FATTA e una
-//   PNG trasparente risultava invisibile (solo sfondo nero/bianco). Con lo sfondo
-//   cotto il logo è sempre visibile: scuro = quadrato nero su launch nero (uniforme),
-//   chiaro = quadrato nero su launch chiaro (riquadro, ma logo ben visibile).
+//   sullo splash nero — senza `purpose: maskable` (rimosso) Android non applica la
+//   tile adattiva. NON cuocere sfondi dentro queste: combacia solo con UN tema.
+// - iOS: il launch screen nativo NON mostra MAI l'icona (solo colore solido). Il logo
+//   a caricamento arriva dallo splash IN-APP `components/providers/boot-splash.tsx`
+//   (overlay full-screen con sfondo var(--background) + icon-512.png centrata).
+//   `apple-icon.png` ha sfondo #0a0a0a cotto SOLO per l'icona home iOS.
 // `manifest.json` background_color/theme_color = #0a0a0a resta come FALLBACK
 // (browser legacy che ignorano il meta). Se si cambia uno dei colori qui, aggiornare
 // la viewport in layout.tsx; per il manifest/icone serve il bump di CACHE_NAME in

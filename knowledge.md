@@ -155,19 +155,20 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 ## Stato attuale (snapshot 03/08/2026)
 
-- **Splash PWA adattivo al tema (03/08/2026, validato su device):** lo splash/launch usa il
-  colore del `<meta name="theme-color">` con media queries (già in `layout.tsx` viewport +
-  ThemeColor) → chiaro `#f0f7fc` / scuro `#0a0a0a` a seconda del tema di sistema, sia su
-  Android sia su iOS. Strategia icone DIVERSA per piattaforma (validata su device reali):
-  - **Android** (`icon-192.png`, `icon-512.png`, manifest): TRASPARENTI — senza
-    `purpose: "maskable"` (rimosso) il logo fluttua sullo splash sia scuro che chiaro
-    (verificato: splash nero uniforme con logo al centro in ENTRAMBI i temi).
-  - **iOS** (`apple-icon.png`, link `apple-touch-icon` `sizes="180x180"` in `layout.tsx`):
-    SFONDO `#0a0a0a` COTTO (flatten con sharp, 180x180 opaca, logo centrato) — su iOS il
-    launch screen mostra l'icona COME È FATTA e una PNG trasparente risultava INVISIBILE
-    (solo sfondo nero/bianco senza icona). Con lo sfondo cotto il logo è sempre visibile:
-    tema scuro = quadrato nero su launch nero (uniforme); tema chiaro = quadrato nero su
-    launch chiaro (riquadro, ma icona ben visibile — accettato).
+- **Splash/launch PWA (03/08/2026, validato su device):** il colore dello splash/launch usa il
+  `<meta name="theme-color">` con media queries (in `layout.tsx` viewport + ThemeColor) →
+  chiaro `#f0f7fc` / scuro `#0a0a0a` a seconda del tema di sistema. Strategia finale per
+  piattaforma (validata su device reali 03/08/2026):
+  - **Android**: splash nativo con logo fluttuante su sfondo nero in ENTRAMBI i temi
+    (accettato dall'utente). Icone `icon-192/512` TRASPARENTI, NIENTE `purpose: maskable`
+    (rimosso dal manifest).
+  - **iOS**: il launch screen nativo mostra SOLO un colore solido (bianco/nero) — l'icona
+    NON compare MAI lì (la `apple-touch-icon` serve solo per l'icona home). Soluzione:
+    **splash IN-APP** (`components/providers/boot-splash.tsx`, montato come primo elemento
+    del `<body>` in `layout.tsx`): overlay full-screen con sfondo `var(--background)`
+    (identico all'app → transizione seamless dal launch nativo) + logo `icon-512.png`
+    centrato, che sfuma via dopo il primo paint + window load (min 900ms, max 5s).
+    `apple-icon.png` resta con sfondo nero cotto (flatten sharp) SOLO per l'icona home iOS.
   `manifest.json` `background_color`/`theme_color` = `#0a0a0a` resta come FALLBACK per
   browser legacy. Bump `CACHE_NAME` sw.js a `turni-static-v2` (manifest è cache-first: senza
   bump i client installati avrebbero continuato a usare il vecchio). `badge-96.png` resta

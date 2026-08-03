@@ -514,6 +514,28 @@
   transform-origin: left center;
 }
 
+/* ── Boot splash in-app (03/08/2026) ────────────────────────────
+   Overlay full-screen mostrato all'avvio della PWA: sfondo = var(--background)
+   (adattivo al tema, identico all'app) + logo icon-512.png centrato.
+   Copre il launch screen nativo iOS (che mostra SOLO un colore solido senza
+   icona) e sfuma via dopo il primo paint + window load (BootSplash).
+   Il colore NERO scuro dello splash è volutamente #0a0a0a come il manifest. */
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--background);
+  transition: opacity 450ms ease-out;
+  pointer-events: none;
+}
+.boot-splash-logo {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* iOS Safari only: fix calendar clipping in shift dialog */
 .ios-dialog-fix { overflow: visible !important; }
 .ios-dialog-fix .scroll-area { -webkit-overflow-scrolling: touch; }
