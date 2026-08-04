@@ -26,6 +26,7 @@ interface Props {
   myPeriodThisYear: VacationPeriod | null
   isSameDateAsPrevious?: boolean
   isSameDateAsNext?: boolean
+  isPrevOwn?: boolean
   dateIndex?: number
   year: number
   isHighlighted?: boolean
@@ -62,6 +63,7 @@ export function VacationRequestItem({
   myPeriodThisYear,
   isSameDateAsPrevious = false,
   isSameDateAsNext = false,
+  isPrevOwn = false,
   dateIndex = 0,
   year,
   isHighlighted = false,
@@ -269,9 +271,15 @@ export function VacationRequestItem({
         tabIndex={0}
         aria-expanded={expanded}
         className={cn('flex items-stretch overflow-hidden cursor-pointer select-none', stateClass, borderRadius,
-          // Bordi interni del gruppo di giorno: più chiari del riempimento
-          isSameDateAsPrevious && 'shift-inner-border-t',
-          (isSameDateAsNext || expanded) && 'shift-inner-border-b',
+          // Bordi interni del gruppo di giorno (05/08/2026): le giunzioni interne rendono
+          // TRASPARENTE il bordo di stato orizzontale (colonna data continua, divisore
+          // verticale mai tagliato) e il separatore vive solo sul contenuto (.shift-content-divider).
+          // MAI sulla propria card (Variante A): il riquadro TUO resta completo su 4 lati.
+          !isOwn && isSameDateAsPrevious && 'shift-grouped-t',
+          // Da collassata con card dopo → giunzione trasparente; da ESPANSA → separatore
+          // chiaro riga↔pannello (il bordo inferiore della riga, come da commento del pannello).
+          !isOwn && isSameDateAsNext && !expanded && 'shift-grouped-b',
+          !isOwn && expanded && 'shift-inner-border-b',
           !request.is_pending && isManagerView && hasInterest && 'confirm-overlay',
           request.is_pending && 'pending-overlay',
         )}
@@ -295,7 +303,11 @@ export function VacationRequestItem({
         </div>
 
         {/* Content */}
-        <div className="flex items-center gap-2 px-3 py-2.5 flex-1 min-w-0">
+        <div className={cn('flex items-center gap-2 px-3 py-2.5 flex-1 min-w-0',
+          // Separatore orizzontale interno SOLO sul contenuto, in secondo piano.
+          // Non se la precedente è la propria card: il suo riquadro fa già da separatore.
+          !isOwn && isSameDateAsPrevious && !isPrevOwn && 'shift-content-divider',
+        )}>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1.5">
               <span className={cn('font-semibold text-[13px] leading-none', isOwn ? 'text-own-name' : '')}>
@@ -382,7 +394,9 @@ export function VacationRequestItem({
               // niente bordo in alto (il separatore è il bordo inferiore della riga).
               'px-3 py-3 border-x border-b',
               panelRadius,
-              isSameDateAsNext && 'shift-inner-border-b',
+              // Fondo del pannello: giunzione chiara solo per card altrui con card dopo;
+              // per la propria card resta il bordo TUO completo (Variante A).
+              isSameDateAsNext && !isOwn && 'shift-inner-border-b',
               isOwn && hasInterest ? 'shift-expanded-own-interest' :
               isOwn ? 'shift-expanded-own-empty' :
               'shift-expanded-others'

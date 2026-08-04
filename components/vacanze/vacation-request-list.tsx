@@ -102,6 +102,7 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
               const next = filtered[index + 1]
               const isSameDateAsPrevious = !!prev && dayKey(prev.created_at) === dayKey(request.created_at)
               const isSameDateAsNext = !!next && dayKey(next.created_at) === dayKey(request.created_at)
+              const isPrevOwn = !!prev && prev.user_id === effectiveUserId
               return (
                 <motion.div
                   key={request.id}
@@ -118,6 +119,7 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
                     myPeriodThisYear={myPeriodThisYear}
                     isSameDateAsPrevious={isSameDateAsPrevious}
                     isSameDateAsNext={isSameDateAsNext}
+                    isPrevOwn={isPrevOwn}
                     dateIndex={dateIndexes[index]}
                     year={year}
                     isHighlighted={highlightRequestIds.includes(request.id)}
