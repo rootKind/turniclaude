@@ -289,6 +289,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
               const next = filtered[index + 1]
               const isSameDateAsPrevious = !!prev && prev.shift_date === shift.shift_date
               const isSameDateAsNext = !!next && next.shift_date === shift.shift_date
+              const isPrevOwn = !!prev && prev.user_id === effectiveUserId
               return (
                 <motion.div
                   key={shift.id}
@@ -305,6 +306,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
                     isDcoPlus={isDcoPlus}
                     isSameDateAsPrevious={isSameDateAsPrevious}
                     isSameDateAsNext={isSameDateAsNext}
+                    isPrevOwn={isPrevOwn}
                     dateIndex={dateIndexes[index]}
                     onEdit={setEditingShift}
                     isHighlighted={highlightShiftId === shift.id}
