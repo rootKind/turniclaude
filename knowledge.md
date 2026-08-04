@@ -115,6 +115,13 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   Icone `icon-192/512` TRASPARENTI, NIENTE `purpose: maskable`; `apple-icon.png` (home iOS)
   a sfondo BIANCO `#ffffff` cotto. `manifest.json` colori `#0a0a0a` = FALLBACK legacy.
   Bump `CACHE_NAME` in `sw.js` a ogni cambio icone/manifest (cache-first).
+- **Bordi card turni/ferie (05/08/2026):** gerarchia a 3 livelli — divisore verticale della
+  colonna data IN PRIMO PIANO (ininterrotto: le giunzioni interne rendono TRASPARENTE il bordo
+  orizzontale di stato con `.shift-grouped-t/b`, il separatore interno vive solo sul contenuto
+  con `.shift-content-divider` = box-shadow inset). Riquadro TUO (Variante A) completo su 4 lati
+  e MAI toccato dalle giunzioni (guard `!isOwn`). Contorno TUO tono A3: `--shift-own-empty/interest-border`
+  = `#969696` (chiaro) / `#8a8a8a` (scuro). `.shift-content-divider` solo se la card precedente non
+  è la propria: prop `isPrevOwn` calcolata dalle liste (`prev.user_id === effectiveUserId`).
 - **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013) —
   colori PER PERSONA dei desk (board /turnisala, admin o manager), diverso dall'ex-funzionalità
   colori tema. Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).
