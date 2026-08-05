@@ -102,8 +102,11 @@ export function VacationRequestItem({
   const stateClass   = SHIFT_STATE_CLASSES[state]
   const { day, month } = formatRequestDate(request.created_at)
 
-  const dateBgClass = isSameDateAsPrevious
-    ? 'opacity-20 ' + SHIFT_DATE_CLASSES[state]
+  // Colonna data delle card NON prime del giorno: sfondo opaco dedicato (niente
+  // opacity sull'intero blocco → ordinale leggibile e divisore verticale pieno).
+  // MAI sulla propria card (Variante A): il riquadro TUO resta completo.
+  const dateBgClass = isSameDateAsPrevious && !isOwn
+    ? 'shift-date-sub-others'
     : SHIFT_DATE_CLASSES[state]
 
   // Card dello stesso giorno agglomerate in un blocco unico: angoli rotondi solo sul
@@ -287,7 +290,11 @@ export function VacationRequestItem({
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
       >
         {/* Date block */}
-        <div className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass)}>
+        <div className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass,
+          // Separatore orizzontale della colonna data, allineato a quello del corpo:
+          // la linea del gruppo attraversa tutta la larghezza (colori diversi).
+          !isOwn && isSameDateAsPrevious && !isPrevOwn && 'shift-date-divider',
+        )}>
           {!request.is_pending && isManagerView && hasInterest && <span className="absolute inset-0 confirm-overlay pointer-events-none" />}
           {request.is_pending && <span className="absolute inset-0 pending-overlay pointer-events-none" />}
           {dateIndex > 0 ? (
