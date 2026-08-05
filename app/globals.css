@@ -425,8 +425,12 @@
      diventa TRASPARENTE (resta 1px di layout → nessun salto di altezza) così la colonna
      data scorre continua e il divisore verticale non viene mai tagliato dalle linee
      orizzontali. Da applicare solo quando la card NON è la prima (t) / l'ultima (b) del
-     giorno e NON è la propria card (Variante A: il riquadro TUO resta completo su 4 lati). */
-  .shift-grouped-t { border-top-color: transparent; }
+     giorno e NON è la propria card (Variante A: il riquadro TUO resta completo su 4 lati).
+     FIX (05/08/2026): la card successiva si sovrappone di 1px (`margin-top: -1px`) al
+     bordo trasparente della precedente — che quindi mostra lo SFONDO della card e non
+     quello della pagina — così alla giunzione resta UN SOLO separatore (il chiaro
+     `.shift-content-divider`/`.shift-date-divider`), senza linea scura residua. */
+  .shift-grouped-t { border-top-color: transparent; margin-top: -1px; }
   .shift-grouped-b { border-bottom-color: transparent; }
 
   /* Separatore orizzontale interno del gruppo, SOLO sul contenuto (non sul blocco data):
