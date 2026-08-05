@@ -117,11 +117,15 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   Bump `CACHE_NAME` in `sw.js` a ogni cambio icone/manifest (cache-first).
 - **Bordi card turni/ferie (05/08/2026):** gerarchia a 3 livelli — divisore verticale della
   colonna data IN PRIMO PIANO (ininterrotto: le giunzioni interne rendono TRASPARENTE il bordo
-  orizzontale di stato con `.shift-grouped-t/b`, il separatore interno vive solo sul contenuto
-  con `.shift-content-divider` = box-shadow inset). Riquadro TUO (Variante A) completo su 4 lati
-  e MAI toccato dalle giunzioni (guard `!isOwn`). Contorno TUO tono A3: `--shift-own-empty/interest-border`
-  = `#969696` (chiaro) / `#8a8a8a` (scuro). `.shift-content-divider` solo se la card precedente non
-  è la propria: prop `isPrevOwn` calcolata dalle liste (`prev.user_id === effectiveUserId`).
+  orizzontale di stato con `.shift-grouped-t/b`). Card NON prime del giorno (ordinali 2°, 3°):
+  colonna data opaca dedicata `.shift-date-sub-others` (sfondo più chiaro del primo + border-right
+  PIENO dello stesso colore → divisore continuo) — niente `opacity-20` sull'intero blocco (sbiadiva
+  ordinale e divisore). Separatore orizzontale di gruppo sulla TUTTA larghezza con colori diversi:
+  corpo `.shift-content-divider` (`--shift-inner-border`) + colonna data `.shift-date-divider`
+  (`--shift-date-inner-border`, più tenue), entrambi box-shadow inset, solo se la card precedente
+  non è la propria (`isPrevOwn`, da `prev.user_id === effectiveUserId`). Riquadro TUO (Variante A)
+  completo su 4 lati e MAI toccato dalle giunzioni né dai separatori (guard `!isOwn`, `!isPrevOwn`).
+  Contorno TUO tono A3: `--shift-own-empty/interest-border` = `#969696` (chiaro) / `#8a8a8a` (scuro).
 - **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013) —
   colori PER PERSONA dei desk (board /turnisala, admin o manager), diverso dall'ex-funzionalità
   colori tema. Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).
