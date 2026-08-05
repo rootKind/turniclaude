@@ -64,6 +64,15 @@
   --shift-others-border: #c9d6e4;
   /* Bordi INTERNI dei gruppi di card dello stesso giorno — più chiari del riempimento (adattivi ai 2 temi) */
   --shift-inner-border: rgba(255,255,255,0.6);
+  /* Colonna data delle card NON prime del giorno (ordinali 2°, 3°): sfondo opaco
+     più chiaro della prima card (niente opacity sull'intero blocco → ordinale
+     leggibile e divisore verticale pieno). Il border-right resta dello stesso
+     colore del primo → divisore verticale continuo nel gruppo. */
+  --shift-others-sub-date-bg: #d7e3ec;
+  --shift-others-sub-date-border: #bdd0e0;
+  /* Separatore orizzontale della colonna data (allineato a .shift-content-divider
+     del corpo, colore dedicato e più tenue: la linea attraversa tutta la card) */
+  --shift-date-inner-border: rgba(255,255,255,0.45);
   --shift-own-empty-bg: #e8eef5;
   --shift-own-empty-date-bg: #dde6f0;
   /* Contorno card TUO (Variante A, tono A3): grigio medio, meno contrastante del nero pieno */
@@ -228,6 +237,10 @@
   /* Bordo card — dark: tutte hanno bordo; la card dell'utente loggato è bianca (più marcata) */
   --shift-others-border: #34343d;
   --shift-inner-border: rgba(255,255,255,0.08);
+  /* Colonna data delle card NON prime del giorno — scuro (stesso commento di :root) */
+  --shift-others-sub-date-bg: #202020;
+  --shift-others-sub-date-border: #2e2e2e;
+  --shift-date-inner-border: rgba(255,255,255,0.05);
   --shift-own-empty-bg: #232328;
   --shift-own-empty-date-bg: #2b2b32;
   /* Contorno card TUO (Variante A, tono A3): grigio medio, meno brillante del bianco pieno */
@@ -420,6 +433,19 @@
      box-shadow inset = zero costi di layout e zero intersezioni col divisore verticale.
      In secondo piano per design (più chiaro del border-right della data). */
   .shift-content-divider { box-shadow: inset 0 1px 0 var(--shift-inner-border); }
+
+  /* Colonna data delle card NON prime del giorno: sfondo opaco dedicato + divisore
+     verticale PIENO (stesso colore del primo del giorno → colonna continua).
+     Sostituisce il vecchio `opacity-20` che sbiadiva anche ordinale e border-right. */
+  .shift-date-sub-others {
+    background: var(--shift-others-sub-date-bg);
+    border-right: 1px solid var(--shift-others-sub-date-border);
+  }
+
+  /* Separatore orizzontale della colonna data, allineato a .shift-content-divider
+     del corpo (stesso inset 1px in alto): la linea del gruppo attraversa TUTTA la
+     card, con colore dedicato diverso da quello del corpo. */
+  .shift-date-divider { box-shadow: inset 0 1px 0 var(--shift-date-inner-border); }
 
   /* Shift type pill classes — bordo 1px nel colore del testo al 30% (adattivo ai 2 temi) */
   .pill-mattina    { background: var(--pill-mattina-bg); color: var(--pill-mattina-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
