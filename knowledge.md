@@ -117,7 +117,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   Bump `CACHE_NAME` in `sw.js` a ogni cambio icone/manifest (cache-first).
 - **Bordi card turni/ferie (05/08/2026):** gerarchia a 3 livelli — divisore verticale della
   colonna data IN PRIMO PIANO (ininterrotto: le giunzioni interne rendono TRASPARENTE il bordo
-  orizzontale di stato con `.shift-grouped-t/b`). Card NON prime del giorno (ordinali 2°, 3°):
+  orizzontale di stato con `.shift-grouped-t/b`; la card successiva si sovrappone di 1px
+  (`margin-top: -1px` in `.shift-grouped-t`) così il bordo trasparente mostra lo sfondo della
+  card e non della pagina → alla giunzione resta UN SOLO separatore chiaro, nessuna linea
+  scura residua). Card NON prime del giorno (ordinali 2°, 3°):
   colonna data opaca dedicata `.shift-date-sub-others` (sfondo più chiaro del primo + border-right
   PIENO dello stesso colore → divisore continuo) — niente `opacity-20` sull'intero blocco (sbiadiva
   ordinale e divisore). Separatore orizzontale di gruppo sulla TUTTA larghezza con colori diversi:
