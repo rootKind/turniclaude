@@ -27,6 +27,7 @@ interface Props {
   isSameDateAsPrevious?: boolean
   isSameDateAsNext?: boolean
   isPrevOwn?: boolean
+  prevDateClass?: string | null
   dateIndex?: number
   year: number
   isHighlighted?: boolean
@@ -64,6 +65,7 @@ export function VacationRequestItem({
   isSameDateAsPrevious = false,
   isSameDateAsNext = false,
   isPrevOwn = false,
+  prevDateClass = null,
   dateIndex = 0,
   year,
   isHighlighted = false,
@@ -279,6 +281,11 @@ export function VacationRequestItem({
           // verticale mai tagliato) e il separatore vive solo sul contenuto (.shift-content-divider).
           // MAI sulla propria card (Variante A): il riquadro TUO resta completo su 4 lati.
           !isOwn && isSameDateAsPrevious && 'shift-grouped-t',
+          // Variante striscia: si fonde con la colonna data della card PRECEDENTE
+          // (prima del giorno / sub-card / propria), non con quella della card corrente.
+          !isOwn && isSameDateAsPrevious && prevDateClass === 'shift-date-others' && 'shift-grouped-t-date',
+          !isOwn && isSameDateAsPrevious && prevDateClass === 'shift-date-own-empty' && 'shift-grouped-t-own-empty',
+          !isOwn && isSameDateAsPrevious && prevDateClass === 'shift-date-own-interest' && 'shift-grouped-t-own-interest',
           // Da collassata con card dopo → giunzione trasparente; da ESPANSA → separatore
           // chiaro riga↔pannello (il bordo inferiore della riga, come da commento del pannello).
           !isOwn && isSameDateAsNext && !expanded && 'shift-grouped-b',

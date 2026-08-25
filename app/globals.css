@@ -430,7 +430,46 @@
      bordo trasparente della precedente — che quindi mostra lo SFONDO della card e non
      quello della pagina — così alla giunzione resta UN SOLO separatore (il chiaro
      `.shift-content-divider`/`.shift-date-divider`), senza linea scura residua. */
-  .shift-grouped-t { border-top-color: transparent; margin-top: -1px; }
+  .shift-grouped-t {
+    border-top-color: transparent;
+    margin-top: -1px;
+    /* FIX (25/08/2026): la striscia di 1px sotto il bordo trasparente mostrava lo
+       SFONDO della card, che nella colonna data non coincide con i colori della
+       colonna stessa → alla giunzione compariva una riga orizzontale in più
+       (più chiara in tema chiaro, più scura in scuro), sopra il separatore chiaro.
+       Si ridipinge la striscia con i colori della colonna data della card
+       PRECEDENTE (quella SOPRA la giunzione): così la colonna data scorre continua
+       attraverso la giunzione e la riga sparisce. Le varianti seguenti scelgono il
+       colore giusto in base alla colonna della card precedente (prima del giorno /
+       sub-card / propria), passata dalle liste come `prevDateClass`. I 52px devono
+       restare allineati a `w-[52px]` delle colonne data (shift-item.tsx /
+       vacation-request-item.tsx). */
+    background-image: linear-gradient(to right,
+      var(--shift-others-sub-date-bg) 0 51px,
+      var(--shift-others-sub-date-border) 51px 52px,
+      transparent 52px);
+  }
+  /* Card precedente = PRIMA del giorno (colonna .shift-date-others) */
+  .shift-grouped-t-date {
+    background-image: linear-gradient(to right,
+      var(--shift-others-date-bg) 0 51px,
+      var(--shift-others-date-border) 51px 52px,
+      transparent 52px);
+  }
+  /* Card precedente = propria senza interessi (colonna .shift-date-own-empty) */
+  .shift-grouped-t-own-empty {
+    background-image: linear-gradient(to right,
+      var(--shift-own-empty-date-bg) 0 51px,
+      var(--shift-own-empty-border) 51px 52px,
+      transparent 52px);
+  }
+  /* Card precedente = propria con interessi (colonna .shift-date-own-interest) */
+  .shift-grouped-t-own-interest {
+    background-image: linear-gradient(to right,
+      var(--shift-own-interest-date-bg) 0 51px,
+      var(--shift-own-interest-border) 51px 52px,
+      transparent 52px);
+  }
   .shift-grouped-b { border-bottom-color: transparent; }
 
   /* Separatore orizzontale interno del gruppo, SOLO sul contenuto (non sul blocco data):

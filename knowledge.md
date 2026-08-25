@@ -129,6 +129,19 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   non è la propria (`isPrevOwn`, da `prev.user_id === effectiveUserId`). Riquadro TUO (Variante A)
   completo su 4 lati e MAI toccato dalle giunzioni né dai separatori (guard `!isOwn`, `!isPrevOwn`).
   Contorno TUO tono A3: `--shift-own-empty/interest-border` = `#969696` (chiaro) / `#8a8a8a` (scuro).
+  FIX riga in più alla giunzione (25/08/2026): la striscia di 1px sotto il bordo trasparente
+  mostrava lo sfondo della CARD, che nella colonna data non coincide con i colori della colonna
+  → compariva una riga orizzontale in più (più chiara in chiaro, più scura in scuro) sopra il
+  separatore. `.shift-grouped-t` ridipinge la striscia con i colori della colonna data della card
+  PRECEDENTE tramite `background-image: linear-gradient(to right, <bg> 0 51px, <border> 51px
+  52px, transparent 52px)` (i 52px devono restare allineati a `w-[52px]` delle colonne data in
+  shift-item.tsx / vacation-request-item.tsx). IMPORTANTE: la striscia deve fondersi con la
+  card SOPRA, NON con la card sotto (il primo tentativo usava `--shift-others-sub-date-bg` fisso
+  → la riga #d7e3ec/#202020 risaltava contro la colonna della card precedente). Le liste
+  (shift-list, vacation-request-list) calcolano `prevDateClass` (classe colonna data della card
+  precedente: prima del giorno / sub / propria) e lo passano al componente, che applica la
+  variante giusta: `.shift-grouped-t` (default sub-date), `.shift-grouped-t-date`
+  (prima del giorno), `.shift-grouped-t-own-empty`, `.shift-grouped-t-own-interest`.
 - **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013) —
   colori PER PERSONA dei desk (board /turnisala, admin o manager), diverso dall'ex-funzionalità
   colori tema. Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).
