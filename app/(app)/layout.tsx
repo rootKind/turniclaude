@@ -4,6 +4,7 @@ import { BottomNav } from '@/components/nav/bottom-nav'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import { isAdmin } from '@/types/database'
 import { PageTransitionWrapper } from '@/components/providers/page-transition'
+import { ChangelogDialog } from '@/components/providers/changelog-dialog'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -33,6 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen safe-area-pt pb-[calc(4rem_+_env(safe-area-inset-bottom,0px))]">
       <PageTransitionWrapper>{children}</PageTransitionWrapper>
       <NotificationBell />
+      <ChangelogDialog />
       <BottomNav feedbackUnread={feedbackUnread} isAdmin={admin} isManager={manager} />
     </div>
   )

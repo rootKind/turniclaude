@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Sun, Moon } from 'lucide-react'
 import { FeedbackDialog } from './feedback-dialog'
+import { CHANGELOG_SHOW_ALL_EVENT } from '@/components/providers/changelog-dialog'
 import { NotificationHelpDialog } from './notification-help-dialog'
 import { toast } from 'sonner'
 import { useState } from 'react'
@@ -205,17 +206,29 @@ export function SettingsPage() {
         <Button variant="outline" className="w-full" onClick={() => setFeedbackOpen(true)}>
           Invia segnalazione
         </Button>
-        <Button variant="destructive" className="w-full" onClick={handleLogout}>
+        <Button variant="destructive" className="w-full border-destructive/40" onClick={handleLogout}>
           Esci
         </Button>
       </section>
 
+      <Separator />
+
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Info app</h2>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => window.dispatchEvent(new Event(CHANGELOG_SHOW_ALL_EVENT))}
+        >
+          Novità
+        </Button>
+        <p className="text-center text-xs text-muted-foreground pt-1 pb-2">
+          v1.225 · 05d58ac — ultimo aggiornamento: 04/08/2026 00:34
+        </p>
+      </section>
+
       <NotificationHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
-
-      <p className="text-center text-xs text-muted-foreground pb-2">
-        v1.225 · 05d58ac — ultimo aggiornamento: 04/08/2026 00:34
-      </p>
     </main>
   )
 }

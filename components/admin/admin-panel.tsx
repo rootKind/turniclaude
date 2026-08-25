@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, FlaskConical } from 'lucide-react'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, FlaskConical, Megaphone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { getAppSettings, updateAppSettings } from '@/lib/queries/app-settings'
@@ -10,6 +10,7 @@ import { NotificationTestDialog } from './notification-test-dialog'
 import { FeedbackList } from './feedback-list'
 import { UserManagementDialog } from './user-management-dialog'
 import { ImpersonateDialog } from './impersonate-dialog'
+import { ChangelogManagerDialog } from './changelog-manager-dialog'
 
 export function AdminPanel() {
   const router = useRouter()
@@ -20,6 +21,7 @@ export function AdminPanel() {
   const [feedbackUnread, setFeedbackUnread] = useState(0)
   const [userCount, setUserCount] = useState(0)
   const [impersonateOpen, setImpersonateOpen] = useState(false)
+  const [changelogOpen, setChangelogOpen] = useState(false)
   const [minYearTurniferie, setMinYearTurniferie] = useState(2026)
   const [minYearVacanze, setMinYearVacanze] = useState(2026)
   const [savingYears, setSavingYears] = useState(false)
@@ -122,6 +124,12 @@ export function AdminPanel() {
           description="Invia notifiche di prova a un dipendente specifico"
           onClick={() => setNotifTestOpen(true)}
         />
+        <ActionTile
+          icon={<Megaphone size={18} />}
+          title="Changelog"
+          description="Gestisci le novità, lancia una nuova versione, vedi chi le ha lette"
+          onClick={() => setChangelogOpen(true)}
+        />
       </div>
 
       {/* Anno minimo ferie */}
@@ -188,6 +196,7 @@ export function AdminPanel() {
       <UserManagementDialog open={usersOpen} onClose={() => setUsersOpen(false)} />
       <FeedbackList open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <ImpersonateDialog open={impersonateOpen} onClose={() => setImpersonateOpen(false)} />
+      <ChangelogManagerDialog open={changelogOpen} onClose={() => setChangelogOpen(false)} />
     </div>
   )
 }
