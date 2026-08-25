@@ -13,16 +13,19 @@ export function PwaGuard({ children }: { children: React.ReactNode }) {
   const AUTH_BYPASS = ['/installa', '/login', '/reset-password', '/update-password', '/auth/confirm', '/confirm-email', '/verify-otp']
 
   useEffect(() => {
-    // Dev backdoor: ?dev=rootkind-dev-2026 → bypass PWA check for this session
+    // Dev backdoor: ?dev=rootkind-dev-2026 → bypass PWA check.
+    // Salvato in localStorage (non sessionStorage): al reload la sessionStorage
+    // viene svuotata e il bypass si perdeva → reindirizzo a /installa, facendo
+    // sembrare la sessione persa anche se il cookie auth è ancora valido.
     const params = new URLSearchParams(window.location.search)
     if (params.get('dev') === DEV_BYPASS_TOKEN) {
-      sessionStorage.setItem(DEV_BYPASS_KEY, '1')
+      localStorage.setItem(DEV_BYPASS_KEY, '1')
       // Strip the param from URL without reload
       params.delete('dev')
       const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '')
       window.history.replaceState(null, '', newUrl)
     }
-    const isDevBypass = sessionStorage.getItem(DEV_BYPASS_KEY) === '1'
+    const isDevBypass = localStorage.getItem(DEV_BYPASS_KEY) === '1'
 
     const isPWA =
       window.matchMedia('(display-mode: standalone)').matches ||

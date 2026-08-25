@@ -51,6 +51,11 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (event.request.method !== 'GET') return
   if (url.origin !== self.location.origin) return
+  // In DEV (localhost) il service worker NON intercetta nulla: i chunk CSS/JS
+  // arrivano sempre freschi dal dev server (evita la cache-first che serviva
+  // codice vecchio rendendo il debug ingannevole). In produzione (hostname !=
+  // localhost) il comportamento cache-first resta invariato.
+  if (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1') return
   // Never intercept the SW script itself (would block updates) nor API calls.
   if (url.pathname === '/sw.js') return
   // Only cache static assets — never pages/API (stale HTML/JSON is worse than offline)
