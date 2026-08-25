@@ -233,8 +233,8 @@ export default function TurniFeriePage() {
       className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
       style={{ height: 'calc(100dvh - 4rem)' }}
     >
-      <div className="flex items-center gap-2 mb-3 bg-card border border-border rounded-xl pl-3 pr-3 py-2 mr-14">
-        <h1 className="text-lg font-bold flex-1">Turni Ferie</h1>
+      <div className="flex items-center flex-wrap gap-2 mb-3 bg-card border border-border rounded-xl pl-3 pr-3 py-2 mr-14">
+        <h1 className="text-lg font-bold flex-1 min-w-[120px]">Turni Ferie</h1>
         {canManage && (
           <button
             onClick={() => setViewSecondary(v => !v)}

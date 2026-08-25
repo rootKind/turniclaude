@@ -6,7 +6,11 @@ import { ShiftDialog } from '@/components/shifts/shift-dialog'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { usePush } from '@/hooks/use-push'
 import { isAdmin, isManager } from '@/types/database'
-import { X } from 'lucide-react'
+import { X, Palmtree } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+
+const CONGEDO_FORM_URL = 'https://forms.office.com/e/aQWL0B86kC'
 
 type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_manager?: boolean; is_dco_plus?: boolean }
 
@@ -16,6 +20,7 @@ function DashboardContent() {
   const asUserId = searchParams.get('as')
 
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [congedoOpen, setCongedoOpen] = useState(false)
   const [viewSecondary, setViewSecondary] = useState(false)
   const [allUsers, setAllUsers] = useState<UserOption[]>([])
   const [impersonatedUser, setImpersonatedUser] = useState<UserOption | null>(null)
@@ -117,9 +122,22 @@ function DashboardContent() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-4 pr-12">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold">Turni Sala C.C.C.</h1>
+      <div className="flex items-center justify-between mb-4 pr-12 gap-y-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <h1 className="text-lg font-bold leading-snug">Turni Sala C.C.C.</h1>
+          {/* Richiesta congedo (modulo esterno) — stesso stile del tasto Esci (destructive + bordo).
+              La scritta "Chiedi congedo" è SEMPRE visibile (non interrotta da breakpoint):
+              se manca spazio la riga dell'header va a capo (flex-wrap sul contenitore), senza
+              mai nascondere la scritta — c'è spazio ben oltre le viewport strette del telefono. */}
+          <Button
+            variant="destructive"
+            onClick={() => setCongedoOpen(true)}
+            aria-label="Chiedi congedo"
+            className="flex-shrink-0 gap-1.5 px-3 rounded-full border-destructive/40"
+          >
+            <Palmtree size={16} strokeWidth={1.8} />
+            <span className="whitespace-nowrap">Chiedi congedo</span>
+          </Button>
           {/* Category toggle — hidden when impersonating (category is from impersonated user) */}
           {profile && canToggleCategory && !isImpersonating && (
             <button
@@ -167,6 +185,31 @@ function DashboardContent() {
         isDcoPlus={viewerIsDcoPlus}
         impersonatingUserId={isImpersonating ? effectiveUserId : undefined}
       />
+
+      <Dialog open={congedoOpen} onOpenChange={v => !v && setCongedoOpen(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Congedo</DialogTitle>
+            <DialogDescription>
+              Non hai trovato il cambio di cui hai bisogno? Chiedi congedo{' '}
+              <a
+                href={CONGEDO_FORM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-primary underline underline-offset-2 hover:opacity-70 transition-opacity"
+              >
+                qui
+              </a>
+              .
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" className="w-full" onClick={() => setCongedoOpen(false)}>
+              Chiudi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
