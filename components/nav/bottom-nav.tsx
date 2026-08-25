@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, Upload, History, Pencil } from 'lucide-react'
+import { Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, ArrowLeft, ArrowRight, Upload, History, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
@@ -26,11 +26,15 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
   const isImpostazioni = pathname === '/impostazioni'
   const isNotifiche = pathname === '/notifiche'
   const isTurni = pathname === '/turnisala' || pathname === '/turniferie'
+  const isCambi = pathname === '/dashboard' || pathname === '/vacanze'
+  const isDashboard = pathname === '/dashboard'
+  const isTuoTurno = pathname === '/tuoturno'
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [notifFabOpen, setNotifFabOpen] = useState(false)
   const [adminFabOpen, setAdminFabOpen] = useState(false)
   const [ferieAdminFabOpen, setFerieAdminFabOpen] = useState(false)
   const [turniLastPage, setTurniLastPage] = useState('/turnisala')
+  const [cambiLastPage, setCambiLastPage] = useState('/dashboard')
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressTriggered = useRef(false)
   const ferieLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -39,6 +43,8 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
   useEffect(() => {
     const saved = localStorage.getItem('turni-last-page')
     if (saved === '/turnisala' || saved === '/turniferie') setTurniLastPage(saved)
+    const savedCambi = localStorage.getItem('cambi-last-page')
+    if (savedCambi === '/dashboard' || savedCambi === '/vacanze') setCambiLastPage(savedCambi)
   }, [])
 
   useEffect(() => {
@@ -47,6 +53,13 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
       setTurniLastPage(pathname)
     }
   }, [isTurni, pathname])
+
+  useEffect(() => {
+    if (isCambi) {
+      localStorage.setItem('cambi-last-page', pathname)
+      setCambiLastPage(pathname)
+    }
+  }, [isCambi, pathname])
   const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
 
   function handleTurniSalaFabPointerDown() {
@@ -110,10 +123,6 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
     }
   }
 
-  const leftLinks = [
-    { href: '/dashboard',    icon: CalendarSwitchIcon, label: 'Cambi turno' },
-    { href: '/vacanze',      icon: PalmSwitchIcon,     label: 'Cambi ferie' },
-  ]
   const rightLinks = [
     { href: '/impostazioni', icon: Settings,   label: 'Impostazioni', badge: feedbackUnread },
   ]
@@ -290,9 +299,44 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-area-pb">
           <div className="flex items-stretch h-16 max-w-lg mx-auto relative">
-            {leftLinks.map(({ href, icon: Icon, label }) => (
-              <NavItem key={href} href={href} icon={Icon} label={label} active={pathname === href} />
-            ))}
+            {/* Bottone 'Cambi': alterna tra /dashboard (cambi turno) e /vacanze (cambi ferie).
+                Layout COMPATTO: due frecce ORIZZONTALI (→ 'Turni', ← 'Ferie') impilate una sopra
+                l'altra, 'Cambi' sotto. Si illumina SOLO la freccia della pagina attiva: su
+                /dashboard → 'Turni', su /vacanze ← 'Ferie' (foreground+bold+stroke 2.5); l'altra
+                resta muted. 'Cambi' evidenziato quando si è su una delle due. */}
+            <button
+              onClick={() => router.push(isCambi ? (pathname === '/dashboard' ? '/vacanze' : '/dashboard') : cambiLastPage)}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
+              aria-label="Cambi"
+            >
+              <div className="flex flex-col items-start leading-none">
+                <span className={cn('flex items-center gap-1 leading-none px-1 rounded', isDashboard ? 'text-foreground' : 'text-muted-foreground')}>
+                  <ArrowRight size={12} strokeWidth={isDashboard ? 2.5 : 1.5} />
+                  <span className={cn('text-[7px] leading-none', isDashboard && 'font-semibold')}>Turni</span>
+                </span>
+                <span className={cn('flex items-center gap-1 leading-none px-1 rounded mt-0.5', isVacanze ? 'text-foreground' : 'text-muted-foreground')}>
+                  <ArrowLeft size={12} strokeWidth={isVacanze ? 2.5 : 1.5} />
+                  <span className={cn('text-[7px] leading-none', isVacanze && 'font-semibold')}>Ferie</span>
+                </span>
+              </div>
+              <span className={cn('text-[10px]', isCambi ? 'text-foreground' : 'text-muted-foreground')}>Cambi</span>
+            </button>
+
+            {/* 'Il tuo turno': icona calendario singolo che apre la mia piantina personale (/tuoturno).
+                Concettualmente distinta da 'Cambi' (frecce-scambio) e da 'Turni' (calendario+palma), anche
+                se condivide l'icona calendario con 'Turni'. */}
+            <Link
+              href="/tuoturno"
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
+              aria-label="Il tuo turno"
+            >
+              <Calendar
+                size={22}
+                strokeWidth={isTuoTurno ? 2.5 : 1.5}
+                className={isTuoTurno ? 'text-foreground' : 'text-muted-foreground'}
+              />
+              <span className={cn('text-[10px]', isTuoTurno ? 'text-foreground' : 'text-muted-foreground')}>Il tuo turno</span>
+            </Link>
 
             {/* FAB center button */}
             <div className="flex-1 flex items-center justify-center">
@@ -436,25 +480,6 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
       </nav>
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </>
-  )
-}
-
-
-function CalendarSwitchIcon({ size = 22, strokeWidth = 1.5 }: { size?: number; strokeWidth?: number }) {
-  return (
-    <span className="relative inline-block">
-      <Calendar size={size} strokeWidth={strokeWidth} />
-      <ArrowLeftRight size={9} strokeWidth={2.5} className="absolute -right-2 -bottom-0.5" />
-    </span>
-  )
-}
-
-function PalmSwitchIcon({ size = 22, strokeWidth = 1.5 }: { size?: number; strokeWidth?: number }) {
-  return (
-    <span className="relative inline-block">
-      <Palmtree size={size} strokeWidth={strokeWidth} />
-      <ArrowLeftRight size={9} strokeWidth={2.5} className="absolute -right-2 -bottom-0.5" />
-    </span>
   )
 }
 
