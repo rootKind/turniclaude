@@ -541,19 +541,23 @@ export function DeskBoard({
           <div className="flex-1" />
 
           <div className="flex rounded-lg overflow-hidden border sala-toolbar-nav-border text-xs font-semibold shrink-0">
-            {(['N', 'M', 'P'] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => setSelectedShift(s)}
-                className={`px-2 py-1.5 transition-colors ${
-                  selectedShift === s
-                    ? 'sala-toolbar-chip'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
+            {SHIFT_ORDER.map((s, i) => {
+              const isSelected = selectedShift === s
+              const prevNotSelected = i === 0 || selectedShift !== SHIFT_ORDER[i - 1]
+              return (
+                <button
+                  key={s}
+                  onClick={() => setSelectedShift(s)}
+                  className={`px-2 py-1.5 transition-colors ${
+                    isSelected
+                      ? 'sala-toolbar-chip'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  } ${i > 0 && !isSelected && prevNotSelected ? 'sala-toolbar-sep' : ''}`}
+                >
+                  {s}
+                </button>
+              )
+            })}
           </div>
 
           {canUpload && (

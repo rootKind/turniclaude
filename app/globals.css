@@ -47,10 +47,10 @@
   --secondary: oklch(0.935 0.020 225);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.935 0.020 225);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: #5f5f5f;
   --accent: oklch(0.935 0.020 225);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  --destructive: #dc2626;
   --border: oklch(0.875 0.025 225);
   --input: oklch(0.875 0.025 225);
   --ring: oklch(0.650 0.050 225);
@@ -89,7 +89,7 @@
   --pill-mattina-bg: #dbeafe;
   --pill-mattina-text: #1d4ed8;
   --pill-pomeriggio-bg: #fef3c7;
-  --pill-pomeriggio-text: #b45309;
+  --pill-pomeriggio-text: #a14a06;
   --pill-notte-bg: #ede9fe;
   --pill-notte-text: #6d28d9;
 
@@ -177,18 +177,17 @@
   --state-pending-btn-bg: #4b5563;
   --state-pending-btn-hover: #374151;
   --state-pending-btn-text: #ffffff;
-  --state-confirm-text: #15803d;
+  --state-confirm-text: #126b2f;
   --state-confirm-bg: rgba(22,163,74,0.12);
   --state-confirm-border: rgba(22,163,74,0.40);
   --state-confirm-ring-hover: rgba(22,163,74,0.24);
-  --state-confirm-btn-bg: #16a34a;
-  --state-confirm-btn-hover: #15803d;
+  --state-confirm-btn-bg: #15803d;
+  --state-confirm-btn-hover: #106b31;
   --state-confirm-btn-text: #ffffff;
 
   /* Sala desk board — accento nero */
   --desk-schedule-border: #c9dcee;
   --sala-highlight-border: #1c1c1c;
-  --sala-highlight-ring: rgba(15,23,42,0.18);
   --sala-own-badge-bg: #dbeafe;
   --sala-own-badge-border: #1c1c1c;
   --sala-own-badge-text: #1c1c1c;
@@ -225,8 +224,8 @@
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+  --destructive: #dc2626;
+  --border: oklch(1 0 0 / 16%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
 
@@ -235,7 +234,7 @@
   --shift-others-date-bg: #252525;
   --shift-others-date-border: #2e2e2e;
   /* Bordo card — dark: tutte hanno bordo; la card dell'utente loggato è bianca (più marcata) */
-  --shift-others-border: #34343d;
+  --shift-others-border: #41414c;
   --shift-inner-border: rgba(255,255,255,0.08);
   /* Colonna data delle card NON prime del giorno — scuro (stesso commento di :root) */
   --shift-others-sub-date-bg: #202020;
@@ -255,7 +254,7 @@
 
   /* Shift type pill colors — dark */
   --pill-mattina-bg: #1e3a5f;
-  --pill-mattina-text: #60a5fa;
+  --pill-mattina-text: #6fb1fc;
   --pill-pomeriggio-bg: #3b2300;
   --pill-pomeriggio-text: #fbbf24;
   --pill-notte-bg: #2d1b69;
@@ -298,13 +297,13 @@
 
   /* My period — dark: header più chiaro delle altre + accento bianco */
   --my-period-border: #ffffff;
-  --my-period-header-bg: #3a3a3a;
+  --my-period-header-bg: #454545;
   --my-period-content-bg: rgba(255,255,255,0.06);
   --my-period-text: #ffffff;
   --my-period-dot: #ffffff;
 
   /* Period cards (turniferie) — header uniforme più chiaro del corpo */
-  --period-card-header-bg: #2b2b2b;
+  --period-card-header-bg: #343434;
 
   /* Period pills — dark */
   --period-1-pill-bg: rgba(6,78,59,0.38);   --period-1-pill-text: #6ee7b7;
@@ -349,21 +348,20 @@
   --state-confirm-bg: rgba(34,197,94,0.14);
   --state-confirm-border: rgba(34,197,94,0.45);
   --state-confirm-ring-hover: rgba(34,197,94,0.26);
-  --state-confirm-btn-bg: #16a34a;
-  --state-confirm-btn-hover: #15803d;
+  --state-confirm-btn-bg: #15803d;
+  --state-confirm-btn-hover: #106b31;
   --state-confirm-btn-text: #ffffff;
 
   /* Sala — dark: highlight bianco, titolo più chiaro del corpo */
   --desk-schedule-border: var(--border);
   --sala-highlight-border: #ffffff;
-  --sala-highlight-ring: rgba(255,255,255,0.25);
   --sala-own-badge-bg: rgba(255,255,255,0.14);
   --sala-own-badge-border: #ffffff;
   --sala-own-badge-text: #ffffff;
   /* Sala desk card — dark */
   --sala-card-bg: #262626;
-  --sala-card-border: #2e2e2e;
-  --sala-card-title-bg: #383838;
+  --sala-card-border: #363636;
+  --sala-card-title-bg: #454545;
   --sala-card-body-bg: #2b2b2b;
   --sala-card-tir-bg: #2f2f2f;
   /* Sala — pill "Altri presenti" — dark */
@@ -594,10 +592,11 @@
   .sala-toolbar-nav-bg     { background-color: var(--sala-toolbar-nav-bg); }
   .sala-toolbar-nav-border { border-color: var(--sala-toolbar-nav-border); }
   .sala-toolbar-nav-text   { color: var(--sala-toolbar-nav-text); }
+  .sala-toolbar-sep        { border-left: 1px solid var(--sala-toolbar-nav-border); }
 
   .desk-card-highlight {
     border-color: var(--sala-highlight-border);
-    box-shadow: 0 0 0 2px var(--sala-highlight-ring);
+    box-shadow: 0 0 0 1px var(--sala-highlight-border);
   }
 
   .desk-own-badge {

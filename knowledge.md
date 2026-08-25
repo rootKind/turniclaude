@@ -102,6 +102,25 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **Sistema colori 2-tinte (03/08/2026):** tema scuro = solo bianco/nero (nessun ambra nel
   chrome: highlight, my-period, chip selezionati, badge sala sono bianchi); tema chiaro =
   negativo del scuro: nero + celeste molto lieve (accent `#38bdf8` sostituito col nero).
+- **Parità di leggibilità tra i temi (25/08/2026) — REGOLA:** la scelta del tema deve essere
+  MERAMENTE estetica: ogni coppia testo/sfondo deve passare WCAG AA (≥4.5:1) in ENTRAMBI i temi,
+  e le bande adiacenti (titolo/corpo, header/card, bordi) devono restare distinguibili in
+  entrambi. Audited con canvas-readback (browser risolve oklch/lab → sRGB) su tutte le variabili
+  di `globals.css`. Fix applicati: `--muted-foreground` chiaro `#5f5f5f` (prima oklch 0.556 ≈
+  #737373 → 3.94:1 su `--muted`, sotto AA); `--destructive` `#dc2626` in ENTRAMBI (prima salmone
+  #ff6467 → 2.69:1 su bg chiaro); `--state-confirm-btn-bg` `#15803d` (+ hover `#106b31`) in
+  entrambi (bianco su #16a34a era 3.3:1); `--state-confirm-text` chiaro `#126b2f`;
+  `--pill-mattina-text` scuro `#6fb1fc` (era 4.52); `--pill-pomeriggio-text` chiaro `#a14a06`
+  (era 4.51); bordi/bande scuri più visibili: `--border` 16% bianco (era 10%),
+  `--sala-card-border` `#363636`, `--shift-others-border` `#41414c`,
+  `--period-card-header-bg` `#343434`, `--my-period-header-bg` `#454545`.
+- **Convenzione elevazione tema scuro (25/08/2026):** la card resta PIÙ CHIARA della pagina anche
+  in tema scuro (best practice Material/Apple: l'elevazione in dark si esprime SCHIARENDO la
+  superficie, niente superfici nere pure). NON invertire il corpo rispetto alla pagina
+  (es. corpo #000000: sbagliato, testato e scartato). Ciò che si inverte tra i temi è solo il
+  rapporto titolo↔corpo: chiaro `titolo < corpo`, scuro `titolo > corpo` (attualmente
+  `#454545` vs `#2b2b2b`). Sfondo pagina scuro `#0a0a0a` accettato (Material suggerisce
+  `#121212`, ma l'utente ha scelto di mantenerlo).
   Restano COLORATI (semantici, NON toccare): pill Mattina/Pomeriggio/Notte (fasce orarie),
   pill periodi ferie P1–P6 (stagioni), pannelli match (verde) / chain (viola), badge DCO/NONI,
   banner impersonazione (arancione). Vista manager: stato "in attesa" = neutro
@@ -145,6 +164,20 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013) —
   colori PER PERSONA dei desk (board /turnisala, admin o manager), diverso dall'ex-funzionalità
   colori tema. Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).
+- **Sala /turnisala — highlight card + separatori NMP (25/08/2026):** `.desk-card-highlight` =
+  bordo card nel colore `--sala-highlight-border` (nero in chiaro / bianco in scuro) + anello
+  `box-shadow: 0 0 0 1px` dello STESSO colore → contorno solido di 2px al bordo della card
+  (distinguibile per spessore oltre che per colore). NON usare anelli con opacità ridotta
+  (es. 25%): il primo fix con `0 0 0 2px` al 25% creava una banda grigia FUORI dal bordo che
+  faceva sembrare l'highlight spostato DENTRO la card. Separatori toolbar NMP: `.sala-toolbar-sep`
+  = `border-left: 1px solid var(--sala-toolbar-nav-border)` (stesso colore/spessore del bordo
+  del contenitore); in desk-board.tsx la classe è applicata SOLO a un bottone non selezionato
+  il cui vicino di sinistra è anch'esso non selezionato (mai a fianco della chip selezionata:
+  con P selezionato il separatore sta tra N|M, con N tra M|P, con M nessuno). Colori titolo/corpo
+  card tema scuro (25/08/2026): `--sala-card-title-bg` = `#454545` / `--sala-card-body-bg` =
+  `#2b2b2b` (prima `#383838`): nel chiaro lo stacco titolo↔corpo è marcato (`#dfe8f2` vs `#f8fbfd`,
+  ΔRGB≈18) mentre in scuro era quasi impercettibile (Δ≈13) → col nuovo Δ≈26 il titolo risalta
+  quanto nel chiaro. Il titolo card è `text-xs font-semibold` (12px/600) IDENTICO nei due temi.
 - **Anno minimo (gate + skeleton condiviso):** `min_year_turniferie` / `min_year_vacanze`
   caricano in modo asincrono da `app_settings`. Sia `/turniferie` sia `/vacanze` mostrano uno
   skeleton finché `minYear === null` — l'anno reale (es. 2027) non viene MAI preceduto dal flash
