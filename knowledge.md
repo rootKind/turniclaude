@@ -178,6 +178,69 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `#2b2b2b` (prima `#383838`): nel chiaro lo stacco titolo↔corpo è marcato (`#dfe8f2` vs `#f8fbfd`,
   ΔRGB≈18) mentre in scuro era quasi impercettibile (Δ≈13) → col nuovo Δ≈26 il titolo risalta
   quanto nel chiaro. Il titolo card è `text-xs font-semibold` (12px/600) IDENTICO nei due temi.
+- **Changelog popup (25/08/2026) — DB-backed:** alla prima apertura della PWA dopo un
+  aggiornamento viene mostrato un dialog "Novità di questa versione" con le entry non ancora
+  viste. PERSISTENZA SERVER-SIDE: tabella `changelog_entries` (version, date, title, changes
+  jsonb) + `changelog_reads` (user_id PK, last_seen_version) — migration 016 (seed v1/v2).
+  API: `GET /api/changelog` (entry + lastSeen dell'utente, RLS authed/own-row),
+  `POST /api/changelog/read` (upsert last_seen), admin: `GET/POST/DELETE /api/admin/changelog`
+  (crea/aggiorna/elimina entry; POST con `{ forceNew: true }` crea version = max+1 → TUTTI gli
+  utenti la vedranno), `GET /api/admin/changelog/reads` (join users → changelog_reads per la
+  tabella letture admin). UI: `components/providers/changelog-dialog.tsx` (montato in
+  `app/(app)/layout.tsx`, ritardo 1.5s per non sovrapporsi alla boot splash; ascolta l'evento
+  `changelog:show-all` per riaprirsi con TUTTE le entry — voce "Novità" nella sezione
+  "Info app" di `components/settings/settings-page.tsx`, accanto alla riga versione/
+  ultimo aggiornamento), gestione in `components/admin/changelog-manager-dialog.tsx`
+  (tile "Changelog" nell'admin: editor entry, forza nuova versione, tabella letture per utente).
+  **REGOLE COMPORTAMENTALI:** SOLO il pulsante "Continua" marca la versione come vista
+  (POST read): un dismiss del dialog (Escape/backdrop) o la chiusura dell'app NON flagga nulla
+  → il popup riappare al prossimo avvio finché l'utente non preme Continua. L'utente vede solo
+  le entry con version > last_seen (con 2+ release accumulate ne vede tutte le non viste).
+  A ogni release: dal pannello admin "Forza nuova versione" + compilazione entry (NON più nel
+  codice) e aggiornare il version footer in `settings-page.tsx`.
+- **Bottone congedo (25/08/2026):** in `/dashboard` accanto al titolo "Turni Sala C.C.C."
+  c'è un bottone circolare con icona palma (`Palmtree`, lucide) che apre un dialog
+  "Congedo" con il testo "Non hai trovato il cambio di cui hai bisogno? Chiedi congedo qui."
+  — "qui" è un link (target=_blank, rel=noopener noreferrer) al modulo
+  `https://forms.office.com/e/aQWL0B86kC` (costante `CONGEDO_FORM_URL` in
+  `app/(app)/dashboard/page.tsx`); il link non è mostrato per esteso. Il bottone usa lo
+  STESSO stile del tasto Esci delle impostazioni: `variant="destructive"` (sfondo rosso
+  traslucido + testo `--destructive`) + bordo `border-destructive/40` (1px) — il tasto
+  Esci ha lo stesso bordo (aggiunto 25/08/2026). La scritta "Chiedi congedo" è SEMPRE
+  visibile (NON nasconderla con breakpoint `hidden sm:inline`/`max-sm:size-8`: c'è spazio
+  ampiamente anche sotto 640px). Sotto ~330px di viewport (es. 319px) il contenitore
+  interno del titolo ha `flex-wrap`, quindi il BOTTONE scende su una riga propria sotto il
+  titolo, che resta su UNA SOLA riga (143px, non troncato su 3) — verifica 25/08/2026.
+  Header con `flex-wrap` + `min-w-0` + bottone `flex-shrink-0` e titolo `leading-snug`;
+  campanella (`NotificationBell`, fixed top-right) sempre visibile, nessun overflow X.
+- **Responsiveness orizzontale (25/08/2026):** tutte le schermate usano `max-w-lg mx-auto px-4`
+  e la campanella è `NotificationBell` **fixed top-right**. Regole: gli header delle pagine
+  (`/dashboard`, `/turnisala` header data+NMP, `/turniferie`, `/vacanze`) hanno `flex-wrap`
+  + `min-w-0`/`min-w-[120px]`/`flex-shrink-0` sui controlli così su schermi stretti la riga va
+  a capo invece di straripare (la campanella e i controlli restano sempre visibili).
+  Diviso: `mr-14` (o `pr-12`) su ogni header lascia spazio alla campanella fissa.
+  `/turnisala` forza landscape (`useLandscapeLock`): a viewport landscape-radio l'header
+  data (min ~185px) + N/M/P (~79px) richiede ~292px, quindi sta comodo; `flex-wrap`
+  garantisce che sotto quella soglia vada su 2 righe. Nessuna pagina genera scroll orizzontale
+  (bodyOverflowX false) a viewport 651 (landscape). Le card sala sono `grid-cols-3` (design previsto).
+
+- **Bottom nav (25/08/2026):** `components/nav/bottom-nav.tsx`. Struttura a 4 slot + FAB centrale
+  (sinistra→destra): (1) **"Cambi"** (icona `ArrowLeftRight` — frecce-scambio) UNICO bottone che
+    gestisce /dashboard (cambi turno) e /vacanze (cambi ferie): il tapping alterna tra le due
+    pagine e salva l'ultima in `localStorage['cambi-last-page']`; il bottone "Cambi" ha un layout
+    COMPATTO: due frecce ORIZZONTALI (→ 'Turni' `ArrowRight`, ← 'Ferie' `ArrowLeft`) impilate
+    una sopra l'altra, 'Cambi' sotto. Si illumina SOLO la freccia della pagina attiva
+    (foreground+bold+stroke 2.5): su /dashboard →'Turni', su /vacanze ←'Ferie'; l'altra resta
+    muted (stroke 1.5). "Cambi" evidenziato quando si è su una delle due. Compatto (2 righe +
+    etichetta), sta dentro nav h-16;
+    (2) **"Il tuo turno"** (icona
+    `Calendar` singola) → pagina `/tuoturno` (rotte nuova, SEGNAPOSTO: piantina personale da
+    definire); (3) **FAB centrale** (`+`) che crea nella pagina corrente (Nuovo turno su
+    /dashboard, Nuova richiesta ferie su /vacanze); (4) **"Turni"** (doppia icona
+    `Calendar`+`Palmtree`) che alterna /turnisala↔/turniferie; (5) **Impostazioni**. Le icone
+    sono volutamente DISTINTE: Cambi=frecce, Il tuo turno=calendario singolo, Turni=calendario+palm.
+    Rimossi `CalendarSwitchIcon`/`PalmSwitchIcon` (ex-icone dei due bottoni separati) e le vecchie
+    voci "Cambi turno"/"Cambi ferie".
 - **Anno minimo (gate + skeleton condiviso):** `min_year_turniferie` / `min_year_vacanze`
   caricano in modo asincrono da `app_settings`. Sia `/turniferie` sia `/vacanze` mostrano uno
   skeleton finché `minYear === null` — l'anno reale (es. 2027) non viene MAI preceduto dal flash
@@ -202,12 +265,20 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 ## Workaround INTENZIONALI — non "correggerli"
 
 - **Backdoor dev (NECESSARIA):** `components/providers/pwa-guard.tsx` —
-  `DEV_BYPASS_TOKEN = 'rootkind-dev-2026'`; visitando `?dev=rootkind-dev-2026` si salta il gate PWA
-  per la sessione. Il token è volutamente nel bundle client. NON rimuoverla, NON flaggarla come vulnerabilità.
+  `DEV_BYPASS_TOKEN = 'rootkind-dev-2026'`; visitando `?dev=rootkind-dev-2026` si salta il gate PWA.
+  Il token è volutamente nel bundle client. NON rimuoverla, NON flaggarla come vulnerabilità.
+  Il bypass è salvato in **localStorage** (chiave `__dev_bypass__`), NON sessionStorage: al reload
+  la sessionStorage si svuota e il bypass si perdeva → reindirizzo a /installa che sembrava una
+  sessione persa (in realtà il cookie auth `sb-...-auth-token` sopravvive). Con localStorage il
+  reload non richiede più il ri-login nel dev server.
   **Attenzione pratica:** aprendo il dev server da browser normale (non PWA installata) la guard
-  reindirizza sempre a `/installa` — per navigare nel dev server (es. pannello admin) serve
-  `?dev=rootkind-dev-2026` sulla PRIMA URL (salva il bypass in sessionStorage per la tab).
-  Vale anche nei test automatici headless (Edge/CDP): navigare a `/login?dev=rootkind-dev-2026`.
+  reindirizza a `/installa` — per navigare serve `?dev=rootkind-dev-2026` sulla PRIMA URL
+  (persiste in localStorage). Vale anche nei test automatici headless (Edge/CDP):
+  navigare a `/login?dev=rootkind-dev-2026`.
+- **Service worker in dev (25/08/2026):** `public/sw.js` NON intercetta nulla su localhost/127.0.0.1
+  (early return nel fetch handler): i chunk `/_next/static/` arrivano sempre freschi dal dev server,
+  niente più CSS/JS vecchi serviti dalla cache-first che rendevano il debug ingannevole.
+  In produzione (hostname diverso da localhost) il comportamento cache-first è invariato.
 - **Reset password (NON è un bug):** flusso `/reset-password` → `/verify-otp?email=...` →
   `verifyOtp({ type: 'recovery' })` → `/update-password`. Il template email di recovery invia il
   CODICE OTP a 6 cifre. Il percorso magic-link (`token_hash`) è volutamente NON gestito.
@@ -234,6 +305,8 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **Password dev per test (04/08/2026):** per facilitare i test su dev, la password di alcuni
   utenti = email: Luigi Neri, Mariapia Di Napoli, Fortunato Di Monda, Ernesto Gagliotta,
   Nicola Romano, Maurizio Tammaro (es. `lu.neri@rfi.it` / `lu.neri@rfi.it`). Vale SOLO su dev.
+  **Admin dev (25/08/2026):** anche `d.minino@rfi.it` (ADMIN_ID) è stato resettato a
+  `d.minino@rfi.it` su dev (per test del pannello admin). Su main la password resta quella reale.
 - **DCO+ attivi su dev (03/08/2026):** Ernesto Gagliotta (`bc8dc7f3-…-512d4`), Luigi Neri
   (`001c315b-…-f3ff`), Mariapia Di Napoli (`51a6cc71-…-cb2`).
 - **Attenzione auth/push:** `app/api/vacanze/check-chains` accetta `newRequestUserId`/`isSecondary`
