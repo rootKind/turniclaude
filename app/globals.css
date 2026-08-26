@@ -192,6 +192,9 @@
   --sala-card-title-bg: #dfe8f2;
   --sala-card-body-bg: #f8fbfd;
   --sala-card-tir-bg: #eef3f9;
+  /* Sala — separatore orizzontale titolo↔corpo (26/08/2026): nel chiaro resta
+     --border come prima; nello scuro = colore del contorno delle card. */
+  --sala-card-title-sep: var(--border);
   /* Sala — pill "Altri presenti" (dedicate, non usano --muted) */
   --sala-present-pill-bg: #e6edf5;
   --sala-present-pill-text: #1c1c1c;
@@ -361,6 +364,8 @@
   --sala-card-title-bg: #454545;
   --sala-card-body-bg: #171717;
   --sala-card-tir-bg: #2f2f2f;
+  /* Sala — separatore titolo↔corpo dark: stesso colore del contorno delle card. */
+  --sala-card-title-sep: var(--sala-card-border);
   /* Sala — pill "Altri presenti" — dark */
   --sala-present-pill-bg: #363636;
   --sala-present-pill-text: #f5f5f5;
@@ -521,7 +526,13 @@
   .text-offered-label{ color: var(--offered-box-label); }
   .text-offered-value{ color: var(--offered-box-value); }
 
-  .my-period-border  { border-color: var(--my-period-border) !important; }
+  .my-period-border {
+    border-color: var(--my-period-border) !important;
+    /* 26/08/2026 — stessa tecnica di .desk-card-highlight (/turnisala): bordo nel
+       colore dell'highlight + anello box-shadow 1px SUL bordo → contorno solido di
+       2px che coincide col bordo (niente gap). */
+    box-shadow: 0 0 0 1px var(--my-period-border);
+  }
   .my-period-header  { background: var(--my-period-header-bg); }
   .my-period-content { background: var(--my-period-content-bg); }
   .text-my-period    { color: var(--my-period-text); }
@@ -561,6 +572,7 @@
   .sala-card-title  { background-color: var(--sala-card-title-bg); }
   .sala-card-body   { background-color: var(--sala-card-body-bg); }
   .sala-card-tir    { background-color: var(--sala-card-tir-bg); }
+  .sala-card-title-sep { border-color: var(--sala-card-title-sep); }
   .sala-present-pill { background-color: var(--sala-present-pill-bg); color: var(--sala-present-pill-text); }
 
   /* Sala toolbar — sfondo card d'intestazione + chip selezionato + navigazione mese */
@@ -574,6 +586,26 @@
   .desk-card-highlight {
     border-color: var(--sala-highlight-border);
     box-shadow: 0 0 0 1px var(--sala-highlight-border);
+  }
+
+  /* Card turni/ferie (dashboard, vacanze) — highlight temporaneo (3s), stessa tecnica
+     di .desk-card-highlight (/turnisala): bordo nel colore dell'highlight + anello
+     box-shadow 1px SUL bordo → contorno solido di 2px coincidente col bordo.
+     Applicato al wrapper INTERNO (che ha bordo + raggio della card): il ring segue la
+     forma ORIGINALE della card (arrotondata da sola / solo sopra / solo sotto /
+     squadrata per le card centrali di un gruppo). Le card raggruppate
+     (.shift-grouped-t) hanno border-top-width: 0: durante il flash il bordo alto
+     viene ripristinato a 1px così il contorno è omogeneo su tutti e 4 i lati. */
+  .shift-card-highlight-inner {
+    border-color: var(--sala-highlight-border) !important;
+    border-top-width: 1px !important;
+    box-shadow: 0 0 0 1px var(--sala-highlight-border);
+    /* Per la sola durata del flash, la card evidenziata emerge sopra la sottostante
+       (che altrimenti copre il lato basso): position:relative crea un contesto di
+       impilamento, z-index 1 la porta davanti. Il contorno 2px risulta così
+       completo e visibile su tutti e 4 i lati. */
+    position: relative;
+    z-index: 1;
   }
 
   .desk-own-badge {

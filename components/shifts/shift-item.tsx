@@ -237,7 +237,6 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
       ref={cardRef}
       className={cn(
         'rounded-[10px] transition-shadow duration-700',
-        showRing && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
       )}
     >
       {/* Wrapper interno (25/08/2026): bordo + sfondo + raggio + clip UNICI sulla card
@@ -253,6 +252,11 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
         // MAI sulla propria card (Variante A): il riquadro TUO resta completo su 4 lati.
         !isOwn && isSameDateAsPrevious && 'shift-grouped-t',
         !isOwn && isSameDateAsNext && 'shift-grouped-b',
+        // Durante l'highlight il bordo interno diventa del colore highlight e porta
+        // il ring (che segue la forma originale della card); transition per la
+        // dissolvenza (colore + ripristino del bordo alto delle card raggruppate).
+        'transition-[border-color,border-top-width,box-shadow] duration-700',
+        showRing && 'shift-card-highlight-inner',
       )}>
         {/* Main row */}
         <div

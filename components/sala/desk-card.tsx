@@ -121,7 +121,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       <div className="flex flex-col flex-1 min-h-0" style={{ minWidth: `${minWidth}px` }}>
         {/* Title row */}
         <div
-          className={`flex items-center gap-1 px-2 border-b border-border sala-card-title shrink-0 ${!isEditing ? 'justify-center' : ''}`}
+          className={`flex items-center gap-1 px-2 border-b sala-card-title-sep sala-card-title shrink-0 ${!isEditing ? 'justify-center' : ''}`}
           style={{ height: '28px' }}
         >
           {isEditing && (
@@ -293,7 +293,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
 
       {/* Tirocinante bottom extension */}
       {tirCount > 0 && (
-        <div className="border-t border-border shrink-0">
+        <div className="border-t sala-card-title-sep shrink-0">
           <div className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 sala-card-tir">
             {tirocinanti.map((tir, i) => (
               <div key={i} ref={i === 0 ? firstTirRef : undefined} className="flex items-center gap-1">
