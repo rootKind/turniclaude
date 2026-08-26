@@ -223,7 +223,7 @@ export function SettingsPage() {
           Novità
         </Button>
         <p className="text-center text-xs text-muted-foreground pt-1 pb-2">
-          v1.225 · 05d58ac — ultimo aggiornamento: 04/08/2026 00:34
+          v1.226 · 6eb0c28 — ultimo aggiornamento: 26/08/2026 13:10
         </p>
       </section>
 
