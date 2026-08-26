@@ -49,7 +49,7 @@ hooks/          use-* (react-query) — use-shifts, use-users, use-vacation-requ
 lib/            queries/* (accesso dati), supabase/*, push/send-to-user, cache, utils, pdf-parser
 stores/         zustand: user-store (profilo persist)
 types/          database.ts — tipi schema + ADMIN_ID + isAdmin/isManager
-supabase/       migrations/ 001–015 (schema completo), functions/cleanup-shifts (edge function cron)
+supabase/       migrations/ 001–018 (schema completo), functions/cleanup-shifts (edge function cron)
 public/         manifest.json, sw.js (solo push + click)
 proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato proxy.ts)
 ```
@@ -203,7 +203,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **Changelog popup (25/08/2026) — DB-backed:** alla prima apertura della PWA dopo un
   aggiornamento viene mostrato un dialog "Novità di questa versione" con le entry non ancora
   viste. PERSISTENZA SERVER-SIDE: tabella `changelog_entries` (version, date, title, changes
-  jsonb) + `changelog_reads` (user_id PK, last_seen_version) — migration 016 (seed v1/v2).
+  jsonb) + `changelog_reads` (user_id PK, last_seen_version) — migration 016 (seed v1/v2) poi 017 (unifica: elimina v1–v3, resta la sola v4 della release 26/08/2026, idempotente).
   API: `GET /api/changelog` (entry + lastSeen dell'utente, RLS authed/own-row),
   `POST /api/changelog/read` (upsert last_seen), admin: `GET/POST/DELETE /api/admin/changelog`
   (crea/aggiorna/elimina entry; POST con `{ forceNew: true }` crea version = max+1 → TUTTI gli
@@ -220,6 +220,22 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   le entry con version > last_seen (con 2+ release accumulate ne vede tutte le non viste).
   A ogni release: dal pannello admin "Forza nuova versione" + compilazione entry (NON più nel
   codice) e aggiornare il version footer in `settings-page.tsx`.
+- **Statistiche admin (26/08/2026) — REGOLA: aggregare SEMPRE in Postgres, MAI scaricare righe**
+  nel server via REST: `db-max-rows` tronca a 1000 righe (bug storico: le stats contavano un
+  campione arbitrario di 1000 eventi su 9328). Fix: migration 018, RPC unica `get_admin_stats(p_days)`
+  (security definer, SOLO service_role — la route verifica ADMIN_ID; anon/authenticated revocati)
+  che restituisce JSONB: `overview` (utenti, attivi, accessi, turni, interessi — periodo o da sempre
+  con p_days=0), `activity` (settimanale), `users` (all-time: eventi + turni reali + M/P/N +
+  ultimo accesso), `shiftModes`. UI `/admin/statistiche`: `stats-page.tsx` (periodi 30/90/365/Tutto,
+  card panoramica, sezione N/M/P con le pill semantiche esistenti, skeleton/errore/retry) +
+  `stats-activity-chart.tsx` (barre SVG custom, ZERO nuove dipendenze, toggle Accessi/Turni) +
+  `stats-user-table.tsx` (ricerca, filtro Tutti/DCO/Noni, ordinamento, riga espansa M/P/N,
+  badge DCO/NONO/DCO+/MGR, "—" per chi non è mai entrato). Il selettore periodo agisce su
+  panoramica/attività/NMP; la tabella utenti è sempre all-time. Numeri reali dev: 88 utenti,
+  9328 eventi, payload ~27 KB, ~160-180 ms. Applicare migrazioni ai DB anche via Management API
+  (api.supabase.com/v1/projects/{ref}/database/query, token `Supabase CLI:supabase` nel Credential
+  Manager di Windows, User-Agent browser richiesto) + registrare la versione in
+  `supabase_migrations.schema_migrations` per tenere la history allineata ai file locali.
 - **Bottone congedo (25/08/2026):** in `/dashboard` accanto al titolo "Turni Sala C.C.C."
   c'è un bottone circolare con icona palma (`Palmtree`, lucide) che apre un dialog
   "Congedo" con il testo "Non hai trovato il cambio di cui hai bisogno? Chiedi congedo qui."
@@ -277,7 +293,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   periodo (`key={selectedYear}`) E lista richieste (`key={year}`) con la stessa animazione.
   Le animazioni FUNZIONALI (drag, expand, page-transition, slide filtri shift-list) sono
   volutamente diverse.
-- **Migrations 001–015 completano lo schema** (turni, vacanze, sala, app_settings, RLS,
+- **Migrations 001–018 completano lo schema** (turni, vacanze, sala, app_settings, RLS,
   realtime publication, RPC, DCO+). NON riscrivere le policy RLS, NON aggiungere colonne/tabelle duplicate.
 - **Next.js 16:** API e convenzioni diverse dalle versioni precedenti (`proxy.ts` ecc.).
   In caso di dubbio leggere `node_modules/next/dist/docs/` prima di scrivere codice.
@@ -319,11 +335,18 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 ---
 
-## Stato attuale (snapshot 04/08/2026)
+## Stato attuale (snapshot 26/08/2026)
 
-- **⚠ AZIONE PENDENTE:** migration **014** (drop color_overrides) e **015** (DCO+) applicate
-  SOLO al DB dev (`uokfixddsuqcjddbfkln`). Al MERGE su `master` vanno applicate ANCHE al DB di
-  produzione/main (`zrbbzfingrdpdflkndgl`): `supabase db push` con progetto main linkato, o SQL equivalente.
+- **Release 26/08/2026 — APPLICATA a dev E produzione:** migrations **014** (drop color_overrides),
+  **015** (DCO+), **016** (changelog) e **017** (unifica changelog) applicate al DB di produzione/main
+  (`zrbbzfingrdpdflkndgl`) via Management API il 26/08/2026 (su dev erano già applicate). Changelog
+  unificato: solo **version 4 (5 voci)** su ENTRAMBI i DB. Merge `dev → master` pushato (`a4ddb69`),
+  deploy Vercel produzione avviato. Footer versione: `v1.226 · 6eb0c28 — ultimo aggiornamento: 26/08/2026 13:10`.
+  NOTA: il DB main ha l'history migrazioni a timestamp (non riconosce i file numerati 001-017) →
+  per le prossime migrazioni su main usare SQL editor / Management API, NON `supabase db push`.
+- **Pagina Statistiche rifatta (26/08/2026):** migration **018** (`get_admin_stats`) applicata e
+  registrata SOLO su dev (history completa 001-018). Su main va applicata alla prossima release
+  (SQL editor / Management API). In dev la pagina è testata con l'admin `d.minino@rfi.it`.
 - **Password dev per test (04/08/2026):** per facilitare i test su dev, la password di alcuni
   utenti = email: Luigi Neri, Mariapia Di Napoli, Fortunato Di Monda, Ernesto Gagliotta,
   Nicola Romano, Maurizio Tammaro (es. `lu.neri@rfi.it` / `lu.neri@rfi.it`). Vale SOLO su dev.
@@ -350,7 +373,9 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   La PWA di produzione si aggiorna SOLO al merge su `master` + deploy Vercel.
 - **Progetti Supabase:** dev = `uokfixddsuqcjddbfkln`, main/produzione = `zrbbzfingrdpdflkndgl`.
   L'account admin esiste su ENTRAMBI con lo stesso UUID (`fdd6c008-...` = ADMIN_ID): dev è un
-  clone di main, quindi il pannello admin si può testare anche su dev.
+  clone di main, quindi il pannello admin si può testare anche su dev. Eseguire `supabase link`
+  SEMPRE dalla root del progetto (mai da home: il 26/08/2026 da `C:\Users\david` ha creato un
+  progetto orfano `C:\Users\david\supabase` collegato a MAIN).
 - **Precedenza env (IMPORTANTE):** le variabili d'ambiente REALI del processo sovrascrivono
   `.env.local` (regola dotenv: process env > `.env.local`). Prima di lanciare il server verificare
   con `printenv NEXT_PUBLIC_SUPABASE_URL`: se punta a main, i test locali toccano il DB LIVE anche

@@ -3,63 +3,64 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ADMIN_ID } from '@/types/database'
 
+export type StatsOverview = {
+  users_total: number
+  users_active: number
+  access: number
+  new_shift: number
+  interest: number
+  shifts_total: number
+}
+
+export type StatsActivityPoint = {
+  week: string
+  access: number
+  new_shift: number
+  interest: number
+}
+
 export type StatsUser = {
   id: string
   nome: string | null
   cognome: string | null
   is_secondary: boolean
+  is_manager: boolean
+  is_dco_plus: boolean
   access: number
   new_shift: number
   interest: number
-  total: number
+  last_access: string | null
+  shifts: number
+  mattina: number
+  pomeriggio: number
+  notte: number
 }
 
-export async function GET() {
+export type StatsShiftMode = { mode: 'Mattina' | 'Pomeriggio' | 'Notte'; count: number }
+
+export type AdminStats = {
+  overview: StatsOverview
+  activity: StatsActivityPoint[]
+  users: StatsUser[]
+  shiftModes: StatsShiftMode[]
+}
+
+// L'aggregazione avviene in Postgres (RPC get_admin_stats): il fetch di righe
+// via REST verrebbe troncato a 1000 da db-max-rows (bug storico delle stats).
+export async function GET(req: Request) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || user.id !== ADMIN_ID) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const { searchParams } = new URL(req.url)
+  const raw = parseInt(searchParams.get('days') ?? '365', 10)
+  const days = Number.isFinite(raw) ? Math.min(3650, Math.max(0, raw)) : 365
+
   const adminSupabase = createAdminSupabase()
+  const { data, error } = await adminSupabase.rpc('get_admin_stats', { p_days: days })
 
-  // Get all users
-  const { data: users, error: usersError } = await adminSupabase
-    .from('users')
-    .select('id, nome, cognome, is_secondary')
-    .order('cognome')
-  if (usersError) return NextResponse.json({ error: usersError.message }, { status: 500 })
-
-  // Get all events (service role bypasses RLS).
-  // Explicit high limit to avoid Supabase's default 1000-row truncation.
-  // For this team size (tens of users) this is safe for years of data.
-  const { data: events, error: eventsError } = await adminSupabase
-    .from('app_events')
-    .select('user_id, event_type')
-    .limit(100000)
-  if (eventsError) return NextResponse.json({ error: eventsError.message }, { status: 500 })
-
-  // Aggregate counts per user
-  const countMap = new Map<string, { access: number; new_shift: number; interest: number }>()
-  for (const e of events ?? []) {
-    if (!e.user_id) continue
-    if (!countMap.has(e.user_id)) countMap.set(e.user_id, { access: 0, new_shift: 0, interest: 0 })
-    const c = countMap.get(e.user_id)!
-    if (e.event_type === 'access') c.access++
-    else if (e.event_type === 'new_shift') c.new_shift++
-    else if (e.event_type === 'interest') c.interest++
-  }
-
-  const stats: StatsUser[] = (users ?? []).map(u => {
-    const c = countMap.get(u.id) ?? { access: 0, new_shift: 0, interest: 0 }
-    return { ...u, ...c, total: c.access + c.new_shift + c.interest }
-  })
-
-  const totals = {
-    access: stats.reduce((s, u) => s + u.access, 0),
-    new_shift: stats.reduce((s, u) => s + u.new_shift, 0),
-    interest: stats.reduce((s, u) => s + u.interest, 0),
-  }
-
-  return NextResponse.json({ stats, totals })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data as AdminStats)
 }

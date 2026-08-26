@@ -1,119 +1,164 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarPlus, Heart, Users, ArrowUpDown } from 'lucide-react'
-import type { StatsUser } from '@/app/api/admin/stats/route'
+import { ArrowLeft, BarChart3, CalendarPlus, Heart, UserCheck, Users } from 'lucide-react'
+import type { AdminStats, StatsOverview, StatsShiftMode } from '@/app/api/admin/stats/route'
+import { cn } from '@/lib/utils'
+import { StatsActivityChart } from './stats-activity-chart'
+import { StatsUserTable } from './stats-user-table'
 
-type SortKey = 'name' | 'access' | 'new_shift' | 'interest' | 'total'
-type SortDir = 'asc' | 'desc'
+const PERIODS = [
+  { days: 30, label: '30g' },
+  { days: 90, label: '90g' },
+  { days: 365, label: '1 anno' },
+  { days: 0, label: 'Tutto' },
+]
 
 export function StatsPage() {
   const router = useRouter()
-  const [stats, setStats] = useState<StatsUser[]>([])
-  const [totals, setTotals] = useState({ access: 0, new_shift: 0, interest: 0 })
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(false)
-  const [sortKey, setSortKey] = useState<SortKey>('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [filter, setFilter] = useState<'all' | 'access' | 'new_shift' | 'interest'>('all')
+  const [days, setDays] = useState(365)
 
-  useEffect(() => {
-    fetch('/api/admin/stats')
-      .then(r => { if (!r.ok) throw new Error(); return r.json() })
-      .then(({ stats, totals }) => { setStats(stats ?? []); setTotals(totals ?? {}) })
-      .catch(() => setError(true))
-      .finally(() => setIsLoading(false))
-  }, [])
-
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('asc') }
-  }
-
-  const sorted = [...stats].sort((a, b) => {
-    let cmp = 0
-    if (sortKey === 'name') {
-      const nameA = `${a.cognome ?? ''} ${a.nome ?? ''}`.trim()
-      const nameB = `${b.cognome ?? ''} ${b.nome ?? ''}`.trim()
-      cmp = nameA.localeCompare(nameB, 'it')
-    } else {
-      cmp = a[sortKey] - b[sortKey]
-    }
-    return sortDir === 'asc' ? cmp : -cmp
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['admin-stats', days],
+    queryFn: async () => {
+      const r = await fetch(`/api/admin/stats?days=${days}`)
+      if (!r.ok) throw new Error('Errore nel caricamento')
+      return r.json() as Promise<AdminStats>
+    },
+    staleTime: 5 * 60 * 1000,
   })
 
   return (
-    <div className="max-w-lg mx-auto px-4 pt-6 pb-4 space-y-6">
-      {/* Header */}
+    <div className="max-w-lg mx-auto px-4 pt-6 pb-4 space-y-4">
       <div className="flex items-center gap-3">
         <button onClick={() => router.push('/admin')} className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft size={20} />
         </button>
-        <h1 className="text-lg font-bold">Statistiche</h1>
+        <h1 className="text-lg font-bold flex-1">Statistiche</h1>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <SummaryCard label="Accessi" value={totals.access} icon={<Users size={16} />} active={filter === 'access'} onClick={() => { setFilter(f => f === 'access' ? 'all' : 'access'); setSortKey('name') }} />
-        <SummaryCard label="Turni" value={totals.new_shift} icon={<CalendarPlus size={16} />} active={filter === 'new_shift'} onClick={() => { setFilter(f => f === 'new_shift' ? 'all' : 'new_shift'); setSortKey('name') }} />
-        <SummaryCard label="Interessi" value={totals.interest} icon={<Heart size={16} />} active={filter === 'interest'} onClick={() => { setFilter(f => f === 'interest' ? 'all' : 'interest'); setSortKey('name') }} />
+      <div className="flex bg-muted/60 border border-border rounded-xl p-1 gap-1">
+        {PERIODS.map(p => (
+          <button
+            key={p.days}
+            onClick={() => setDays(p.days)}
+            className={cn(
+              'flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors',
+              days === p.days ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
 
-      {/* Table */}
       {isLoading ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Caricamento...</p>
-      ) : error ? (
-        <p className="text-sm text-destructive text-center py-8">Errore nel caricamento delle statistiche.</p>
-      ) : sorted.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Nessun dato disponibile.</p>
-      ) : (
-        <div className="rounded-xl border overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <SortTh label="Utente" sortKey="name" current={sortKey} dir={sortDir} onSort={toggleSort} />
-                {(filter === 'all' || filter === 'access') && <SortTh label="Accessi" sortKey="access" current={sortKey} dir={sortDir} onSort={toggleSort} numeric />}
-                {(filter === 'all' || filter === 'new_shift') && <SortTh label="Turni" sortKey="new_shift" current={sortKey} dir={sortDir} onSort={toggleSort} numeric />}
-                {(filter === 'all' || filter === 'interest') && <SortTh label="Interessi" sortKey="interest" current={sortKey} dir={sortDir} onSort={toggleSort} numeric />}
-                {filter === 'all' && <SortTh label="Tot" sortKey="total" current={sortKey} dir={sortDir} onSort={toggleSort} numeric />}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {sorted.map(u => (
-                <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-3 py-2.5 font-medium">{`${u.cognome ?? ''} ${u.nome ?? ''}`.trim()}</td>
-                  {(filter === 'all' || filter === 'access') && <td className="px-3 py-2.5 text-center tabular-nums">{u.access}</td>}
-                  {(filter === 'all' || filter === 'new_shift') && <td className="px-3 py-2.5 text-center tabular-nums">{u.new_shift}</td>}
-                  {(filter === 'all' || filter === 'interest') && <td className="px-3 py-2.5 text-center tabular-nums">{u.interest}</td>}
-                  {filter === 'all' && <td className="px-3 py-2.5 text-center tabular-nums font-semibold">{u.total}</td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <StatsSkeleton />
+      ) : isError ? (
+        <div className="text-center py-10 space-y-3">
+          <p className="text-sm text-destructive">Errore nel caricamento delle statistiche.</p>
+          <button onClick={() => refetch()} className="text-sm font-semibold text-primary underline-offset-4 hover:underline">
+            Riprova
+          </button>
         </div>
-      )}
+      ) : data ? (
+        <>
+          <OverviewCards overview={data.overview} days={days} />
+
+          <section className="rounded-xl border bg-card px-4 py-3">
+            <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">Attività nel tempo</h2>
+            <StatsActivityChart data={data.activity} />
+          </section>
+
+          <section className="rounded-xl border bg-card px-4 py-3">
+            <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">Distribuzione N/M/P</h2>
+            <ShiftModesBars modes={data.shiftModes} />
+          </section>
+
+          <section className="rounded-xl border bg-card px-4 py-3">
+            <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">Classifica utenti</h2>
+            <StatsUserTable users={data.users} />
+          </section>
+        </>
+      ) : null}
     </div>
   )
 }
 
-function SummaryCard({ label, value, icon, active, onClick }: { label: string; value: number; icon: React.ReactNode; active: boolean; onClick: () => void }) {
+function OverviewCards({ overview, days }: { overview: StatsOverview; days: number }) {
+  const periodLabel = days === 0 ? 'da sempre' : days === 365 ? 'ultimo anno' : `ultimi ${days} giorni`
+  const cards = [
+    { icon: <Users size={16} />, value: overview.users_total, label: 'Utenti' },
+    { icon: <UserCheck size={16} />, value: overview.users_active, label: `Attivi ${periodLabel}` },
+    { icon: <BarChart3 size={16} />, value: overview.access, label: 'Accessi' },
+    { icon: <CalendarPlus size={16} />, value: overview.shifts_total, label: 'Turni pubblicati' },
+    { icon: <Heart size={16} />, value: overview.interest, label: 'Interessi' },
+  ]
   return (
-    <button onClick={onClick} className={`rounded-xl border px-3 py-3 text-left space-y-1 transition-colors w-full ${active ? 'border-primary bg-primary/5' : 'bg-muted/40 hover:bg-accent/60'}`}>
-      <div className={`${active ? 'text-primary' : 'text-muted-foreground'}`}>{icon}</div>
-      <p className="text-xl font-bold">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-    </button>
+    <div className="grid grid-cols-3 gap-3">
+      {cards.map(c => (
+        <div key={c.label} className="rounded-xl border bg-card px-3 py-3 space-y-1">
+          <div className="text-muted-foreground">{c.icon}</div>
+          <p className="text-xl font-bold tabular-nums">{c.value.toLocaleString('it-IT')}</p>
+          <p className="text-[11px] text-muted-foreground leading-tight">{c.label}</p>
+        </div>
+      ))}
+    </div>
   )
 }
 
-function SortTh({ label, sortKey, current, dir, onSort, numeric }: { label: string; sortKey: SortKey; current: SortKey; dir: SortDir; onSort: (k: SortKey) => void; numeric?: boolean }) {
-  const active = current === sortKey
+function ShiftModesBars({ modes }: { modes: StatsShiftMode[] }) {
+  const map: Record<'Mattina' | 'Pomeriggio' | 'Notte', number> = { Mattina: 0, Pomeriggio: 0, Notte: 0 }
+  for (const m of modes) map[m.mode] = m.count
+  const total = map.Mattina + map.Pomeriggio + map.Notte
+
+  if (total === 0) {
+    return <p className="text-sm text-muted-foreground text-center py-6">Nessun turno nel periodo selezionato.</p>
+  }
+
+  const rows = [
+    { label: 'Mattina', v: map.Mattina, bg: 'var(--pill-mattina-bg)', text: 'var(--pill-mattina-text)' },
+    { label: 'Pomeriggio', v: map.Pomeriggio, bg: 'var(--pill-pomeriggio-bg)', text: 'var(--pill-pomeriggio-text)' },
+    { label: 'Notte', v: map.Notte, bg: 'var(--pill-notte-bg)', text: 'var(--pill-notte-text)' },
+  ]
+
   return (
-    <th className={`px-3 py-2 font-semibold text-xs text-muted-foreground`}>
-      <button onClick={() => onSort(sortKey)} className={`flex items-center gap-1 hover:text-foreground transition-colors ${numeric ? 'mx-auto' : ''}`}>
-        {label}
-        <ArrowUpDown size={11} className={active ? 'text-primary' : 'opacity-40'} />
-      </button>
-    </th>
+    <div className="space-y-3">
+      {rows.map(r => {
+        const pct = Math.round((r.v / total) * 100)
+        return (
+          <div key={r.label} className="flex items-center gap-3">
+            <span className="w-24 text-xs font-semibold flex-shrink-0">{r.label}</span>
+            <div className="flex-1 h-4 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full flex items-center justify-end pr-2 text-[10px] font-bold tabular-nums transition-all"
+                style={{ width: `${Math.max(pct > 0 ? 6 : 0, pct)}%`, background: r.bg, color: r.text }}
+              >
+                {pct > 0 ? `${pct}%` : ''}
+              </div>
+            </div>
+            <span className="w-16 text-right text-xs tabular-nums text-muted-foreground flex-shrink-0">
+              {r.v.toLocaleString('it-IT')} · {pct}%
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function StatsSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse">
+      <div className="grid grid-cols-3 gap-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="rounded-xl border bg-card h-24" />
+        ))}
+      </div>
+      <div className="rounded-xl border bg-card h-48" />
+      <div className="rounded-xl border bg-card h-44" />
+      <div className="rounded-xl border bg-card h-56" />
+    </div>
   )
 }
