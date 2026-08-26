@@ -62,17 +62,12 @@
   --shift-others-date-border: #bdd0e0;
   /* Bordo card: tutte le card hanno un bordo; la card dell'utente loggato è nera (più marcata) */
   --shift-others-border: #c9d6e4;
-  /* Bordi INTERNI dei gruppi di card dello stesso giorno — più chiari del riempimento (adattivi ai 2 temi) */
-  --shift-inner-border: rgba(255,255,255,0.6);
   /* Colonna data delle card NON prime del giorno (ordinali 2°, 3°): sfondo opaco
      più chiaro della prima card (niente opacity sull'intero blocco → ordinale
      leggibile e divisore verticale pieno). Il border-right resta dello stesso
      colore del primo → divisore verticale continuo nel gruppo. */
   --shift-others-sub-date-bg: #d7e3ec;
   --shift-others-sub-date-border: #bdd0e0;
-  /* Separatore orizzontale della colonna data (allineato a .shift-content-divider
-     del corpo, colore dedicato e più tenue: la linea attraversa tutta la card) */
-  --shift-date-inner-border: rgba(255,255,255,0.45);
   --shift-own-empty-bg: #e8eef5;
   --shift-own-empty-date-bg: #dde6f0;
   /* Contorno card TUO (Variante A, tono A3): grigio medio, meno contrastante del nero pieno */
@@ -200,10 +195,13 @@
   /* Sala — pill "Altri presenti" (dedicate, non usano --muted) */
   --sala-present-pill-bg: #e6edf5;
   --sala-present-pill-text: #1c1c1c;
-  /* Sala — toolbar (chip selezionato nero + navigazione mese) */
-  --sala-toolbar-chip-bg: #1c1c1c;
-  --sala-toolbar-chip-text: #ffffff;
-  --sala-toolbar-chip-border: #1c1c1c;
+  /* Sala — toolbar (26/08/2026): lo SFONDO della card d'intestazione = corpo delle
+     card delle sezioni (come nel tema chiaro, dove già coincidevano); la chip
+     selezionata N/M/P = colore del TITOLO delle card delle sezioni (banda titolo). */
+  --sala-toolbar-bg: var(--sala-card-body-bg);
+  --sala-toolbar-chip-bg: var(--sala-card-title-bg);
+  --sala-toolbar-chip-text: #1c1c1c;
+  --sala-toolbar-chip-border: var(--sala-card-title-bg);
   --sala-toolbar-nav-bg: rgba(255,255,255,0);
   --sala-toolbar-nav-border: #d5e0ec;
   --sala-toolbar-nav-text: #1c1c1c;
@@ -233,13 +231,12 @@
   --shift-others-bg: #1a1a1a;
   --shift-others-date-bg: #252525;
   --shift-others-date-border: #2e2e2e;
-  /* Bordo card — dark: tutte hanno bordo; la card dell'utente loggato è bianca (più marcata) */
-  --shift-others-border: #41414c;
-  --shift-inner-border: rgba(255,255,255,0.08);
+  /* Bordo card — dark (26/08/2026): stesso colore dei separatori interni (#2e2e2e,
+     come nel tema chiaro dove bordo e separatori coincidono) per uniformare il contorno. */
+  --shift-others-border: #2e2e2e;
   /* Colonna data delle card NON prime del giorno — scuro (stesso commento di :root) */
   --shift-others-sub-date-bg: #202020;
   --shift-others-sub-date-border: #2e2e2e;
-  --shift-date-inner-border: rgba(255,255,255,0.05);
   --shift-own-empty-bg: #232328;
   --shift-own-empty-date-bg: #2b2b32;
   /* Contorno card TUO (Variante A, tono A3): grigio medio, meno brillante del bianco pieno */
@@ -362,15 +359,18 @@
   --sala-card-bg: #262626;
   --sala-card-border: #363636;
   --sala-card-title-bg: #454545;
-  --sala-card-body-bg: #2b2b2b;
+  --sala-card-body-bg: #171717;
   --sala-card-tir-bg: #2f2f2f;
   /* Sala — pill "Altri presenti" — dark */
   --sala-present-pill-bg: #363636;
   --sala-present-pill-text: #f5f5f5;
-  /* Sala — toolbar — dark: chip selezionato bianco */
-  --sala-toolbar-chip-bg: #ffffff;
-  --sala-toolbar-chip-text: #0a0a0a;
-  --sala-toolbar-chip-border: #ffffff;
+  /* Sala — toolbar — dark (26/08/2026): sfondo = corpo card = #171717 (bg-card),
+     uniforme con /turniferie dove card d'intestazione e corpi periodo sono già #171717;
+     chip selezionato = titolo card (#454545, prima bianco). */
+  --sala-toolbar-bg: var(--sala-card-body-bg);
+  --sala-toolbar-chip-bg: var(--sala-card-title-bg);
+  --sala-toolbar-chip-text: #f5f5f5;
+  --sala-toolbar-chip-border: var(--sala-card-title-bg);
   --sala-toolbar-nav-bg: rgba(255,255,255,0);
   --sala-toolbar-nav-border: #2e2e2e;
   --sala-toolbar-nav-text: #f5f5f5;
@@ -399,12 +399,14 @@
   .shift-state-own-interest { background: var(--shift-own-interest-bg); border: 1px solid var(--shift-own-interest-border); }
   .shift-state-highlight    { background: var(--shift-highlight-bg); border: 1px solid var(--shift-highlight-border); }
 
-  /* Expanded panel backgrounds — same vars as the row (monolithic card).
-     Include il border-color dello stato: espandendo la card il bordo si estende
-     dinamicamente sul pannello (i lati e il fondo usano il colore della card). */
-  .shift-expanded-others       { background: var(--shift-others-bg); border-color: var(--shift-others-border); }
-  .shift-expanded-own-empty    { background: var(--shift-own-empty-bg); border-color: var(--shift-own-empty-border); }
-  .shift-expanded-own-interest { background: var(--shift-own-interest-bg); border-color: var(--shift-own-interest-border); }
+  /* FIX 25/08/2026 (triangoli): il bordo laterale della card vive sul WRAPPER
+     interno (shift-state-* qui sopra), NON su riga+pannello separati: i bordi di
+     due elementi impilati con lo stesso colore vengono antialiasati dal browser
+     alla giunzione (riga↔pannello, pannello↔card successiva) e a zoom alto quella
+     riga da 1px diventa un TRIANGOLO diagonale sui bordi laterali. Con un unico
+     tratto continuo sul wrapper la giunzione è pulita a qualunque zoom.
+     Le classi .shift-expanded-* sono state rimosse: il pannello espanso è
+     trasparente e mostra lo sfondo/bordo del wrapper. */
 
   /* Date block classes */
   .shift-date-others        { background: var(--shift-others-date-bg); border-right: 1px solid var(--shift-others-date-border); }
@@ -412,68 +414,47 @@
   .shift-date-own-interest  { background: var(--shift-own-interest-date-bg); border-right: 1px solid var(--shift-own-interest-border); }
   .shift-date-highlight     { background: var(--shift-highlight-date-bg); border-right: 1px solid var(--shift-highlight-border); }
 
-  /* Bordi interni dei gruppi di card dello stesso giorno: più chiari del riempimento.
-     Vanno applicati DOPO le classi di stato (.shift-state-*) e di pannello espanso
-     (.shift-expanded-*) per vincere il cascade a parità di specificità.
-     Usato sul fondo della riga ESPANSA (separatore riga↔pannello, card altrui) e
-     sul fondo del pannello quando segue un'altra card dello stesso giorno. */
-  .shift-inner-border-b { border-bottom-color: var(--shift-inner-border); }
+  /* Giunzioni interne del gruppo giorno (25/08/2026): la card NON prima del giorno
+     ha il bordo alto TRASPARENTE (resta 1px di layout → nessun salto di altezza) e
+     ridipinge la striscia di 1px con i colori della PROPRIA colonna data
+     (sub-card: .shift-date-sub-others) così sotto la linea di separazione la
+     colonna data scorre continua. Niente più `margin-top: -1px` (overlap): il
+     divisore orizzontale fra le card ora è VISIBILE (.shift-grouped-b) e un
+     overlap lo nasconderebbe. I 52px devono restare allineati a `w-[52px]` delle
+     colonne data (shift-item.tsx / vacation-request-item.tsx). Da applicare solo
+     quando la card NON è la prima (t) / l'ultima (b) del giorno e NON è la propria
+     card (Variante A: il riquadro TUO resta completo su 4 lati). */
+  /* Wrapper della card NON prima del giorno: NIENTE bordo alto (border-top-width: 0).
+     ATTENZIONE (25/08/2026, 4° fix): non basta il colore trasparente — un bordo alto
+     di 1px (anche trasparente) mostra il bg del wrapper sotto ogni separatore e crea
+     una STRISCIA SCURA a tutta larghezza (più scura del divisore #2e2e2e, visibile
+     nella colonna data fra separatore e #202020): la "doppia linea" che vedeva
+     l'utente in ogni giunzione (collassata e pannello→card successiva). Con width 0
+     il divisore resta il bordo basso della card SOPRA e la riga (che ridipinge la
+     striscia con .shift-grouped-row-strip) parte esattamente sotto di esso: una sola
+     linea. La prima card del giorno (top del gruppo) conserva il bordo di stato. */
+  .shift-grouped-t { border-top-width: 0; border-top-color: transparent; }
 
-  /* Giunzioni interne del gruppo giorno (05/08/2026): il bordo orizzontale di stato
-     diventa TRASPARENTE (resta 1px di layout → nessun salto di altezza) così la colonna
-     data scorre continua e il divisore verticale non viene mai tagliato dalle linee
-     orizzontali. Da applicare solo quando la card NON è la prima (t) / l'ultima (b) del
-     giorno e NON è la propria card (Variante A: il riquadro TUO resta completo su 4 lati).
-     FIX (05/08/2026): la card successiva si sovrappone di 1px (`margin-top: -1px`) al
-     bordo trasparente della precedente — che quindi mostra lo SFONDO della card e non
-     quello della pagina — così alla giunzione resta UN SOLO separatore (il chiaro
-     `.shift-content-divider`/`.shift-date-divider`), senza linea scura residua. */
-  .shift-grouped-t {
-    border-top-color: transparent;
-    margin-top: -1px;
-    /* FIX (25/08/2026): la striscia di 1px sotto il bordo trasparente mostrava lo
-       SFONDO della card, che nella colonna data non coincide con i colori della
-       colonna stessa → alla giunzione compariva una riga orizzontale in più
-       (più chiara in tema chiaro, più scura in scuro), sopra il separatore chiaro.
-       Si ridipinge la striscia con i colori della colonna data della card
-       PRECEDENTE (quella SOPRA la giunzione): così la colonna data scorre continua
-       attraverso la giunzione e la riga sparisce. Le varianti seguenti scelgono il
-       colore giusto in base alla colonna della card precedente (prima del giorno /
-       sub-card / propria), passata dalle liste come `prevDateClass`. I 52px devono
-       restare allineati a `w-[52px]` delle colonne data (shift-item.tsx /
-       vacation-request-item.tsx). */
+  /* Riga (parte compressa) delle card NON prime del giorno: ridipinge la striscia
+     di 1px sotto il divisore con i colori della PROPRIA colonna data (colonna
+     continua). Vive SOLO sulla riga: il pannello espanso è full-width e non
+     estende il pattern data/corpo (i 52px restano allineati a `w-[52px]`). */
+  .shift-grouped-row-strip {
     background-image: linear-gradient(to right,
       var(--shift-others-sub-date-bg) 0 51px,
       var(--shift-others-sub-date-border) 51px 52px,
       transparent 52px);
   }
-  /* Card precedente = PRIMA del giorno (colonna .shift-date-others) */
-  .shift-grouped-t-date {
-    background-image: linear-gradient(to right,
-      var(--shift-others-date-bg) 0 51px,
-      var(--shift-others-date-border) 51px 52px,
-      transparent 52px);
-  }
-  /* Card precedente = propria senza interessi (colonna .shift-date-own-empty) */
-  .shift-grouped-t-own-empty {
-    background-image: linear-gradient(to right,
-      var(--shift-own-empty-date-bg) 0 51px,
-      var(--shift-own-empty-border) 51px 52px,
-      transparent 52px);
-  }
-  /* Card precedente = propria con interessi (colonna .shift-date-own-interest) */
-  .shift-grouped-t-own-interest {
-    background-image: linear-gradient(to right,
-      var(--shift-own-interest-date-bg) 0 51px,
-      var(--shift-own-interest-border) 51px 52px,
-      transparent 52px);
-  }
-  .shift-grouped-b { border-bottom-color: transparent; }
 
-  /* Separatore orizzontale interno del gruppo, SOLO sul contenuto (non sul blocco data):
-     box-shadow inset = zero costi di layout e zero intersezioni col divisore verticale.
-     In secondo piano per design (più chiaro del border-right della data). */
-  .shift-content-divider { box-shadow: inset 0 1px 0 var(--shift-inner-border); }
+  /* Linea di separazione fra le card multiple dello stesso giorno: bordo basso
+     VISIBILE nel colore del divisore della colonna data (sottile, adattivo ai 2 temi). */
+  .shift-grouped-b { border-bottom-color: var(--shift-others-date-border); }
+
+  /* Pannello espanso (25/08/2026): trattato come una CARD A SÉ — full-width,
+     senza colonna data — separato dalla riga da un divisore orizzontale nello
+     stesso colore dei divisori fra card dello stesso giorno. Il pattern data/corpo
+     della riga NON si estende nell'espansione. */
+  .shift-expand-panel { border-top: 1px solid var(--shift-others-date-border); }
 
   /* Colonna data delle card NON prime del giorno: sfondo opaco dedicato + divisore
      verticale PIENO (stesso colore del primo del giorno → colonna continua).
@@ -482,11 +463,6 @@
     background: var(--shift-others-sub-date-bg);
     border-right: 1px solid var(--shift-others-sub-date-border);
   }
-
-  /* Separatore orizzontale della colonna data, allineato a .shift-content-divider
-     del corpo (stesso inset 1px in alto): la linea del gruppo attraversa TUTTA la
-     card, con colore dedicato diverso da quello del corpo. */
-  .shift-date-divider { box-shadow: inset 0 1px 0 var(--shift-date-inner-border); }
 
   /* Shift type pill classes — bordo 1px nel colore del testo al 30% (adattivo ai 2 temi) */
   .pill-mattina    { background: var(--pill-mattina-bg); color: var(--pill-mattina-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
@@ -587,7 +563,8 @@
   .sala-card-tir    { background-color: var(--sala-card-tir-bg); }
   .sala-present-pill { background-color: var(--sala-present-pill-bg); color: var(--sala-present-pill-text); }
 
-  /* Sala toolbar — chip selezionato + navigazione mese */
+  /* Sala toolbar — sfondo card d'intestazione + chip selezionato + navigazione mese */
+  .sala-toolbar-bg   { background-color: var(--sala-toolbar-bg); }
   .sala-toolbar-chip { background: var(--sala-toolbar-chip-bg) !important; color: var(--sala-toolbar-chip-text) !important; border-color: var(--sala-toolbar-chip-border) !important; }
   .sala-toolbar-nav-bg     { background-color: var(--sala-toolbar-nav-bg); }
   .sala-toolbar-nav-border { border-color: var(--sala-toolbar-nav-border); }

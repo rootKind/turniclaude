@@ -9,7 +9,7 @@ import { isDcoPlus as isProfileDcoPlus, isManager } from '@/types/database'
 import { ShiftItem } from './shift-item'
 import { EditShiftDialog } from './edit-shift-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn, todayRome, getShiftItemState, SHIFT_DATE_CLASSES } from '@/lib/utils'
+import { cn, todayRome } from '@/lib/utils'
 import { useDuplicateCognomi } from '@/hooks/use-users'
 import type { Shift } from '@/types/database'
 import { addDays, parseISO, format } from 'date-fns'
@@ -289,19 +289,6 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
               const next = filtered[index + 1]
               const isSameDateAsPrevious = !!prev && prev.shift_date === shift.shift_date
               const isSameDateAsNext = !!next && next.shift_date === shift.shift_date
-              const isPrevOwn = !!prev && prev.user_id === effectiveUserId
-              // Colonna data della card PRECEDENTE (per la striscia di giunzione
-              // .shift-grouped-t, che deve fondersi con la card SOPRA):
-              // - propria → own-empty / own-interest
-              // - non propria: prima del giorno se la corrente è la 2ª (dateIndex 1),
-              //   altrimenti sub-card (stesso .shift-date-sub-others)
-              const prevDateClass = isSameDateAsPrevious && prev
-                ? (isPrevOwn
-                    ? SHIFT_DATE_CLASSES[getShiftItemState({ isOwn: true, hasInterest: (prev.shift_interested_users?.length ?? 0) > 0 })]
-                    : dateIndexes[index] > 1
-                      ? 'shift-date-sub-others'
-                      : 'shift-date-others')
-                : null
               return (
                 <motion.div
                   key={shift.id}
@@ -318,8 +305,6 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
                     isDcoPlus={isDcoPlus}
                     isSameDateAsPrevious={isSameDateAsPrevious}
                     isSameDateAsNext={isSameDateAsNext}
-                    isPrevOwn={isPrevOwn}
-                    prevDateClass={prevDateClass}
                     dateIndex={dateIndexes[index]}
                     onEdit={setEditingShift}
                     isHighlighted={highlightShiftId === shift.id}

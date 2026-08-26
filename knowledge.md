@@ -111,15 +111,17 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   #ff6467 → 2.69:1 su bg chiaro); `--state-confirm-btn-bg` `#15803d` (+ hover `#106b31`) in
   entrambi (bianco su #16a34a era 3.3:1); `--state-confirm-text` chiaro `#126b2f`;
   `--pill-mattina-text` scuro `#6fb1fc` (era 4.52); `--pill-pomeriggio-text` chiaro `#a14a06`
-  (era 4.51); bordi/bande scuri più visibili: `--border` 16% bianco (era 10%),
-  `--sala-card-border` `#363636`, `--shift-others-border` `#41414c`,
+  (era 4.51);  bordi/bande scuri più visibili: `--border` 16% bianco (era 10%),
+  `--sala-card-border` `#363636`, `--shift-others-border` `#41414c` (poi 26/08/2026: `#2e2e2e`,
+  stesso colore dei separatori interni `--shift-others-date-border` — contorno uniforme come
+  nel tema chiaro),
   `--period-card-header-bg` `#343434`, `--my-period-header-bg` `#454545`.
 - **Convenzione elevazione tema scuro (25/08/2026):** la card resta PIÙ CHIARA della pagina anche
   in tema scuro (best practice Material/Apple: l'elevazione in dark si esprime SCHIARENDO la
   superficie, niente superfici nere pure). NON invertire il corpo rispetto alla pagina
   (es. corpo #000000: sbagliato, testato e scartato). Ciò che si inverte tra i temi è solo il
   rapporto titolo↔corpo: chiaro `titolo < corpo`, scuro `titolo > corpo` (attualmente
-  `#454545` vs `#2b2b2b`). Sfondo pagina scuro `#0a0a0a` accettato (Material suggerisce
+  `#454545` vs `#171717`). Sfondo pagina scuro `#0a0a0a` accettato (Material suggerisce
   `#121212`, ma l'utente ha scelto di mantenerlo).
   Restano COLORATI (semantici, NON toccare): pill Mattina/Pomeriggio/Notte (fasce orarie),
   pill periodi ferie P1–P6 (stagioni), pannelli match (verde) / chain (viola), badge DCO/NONI,
@@ -134,33 +136,45 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   Icone `icon-192/512` TRASPARENTI, NIENTE `purpose: maskable`; `apple-icon.png` (home iOS)
   a sfondo BIANCO `#ffffff` cotto. `manifest.json` colori `#0a0a0a` = FALLBACK legacy.
   Bump `CACHE_NAME` in `sw.js` a ogni cambio icone/manifest (cache-first).
-- **Bordi card turni/ferie (05/08/2026):** gerarchia a 3 livelli — divisore verticale della
-  colonna data IN PRIMO PIANO (ininterrotto: le giunzioni interne rendono TRASPARENTE il bordo
-  orizzontale di stato con `.shift-grouped-t/b`; la card successiva si sovrappone di 1px
-  (`margin-top: -1px` in `.shift-grouped-t`) così il bordo trasparente mostra lo sfondo della
-  card e non della pagina → alla giunzione resta UN SOLO separatore chiaro, nessuna linea
-  scura residua). Card NON prime del giorno (ordinali 2°, 3°):
-  colonna data opaca dedicata `.shift-date-sub-others` (sfondo più chiaro del primo + border-right
-  PIENO dello stesso colore → divisore continuo) — niente `opacity-20` sull'intero blocco (sbiadiva
-  ordinale e divisore). Separatore orizzontale di gruppo sulla TUTTA larghezza con colori diversi:
-  corpo `.shift-content-divider` (`--shift-inner-border`) + colonna data `.shift-date-divider`
-  (`--shift-date-inner-border`, più tenue), entrambi box-shadow inset, solo se la card precedente
-  non è la propria (`isPrevOwn`, da `prev.user_id === effectiveUserId`). Riquadro TUO (Variante A)
-  completo su 4 lati e MAI toccato dalle giunzioni né dai separatori (guard `!isOwn`, `!isPrevOwn`).
-  Contorno TUO tono A3: `--shift-own-empty/interest-border` = `#969696` (chiaro) / `#8a8a8a` (scuro).
-  FIX riga in più alla giunzione (25/08/2026): la striscia di 1px sotto il bordo trasparente
-  mostrava lo sfondo della CARD, che nella colonna data non coincide con i colori della colonna
-  → compariva una riga orizzontale in più (più chiara in chiaro, più scura in scuro) sopra il
-  separatore. `.shift-grouped-t` ridipinge la striscia con i colori della colonna data della card
-  PRECEDENTE tramite `background-image: linear-gradient(to right, <bg> 0 51px, <border> 51px
-  52px, transparent 52px)` (i 52px devono restare allineati a `w-[52px]` delle colonne data in
-  shift-item.tsx / vacation-request-item.tsx). IMPORTANTE: la striscia deve fondersi con la
-  card SOPRA, NON con la card sotto (il primo tentativo usava `--shift-others-sub-date-bg` fisso
-  → la riga #d7e3ec/#202020 risaltava contro la colonna della card precedente). Le liste
-  (shift-list, vacation-request-list) calcolano `prevDateClass` (classe colonna data della card
-  precedente: prima del giorno / sub / propria) e lo passano al componente, che applica la
-  variante giusta: `.shift-grouped-t` (default sub-date), `.shift-grouped-t-date`
-  (prima del giorno), `.shift-grouped-t-own-empty`, `.shift-grouped-t-own-interest`.
+- **Bordi card turni/ferie — ARCHITETTURA (25/08/2026, 2° fix):** il bordo e lo sfondo della
+  card vivono sul WRAPPER INTERNO (`shift-item.tsx` / `vacation-request-item.tsx`: il primo
+  div dopo l'outer che porta ring/shadow), che contiene riga + pannello espanso: `stateClass`
+  (bg + `border: 1px solid`), `borderRadius` per posizione nel giorno, `overflow-hidden`,
+  `shift-grouped-t/b`. Riga e pannello sono TRASPARENTI e senza bordo. PERCHÉ: i bordi 1px di
+  due elementi impilati con lo stesso colore (riga↔pannello, pannello↔card successiva) vengono
+  ANTIALIASATI dal browser alla giunzione e a zoom alto (es. 5x) quella riga da 1px diventa un
+  TRIANGOLO diagonale sui bordi laterali (#2d2d33 su #41414c); con un unico tratto continuo sul
+  wrapper la giunzione è pulita a qualunque zoom. Rimossi per questo: le classi `shift-expanded-*`
+  (il pannello è trasparente), il `border-x`/`border-b`/`panelRadius` del pannello (il fondo si
+  chiude sul wrapper: `borderRadius` espansa = `rounded-t-[10px]` se prima del giorno +
+  `rounded-b-[10px]` se ultima), le varianti `.shift-grouped-t-date/-own-empty/-own-interest`
+  e le prop `prevDateClass`/`isPrevOwn` dalle liste.
+  LINEE FRA CARD DELLO STESSO GIORNO (25/08/2026, richiesta utente): il divisore è il bordo
+  basso VISIBILE del wrapper, `.shift-grouped-b { border-bottom-color: var(--shift-others-date-border) }`
+  (#2e2e2e scuro / #bdd0e0 chiaro — stesso colore del divisore verticale della colonna data,
+  sottile e adattivo ai 2 temi).  Applicato a tutte le card NON ultime del giorno (anche da
+  espansa: separa il pannello dalla card successiva). Il bordo ALTO delle card NON prime
+  (`.shift-grouped-t`) è `border-top-width: 0` (4° fix, 25/08/2026): ATTENZIONE non basta
+  il colore trasparente — un bordo alto di 1px (anche trasparente) mostra il bg del wrapper
+  sotto ogni separatore e crea una STRISCIA SCURA a tutta larghezza (più scura del divisore
+  #2e2e2e, visibile nella colonna data fra separatore e #202020): la "doppia linea" in ogni
+  giunzione (collassata e pannello→card successiva). Con width 0 il divisore resta il bordo
+  basso della card SOPRA (una sola linea) e la riga parte esattamente sotto. La striscia
+  di 1px con i colori della PROPRIA colonna data la ridipinge la RIGA, NON il wrapper —
+  `.shift-grouped-row-strip` sulla riga (stesso `linear-gradient(to right, <bg> 0 51px,
+  <border> 51px 52px, transparent 52px)`, 52px allineati a `w-[52px]`). ATTENZIONE: il
+  gradiente NON deve stare sul wrapper, perché dipinge TUTTA l'altezza della card e da
+  espansa la colonna data invadeva il pannello (sovrapposizione #202020 a sinistra del
+  bottone). NIENTE più `margin-top: -1px` (overlap): nasconderebbe il divisore.
+  PANNELLO ESPANSO COME CARD A SÉ (25/08/2026, 3° fix): il pannello NON estende più il
+  pattern data/corpo della riga — è full-width (niente colonna data a sinistra) e separato
+  dalla riga da un divisore orizzontale `.shift-expand-panel { border-top: 1px solid
+  var(--shift-others-date-border) }` (stesso colore dei divisori fra card). Prima card del
+  giorno: bordo alto di stato (top del gruppo); ultima: bordo basso di stato + angoli bassi
+  (bottom del gruppo); le intermedie: divisore basso.
+  Colonna data sub `.shift-date-sub-others` (ordinali 2°, 3°): sfondo opaco dedicato +
+  border-right PIENO → divisore verticale continuo. Riquadro TUO (Variante A) invariato:
+  MAI toccato dalle giunzioni (guard `!isOwn`), completo su 4 lati anche da espansa.
 - **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013) —
   colori PER PERSONA dei desk (board /turnisala, admin o manager), diverso dall'ex-funzionalità
   colori tema. Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).
@@ -174,10 +188,18 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   del contenitore); in desk-board.tsx la classe è applicata SOLO a un bottone non selezionato
   il cui vicino di sinistra è anch'esso non selezionato (mai a fianco della chip selezionata:
   con P selezionato il separatore sta tra N|M, con N tra M|P, con M nessuno). Colori titolo/corpo
-  card tema scuro (25/08/2026): `--sala-card-title-bg` = `#454545` / `--sala-card-body-bg` =
-  `#2b2b2b` (prima `#383838`): nel chiaro lo stacco titolo↔corpo è marcato (`#dfe8f2` vs `#f8fbfd`,
-  ΔRGB≈18) mentre in scuro era quasi impercettibile (Δ≈13) → col nuovo Δ≈26 il titolo risalta
-  quanto nel chiaro. Il titolo card è `text-xs font-semibold` (12px/600) IDENTICO nei due temi.
+  card tema scuro (26/08/2026): `--sala-card-title-bg` = `#454545` / `--sala-card-body-bg` =
+  `#171717` (= bg-card, uniforme con /turniferie; prima `#2b2b2b`, inizialmente `#383838`).
+  Nel chiaro lo stacco titolo↔corpo è marcato (`#dfe8f2` vs `#f8fbfd`, ΔRGB≈18); in scuro ora
+  è più forte (Δ≈46). Il titolo card è `text-xs font-semibold` (12px/600) IDENTICO nei due temi.
+  Card d'intestazione + selezione N/M/P (26/08/2026): la toolbar di /turnisala usa `--sala-toolbar-bg`
+  = `var(--sala-card-body-bg)` (nel chiaro coincideva già col corpo delle card; nello scuro ora
+  è #171717 come i corpi = bg-card, uniforme con /turniferie). La chip
+  N/M/P selezionata usa i colori della banda TITOLO delle card (`--sala-toolbar-chip-bg` =
+  `var(--sala-card-title-bg)` = #dfe8f2 chiaro / #454545 scuro, testo #1c1c1c / #f5f5f5, bordo =
+  sfondo) in ENTRAMBI i temi (prima era invertita: nera in chiaro / bianca in scuro). In /turniferie
+  la card d'intestazione è GIÀ uguale al corpo delle card periodo (`bg-card`) in entrambi i temi:
+  nessun intervento necessario.
 - **Changelog popup (25/08/2026) — DB-backed:** alla prima apertura della PWA dopo un
   aggiornamento viene mostrato un dialog "Novità di questa versione" con le entry non ancora
   viste. PERSISTENZA SERVER-SIDE: tabella `changelog_entries` (version, date, title, changes

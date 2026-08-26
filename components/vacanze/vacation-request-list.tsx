@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useDuplicateCognomi } from '@/hooks/use-users'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isManager } from '@/types/database'
-import { cn, getShiftItemState, SHIFT_DATE_CLASSES } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import type { VacationPeriod } from '@/types/database'
 
 interface Props {
@@ -102,16 +102,6 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
               const next = filtered[index + 1]
               const isSameDateAsPrevious = !!prev && dayKey(prev.created_at) === dayKey(request.created_at)
               const isSameDateAsNext = !!next && dayKey(next.created_at) === dayKey(request.created_at)
-              const isPrevOwn = !!prev && prev.user_id === effectiveUserId
-              // Colonna data della card PRECEDENTE (per la striscia di giunzione
-              // .shift-grouped-t, che deve fondersi con la card SOPRA)
-              const prevDateClass = isSameDateAsPrevious && prev
-                ? (isPrevOwn
-                    ? SHIFT_DATE_CLASSES[getShiftItemState({ isOwn: true, hasInterest: prev.vacation_request_interests.length > 0 })]
-                    : dateIndexes[index] > 1
-                      ? 'shift-date-sub-others'
-                      : 'shift-date-others')
-                : null
               return (
                 <motion.div
                   key={request.id}
@@ -128,8 +118,6 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
                     myPeriodThisYear={myPeriodThisYear}
                     isSameDateAsPrevious={isSameDateAsPrevious}
                     isSameDateAsNext={isSameDateAsNext}
-                    isPrevOwn={isPrevOwn}
-                    prevDateClass={prevDateClass}
                     dateIndex={dateIndexes[index]}
                     year={year}
                     isHighlighted={highlightRequestIds.includes(request.id)}

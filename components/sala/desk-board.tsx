@@ -491,7 +491,7 @@ export function DeskBoard({
     <div className="flex flex-col gap-2 p-4">
       {/* Schedule header — hidden during layout edit */}
       {!isEditing && (
-        <div className="flex items-center flex-wrap gap-1 bg-card border desk-schedule-border rounded-xl px-3 py-2 mr-14">
+        <div className="flex items-center flex-wrap gap-1 sala-toolbar-bg border desk-schedule-border rounded-xl px-3 py-2 mr-14">
           <div className="relative">
             <button
               onClick={() => setShowDayPicker(v => !v)}
