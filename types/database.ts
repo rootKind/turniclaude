@@ -150,6 +150,56 @@ export interface SalaSchedule {
   schedule: Record<number, DaySchedule>  // day 1–31
   uploaded_at: string
   coloredPersons?: Record<number, Record<string, string>>
+  source?: 'uploaded' | 'theoretical'   // theoretical = generato dai turni teorici
+}
+
+// ── Turni teorici (squadre e cicli) ──────────────────────────────────────────
+
+export interface ShiftTypeGroup {
+  id: string
+  name: string
+  cycle_days: number
+  pattern_start: string        // YYYY-MM-DD: data assoluta di pattern[0]
+  is_active: boolean
+  sort_order: number
+}
+
+export interface ShiftTeam {
+  id: string
+  shift_type_id: string
+  name: string
+  phase_offset_days: number
+  sort_order: number
+}
+
+export interface ShiftTeamMember {
+  id: string
+  team_id: string
+  full_name: string
+  user_id: string | null
+  pattern: string[]            // lunghezza = cycle_days della tipologia
+  sort_order: number
+  is_active: boolean
+}
+
+export interface ShiftAdjustment {
+  id: string
+  effective_date: string      // YYYY-MM-DD: dal giorno X (incluso) in poi
+  delta_days: number          // -1 | 1
+  scope: 'global' | 'team'
+  team_id: string | null
+  note: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export interface ShiftTeamTree {
+  types: Array<ShiftTypeGroup & {
+    teams: Array<ShiftTeam & {
+      members: ShiftTeamMember[]
+    }>
+  }>
+  adjustments: ShiftAdjustment[]
 }
 
 // ── Costanti ─────────────────────────────────────────────────────────────────

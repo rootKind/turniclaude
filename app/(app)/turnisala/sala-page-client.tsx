@@ -1,10 +1,12 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { upsertSalaLayout } from '@/lib/queries/sala-layout'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
+import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
+import { generateTheoreticalMonth } from '@/lib/turni-teorici'
 import { DeskBoard } from '@/components/sala/desk-board'
-import type { SalaLayout, SalaSchedule } from '@/types/database'
+import type { SalaLayout, SalaSchedule, ShiftTeamTree } from '@/types/database'
 
 function useLandscapeLock() {
   useEffect(() => {
@@ -26,6 +28,7 @@ interface Props {
   initialSchedule: SalaSchedule | null
   initialMonth: string
   scheduleMonths: string[]
+  theoreticalMonths: string[]
 }
 
 export function SalaPageClient({
@@ -38,6 +41,7 @@ export function SalaPageClient({
   initialSchedule,
   initialMonth,
   scheduleMonths: initialMonths,
+  theoreticalMonths,
 }: Props) {
   useLandscapeLock()
 
@@ -48,16 +52,50 @@ export function SalaPageClient({
   const [schedule, setSchedule] = useState<SalaSchedule | null>(initialSchedule)
   const [currentMonth, setCurrentMonth] = useState(initialMonth)
   const [availableMonths, setAvailableMonths] = useState(initialMonths)
+  const [shiftTree, setShiftTree] = useState<ShiftTeamTree | null>(null)
+  const [treeError, setTreeError] = useState(false)
+
+  // Ref per rigenerare il mese teorico quando i dati delle squadre arrivano
+  // (es. navigazione avvenuta prima del caricamento iniziale).
+  const currentMonthRef = useRef(currentMonth)
+  const scheduleRef = useRef(schedule)
+  currentMonthRef.current = currentMonth
+  scheduleRef.current = schedule
+
+  // I dati dei turni teorici sono leggibili da tutti gli utenti autenticati:
+  // la generazione dei mesi teorici avviene client-side.
+  useEffect(() => {
+    const supabase = createClient()
+    fetchShiftTeamTree(supabase)
+      .then(t => {
+        setShiftTree(t)
+        if (theoreticalMonths.includes(currentMonthRef.current) && !scheduleRef.current) {
+          setSchedule(generateTheoreticalMonth(currentMonthRef.current, t, t.adjustments))
+        }
+      })
+      .catch(() => setTreeError(true))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSaveLayout = async (updated: SalaLayout) => {
     const supabase = createClient()
     await upsertSalaLayout(supabase, updated, userId)
   }
 
+  const isTheoretical = (month: string) => theoreticalMonths.includes(month)
+
   const handleMonthChange = async (month: string) => {
     setCurrentMonth(month)
     setSchedule(null)
     const supabase = createClient()
+    if (isTheoretical(month)) {
+      // Mese non caricato: generato dai turni teorici. Se i dati non sono
+      // ancora pronti, il .then sopra rigenera appena arrivano.
+      if (shiftTree) {
+        setSchedule(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments))
+      }
+      return
+    }
     const data = await getSalaSchedule(supabase, month)
     setSchedule(data)
   }
@@ -144,6 +182,7 @@ export function SalaPageClient({
         schedule={schedule}
         currentMonth={currentMonth}
         availableMonths={availableMonths}
+        theoreticalMonths={theoreticalMonths}
         onMonthChange={handleMonthChange}
         onUpload={handleUpload}
         onDeleteMonth={handleDeleteMonth}
@@ -151,4 +190,4 @@ export function SalaPageClient({
       />
     </main>
   )
-}
+}

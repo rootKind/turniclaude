@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { X, ChevronDown } from 'lucide-react'
 import { it } from 'date-fns/locale'
 import { format } from 'date-fns'
@@ -135,6 +135,7 @@ interface Props {
   schedule?: SalaSchedule | null
   currentMonth: string
   availableMonths: string[]
+  theoreticalMonths: string[]
   onMonthChange: (month: string) => Promise<void>
   onUpload: (file: File, month: string) => Promise<void>
   onDeleteMonth: (month: string) => Promise<void>
@@ -151,6 +152,7 @@ export function DeskBoard({
   schedule,
   currentMonth,
   availableMonths,
+  theoreticalMonths,
   onMonthChange,
   onUpload,
   onDeleteMonth,
@@ -217,7 +219,15 @@ export function DeskBoard({
   const totalDaysRef = useRef(getDaysInMonth(currentMonth))
   const selectedShiftRef = useRef<SalaShiftType>(selectedShift)
   const selectedDayRef = useRef<number>(selectedDay)
-  const availableMonthsRef = useRef(availableMonths)
+  // Mesi navigabili = caricati a mano + mesi teorici (non ancora caricati).
+  const navigableMonths = useMemo(() =>
+    [...new Set([...availableMonths, ...theoreticalMonths])].sort(),
+    [availableMonths, theoreticalMonths],
+  )
+  const navigableMonthsSet = useMemo(() => new Set(navigableMonths), [navigableMonths])
+  const isTheoreticalMonth = useMemo(() => new Set(theoreticalMonths), [theoreticalMonths])
+
+  const availableMonthsRef = useRef(navigableMonths)
   const currentMonthRef = useRef(currentMonth)
   const onMonthChangeRef = useRef(onMonthChange)
   const swipeMonthChangeRef = useRef(false)
@@ -226,7 +236,7 @@ export function DeskBoard({
   useEffect(() => { isEditingRef.current = isEditing }, [isEditing])
   useEffect(() => { selectedShiftRef.current = selectedShift }, [selectedShift])
   useEffect(() => { selectedDayRef.current = selectedDay }, [selectedDay])
-  useEffect(() => { availableMonthsRef.current = availableMonths }, [availableMonths])
+  useEffect(() => { availableMonthsRef.current = navigableMonths }, [navigableMonths])
   useEffect(() => { currentMonthRef.current = currentMonth }, [currentMonth])
   useEffect(() => { onMonthChangeRef.current = onMonthChange }, [onMonthChange])
 
@@ -242,8 +252,7 @@ export function DeskBoard({
   const [pickerMonth, setPickerMonth] = useState(() => new Date(cy, cm - 1))
   useEffect(() => { setPickerMonth(new Date(cy, cm - 1)) }, [cy, cm])
 
-  const availableMonthsSet = new Set(availableMonths)
-  const sortedAvailable = [...availableMonths].sort()
+  const sortedAvailable = navigableMonths
   const calFromMonth = sortedAvailable.length > 0
     ? (() => { const [y, m] = sortedAvailable[0].split('-').map(Number); return new Date(y, m - 1) })()
     : new Date(cy, cm - 1)
@@ -526,8 +535,9 @@ export function DeskBoard({
                     toMonth={calToMonth}
                     disabled={(date) => {
                       const dateMonthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-                      if (!availableMonthsSet.has(dateMonthStr)) return true
-                      if (dateMonthStr === currentMonth && activeDays) return !activeDays.has(date.getDate())
+                      if (!navigableMonthsSet.has(dateMonthStr)) return true
+                      // Mesi teorici: tutti i giorni navigabili; uploadati: solo i giorni presenti
+                      if (dateMonthStr === currentMonth && activeDays && !isTheoreticalMonth.has(dateMonthStr)) return !activeDays.has(date.getDate())
                       return false
                     }}
                     showOutsideDays={false}
@@ -613,7 +623,7 @@ export function DeskBoard({
                         scheduleSections={scheduleSections}
                         onUpdate={updateCard}
                         onDelete={deleteCard}
-                        canEditColors={canUpload && !isEditing && !!schedule}
+                        canEditColors={canUpload && !isEditing && !!schedule && schedule.source !== 'theoretical'}
                         onColorChange={canUpload && onColorChange
                           ? (name, color) => onColorChange(currentMonth, selectedDay, name, color)
                           : undefined}
@@ -711,11 +721,13 @@ export function DeskBoard({
         </div>
       )}
 
-      {/* PDF upload timestamp — fixed above bottom navbar */}
-      {!isEditing && schedule?.uploaded_at && (
+      {/* PDF upload timestamp / badge mese teorico — fixed above bottom navbar */}
+      {!isEditing && schedule && (
         <div className="fixed bottom-[calc(4rem_+_env(safe-area-inset-bottom,0px))] inset-x-0 flex justify-center pointer-events-none z-30">
           <span className="text-[10px] text-muted-foreground/60 bg-background/80 backdrop-blur-sm px-2 py-0.5 rounded-full">
-            PDF: {formatDateTime(schedule.uploaded_at)}
+            {schedule.source === 'theoretical'
+              ? 'Turno teorico'
+              : schedule.uploaded_at ? `PDF: ${formatDateTime(schedule.uploaded_at)}` : ''}
           </span>
         </div>
       )}

@@ -1,0 +1,1168 @@
+{
+  "file": "Luglio_18-08-2026.pdf",
+  "pagine": [
+    [
+      {
+        "row": 1,
+        "colore": "RGB(0,0,0)",
+        "testo": "lug-26"
+      },
+      {
+        "row": 2,
+        "colore": "GRIGIO",
+        "testo": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+      },
+      {
+        "row": 3,
+        "colore": "GRIGIO",
+        "testo": "Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven"
+      },
+      {
+        "row": 4,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. NDCP MDCIF NDCP A A A A"
+      },
+      {
+        "row": 5,
+        "colore": "BLU1",
+        "testo": "DI MONDA PDCP PDCP MDCP NDCP RC PDCCM MDCCM NDCCM RM RC RI PDCP MDCP NDCP RC RI PDCCM MDCCM NDCCM RC PDCP MDCP NDCP RI PDCCM MDCCM NDCCM RI PDCP PDCP MDCP"
+      },
+      {
+        "row": 6,
+        "colore": "BIANCO",
+        "testo": "PDCCM MDCCM NDCCM PDCP PDCIF PDCCM MDCIF A A A"
+      },
+      {
+        "row": 7,
+        "colore": "BLU1",
+        "testo": "ROMANO N. PDCCM PDCCM MDCCM NDCCM RC PDCP MDCP NDCP RM RC RI PDCCM MDCCM NDCCM RC RI PDCP MDCP NDCP RC PDCCM MDCCM NDCCM RI PDCP MDCP NDCP RI PDCCM PDCCM MDCCM"
+      },
+      {
+        "row": 8,
+        "colore": "CELESTE",
+        "testo": "A A NDCCM MDCCM A MDCP A A F.E. F.E. F.E. F.E. F.E. F.E. F.E. PDCIF"
+      },
+      {
+        "row": 9,
+        "colore": "RGB(241,206,238)",
+        "testo": "COPPETA MDCCM NDCCM RI PDCP MDCP NDCP RI PDCCM PDCCM MDCCM NDCCM RC PDCP MDCP NDCP RM RC RI PDCCM MDCCM NDCCM RC RI PDCP MDCP NDCP RC PDCCM MDCCM NDCCM RI"
+      },
+      {
+        "row": 10,
+        "colore": "BIANCO",
+        "testo": "PDCCM PDCCM A PDCP PDCCM MDCCM NDCCM PDCCM MDCCM NDCCM"
+      },
+      {
+        "row": 11,
+        "colore": "RGB(241,206,238)",
+        "testo": "LONI G. MDCP NDCP RI PDCCM MDCCM NDCCM RI PDCP PDCP MDCP NDCP RC PDCCM MDCCM NDCCM RM RC RI PDCP MDCP NDCP RC RI PDCCM MDCCM NDCCM RC PDCP MDCP NDCP RI"
+      },
+      {
+        "row": 12,
+        "colore": "BIANCO",
+        "testo": "A NDCCM PDCCM A A A A A A A PDCCM"
+      },
+      {
+        "row": 13,
+        "colore": "RGB(243,210,207)",
+        "testo": "D'ELIA NDCCM RM RC RI PDCP MDCP NDCP RC RI PDCCM MDCCM NDCCM RC PDCP MDCP NDCP RI PDCCM MDCCM NDCCM RI PDCP PDCP MDCP NDCP RC PDCCM MDCCM NDCCM RM RC"
+      },
+      {
+        "row": 14,
+        "colore": "BIANCO",
+        "testo": "NDCCM MDCP A A MDCCM NDCCM"
+      },
+      {
+        "row": 15,
+        "colore": "RGB(243,210,207)",
+        "testo": "PASSANNANTI NDCP RM RC RI PDCCM MDCCM NDCCM RC RI PDCP MDCP NDCP RC PDCCM MDCCM NDCCM RI PDCP MDCP NDCP RI PDCCM PDCCM MDCCM NDCCM RC PDCP MDCP NDCP RM RC"
+      },
+      {
+        "row": 16,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. NDCP PDCCM MDCCM NDCCM PDCP"
+      },
+      {
+        "row": 17,
+        "colore": "RGB(201,236,250)",
+        "testo": "ARMENANTE RC RI PDCP MDCP NDCP RC PDCCM MDCCM NDCCM RI PDCP MDCP NDCP RI PDCCM PDCCM MDCCM NDCCM RC PDCP MDCP NDCP RM RC RI PDCCM MDCCM NDCCM RC RI PDCP"
+      },
+      {
+        "row": 18,
+        "colore": "BIANCO",
+        "testo": "MDCIF PDCCM MDCCM A PDCCM PDCCM F.E. F.E. F.E. F.E. F.E. F.E. F.E."
+      },
+      {
+        "row": 19,
+        "colore": "RGB(201,236,250)",
+        "testo": "DI MONACO RC RI PDCCM MDCCM NDCCM RC PDCP MDCP NDCP RI PDCCM MDCCM NDCCM RI PDCP PDCP MDCP NDCP RC PDCCM MDCCM NDCCM RM RC RI PDCP MDCP NDCP RC RI PDCCM"
+      },
+      {
+        "row": 20,
+        "colore": "BIANCO",
+        "testo": "PDCP MDCCM PDCP MDCP NDCP PDCP PDCP PDCP MDCP PDCP MDCCM PDCP PDCP PDCIF MDCIF A PDCIF PDCP MDCP NDCP PDCP"
+      },
+      {
+        "row": 21,
+        "colore": "RGB(0,0,0)",
+        "testo": "SENATORE D MDCP NDCP RI D RC RI D MDCCM NDCCM D D D RM D MDCP NDCP RC RI RC D D MDCCM NDCCM RI D D RC D MDCP NDCP"
+      },
+      {
+        "row": 22,
+        "colore": "BIANCO",
+        "testo": "NDCP A A PDCP PDCP MDCP MDCP NDCP MDCP NDCP NDCP MDCP A PDCIF MDCP MDCP PDCIF MDCCM NDCCM NDCP MDCP NDCP MDCP"
+      },
+      {
+        "row": 23,
+        "colore": "RGB(0,0,0)",
+        "testo": "BARRA D MDCCM NDCCM RI D D RC D MDCP NDCP RI D RC RI D MDCCM NDCCM D D D RM D MDCP NDCP RC RI RC D D MDCCM NDCCM"
+      },
+      {
+        "row": 24,
+        "colore": "BIANCO",
+        "testo": "PDCP MDCP PDCP PDCP PDCP PDCP"
+      },
+      {
+        "row": 25,
+        "colore": "RGB(193,239,199)",
+        "testo": "DI MEO RC PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF RM PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF RI"
+      },
+      {
+        "row": 26,
+        "colore": "BIANCO",
+        "testo": "PDCIF PDCP MDCP A A MDCP PDCP PDCCM PDCP PDCP A MDCP PDCP A A"
+      },
+      {
+        "row": 27,
+        "colore": "RGB(241,206,238)",
+        "testo": "LANGIONE PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF RM PDCIF MDCIF PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF RI PDCIF MDCIF RC PDCIF"
+      },
+      {
+        "row": 28,
+        "colore": "BIANCO",
+        "testo": "A NDCP NDCP NDCP A A NDCP MDCP NDCP MDCIF NDCP MDCP F.E. F.E."
+      },
+      {
+        "row": 29,
+        "colore": "RGB(250,225,212)",
+        "testo": "ALBANO MDCIF RC PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF RM PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF RI PDCIF MDCIF RC PDCIF MDCIF"
+      },
+      {
+        "row": 30,
+        "colore": "GRIGIO",
+        "testo": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+      },
+      {
+        "row": 31,
+        "colore": "GRIGIO",
+        "testo": "Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven"
+      },
+      {
+        "row": 32,
+        "colore": "BIANCO",
+        "testo": "P6T P6T M6T N6T P7S N7T P7S P7T M5T N5T P5T P5T A N6T A A A"
+      },
+      {
+        "row": 33,
+        "colore": "BLU1",
+        "testo": "DE PASCALE P. P4S P4S M4S N4 RC P5T M5T N5T RM RC RI P5S M5S N5S RC RI P6S M6S N6T RC P7S M7S N7T RI P8 M8 N6S RI P9 P9 M9"
+      },
+      {
+        "row": 34,
+        "colore": "BIANCO",
+        "testo": "P6S M7S P5T A A A A"
+      },
+      {
+        "row": 35,
+        "colore": "BLU1",
+        "testo": "NUBI P10S P10S M10S N10T RC P11 M11 N10S RM RC RI P4S M4S N4 RC RI P5T M5T N5T RC P5S M5S N5S RI P6S M6S N6T RI P7S P7S M7S"
+      },
+      {
+        "row": 36,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. P10S P7S F.E. F.E. F.E. P7T P10S"
+      },
+      {
+        "row": 37,
+        "colore": "BLU1",
+        "testo": "CIPOLLETTA P5S P5S M5S N5S RC P6S M6S N6T RM RC RI P7S M7S N7T RC RI P8 M8 N6S RC P9 M9 N7S RI P10S M10S N10T RI P11 P11 M11"
+      },
+      {
+        "row": 38,
+        "colore": "CELESTE",
+        "testo": "P6T M10S VS P8 A"
+      },
+      {
+        "row": 39,
+        "colore": "BLU1",
+        "testo": "MININO P8 P8 M8 N6S RC P9 M9 N7S RM RC RI P10S M10S N10T RC RI P11 M11 N10S RC P4S M4S N4 RI P5T M5T N5T RI P5S P5S M5S"
+      },
+      {
+        "row": 40,
+        "colore": "BIANCO",
+        "testo": "PDCIF MDCIF PDCIF P9 M9 P6T MRIC PDCIF N6S PDCIF MDCIF"
+      },
+      {
+        "row": 41,
+        "colore": "BLU1",
+        "testo": "NERI P7S P7S M7S N7T RC P8 M8 N6S RM RC RI P9 M9 N7S RC RI P10S M10S N10T RC P11 M11 N10S RI P4S M4S N4 RI P5T P5T M5T"
+      },
+      {
+        "row": 42,
+        "colore": "BIANCO",
+        "testo": "M5S M10T M8 P11 M4S NDisNa M7S NDisNa M10T F.E. NDisNa DisNa NDisNa P10S F.E. F.E. DisNa"
+      },
+      {
+        "row": 43,
+        "colore": "BLU1",
+        "testo": "ROMANO R. P9 P9 M9 N7S RC P10S M10S N10T RM RC RI P11 M11 N10S RC RI P4S M4S N4 RC P5T M5T N5T RI P5S M5S N5S RI P6S P6S M6S"
+      },
+      {
+        "row": 44,
+        "colore": "CELESTE",
+        "testo": "A M4T N4 A A"
+      },
+      {
+        "row": 45,
+        "colore": "BLU1",
+        "testo": "DI NAPOLI A. P5T P5T M5T N5T RC P5S M5S N5S RM RC RI P6S M6S N6T RC RI P7S M7S N7T RC P8 M8 N6S RI P9 M9 N7S RI P10S P10S M10S"
+      },
+      {
+        "row": 46,
+        "colore": "CELESTE",
+        "testo": "P7S P4S M4T MM3M40 P9 M7T A M10S N10T"
+      },
+      {
+        "row": 47,
+        "colore": "BLU1",
+        "testo": "SMERAGLIUOLO P6S P6S M6S N6T RC P7S M7S N7T RM RC RI P8 M8 N6S RC RI P9 M9 N7S RC P10S M10S N10T RI P11 M11 N10S RI P4S P4S M4S"
+      },
+      {
+        "row": 48,
+        "colore": "BIANCO",
+        "testo": "A P10S P5S M5S N5S M10T N5S A M6S N6T A"
+      },
+      {
+        "row": 49,
+        "colore": "BLU1",
+        "testo": "SABIA P11 P11 M11 N10S RC P4S M4S N4 RM RC RI P5T M5T N5T RC RI P5S M5S N5S RC P6S M6S N6T RI P7S M7S N7T RI P8 P8 M8"
+      }
+    ],
+    [
+      {
+        "row": 1,
+        "colore": "GRIGIO",
+        "testo": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+      },
+      {
+        "row": 2,
+        "colore": "GRIGIO",
+        "testo": "Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven"
+      },
+      {
+        "row": 3,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. DisCas F.E. F.E. F.E. F.E. DisNa DisCas"
+      },
+      {
+        "row": 4,
+        "colore": "RGB(241,206,238)",
+        "testo": "CRISTOFARO M5T N5T RI P5S M5S N5S RI P6S P6S M6S N6T RC P7S M7S N7T RM RC RI P8 M8 N6S RC RI P9 M9 N7S RC P10S M10S N10T RI"
+      },
+      {
+        "row": 5,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. M9 N7S NDCP P8 NDCP NDCP P10S"
+      },
+      {
+        "row": 6,
+        "colore": "RGB(241,206,238)",
+        "testo": "DI NAPOLI M. M8 N6S RI P9 M9 N7S RI P10S P10S M10S N10T RC P11 M11 N10S RM RC RI P4S M4S N4 RC RI P5T M5T N5T RC P5S M5S N5S RI"
+      },
+      {
+        "row": 7,
+        "colore": "BIANCO",
+        "testo": "M7S N7T MDCIF N5T P10T PDCIF MDCIF P11 P6S MDCIF N6S P7S A DisNa P7S MDCIF PDCIF P4S P9"
+      },
+      {
+        "row": 8,
+        "colore": "RGB(241,206,238)",
+        "testo": "GAGLIOTTA M7S N7T RI P8 M8 N6S RI P9 P9 M9 N7S RC P10S M10S N10T RM RC RI P11 M11 N10S RC RI P4S M4S N4 RC P5T M5T N5T RI"
+      },
+      {
+        "row": 9,
+        "colore": "BIANCO",
+        "testo": "P10S M10S N10T N5S M4T M10T A A"
+      },
+      {
+        "row": 10,
+        "colore": "RGB(241,206,238)",
+        "testo": "SEMOLA M4S N4 RI P5T M5T N5T RI P5S P5S M5S N5S RC P6S M6S N6T RM RC RI P7S M7S N7T RC RI P8 M8 N6S RC P9 M9 N7S RI"
+      },
+      {
+        "row": 11,
+        "colore": "CELESTE",
+        "testo": "A P7T A P6T M6T M10T M7T A P5T A"
+      },
+      {
+        "row": 12,
+        "colore": "RGB(241,206,238)",
+        "testo": "NIOLA M11 N10S RI P4S M4S N4 RI P5T P5T M5T N5T RC P5S M5S N5S RM RC RI P6S M6S N6T RC RI P7S M7S N7T RC P8 M8 N6S RI"
+      },
+      {
+        "row": 13,
+        "colore": "CELESTE",
+        "testo": "M5S N5S A M7T N6S M7S M6T N6T MRIC P7S M7S MRIC N7T"
+      },
+      {
+        "row": 14,
+        "colore": "RGB(241,206,238)",
+        "testo": "PICCIRILLO M10S N10T RI P11 M11 N10S RI P4S P4S M4S N4 RC P5T M5T10 N5T RM RC RI P5S M5S N5S RC RI P6S M6S N6T RC P7S M7S N7T RI"
+      },
+      {
+        "row": 15,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. M5S N5T M5S P9 MTUTOR P5T"
+      },
+      {
+        "row": 16,
+        "colore": "RGB(241,206,238)",
+        "testo": "RISO M5S N5S RI P6S M6S N6T RI P7S P7S M7S N7T RC P8 M8 N6S RM RC RI P9 M9 N7S RC RI P10S M10S N10T RC P11 M11 N10S RI"
+      },
+      {
+        "row": 17,
+        "colore": "CELESTE",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. DisNa P10T M5T A NDisNa P8 A DisNa"
+      },
+      {
+        "row": 18,
+        "colore": "RGB(241,206,238)",
+        "testo": "RUGGIERO A. M6S N6T RI P7S M7S N7T RI P8 P8 M8 N6S RC P9 M9 N7S RM RC RI P10S M10S N10T RC RI P11 M11 N10S RC P4S M4S N4 RI"
+      },
+      {
+        "row": 19,
+        "colore": "BIANCO",
+        "testo": "M11 N10S A N10S N10S NDisNa M6T NDisNa N6S P4T NDisNa"
+      },
+      {
+        "row": 20,
+        "colore": "RGB(241,206,238)",
+        "testo": "TROCCHIA M9 N7S RI P10S M10S N10T RI P11 P11 M11 N10S RC P4S M4S N4 RM RC RI P5T M5T N5T RC RI P5S M5S N5S RC P6S M6S N6T RI"
+      },
+      {
+        "row": 21,
+        "colore": "GRIGIO",
+        "testo": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+      },
+      {
+        "row": 22,
+        "colore": "GRIGIO",
+        "testo": "Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven"
+      },
+      {
+        "row": 23,
+        "colore": "BIANCO",
+        "testo": "P8 MRIC A PRIC P10T VS M7S P4T"
+      },
+      {
+        "row": 24,
+        "colore": "RGB(243,210,207)",
+        "testo": "CAIAZZO M. N7T RM RC RI P8 M8 N6S RC RI P9 M9 N7S RC P10S M10S N10T RI P11 M11 N10S RI P4S P4S M4S N4 RC P5T M5T N5T RM RC"
+      },
+      {
+        "row": 25,
+        "colore": "BIANCO",
+        "testo": "N5S M4T VS N10T A A P4T A M7S"
+      },
+      {
+        "row": 26,
+        "colore": "RGB(243,210,207)",
+        "testo": "DI FRAIA N5T RM RC RI P5S M5S N5S RC RI P6S M6S N6T RC P7S M7S N7T RI P8 M8 N6S RI P9 P9 M9 N7S RC P10S M10S N10T RM RC"
+      },
+      {
+        "row": 27,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. M8 P10T M7S N7T"
+      },
+      {
+        "row": 28,
+        "colore": "RGB(243,210,207)",
+        "testo": "FERRIERO N5S RM RC RI P6S M6S N6T RC RI P7S M7S N7T RC P8 M8 N6S RI P9 M9 N7S RI P10S P10S M10S N10T RC P11 M11 N10S RM RC"
+      },
+      {
+        "row": 29,
+        "colore": "BIANCO",
+        "testo": "N7S N10S A A"
+      },
+      {
+        "row": 30,
+        "colore": "RGB(243,210,207)",
+        "testo": "ESPOSITO AU. N4 RM RC RI P5T M5T N5T RC RI P5S M5S N5S RC P6S M6S N6T RI P7S M7S N7T RI P8 P8 M8 N6S RC P9 M9 N7S RM RC"
+      },
+      {
+        "row": 31,
+        "colore": "BIANCO",
+        "testo": "A P5S VS M9"
+      },
+      {
+        "row": 32,
+        "colore": "RGB(243,210,207)",
+        "testo": "ESPOSITO G. N7S RM RC RI P10S M10S N10T RC RI P11 M11 N10S RC P4S M4S N4 RI P5T M5T N5T RI P5S P5S M5S N5S RC P6S M6S N6T RM RC"
+      },
+      {
+        "row": 33,
+        "colore": "BIANCO",
+        "testo": "P5S M6S A M6T N5S M7T"
+      },
+      {
+        "row": 34,
+        "colore": "RGB(243,210,207)",
+        "testo": "FATIGATI N10S RM RC RI P4S M4S N4 RC RI P5T M5T N5T RC P5S M5S N5S RI P6S M6S N6T RI P7S P7S M7S N7T RC P8 M8 N6S RM RC"
+      },
+      {
+        "row": 35,
+        "colore": "BIANCO",
+        "testo": "P7T M4T P10T PRIC M10T N7T F.E. F.E. F.E. F.E. P7T A F.E. F.E. F.E. N5S F.E. F.E. F.E."
+      },
+      {
+        "row": 36,
+        "colore": "RGB(243,210,207)",
+        "testo": "MELE N10T RM RC RI P11 M11 N10S RC RI P4S M4S N4 RC P5T M5T N5T RI P5S M5S N5S RI P6S P6S M6S N6T RC P7S M7S N7T RM RC"
+      },
+      {
+        "row": 37,
+        "colore": "BIANCO",
+        "testo": "P4T P10T P4T P10T N4"
+      },
+      {
+        "row": 38,
+        "colore": "RGB(243,210,207)",
+        "testo": "PISCOPO N6T RM RC RI P7S M7S N7T RC RI P8 M8 N6S RC P9 M9 N7S RI P10S M10S N10T RI P11 P11 M11 N10S RC P4S M4S N4 RM RC"
+      },
+      {
+        "row": 39,
+        "colore": "BIANCO",
+        "testo": "P7S P11"
+      },
+      {
+        "row": 40,
+        "colore": "RGB(243,210,207)",
+        "testo": "VOLPE N6S RM RC RI P9 M9 N7S RC RI P10S M10S N10T RC P11 M11 N10S RI P4S M4S N4 RI P5T P5T M5T N5T RC P5S M5S N5S RM RC"
+      },
+      {
+        "row": 41,
+        "colore": "GRIGIO",
+        "testo": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+      },
+      {
+        "row": 42,
+        "colore": "GRIGIO",
+        "testo": "Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven"
+      },
+      {
+        "row": 43,
+        "colore": "BIANCO",
+        "testo": "M7S P11 M11 P6T M7T A A A F.E. F.E. F.E. F.E. F.E. F.E. A A A"
+      },
+      {
+        "row": 44,
+        "colore": "RGB(201,236,250)",
+        "testo": "CICIA RC RI P5S M5S N5S RC P6S M6S N6T RI P7S M7S N7T RI P8 P8 M8 N6S RC P9 M9 N7S RM RC RI P10S M10S N10T RC RI P11"
+      },
+      {
+        "row": 45,
+        "colore": "BIANCO",
+        "testo": "Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf"
+      },
+      {
+        "row": 46,
+        "colore": "RGB(201,236,250)",
+        "testo": "COLUCCI F. RC RI P10S M10S N10T RC P11 M11 N10S RI P4S M4S N4 RI P5T P5T M5T N5T RC P5S M5S N5S RM RC RI P6S M6S N6T RC RI P7S"
+      },
+      {
+        "row": 47,
+        "colore": "BIANCO",
+        "testo": "P4T A A VS N6S MRIC N10S A P10T"
+      },
+      {
+        "row": 48,
+        "colore": "RGB(201,236,250)",
+        "testo": "GUADAGNO RC RI P8 M8 N6S RC P9 M9 N7S RI P10S M10S N10T RI P11 P11 M11 N10S RC P4S M4S N4 RM RC RI P5T M5T N5T RC RI P5S"
+      },
+      {
+        "row": 49,
+        "colore": "BIANCO",
+        "testo": "P9 M9 N10S M7T PM3M40 A A A A"
+      },
+      {
+        "row": 50,
+        "colore": "RGB(201,236,250)",
+        "testo": "IANNACO RC RI P6S M6S N6T RC P7S M7S N7T RI P8 M8 N6S RI P9 P9 M9 N7S RC P10S M10S N10T RM RC RI P11 M11 N10S RC RI P4S"
+      },
+      {
+        "row": 51,
+        "colore": "CELESTE",
+        "testo": "N6T M11 P6T M10T A A P7S P10T"
+      },
+      {
+        "row": 52,
+        "colore": "RGB(201,236,250)",
+        "testo": "LARICCIA RC RI P11 M11 N10S RC P4S M4S N4 RI P5T M5T N5T RI P5S P5S M5S N5S RC P6S M6S N6T RM RC RI P7S M7S N7T RC RI P8"
+      },
+      {
+        "row": 53,
+        "colore": "BIANCO",
+        "testo": "A A A A A A A A A A A A A A F.E. F.E. F.E. F.E. F.E. F.E. A"
+      },
+      {
+        "row": 54,
+        "colore": "RGB(201,236,250)",
+        "testo": "NAVAS RC RI P5T M5T N5T RC P5S M5S N5S RI P6S M6S N6T RI P7S P7S M7S N7T RC P8 M8 N6S RM RC RI P9 M9 N7S RC RI P10S"
+      },
+      {
+        "row": 55,
+        "colore": "BIANCO",
+        "testo": "M8 N6S P11 P4S M5S A"
+      },
+      {
+        "row": 56,
+        "colore": "RGB(201,236,250)",
+        "testo": "ESPOSITO AL. RC RI P4S M4S N4 RC P5T M5T N5T RI P5S M5S N5S RI P6S P6S M6S N6T RC P7S M7S N7T RM RC RI P8 M8 N6S RC RI P9"
+      },
+      {
+        "row": 57,
+        "colore": "BIANCO",
+        "testo": "A A A M6T P7S P10T M8 A"
+      },
+      {
+        "row": 58,
+        "colore": "RGB(201,236,250)",
+        "testo": "SANTORO RC RI P7S M7S N7T RC P8 M8 N6S RI P9 M9 N7S RI P10S P10S M10S N10T RC P11 M11 N10S RM RC RI P4S M4S N4 RC RI P5T"
+      },
+      {
+        "row": 59,
+        "colore": "BIANCO",
+        "testo": "P6S M6S A A A P8 M7T P6S P7T"
+      },
+      {
+        "row": 60,
+        "colore": "RGB(201,236,250)",
+        "testo": "STUCOVITZ RC RI P9 M9 N7S RC P10S M10S N10T RI P11 M11 N10S RI P4S P4S M4S N4 RC P5T M5T N5T RM RC RI P5S M5S N5S RC RI P6S"
+      }
+    ],
+    [
+      {
+        "row": 1,
+        "colore": "GRIGIO",
+        "testo": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+      },
+      {
+        "row": 2,
+        "colore": "GRIGIO",
+        "testo": "Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven"
+      },
+      {
+        "row": 3,
+        "colore": "BIANCO",
+        "testo": "M8TIR M8TIR M7S P4T M10T A A M7T M7S SpN M4S A VS P6S M6T A A"
+      },
+      {
+        "row": 4,
+        "colore": "RGB(250,225,212)",
+        "testo": "CAIAZZO I. M10T RC P4T M4T RI P6T M6T RC P7T M7T RM P10T M10T RI P4T M4T RC P6T M6T RI P7T M7T RC P10T M10T RI P4T M4T RC P6T M6T"
+      },
+      {
+        "row": 5,
+        "colore": "BIANCO",
+        "testo": "M6TIR M4TIR M7S M4TIR A M4TIR M10T M4TIR M10T SpN M4TIR M4TIR A A A A A M10T M10T M4TIR M10T"
+      },
+      {
+        "row": 6,
+        "colore": "RGB(250,225,212)",
+        "testo": "COSTANZO M4T RC P6T M6T RI P7T M7T RC P10T M10T RM P4T M4T RI P6T M6T RC P7T M7T RI P10T M10T RC P4T M4T RI P6T M6T RC P7T M7T"
+      },
+      {
+        "row": 7,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. P5T P7T F.E. MRIC P7T P5S PRIC PM3M40 MRIC M4T P5T A PM3M40"
+      },
+      {
+        "row": 8,
+        "colore": "RGB(250,225,212)",
+        "testo": "DI MICCO M6T RC P7T M7T RI P10T M10T RC P4T M4T RM P6T M6T RI P7T M7T RC P10T M10T RI P4T M4T RC P6T M6T RI P7T M7T RC P10T M10T"
+      },
+      {
+        "row": 9,
+        "colore": "BIANCO",
+        "testo": "PRIC MRIC P5S M5T MRIC MRIC P5T M5T M5T P5T VS PRIC F.E. F.E. F.E. MRIC F.E. F.E. F.E. F.E. MRIC P5T M5T"
+      },
+      {
+        "row": 10,
+        "colore": "RGB(250,225,212)",
+        "testo": "ABATE M7T RC P10T M10T RI P4T M4T RC P6T M6T RM P7T M7T RI P10T M10T RC P4T M4T RI P6T M6T RC P7T M7T RI P10T M10T RC P4T M4T"
+      },
+      {
+        "row": 11,
+        "colore": "BIANCO",
+        "testo": "Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf Trasf"
+      },
+      {
+        "row": 12,
+        "colore": "RGB(193,239,199)",
+        "testo": "COSENZA RC P7T M7T RI P10T M10T RC P4T M4T RM P6T M6T RI P7T M7T RC P10T M10T RI P4T M4T RC P6T M6T RI P7T M7T RC P10T M10T RI"
+      },
+      {
+        "row": 13,
+        "colore": "CELESTE",
+        "testo": "M8 M7S M10S N4 P10T M11 M8 P10S M10S N10T P7T"
+      },
+      {
+        "row": 14,
+        "colore": "RGB(193,239,199)",
+        "testo": "CETRANCOLO RC P10T M10T RI P4T M4T RC P6T M6T RM P7T M7T RI P10T M10T RC P4T M4T RI P6T M6T RC P7T M7T RI P10T M10T RC P4T M4T RI"
+      },
+      {
+        "row": 15,
+        "colore": "BIANCO",
+        "testo": "A A A A A A A A A PRIC P6T MM3M40 N5T PRIC A P5S MM3M40 PRIC MM3M40 PRIC P7T PRIC P8"
+      },
+      {
+        "row": 16,
+        "colore": "RGB(193,239,199)",
+        "testo": "MAIO RC P4T M4T RI P6T M6T RC P7T M7T RM P10T M10T RI P4T M4T RC P6T M6T RI P7T M7T RC P10T M10T RI P4T M4T RC P6T M6T RI"
+      },
+      {
+        "row": 17,
+        "colore": "BIANCO",
+        "testo": "DisNa P4S M4S NDisNa A A A A A P7T PRIC M8 M7T DisNa DisNa P7T DisNa N6T DisNa NDisNa"
+      },
+      {
+        "row": 18,
+        "colore": "RGB(193,239,199)",
+        "testo": "SICA RC P6T M6T RI P7T M7T RC P10T M10T RM P4T M4T RI P6T M6T RC P7T M7T RI P10T M10T RC P4T M4T RI P6T M6T RC P7T M7T RI"
+      },
+      {
+        "row": 19,
+        "colore": "BIANCO",
+        "testo": "N6T N5S A N10S A PM3M40 M5S N5S A N7T M4T N5T A N5S A"
+      },
+      {
+        "row": 20,
+        "colore": "RGB(241,206,238)",
+        "testo": "TURCO P6T M6T RI P7T M7T RC P10T M10T RM P4T M4T D P6T M6T RI P7T M7T RC P10T M10T RI P4T M4T RC P6T M6T RI P7T M7T RC P10T"
+      },
+      {
+        "row": 21,
+        "colore": "BIANCO",
+        "testo": "A A P11 P5T P7T M9 N7S P6T P8 P4T P7T MM3M40 N6T P5S P4T N4 P9"
+      },
+      {
+        "row": 22,
+        "colore": "RGB(241,206,238)",
+        "testo": "D'AURIA P10T M10T RI P4T M4T RC P6T M6T RM P7T M7T D P10S M10T RI P4T M4T RC P6T M6T RI P7T M7T RC P10T M10T RI P4T M4T RC P6T"
+      },
+      {
+        "row": 23,
+        "colore": "BIANCO",
+        "testo": "M5T M6S F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. A A A M8 M6T M6S"
+      },
+      {
+        "row": 24,
+        "colore": "RGB(241,206,238)",
+        "testo": "LUCIGNANO P4T M4T RI P6T M6T RC P7T M7T RM P10T M10T D P4T M4T RI P6T M6T RC P7T M7T RI P10T M10T RC P4T M4T RI P6T M6T RC P7T"
+      },
+      {
+        "row": 25,
+        "colore": "BIANCO",
+        "testo": "A A A A A PRICTIR GRicTir GRicTir GRicTir GRicTir GRicTir PRIC PRIC PRIC PRIC MRIC PRIC A A"
+      },
+      {
+        "row": 26,
+        "colore": "RGB(241,206,238)",
+        "testo": "ROTONDO G G G RC RI G G G G D RC RI G G G G G RC RI G G G G G RC RI G G G G G"
+      },
+      {
+        "row": 27,
+        "colore": "GRIGIO",
+        "testo": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+      },
+      {
+        "row": 28,
+        "colore": "GRIGIO",
+        "testo": "Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven"
+      },
+      {
+        "row": 29,
+        "colore": "BIANCO",
+        "testo": "P5S P9 M9 N10T P10S P10T P4S M11 N10S A F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E."
+      },
+      {
+        "row": 30,
+        "colore": "RGB(0,0,0)",
+        "testo": "BOCCHETTI D M9 N7S D D D RM D M10S N10T RC RI RC D D M11 N10S RI D D RC D M4S N4 RI D RC RI D M5T N5T"
+      },
+      {
+        "row": 31,
+        "colore": "BIANCO",
+        "testo": "M8 M11 P8 P6S M10T P7S P10T M4T N7S P7S M7S A M4T N4 PM3M40 M4T P9 P9"
+      },
+      {
+        "row": 32,
+        "colore": "RGB(0,0,0)",
+        "testo": "DE GIOVANNI D M5T N5T D D D RM D M5S N5S RC RI RC D D M6S N6T RI D D RC D M7S N7T RI D RC RI D M8 N6S"
+      },
+      {
+        "row": 33,
+        "colore": "BIANCO",
+        "testo": "M8TIR M10T P6S M6T N7T P6S P8 M7T M10T P6S VS M10S M7T F.E. F.E. F.E. F.E. F.E. F.E. F.E. M11 N10S P4S P4S"
+      },
+      {
+        "row": 34,
+        "colore": "RGB(0,0,0)",
+        "testo": "COCOZZA D M8 N6S D D D RM D M9 N7S RC RI RC D D M10S N10T RI D D RC D M11 N10S RI D RC RI D M4S N4"
+      },
+      {
+        "row": 35,
+        "colore": "BIANCO",
+        "testo": "M10T A A M4T P7T A P6T A P4T M4T F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E."
+      },
+      {
+        "row": 36,
+        "colore": "RGB(0,0,0)",
+        "testo": "CENTOMANI D M11 N10S RI D D RC D M4S N4 RI D RC RI D M5T N5T D D D RM D M5S N5S RC RI RC D D M6S N6T"
+      },
+      {
+        "row": 37,
+        "colore": "BIANCO",
+        "testo": "A A M5S A M6S M6S N6T N10T M10T P7S P7T P11 M4T A P9 M7T P6T P10T M10T P4S M4S"
+      },
+      {
+        "row": 38,
+        "colore": "RGB(0,0,0)",
+        "testo": "CORBI D M6S N6T RI D D RC D M7S N7T RI D RC RI D M8 N6S D D D RM D M9 N7S RC RI RC D D M10S N10T"
+      },
+      {
+        "row": 39,
+        "colore": "BIANCO",
+        "testo": "M4T P10S M4T P5S MRIC M4T P11 N4 P7S PRIC P5S MRIC P6T M6S A P10S P10T PRIC"
+      },
+      {
+        "row": 40,
+        "colore": "RGB(0,0,0)",
+        "testo": "LONI A. D M5S N5S RC RI RC D D M6S N6T RI D D RC D M7S N7T RI D RC RI D M8 N6S D D D RM D M9 N7S"
+      },
+      {
+        "row": 41,
+        "colore": "BIANCO",
+        "testo": "P7T M4T P4S P5T VS P4T N7T P4T P8 A F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. P7T M4T N5T"
+      },
+      {
+        "row": 42,
+        "colore": "RGB(0,0,0)",
+        "testo": "MUCCI D M4S N4 RI D RC RI D M5T N5T D D D RM D M5S N5S RC RI RC D D M6S N6T RI D D RC D M7S N7T"
+      },
+      {
+        "row": 43,
+        "colore": "BIANCO",
+        "testo": "P9 N5S P4T M4T A A P10T M10S N10T P7T M6T P4T M7T P8 P5S"
+      },
+      {
+        "row": 44,
+        "colore": "RGB(0,0,0)",
+        "testo": "NEVANO D M10S N10T RC RI RC D D M11 N10S RI D D RC D M4S N4 RI D RC RI D M5T N5T D D D RM D M5S N5S"
+      },
+      {
+        "row": 45,
+        "colore": "BIANCO",
+        "testo": "P10T A P6S P4S A A A A A A N10S N4 P4S M7T P7S M6S N7S P10T"
+      },
+      {
+        "row": 46,
+        "colore": "RGB(0,0,0)",
+        "testo": "GRECO D M7S N7T RI D RC RI D M8 N6S D D D RM D M9 N7S RC RI RC D D M10S N10T RI D D RC D M11 N10S"
+      },
+      {
+        "row": 47,
+        "colore": "GRIGIO",
+        "testo": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+      },
+      {
+        "row": 48,
+        "colore": "GRIGIO",
+        "testo": "Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven"
+      },
+      {
+        "row": 49,
+        "colore": "BIANCO",
+        "testo": "A A A F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. PRIC"
+      },
+      {
+        "row": 50,
+        "colore": "RGB(250,225,212)",
+        "testo": "EBBREZZA PRIC PRIC MRIC MRIC RI RC PRIC PRIC MRIC MRIC D RI PRIC PRIC MRIC MRIC RC RI PRIC PRIC MRIC MRIC RC RI PRIC PRIC MRIC MRIC RM RI PRIC"
+      },
+      {
+        "row": 51,
+        "colore": "BIANCO",
+        "testo": "PRIC MRIC ISpN ISpN ISpN A A A A A A A A A A"
+      },
+      {
+        "row": 52,
+        "colore": "RGB(250,225,212)",
+        "testo": "D'ADDONA RM RI PRIC PRIC MRIC MRIC RC RI PRIC PRIC MRIC MRIC RC RI PRIC PRIC MRIC MRIC RC RM PRIC PRIC MRIC MRIC RI RC PRIC PRIC MRIC MRIC RC"
+      },
+      {
+        "row": 53,
+        "colore": "BIANCO",
+        "testo": "A A A A A A A A A A A A A"
+      },
+      {
+        "row": 54,
+        "colore": "RGB(250,225,212)",
+        "testo": "MANNIELLO MRIC MRIC RC RI MRIC MRIC MRIC MRIC RC RI MRIC MRIC MRIC MRIC RI RC MRIC MRIC MRIC MRIC RC RI MRIC MRIC MRIC MRIC RM RC MRIC MRIC MRIC"
+      },
+      {
+        "row": 55,
+        "colore": "BIANCO",
+        "testo": "A A A A VS A"
+      },
+      {
+        "row": 56,
+        "colore": "RGB(218,241,208)",
+        "testo": "CASTELLONE PM3M40 PM3M40 MM3M40 MM3M40 RI RC PM3M40 PM3M40 MM3M40 MM3M40 D RI PM3M40 PM3M40 MM3M40 MM3M40 RC RI PM3M40 PM3M40 MM3M40 MM3M40 RC RI PM3M40 PM3M40 MM3M40 MM3M40 RM RI PM3M40"
+      },
+      {
+        "row": 57,
+        "colore": "BIANCO",
+        "testo": "MM3M40"
+      },
+      {
+        "row": 58,
+        "colore": "RGB(218,241,208)",
+        "testo": "DE SANTO MM3M40 MM3M40 RC RI PM3M40 PM3M40 MM3M40 MM3M40 RC RI PM3M40 PM3M40 MM3M40 MM3M40 RI RC PM3M40 PM3M40 MM3M40 MM3M40 RC RI PM3M40 PM3M40 MM3M40 MM3M40 RM RC PM3M40 PM3M40 MM3M40"
+      },
+      {
+        "row": 59,
+        "colore": "BIANCO",
+        "testo": "A A F.E. F.E. F.E. F.E."
+      },
+      {
+        "row": 60,
+        "colore": "RGB(218,241,208)",
+        "testo": "MANNA RM RI PM3M40 PM3M40 MM3M40 MM3M40 RC RI PM3M40 PM3M40 MM3M40 MM3M40 RC RI PM3M40 PM3M40 MM3M40 MM3M40 RC RM PM3M40 PM3M40 MM3M40 MM3M40 RI RC PM3M40 PM3M40 MM3M40 MM3M40 RC"
+      }
+    ],
+    [
+      {
+        "row": 1,
+        "colore": "GRIGIO",
+        "testo": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+      },
+      {
+        "row": 2,
+        "colore": "GRIGIO",
+        "testo": "Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven"
+      },
+      {
+        "row": 3,
+        "colore": "CELESTE",
+        "testo": "A A A A PIAP A A GIAP A"
+      },
+      {
+        "row": 4,
+        "colore": "RGB(255,255,204)",
+        "testo": "TRANI PIAP MIAP RI PIAP MIAP RM PIAP MIAP PIAP MIAP RC RI GIAP GIAP GIAP GIAP GIAP RC RI PIAP MIAP RC RI PIAP MIAP PIAP MIAP RC PIAP MIAP RI"
+      },
+      {
+        "row": 5,
+        "colore": "BIANCO",
+        "testo": "A A PIAP PIAP PIAP PIAP PIAP"
+      },
+      {
+        "row": 6,
+        "colore": "RGB(255,255,204)",
+        "testo": "CASTALDI GIAP GIAP GIAP RC RI PIAP MIAP RC RI PIAP MIAP PIAP MIAP RC PIAP MIAP RI PIAP MIAP RM PIAP MIAP PIAP MIAP RC RI GIAP GIAP GIAP GIAP GIAP"
+      },
+      {
+        "row": 7,
+        "colore": "BIANCO",
+        "testo": "A A MIAP GIAP MIAP GIAP GIAP"
+      },
+      {
+        "row": 8,
+        "colore": "RGB(255,255,204)",
+        "testo": "GIORDANO MIAP PIAP MIAP RC RI GIAP GIAP GIAP GIAP GIAP RC RI PIAP MIAP RC RI PIAP MIAP PIAP MIAP RC PIAP MIAP RI PIAP MIAP RM PIAP MIAP PIAP MIAP"
+      },
+      {
+        "row": 9,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E."
+      },
+      {
+        "row": 10,
+        "colore": "RGB(255,255,204)",
+        "testo": "NAPOLITANO RC RI PIAP MIAP PIAP MIAP RC PIAP MIAP RI PIAP MIAP RM PIAP MIAP PIAP MIAP RC RI GIAP GIAP GIAP GIAP GIAP RC RI PIAP MIAP RC RI PIAP"
+      },
+      {
+        "row": 11,
+        "colore": "BIANCO",
+        "testo": "A A A PIAP MIAP A PIAP MIAP GIAP MIAP A PIAP MIAP PIAP GIAP MIAP DisNa DisNa PIAP MIAP A A A"
+      },
+      {
+        "row": 12,
+        "colore": "RGB(255,255,204)",
+        "testo": "STRINGILE D D D RC RI D D D D RM RC RI D D D D D RC RI D D D D D RC RI D D D D D"
+      },
+      {
+        "row": 13,
+        "colore": "GRIGIO",
+        "testo": "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31"
+      },
+      {
+        "row": 14,
+        "colore": "GRIGIO",
+        "testo": "Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven Sab Dom Lun Mar Mer Gio Ven"
+      },
+      {
+        "row": 15,
+        "colore": "BIANCO",
+        "testo": "A N5T A M6T M7S N6T N6T M6T P5T P6T M10TIR N4 M5T N6T P5T M8TIR P6T M8TIR M6T P6T P5T P7S P10TIR M5T P4T"
+      },
+      {
+        "row": 16,
+        "colore": "RGB(0,0,0)",
+        "testo": "BORRELLI D D D RC RI D D D RI RC D D D RC RI D D D D RI D D D RC D D D RM D D D"
+      },
+      {
+        "row": 17,
+        "colore": "BIANCO",
+        "testo": "N4 M4S P4T P5S M5S N5S P4T M4T P4T M5T M11 P4T P5T M11 A M9 N5T P4S M11 P4S M4S N4 A M4T A P5S"
+      },
+      {
+        "row": 18,
+        "colore": "RGB(0,0,0)",
+        "testo": "CACCIUOLO D RI RC D D D RC RI D D D D RI D D D RC D D D RM D D D RC RI D D D RI RC"
+      },
+      {
+        "row": 19,
+        "colore": "BIANCO",
+        "testo": "P7S P7T M7T P10T M6T M10T N6T P6S M6S N6T M6S N6T M6T P10T P10T M6T P6S M5TIR M6T M10T F.E. P6S P6T"
+      },
+      {
+        "row": 20,
+        "colore": "RGB(0,0,0)",
+        "testo": "CAVANNA RI D D D D RI D D D RC D D D D D D D RC RI D D D RI RC D D D RC RI D D"
+      },
+      {
+        "row": 21,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. M4S N4 P4T P4T M4T N4 P4T P4S M4T N4 VS M4T"
+      },
+      {
+        "row": 22,
+        "colore": "RGB(0,0,0)",
+        "testo": "DE ROSA RI D D D D RI D D D RC D D D RM D D D RC RI D D D RI RC D D D RC RI D D"
+      },
+      {
+        "row": 23,
+        "colore": "BIANCO",
+        "testo": "M7T M7T N7T P7T M7T P7T P7S M7S N7T P7T P7S M7T N7T P7T P7S M7S N7S P7T P7T P7T M7T P7T M7T P7S"
+      },
+      {
+        "row": 24,
+        "colore": "RGB(0,0,0)",
+        "testo": "DONNARUMMA RI D D D D RI D D D RC D D D RM D D D RC RI D D D RI RC D D D RC RI D D"
+      },
+      {
+        "row": 25,
+        "colore": "BIANCO",
+        "testo": "F.E. F.E. P6T F.E. F.E. F.E. F.E. F.E. F.E. P6T M6T N5T P6T M6T M10T N5T P10T P10T M6T M6T P6T M10T P6S"
+      },
+      {
+        "row": 26,
+        "colore": "RGB(0,0,0)",
+        "testo": "IORIO D D D RC RI D D D RI RC D D D RC RI D D D D RI D D D RC D D D RM D D D"
+      },
+      {
+        "row": 27,
+        "colore": "BIANCO",
+        "testo": "M7T N6S N5T M10S N7S M11 M9 N7S N10T M7T N7T P7S M8 N7T P5T VS P10T M8 N6S N6T P6S M5T N7T N6T"
+      },
+      {
+        "row": 28,
+        "colore": "RGB(0,0,0)",
+        "testo": "MAROTTA D D RC D D D RM D D D RC RI D D D RI RC D D D RC RI D D D D RI D D D RC"
+      },
+      {
+        "row": 29,
+        "colore": "BIANCO",
+        "testo": "P4S M6T N6T N4 P8TIR P11 M5S N5S A A A M6S N10S P6T M5S M5T N5S M6S N5S P6S M6S M8TIR P6S M6S N6T"
+      },
+      {
+        "row": 30,
+        "colore": "RGB(0,0,0)",
+        "testo": "MINICOZZI D D D RC RI D D D RI RC D D D RC RI D D D D RI D D D RC D D D RM D D D"
+      },
+      {
+        "row": 31,
+        "colore": "BIANCO",
+        "testo": "N5S P5T M10S N7T N6S P10T M6S N6T M6T M7T N7T P8 A A P9 M9 P6T M4S N4 M9 P6T M11 N5T"
+      },
+      {
+        "row": 32,
+        "colore": "RGB(0,0,0)",
+        "testo": "PRINCIPE D RI RC D D D RC RI D D D D RI D D D RC D D D RM D D D RC RI D D D RI RC"
+      },
+      {
+        "row": 33,
+        "colore": "BIANCO",
+        "testo": "Dis"
+      },
+      {
+        "row": 34,
+        "colore": "BIANCO",
+        "testo": "DisNa DisNa M10T N10T Na DisNa DisNa DisNa DisNa F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E. F.E."
+      },
+      {
+        "row": 35,
+        "colore": "RGB(0,0,0)",
+        "testo": "SPAGNULO M N RI D D RI RC M N D RM D D D M N D RC RI RC D M N RI D D RC D M N RI"
+      },
+      {
+        "row": 36,
+        "colore": "BIANCO",
+        "testo": "A A A A A A A A A A A A A A A A A A A A A A"
+      },
+      {
+        "row": 37,
+        "colore": "RGB(0,0,0)",
+        "testo": "COLUCCI M. D D D D RI RM D D D RI RC D D D D D RC RI D D D D RC RI D D RC D D D D"
+      },
+      {
+        "row": 38,
+        "colore": "BIANCO",
+        "testo": "M10TIR A A A A A M5TIR M10T M10T A M5TIR A A M10T M5TIR M10T A P5TIR M10T A A A"
+      },
+      {
+        "row": 39,
+        "colore": "RGB(0,0,0)",
+        "testo": "DONZELLI D D D RC RI D D D D RM RC RI D D D D D RC RI D D D D D RC RI D D D D D"
+      },
+      {
+        "row": 40,
+        "colore": "BIANCO",
+        "testo": "A A A A A A A A A A A A A A A A A A A A A A A"
+      },
+      {
+        "row": 41,
+        "colore": "RGB(0,0,0)",
+        "testo": "PAPA D D D RC RI D D D D RM RC RI D D D D D RC RI D D D D D RC RI D D D D D"
+      },
+      {
+        "row": 42,
+        "colore": "BIANCO",
+        "testo": "M10T G M10T GIAP M10T NDisSal MIAP PIAP"
+      },
+      {
+        "row": 43,
+        "colore": "RGB(0,0,0)",
+        "testo": "GAROFALO RC RI RC RI RC RI RC RI"
+      },
+      {
+        "row": 44,
+        "colore": "BIANCO",
+        "testo": "M5T M5T P5T G"
+      },
+      {
+        "row": 45,
+        "colore": "RGB(0,0,0)",
+        "testo": "PIROZZI RC RI RC RI RC RI 12.14 RC RI"
+      },
+      {
+        "row": 46,
+        "colore": "RGB(0,0,0)",
+        "testo": "DE FALCO RC RI RC RI RC RI RC RI"
+      },
+      {
+        "row": 47,
+        "colore": "BIANCO",
+        "testo": "MM3M40TIR MM3M40TIR MM3M40TIR MM3M40TIR"
+      },
+      {
+        "row": 48,
+        "colore": "RGB(0,0,0)",
+        "testo": "LA MONTAGNA RC RI RC RI RC RI RC RI"
+      },
+      {
+        "row": 49,
+        "colore": "BIANCO",
+        "testo": "MM3M40TIR"
+      },
+      {
+        "row": 50,
+        "colore": "RGB(0,0,0)",
+        "testo": "DI BLASI L. RC RI RC RI RC RI RC RI"
+      },
+      {
+        "row": 51,
+        "colore": "RGB(159,43,146)",
+        "testo": "M10T"
+      },
+      {
+        "row": 52,
+        "colore": "RGB(0,0,0)",
+        "testo": "GRASSIA RC RI RC RI RC RI RC RI"
+      },
+      {
+        "row": 53,
+        "colore": "BIANCO",
+        "testo": "GIORNI *** Corso Pei-Peg (Webinar 08:30/16:36). GIORNI *** Corso QDMIAP II Livello al Dote (08:30/17:06). GIORNO *** Corso Primo Soccorso al Sanitario (08:00/16:30). GIORNO *** Corso Safety Led (Dote "
+      },
+      {
+        "row": 54,
+        "colore": "BIANCO",
+        "testo": "GIORNO*** Antincendio Napoli C.F. (08:30/16:36). GIORNO *** Corso CDE EAV S.M.C.V. al Dote (08:30/17:06). GIORNO *** Corso Nuova Variante Napoli-Cancello al Dote (08:30/17:06)"
+      },
+      {
+        "row": 55,
+        "colore": "BIANCO",
+        "testo": "Carattere Verde = Attività procrastinabili in caso di necessità (Tirocinio o formazione e-learning o attività di istruttore tutor); Carattere Rosso = Altre Presenze o Visita Sanitaria ; Carattere Cele"
+      },
+      {
+        "row": 56,
+        "colore": "RGB(241,206,238)",
+        "testo": "Per sopperire alle ore di riduzione oraria degli agenti 'A' che usufruiscono del permesso di allattamento. Viene evidenziato dello stesso colore  sia il turno dell'agente 'A', che presterà servizio 6 "
+      },
+      {
+        "row": 57,
+        "colore": "RGB(0,0,0)",
+        "testo": "LEGENDA che presterà servizio  2 ore sulla sezione in sostituzione dell'agente 'A' e le restanti 6 ore svolgerà l'attività indicata. Ovviamente l'agente smontante farà le consegne all'agente subentran"
+      },
+      {
+        "row": 58,
+        "colore": "RGB(0,0,0)",
+        "testo": "COLORI"
+      },
+      {
+        "row": 59,
+        "colore": "RGB(0,0,0)",
+        "testo": "LEGENDA A = Altre presenze; SpN = Scuola Professionale Napoli; SpSa = Scuola Professionale Salerno; SpCa = Scuola Professionale Cancello; SpCe = Scuola Professionale Caserta; Sp@ = Formazione e-learni"
+      },
+      {
+        "row": 60,
+        "colore": "RGB(0,0,0)",
+        "testo": "SIGLE SpCf = Scuola Professionale Napoli C.F.; ISp... = Istruttore Scuola Professionale; Nome sezione seguita da TIR = Tirocinio; VS = Visita Sanitaria; D = Disponibilità; Tutor =Istruttore Tutor; SpN"
+      },
+      {
+        "row": 61,
+        "colore": "RGB(0,0,0)",
+        "testo": "NAPOLI, IL RESPONSABILE"
+      },
+      {
+        "row": 62,
+        "colore": "RGB(0,0,0)",
+        "testo": "18/08/2026 Domenico Mancuso"
+      }
+    ]
+  ]
+}

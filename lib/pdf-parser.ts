@@ -1,42 +1,5 @@
-import type { DaySchedule, SectionShiftData, SalaShiftType, SalaSchedule } from '@/types/database'
-
-// ─── helpers ──────────────────────────────────────────────────────────────────
-
-function isShiftCode(token: string): boolean {
-  return /^[MNP][A-Z0-9]+$/.test(token)
-}
-
-interface ParsedShift {
-  shift: SalaShiftType
-  section: string
-  slot: 'T' | 'S' | null
-  isTir: boolean
-}
-
-function parseShiftCode(token: string): ParsedShift {
-  const shift = token[0] as SalaShiftType
-  const isTir = token.endsWith('TIR')
-  const raw = token.slice(1).replace(/TIR$/, '')
-  const m = raw.match(/^(\d+)([ST])?$/)
-  if (m) return { shift, section: m[1], slot: (m[2] as 'T' | 'S') ?? null, isTir }
-  return { shift, section: raw, slot: null, isTir }
-}
-
-const ABSENT_CODES = new Set([
-  'A', 'AG', 'F', 'RM', 'RC', 'RI', 'VS', 'D',
-])
-
-const NON_SECTION_DUTIES = new Set(['TUTOR'])
-
-function isPresentNoSection(token: string): boolean {
-  if (ABSENT_CODES.has(token)) return false
-  if (/^Sp[A-Za-z@]/.test(token)) return true
-  if (/^ISp[A-Za-z]/.test(token)) return true
-  if (token === 'SPW') return true
-  if (token === 'SpNw') return true
-  if (/^Dis[A-Z]/.test(token)) return true
-  return false
-}
+import type { DaySchedule, SalaSchedule } from '@/types/database'
+import { applyTokenToDay } from '@/lib/shift-tokens'
 
 // ─── row grouping ─────────────────────────────────────────────────────────────
 
@@ -217,10 +180,6 @@ function processPageRows(
 
 // ─── schedule builder ─────────────────────────────────────────────────────────
 
-function emptyShift(): SectionShiftData {
-  return { surnames: { T: [], S: [], noSlot: [] }, tirocinanti: [] }
-}
-
 function buildSchedule(allPersons: PersonData[], daysInMonth: number): Record<number, DaySchedule> {
   const schedule: Record<number, DaySchedule> = {}
   for (let d = 1; d <= daysInMonth; d++) schedule[d] = { sections: {}, altriPresenti: [] }
@@ -228,32 +187,7 @@ function buildSchedule(allPersons: PersonData[], daysInMonth: number): Record<nu
   for (const { name, theoreticalShifts, modByDay } of allPersons) {
     for (let d = 1; d <= daysInMonth; d++) {
       const effective = modByDay[d] ?? theoreticalShifts[d - 1]
-      if (!effective || ABSENT_CODES.has(effective)) continue
-
-      if (isPresentNoSection(effective)) {
-        schedule[d].altriPresenti.push(name)
-        continue
-      }
-
-      if (!isShiftCode(effective)) continue
-
-      const { shift, section, slot, isTir } = parseShiftCode(effective)
-
-      if (NON_SECTION_DUTIES.has(section)) {
-        schedule[d].altriPresenti.push(name)
-        continue
-      }
-
-      const secs = schedule[d].sections
-      if (!secs[section]) secs[section] = { M: emptyShift(), N: emptyShift(), P: emptyShift() }
-      const shiftData = secs[section][shift]
-
-      if (isTir) {
-        shiftData.tirocinanti.push(name)
-      } else {
-        const key = slot ?? 'noSlot'
-        shiftData.surnames[key as 'T' | 'S' | 'noSlot'].push(name)
-      }
+      applyTokenToDay(schedule[d], name, effective ?? '')
     }
   }
 

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, FlaskConical, Megaphone } from 'lucide-react'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { getAppSettings, updateAppSettings } from '@/lib/queries/app-settings'
@@ -11,6 +11,8 @@ import { FeedbackList } from './feedback-list'
 import { UserManagementDialog } from './user-management-dialog'
 import { ImpersonateDialog } from './impersonate-dialog'
 import { ChangelogManagerDialog } from './changelog-manager-dialog'
+import { SquadreDialog } from './squadre-dialog'
+import { ShiftDialog } from './shift-dialog'
 
 export function AdminPanel() {
   const router = useRouter()
@@ -22,6 +24,8 @@ export function AdminPanel() {
   const [userCount, setUserCount] = useState(0)
   const [impersonateOpen, setImpersonateOpen] = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
+  const [squadreOpen, setSquadreOpen] = useState(false)
+  const [shiftOpen, setShiftOpen] = useState(false)
   const [minYearTurniferie, setMinYearTurniferie] = useState(2026)
   const [minYearVacanze, setMinYearVacanze] = useState(2026)
   const [savingYears, setSavingYears] = useState(false)
@@ -98,6 +102,18 @@ export function AdminPanel() {
           title="Gestione utenti"
           description="Crea, modifica o elimina account"
           onClick={() => setUsersOpen(true)}
+        />
+        <ActionTile
+          icon={<LayoutGrid size={18} />}
+          title="Squadre e turni"
+          description="Tipologie, squadre e membri con i turni teorici"
+          onClick={() => setSquadreOpen(true)}
+        />
+        <ActionTile
+          icon={<ArrowLeftRight size={18} />}
+          title="Shift turni teorici"
+          description="Sposta di ±1 giorno tutti i turni da una data (es. anni bisestili)"
+          onClick={() => setShiftOpen(true)}
         />
         <ActionTile
           icon={<Eye size={18} />}
@@ -197,6 +213,8 @@ export function AdminPanel() {
       <FeedbackList open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <ImpersonateDialog open={impersonateOpen} onClose={() => setImpersonateOpen(false)} />
       <ChangelogManagerDialog open={changelogOpen} onClose={() => setChangelogOpen(false)} />
+      <SquadreDialog open={squadreOpen} onClose={() => setSquadreOpen(false)} />
+      <ShiftDialog open={shiftOpen} onClose={() => setShiftOpen(false)} />
     </div>
   )
 }
