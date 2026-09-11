@@ -93,7 +93,7 @@ export function NotificationTestDialog({ open, onClose }: Props) {
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Destinatario</Label>
-            <Select value={targetUserId} onValueChange={(v) => setTargetUserId(v ?? '')}>
+            <Select value={targetUserId} onValueChange={(v) => setTargetUserId(v ?? '')} items={users.map(u => ({ value: u.id, label: displayName(u) }))}>
               <SelectTrigger><SelectValue placeholder="Seleziona dipendente…" /></SelectTrigger>
               <SelectContent>
                 {users.map(u => (
@@ -105,7 +105,7 @@ export function NotificationTestDialog({ open, onClose }: Props) {
 
           <div className="space-y-2">
             <Label>Tipo notifica</Label>
-            <Select value={notifType} onValueChange={v => handleTypeChange(v as NotifType)}>
+            <Select value={notifType} onValueChange={v => handleTypeChange(v as NotifType)} items={(Object.keys(TYPE_LABELS) as NotifType[]).map(t => ({ value: t, label: TYPE_LABELS[t] }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {(Object.keys(TYPE_LABELS) as NotifType[]).map(t => (

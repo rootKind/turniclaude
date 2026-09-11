@@ -337,6 +337,113 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 
 ## Stato attuale (snapshot 26/08/2026)
 
+- **Pulizia cambi turno (11/09/2026, nessuna migration — solo codice):** quando si carica un PDF reale
+  (`/api/admin/parse-pdf`) il server calcola quali richieste di cambio (`shifts`) risultano **già
+  esaudite** dal calendario appena importato — la persona ha davanti a sé uno dei `requested_shifts`
+  (`offered_shift` è il turno che aveva prima) — e le ritorna nel campo `cleanup` della risposta.
+  `sala-page-client` apre allora il dialog condiviso `components/admin/shift-cleanup-dialog.tsx`
+  (elenco, conteggio e conferma a due passi «Sei sicuro? Conferma»). Lo stesso dialog si apre dal
+  pannello admin con la tile **Pulizia cambi turno** (selettore mese, anteprima via
+  `GET /api/admin/shift-cleanup?month=YYYY-MM`, eliminazione via `POST {ids}`); la route è
+  admin/manager e usa il client service-role perché la RLS permette di cancellare solo le proprie
+  richieste. Logica pura in `lib/queries/shift-cleanup.ts` (`findFulfilledShiftRequests`), che mappa
+  i cognomi del PDF agli utenti con `matchesCognome` — estratto in `lib/utils.ts` e condiviso con
+  `desk-board.tsx` (omonimi via `buildDuplicateCognomi`). Le richieste non esaudite non vengono toccate.
+  **All'eliminazione** (solo la `POST`, unico percorso di cancellazione) partono push `type: 'system'`:
+  (1) al **richiedente** — «Cambio turno già registrato», «La richiesta di cambio del gg/mm (Offerto →
+  Richiesto) è stata eliminata: nel turno caricato risulti già in <turno reale>.»; (2) a **chi aveva
+  mostrato interesse** (righe di `shift_interested_users`, lette PRIMA del delete perché la FK le cancella
+  a cascata) — se dal calendario risulta nel turno che il richiedente cedeva, il cambio è stato fatto
+  proprio con lui («Cambio turno completato: risulti in <offerto>»), altrimenti «Cambio turno non più
+  disponibile». Una push per utente (se un interessato è anche autore di una richiesta ripulita vince il
+  messaggio del richiedente). I turni reali di richiedente e interessati si ricavano da
+  `loadShiftLookupContext` + `actualShiftsForUserDate` (utenti + calendari dei mesi coinvolti), non da
+  `computeShiftCleanup` (che serve solo l'anteprima). Come le altre notifiche di sistema NON controlla le
+  preferenze push dell'utente (stesso comportamento di «Cambio turno approvato»).
+- **Parser PDF v2 — codici completi + celle gialle (11/09/2026):** `lib/pdf-parser.ts` riscritto sul
+  modello `PersonaMese` del progetto gemello `D:\david\Download\Stipendi\webapp`:
+  (a) NON butta più via i codici non-turno — prima `applyTokenToDay` scartava le assenze e il parser
+  non le conservava, ora ogni persona ha `days[]` (effettivo) e `teorico[]` (riga base stampata sul
+  PDF) con TUTTI i codici: `A`, `F.E.`, `VS`, `D`, `Sp*`, `ISp*`, `SPW`, `Dis*`, `RIC/PRIC/MRIC`,
+  `PM3M40`/`MM3M40`, `TUTOR`, `Trasf`, `G`, `Tir`;
+  (b) filtro legenda (`isLegendArtifact`, match sul TOKEN INIZIALE: «NAPOLI» non scarta «DI NAPOLI A.»)
+  e nomi canonici (`nomeCanonico`: `RUGGIERO`→`RUGGIERO A.`, `ESPOSITO A.`→`ESPOSITO AU.`);
+  (c) zona nome (`NAME_ZONE_MARGIN = 40px`): i frammenti di cella del giorno 1 che cadono fuori
+  tolleranza non diventano più «persone fantasma» (prima nasceva un finto dipendente «MM3M40TIR» che
+  rubava le correzioni della persona sotto);
+  (d) **celle gialle**: la legenda del PDF dice «Sfondo Giallo = Turno da confermare». Il colore non
+  esiste nel text layer, va letto dalla `getOperatorList()` (rettangoli riempiti, `OPS.constructPath`
+  con path-type 19); serve `PDFJS.disableFontFace = true` altrimenti in Node crasha su `document`
+  (il modulo si prende con `require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js')`, STESSA istanza
+  usata da pdf-parse: le costanti OPS di `pdfjs-dist` sono diverse e non valgono). Il giallo è
+  distinto dai colori-squadra (rosa/pesca/verde/azzurro) con soglia su R/G alti e B basso.
+- **Formato compatto «colonnare» v2 dei turni reali (11/09/2026, in `sala_schedule.schedule`):**
+  `{ v:2, days, codes[], names[], rows[{d[],t[],y?[]}] }` — dizionario di codici + due liste di indici
+  per persona, `y` = giorni con sfondo giallo. NIENTE migration: il jsonb si autodistingue (`isSalaMonthData`),
+  `getSalaSchedule` ricostruisce la vista per-giorno con `buildScheduleFromMonthData` (stesso
+  `applyTokenToDay` di prima) quindi turnisala/desk-board/pulizia cambi funzionano invariate, e i mesi
+  ancora in v1 (2026-08, 2026-09: i PDF non sono più disponibili) restano leggibili. Peso ~18-19 KB/mese
+  contro ~90 KB/mese della v1, con MOLTI più dati. Modulo condiviso: `lib/sala-month.ts`
+  (`encode/decodeSalaMonth`, `findMonthPerson`, `personDayShift`, `salaCodeInfo`).
+- **«Il tuo turno» — codici completi (11/09/2026):** la cella ora mostra anche assenze/riposi/disponibilità/
+  attività senza sezione, con i colori della legenda del PDF (rosso assenza, grigio riposo, celeste
+  disponibilità, verde attività) e il bordo tratteggiato ambra sui turni «da confermare» (cella gialla).
+  Nota: il «teorico» della pagina è la rotazione ricostruita dall'app (`generateTheoreticalMonth`),
+  NON la riga base del PDF — che ora però è conservata in `teorico[]` e sarebbe il riferimento esatto
+  per i mesi caricati.
+- **Mockup celle (11/09/2026, NON parte dell'app):** `mockups/celle-turno.html`, 4 opzioni grafiche
+  (A banda continua, B doppia banda 3/4+1/4, C reale pieno + teorico in angolo, D due righe etichettate)
+  sulla stessa settimana reale (TROCCHIA, 1-7 luglio 2026) con pregi/limiti. Da scegliere prima di
+  riscrivere la cella del calendario.
+- **NOTA (11/09/2026) — asimmetria del ruolo manager (NON da sviluppare per ora, su richiesta):**
+  se un manager **rifiuta** una richiesta di cambio (`POST /api/manager/shift-requests/[id]` con
+  `action: 'reject'`) avvisa solo il richiedente; chi aveva mostrato interesse resta senza notifica.
+  Il flusso `confirm` invece avvisa il vincitore e gli altri interessati. Il riconoscimento del
+  partner ora disponibile in `lib/person-shift.ts` + `lib/queries/shift-cleanup.ts` permetterebbe di
+  allineare anche il rifiuto, ma il ruolo manager resta fuori scope.
+- **Pagina «Il tuo turno» (/tuoturno, 11/09/2026):** sostituito il segnaposto. `app/(app)/tuoturno/page.tsx`
+  (server) carica profilo, elenco utenti, mesi caricati e l'albero delle squadre, poi li passa a
+  `tuoturno-client.tsx`: intestazione «Il tuo turno» + nome della persona (tap → dialog con ricerca per
+  scegliere QUALSIASI dipendente, default = utente loggato), calendario mensile con swipe orizzontale
+  (touch, soglia 50px; le frecce ‹ › fanno lo stesso) e legenda. Ogni cella (min-h 78px, chip a 11px)
+  mostra SOPRA il turno reale del PDF (chip colorato «M7», slot T/S nascosto) e SOTTO il token teorico
+  della rotazione (es. «RM», «D», «N7»): quando il reale c'è, il teorico passa in SECONDO PIANO (chip
+  grigio); quando la card reale manca (persona assente dal PDF, o mese non caricato) il teorico OCCUPA
+  TUTTA la casella, centrato e più grande. Il turno reale compare SOLO per i mesi presenti in
+  `sala_schedule`, gli altri restano teorici (etichetta «turni reali (PDF)» / «turni teorici» sotto il
+  mese). Le differenze reale↔teorico sono segnalate da un pallino su ogni giornata: PIENO = tipo diverso
+  (o uno dei due è a riposo), VUOTO = stesso turno ma sezione diversa — soglia calcolata da
+  `realTheoreticalMismatch` su `tokenCompareKey` (turno + sezione; slot T/S e TIR ignorati), quindi
+  «M4 vs M9» è una differenza mentre «M4S vs M4T» no. Nuovo `lib/person-shift.ts`:
+  `findMemberForUser` + `theoreticalTokenFor` (→ `tokenForMember`) per il teorico, `realShiftFor` sul
+  JSON del calendario per il reale, e `personNameMatches` che tollera i nomi del PDF con suffisso del
+  nome («ESPOSITO AU.» → Esposito Aurora) — più permissivo di `matchesCognome` per gli omonimi con
+  prefisso di 2 lettere. NB: `shift_team_members.user_id` è NULL per TUTTI i membri, quindi il
+  collegamento utente↔membro avviene per nome.
+- **Pannello admin compatto (11/09/2026):** le 10 azioni non sono più card orizzontali impilate ma una
+  griglia `grid-cols-3` di pulsanti verticali (`PanelButton` in `components/admin/admin-panel.tsx`:
+  icona + etichetta breve, descrizione completa come `title`/`aria-label`, badge feedback in alto a
+  destra). Le sezioni impostazioni (anno minimo, limite cambio turno) restano invariate.
+- **Turni teorici — riorganizzazione squadre + regola sezioni (10/09/2026, migrations 021+022, applicate SOLO a dev):**
+  tipologie rinominate «Con notti»→**Squadra in terza**, «Senza notti»→**Squadra in seconda**;
+  le due scorte sono ora UN solo gruppo **Scorte** con 6 squadre (Rilievo + Fase +0/+7/+14/+21 +
+  Varianti, sort_order 1–6). Nuovo flag `shift_team_members.is_lead` = caposquadra: il nome
+  visualizzato della squadra sono SOLO i cognomi dei capisquadra uniti da '-' (es. «D'ELIA-PASSANNANTI»,
+  «ALBANO»), senza più le diciture «Squadra A»/«Squadra arancione»; le squadre senza capisquadra
+  usano il proprio nome senza il prefisso «Squadra» (es. «Fase +0», «Varianti»). Resta allineato ai membri.
+  RIC/ASTER e IAP invariati. In `components/admin/squadre-dialog.tsx`: RIMOSSO l'ordinamento
+  manuale dei membri (resta `sort_order` in DB), la matita in Tipologie apre la scheda Membri di
+  quella tipologia (niente più modifica di ciclo/pattern_start dalla UI), la stella imposta/rimuove
+  il caposquadra.
+  **REGOLA SEZIONI (022):** il Rilievo (i 9 non caposquadra) lavora M il **giovedì** e N il **venerdì**
+  (rotazione sezioni 4-5-5-6-7-8-9-10-11, max 2 persone/sezione via slot T/S, notti MAI su 8/9/11);
+  in quei giorni nessun'altra squadra lavora M/N sulle stesse sezioni → mai collisioni. Le scorte
+  semplici (Fasi +0/+7/+14/+21 + Varianti) **NON hanno turni prefissati**: i loro pattern contengono
+  solo riposi (RM/RC/RI) e disponibilità (D) — la 022 ha sostituito tutti i token M/P/N con 'D'.
+  PRIMA della 022 il teorico aveva 38-44 collisioni/mese (es. 20/11 N7 con BOCCHETTI+GRECO rilievo
+  + MINICOZZI+MAROTTA fasi = 4 persone); DOPO **0**. ATTENZIONE: `scripts/generate-seed.mjs` +
+  migration 020 generano ancora la vecchia struttura (2 tipologie scorte, nessun is_lead, fasi con
+  turni M/P/N): se il seed viene rigenerato va riallineato (021+022 sono idempotenti e lavorano per NOME).
 - **Release 26/08/2026 — APPLICATA a dev E produzione:** migrations **014** (drop color_overrides),
   **015** (DCO+), **016** (changelog) e **017** (unifica changelog) applicate al DB di produzione/main
   (`zrbbzfingrdpdflkndgl`) via Management API il 26/08/2026 (su dev erano già applicate). Changelog

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { SalaSchedule } from '@/types/database'
+import type { SalaMonthData, SalaSchedule } from '@/types/database'
+import { buildScheduleFromMonthData, isSalaMonthData } from '@/lib/sala-month'
 
 export interface UploadHistoryEntry {
   id: string
@@ -21,9 +22,21 @@ export async function getSalaSchedule(
   if (error) throw error
   if (!data) return null
 
+  const raw = data.schedule as Record<number, never> | SalaMonthData
+  // Formato compatto v2: la vista per giorno si ricostruisce al volo.
+  if (isSalaMonthData(raw)) {
+    return {
+      month: data.month,
+      schedule: buildScheduleFromMonthData(raw),
+      data: raw,
+      uploaded_at: data.uploaded_at,
+      ...(data.colored_persons ? { coloredPersons: data.colored_persons } : {}),
+    }
+  }
+
   return {
     month: data.month,
-    schedule: data.schedule,
+    schedule: raw as unknown as SalaSchedule['schedule'],
     uploaded_at: data.uploaded_at,
     ...(data.colored_persons ? { coloredPersons: data.colored_persons } : {}),
   }
@@ -48,7 +61,9 @@ export async function upsertSalaSchedule(
     .from('sala_schedule')
     .upsert({
       month: payload.month,
-      schedule: payload.schedule,
+      // Si salva la forma compatta quando c'è (parser v2): conserva TUTTI i
+      // codici, assenze e celle gialle incluse, in ~1/6 dello spazio.
+      schedule: payload.data ?? payload.schedule,
       uploaded_at: new Date().toISOString(),
       uploaded_by: userId,
     })

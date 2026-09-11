@@ -6,6 +6,8 @@ import { getSalaSchedule } from '@/lib/queries/sala-schedule'
 import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { generateTheoreticalMonth } from '@/lib/turni-teorici'
 import { DeskBoard } from '@/components/sala/desk-board'
+import { ShiftCleanupDialog } from '@/components/admin/shift-cleanup-dialog'
+import type { ShiftCleanupCandidate } from '@/lib/queries/shift-cleanup'
 import type { SalaLayout, SalaSchedule, ShiftTeamTree } from '@/types/database'
 
 function useLandscapeLock() {
@@ -54,6 +56,8 @@ export function SalaPageClient({
   const [availableMonths, setAvailableMonths] = useState(initialMonths)
   const [shiftTree, setShiftTree] = useState<ShiftTeamTree | null>(null)
   const [treeError, setTreeError] = useState(false)
+  // Richieste di cambio già esaudite dal PDF appena caricato: popup di conferma.
+  const [cleanup, setCleanup] = useState<{ month: string; candidates: ShiftCleanupCandidate[] } | null>(null)
 
   // Ref per rigenerare il mese teorico quando i dati delle squadre arrivano
   // (es. navigazione avvenuta prima del caricamento iniziale).
@@ -109,6 +113,9 @@ export function SalaPageClient({
       const body = await res.text()
       throw new Error(body)
     }
+    const body = (await res.json().catch(() => null)) as
+      | { cleanup?: { candidates?: ShiftCleanupCandidate[] } }
+      | null
     const supabase = createClient()
     const data = await getSalaSchedule(supabase, month)
     setSchedule(data)
@@ -116,6 +123,8 @@ export function SalaPageClient({
     setAvailableMonths(prev =>
       prev.includes(month) ? prev : [month, ...prev].sort((a, b) => b.localeCompare(a)),
     )
+    const candidates = body?.cleanup?.candidates ?? []
+    if (candidates.length > 0) setCleanup({ month, candidates })
   }
 
   const handleColorChange = async (month: string, day: number, name: string, color: string | null) => {
@@ -188,6 +197,15 @@ export function SalaPageClient({
         onDeleteMonth={handleDeleteMonth}
         onColorChange={handleColorChange}
       />
+
+      {cleanup && (
+        <ShiftCleanupDialog
+          open
+          month={cleanup.month}
+          initialCandidates={cleanup.candidates}
+          onClose={() => setCleanup(null)}
+        />
+      )}
     </main>
   )
 }

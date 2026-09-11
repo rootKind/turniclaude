@@ -13,7 +13,7 @@ export async function fetchShiftTeamTree(supabase: SupabaseClient): Promise<Shif
       .order('sort_order', { ascending: true }),
     supabase
       .from('shift_team_members')
-      .select('id, team_id, full_name, user_id, pattern, sort_order, is_active')
+      .select('id, team_id, full_name, user_id, pattern, sort_order, is_active, is_lead')
       .order('sort_order', { ascending: true }),
     supabase
       .from('shift_adjustments')

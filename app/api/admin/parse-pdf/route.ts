@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/types/database'
 import { parsePdfSchedule } from '@/lib/pdf-parser'
 import { upsertSalaSchedule, saveUploadHistory } from '@/lib/queries/sala-schedule'
+import { computeShiftCleanup, type ShiftCleanupCandidate } from '@/lib/queries/shift-cleanup'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -58,5 +59,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, month, persons: persons.size })
+  // Richieste di cambio già esaudite dal calendario appena caricato: il client
+  // mostra un popup con l'elenco e chiede conferma prima di eliminarle.
+  // Best-effort: un errore qui non deve far fallire l'upload del PDF.
+  let cleanup: { count: number; candidates: ShiftCleanupCandidate[] } = { count: 0, candidates: [] }
+  try {
+    const candidates = await computeShiftCleanup(supabase, month, result.schedule)
+    cleanup = { count: candidates.length, candidates }
+  } catch (err) {
+    console.error('Shift cleanup preview failed', err)
+  }
+
+  return NextResponse.json({ ok: true, month, persons: persons.size, cleanup })
 }

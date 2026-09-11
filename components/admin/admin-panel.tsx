@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight } from 'lucide-react'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { getAppSettings, updateAppSettings } from '@/lib/queries/app-settings'
@@ -13,6 +13,7 @@ import { ImpersonateDialog } from './impersonate-dialog'
 import { ChangelogManagerDialog } from './changelog-manager-dialog'
 import { SquadreDialog } from './squadre-dialog'
 import { ShiftDialog } from './shift-dialog'
+import { ShiftCleanupDialog } from './shift-cleanup-dialog'
 
 export function AdminPanel() {
   const router = useRouter()
@@ -26,6 +27,7 @@ export function AdminPanel() {
   const [changelogOpen, setChangelogOpen] = useState(false)
   const [squadreOpen, setSquadreOpen] = useState(false)
   const [shiftOpen, setShiftOpen] = useState(false)
+  const [cleanupOpen, setCleanupOpen] = useState(false)
   const [minYearTurniferie, setMinYearTurniferie] = useState(2026)
   const [minYearVacanze, setMinYearVacanze] = useState(2026)
   const [savingYears, setSavingYears] = useState(false)
@@ -89,60 +91,66 @@ export function AdminPanel() {
         <StatCard label="Feedback non letti" value={feedbackUnread} highlight={feedbackUnread > 0} />
       </div>
 
-      {/* Action tiles */}
-      <div className="space-y-2">
-        <ActionTile
-          icon={<Bell size={18} />}
-          title="Notifiche"
+      {/* Azioni — griglia compatta di pulsanti (la descrizione esce in tooltip) */}
+      <div className="grid grid-cols-3 gap-2">
+        <PanelButton
+          icon={<Bell size={15} />}
+          label="Notifiche"
           description="Invia una notifica push a tutti gli utenti"
           onClick={() => setNotifOpen(true)}
         />
-        <ActionTile
-          icon={<Users size={18} />}
-          title="Gestione utenti"
+        <PanelButton
+          icon={<Users size={15} />}
+          label="Utenti"
           description="Crea, modifica o elimina account"
           onClick={() => setUsersOpen(true)}
         />
-        <ActionTile
-          icon={<LayoutGrid size={18} />}
-          title="Squadre e turni"
+        <PanelButton
+          icon={<LayoutGrid size={15} />}
+          label="Squadre"
           description="Tipologie, squadre e membri con i turni teorici"
           onClick={() => setSquadreOpen(true)}
         />
-        <ActionTile
-          icon={<ArrowLeftRight size={18} />}
-          title="Shift turni teorici"
+        <PanelButton
+          icon={<ArrowLeftRight size={15} />}
+          label="Shift teorici"
           description="Sposta di ±1 giorno tutti i turni da una data (es. anni bisestili)"
           onClick={() => setShiftOpen(true)}
         />
-        <ActionTile
-          icon={<Eye size={18} />}
-          title="Visualizza come utente"
+        <PanelButton
+          icon={<Eraser size={15} />}
+          label="Pulizia cambi"
+          description="Elimina le richieste di cambio già esaudite dai turni caricati"
+          onClick={() => setCleanupOpen(true)}
+        />
+        <PanelButton
+          icon={<Eye size={15} />}
+          label="Vedi come"
           description="Accedi alla dashboard dal punto di vista di un collega"
           onClick={() => setImpersonateOpen(true)}
         />
-        <ActionTile
-          icon={<BarChart2 size={18} />}
-          title="Statistiche"
+        <PanelButton
+          icon={<BarChart2 size={15} />}
+          label="Statistiche"
           description="Accessi, turni pubblicati, interessi per utente"
           onClick={() => router.push('/admin/statistiche')}
         />
-        <ActionTile
-          icon={<MessageSquare size={18} />}
-          title="Feedback"
+        <PanelButton
+          icon={<MessageSquare size={15} />}
+          label="Feedback"
           description="Leggi le segnalazioni degli utenti"
           badge={feedbackUnread}
           onClick={() => setFeedbackOpen(true)}
         />
-        <ActionTile
-          icon={<FlaskConical size={18} />}
-          title="Test notifiche"
+        <PanelButton
+          icon={<FlaskConical size={15} />}
+          label="Test notifiche"
           description="Invia notifiche di prova a un dipendente specifico"
           onClick={() => setNotifTestOpen(true)}
         />
-        <ActionTile
-          icon={<Megaphone size={18} />}
-          title="Changelog"
+        <PanelButton
+          icon={<Megaphone size={15} />}
+          label="Changelog"
           description="Gestisci le novità, lancia una nuova versione, vedi chi le ha lette"
           onClick={() => setChangelogOpen(true)}
         />
@@ -215,6 +223,7 @@ export function AdminPanel() {
       <ChangelogManagerDialog open={changelogOpen} onClose={() => setChangelogOpen(false)} />
       <SquadreDialog open={squadreOpen} onClose={() => setSquadreOpen(false)} />
       <ShiftDialog open={shiftOpen} onClose={() => setShiftOpen(false)} />
+      <ShiftCleanupDialog open={cleanupOpen} onClose={() => setCleanupOpen(false)} />
     </div>
   )
 }
@@ -234,9 +243,10 @@ function StatCard({ label, value, highlight = false, clickable = false }: {
   )
 }
 
-function ActionTile({ icon, title, description, badge, onClick }: {
+/** Pulsante compatto del pannello: la descrizione compare come tooltip. */
+function PanelButton({ icon, label, description, badge, onClick }: {
   icon: React.ReactNode
-  title: string
+  label: string
   description: string
   badge?: number
   onClick: () => void
@@ -244,21 +254,19 @@ function ActionTile({ icon, title, description, badge, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl border bg-card hover:bg-accent transition-colors text-left"
+      title={description}
+      aria-label={`${label} — ${description}`}
+      className="relative flex flex-col items-center justify-center gap-1.5 rounded-xl border bg-card px-1.5 py-3 text-center hover:bg-accent active:translate-y-px transition-colors"
     >
-      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
+      <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
         {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold">{title}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-      </div>
+      </span>
+      <span className="text-[11px] font-medium leading-tight">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="flex-shrink-0 min-w-[20px] h-5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center px-1.5">
+        <span className="absolute top-1 right-1 min-w-[17px] h-[17px] bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center px-1">
           {badge > 99 ? '99+' : badge}
         </span>
       )}
-      <ChevronRight size={16} className="text-muted-foreground flex-shrink-0" />
     </button>
   )
 }

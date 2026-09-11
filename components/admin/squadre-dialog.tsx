@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import { ChevronDown, ChevronUp, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Pencil, Plus, Star, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
@@ -19,6 +19,19 @@ interface Props {
   onClose: () => void
 }
 
+type Team = ShiftTeamTree['types'][number]['teams'][number]
+
+/**
+ * Nome visualizzato della squadra: i cognomi dei capisquadra (membri con is_lead),
+ * es. «D'ELIA-PASSANNANTI», «ALBANO». Restano allineati da soli quando il roster cambia.
+ * Le squadre senza caposquadra usano il loro nome, senza il prefisso «Squadra».
+ */
+function teamLabel(team: Team): string {
+  const leads = team.members.filter(m => m.is_lead).map(m => m.full_name)
+  if (leads.length) return leads.join('-')
+  return team.name.replace(/^Squadra\s+/i, '').replace(/^./, c => c.toUpperCase())
+}
+
 async function api(method: string, body?: unknown) {
   const res = await fetch('/api/admin/shift-teams', {
     method,
@@ -34,6 +47,8 @@ async function api(method: string, body?: unknown) {
 export function SquadreDialog({ open, onClose }: Props) {
   const [tree, setTree] = useState<ShiftTeamTree | null>(null)
   const [loading, setLoading] = useState(false)
+  const [tab, setTab] = useState('types')
+  const [membersTypeId, setMembersTypeId] = useState('')
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -71,20 +86,28 @@ export function SquadreDialog({ open, onClose }: Props) {
     )
   }
 
+  // La matita nella scheda Tipologie porta alla gestione dei suoi membri
+  const openMembers = (typeId: string) => {
+    setMembersTypeId(typeId)
+    setTab('members')
+  }
+
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader><DialogTitle>Squadre e turni teorici</DialogTitle></DialogHeader>
-        <Tabs defaultValue="types" className="flex-1 min-h-0 flex flex-col">
+        <Tabs value={tab} onValueChange={setTab} className="flex-1 min-h-0 flex flex-col">
           <TabsList className="grid grid-cols-3">
             <TabsTrigger value="types">Tipologie</TabsTrigger>
             <TabsTrigger value="teams">Squadre</TabsTrigger>
             <TabsTrigger value="members">Membri</TabsTrigger>
           </TabsList>
           <div className="flex-1 min-h-0 overflow-y-auto mt-3">
-            <TabsContent value="types"><TypesTab tree={tree} run={run} /></TabsContent>
+            <TabsContent value="types"><TypesTab tree={tree} run={run} onEditMembers={openMembers} /></TabsContent>
             <TabsContent value="teams"><TeamsTab tree={tree} run={run} /></TabsContent>
-            <TabsContent value="members"><MembersTab tree={tree} run={run} /></TabsContent>
+            <TabsContent value="members">
+              <MembersTab tree={tree} run={run} typeId={membersTypeId} onTypeChange={setMembersTypeId} />
+            </TabsContent>
           </div>
         </Tabs>
       </DialogContent>
@@ -94,20 +117,20 @@ export function SquadreDialog({ open, onClose }: Props) {
 
 // ─── Tipologie ───────────────────────────────────────────────────────────────
 
-function TypesTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<void>, ok: string) => Promise<void> }) {
+function TypesTab({ tree, run, onEditMembers }: {
+  tree: ShiftTeamTree
+  run: (fn: () => Promise<void>, ok: string) => Promise<void>
+  onEditMembers: (typeId: string) => void
+}) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [cycle, setCycle] = useState('28')
-  const [editingId, setEditingId] = useState<string | null>(null)
 
   return (
     <div className="space-y-2">
       {tree.types.map(t => (
         <div key={t.id} className="rounded-xl border bg-card px-3 py-2.5 space-y-2">
-          {editingId === t.id ? (
-            <TypeEdit t={t} onCancel={() => setEditingId(null)} onSaved={() => setEditingId(null)} />
-          ) : (
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold">{t.name}</p>
                 <p className="text-xs text-muted-foreground">
@@ -121,7 +144,13 @@ function TypesTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<
                   v ? 'Tipologia attivata' : 'Tipologia disattivata',
                 )}
               />
-              <button onClick={() => setEditingId(t.id)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"><Pencil size={14} /></button>
+              <button
+                onClick={() => onEditMembers(t.id)}
+                title="Gestisci i membri"
+                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+              >
+                <Pencil size={14} />
+              </button>
               <button
                 onClick={() => {
                   if (confirm(`Eliminare la tipologia "${t.name}" e tutte le sue squadre?`))
@@ -134,8 +163,7 @@ function TypesTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<
               >
                 <Trash2 size={14} />
               </button>
-            </div>
-          )}
+          </div>
         </div>
       ))}
 
@@ -143,7 +171,7 @@ function TypesTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<
         <div className="rounded-xl border bg-card px-3 py-3 space-y-3">
           <div className="space-y-1">
             <Label className="text-xs">Nome tipologia</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="es. Con notti" />
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="es. Squadra in terza" />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Ciclo (giorni)</Label>
@@ -171,44 +199,6 @@ function TypesTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<
   )
 }
 
-function TypeEdit({ t, onCancel, onSaved }: { t: ShiftTeamTree['types'][number]; onCancel: () => void; onSaved: () => void }) {
-  const [name, setName] = useState(t.name)
-  const [cycle, setCycle] = useState(String(t.cycle_days))
-  const [start, setStart] = useState(t.pattern_start)
-  const [saving, setSaving] = useState(false)
-
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        <Input value={name} onChange={e => setName(e.target.value)} className="col-span-2" />
-        <Input type="number" min={1} value={cycle} onChange={e => setCycle(e.target.value)} />
-        <Input type="date" value={start} onChange={e => setStart(e.target.value)} />
-      </div>
-      <div className="flex gap-2 justify-end">
-        <Button size="sm" variant="outline" onClick={onCancel}>Annulla</Button>
-        <Button
-          size="sm"
-          disabled={saving}
-          onClick={async () => {
-            setSaving(true)
-            try {
-              await api('PUT', { kind: 'type', id: t.id, name, cycle_days: parseInt(cycle) || t.cycle_days, pattern_start: start })
-              toast.success('Tipologia aggiornata')
-              onSaved()
-            } catch (err) {
-              toast.error((err as Error).message)
-            } finally {
-              setSaving(false)
-            }
-          }}
-        >
-          Salva
-        </Button>
-      </div>
-    </div>
-  )
-}
-
 // ─── Squadre ─────────────────────────────────────────────────────────────────
 
 function TeamsTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<void>, ok: string) => Promise<void> }) {
@@ -221,7 +211,7 @@ function TeamsTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<
 
   return (
     <div className="space-y-3">
-      <Select value={typeId} onValueChange={v => setTypeId(v ?? '')}>
+      <Select value={typeId} onValueChange={v => setTypeId(v ?? '')} items={tree.types.map(t => ({ value: t.id, label: t.name }))}>
         <SelectTrigger><SelectValue placeholder="Scegli tipologia" /></SelectTrigger>
         <SelectContent>
           {tree.types.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
@@ -231,7 +221,7 @@ function TeamsTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<
       {type?.teams.map(team => (
         <div key={team.id} className="rounded-xl border bg-card px-3 py-2.5 flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold">{team.name}</p>
+            <p className="text-sm font-semibold truncate">{teamLabel(team)}</p>
             <p className="text-xs text-muted-foreground">
               fase +{team.phase_offset_days}gg · {team.members.length} membri
             </p>
@@ -267,7 +257,7 @@ function TeamsTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<
   )
 }
 
-function TeamPhaseEditor({ team, run }: { team: ShiftTeamTree['types'][number]['teams'][number]; run: (fn: () => Promise<void>, ok: string) => Promise<void> }) {
+function TeamPhaseEditor({ team, run }: { team: Team; run: (fn: () => Promise<void>, ok: string) => Promise<void> }) {
   return (
     <div className="flex items-center gap-1">
       <button
@@ -301,39 +291,50 @@ function TeamPhaseEditor({ team, run }: { team: ShiftTeamTree['types'][number]['
 
 // ─── Membri ──────────────────────────────────────────────────────────────────
 
-function MembersTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<void>, ok: string) => Promise<void> }) {
-  const [typeId, setTypeId] = useState(tree.types[0]?.id ?? '')
+function MembersTab({ tree, run, typeId, onTypeChange }: {
+  tree: ShiftTeamTree
+  run: (fn: () => Promise<void>, ok: string) => Promise<void>
+  typeId: string
+  onTypeChange: (typeId: string) => void
+}) {
   const [teamId, setTeamId] = useState('')
   const [adding, setAdding] = useState(false)
 
-  const type = tree.types.find(t => t.id === typeId)
+  const type = tree.types.find(t => t.id === typeId) ?? tree.types[0]
+  const activeTypeId = type?.id ?? ''
   const team = type?.teams.find(t => t.id === teamId)
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <Select value={typeId} onValueChange={id => { setTypeId(id ?? ''); setTeamId('') }}>
+        <Select
+          value={activeTypeId}
+          onValueChange={id => { onTypeChange(id ?? ''); setTeamId('') }}
+          items={tree.types.map(t => ({ value: t.id, label: t.name }))}
+        >
           <SelectTrigger><SelectValue placeholder="Tipologia" /></SelectTrigger>
           <SelectContent>
             {tree.types.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={teamId} onValueChange={v => setTeamId(v ?? '')}>
+        <Select
+          value={teamId}
+          onValueChange={v => setTeamId(v ?? '')}
+          items={(type?.teams ?? []).map(t => ({ value: t.id, label: teamLabel(t) }))}
+        >
           <SelectTrigger><SelectValue placeholder="Squadra" /></SelectTrigger>
           <SelectContent>
-            {type?.teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            {type?.teams.map(t => <SelectItem key={t.id} value={t.id}>{teamLabel(t)}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
 
       {team && (
         <>
-          {team.members.map((m, i) => (
+          {team.members.map(m => (
             <MemberRow
               key={m.id}
               member={m}
-              index={i}
-              total={team.members.length}
               cycle={type?.cycle_days ?? 0}
               run={run}
             />
@@ -359,10 +360,8 @@ function MembersTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promis
   )
 }
 
-function MemberRow({ member, index, total, cycle, run }: {
-  member: ShiftTeamTree['types'][number]['teams'][number]['members'][number]
-  index: number
-  total: number
+function MemberRow({ member, cycle, run }: {
+  member: Team['members'][number]
   cycle: number
   run: (fn: () => Promise<void>, ok: string) => Promise<void>
 }) {
@@ -374,32 +373,23 @@ function MemberRow({ member, index, total, cycle, run }: {
   return (
     <div className="rounded-xl border bg-card px-3 py-2.5 space-y-2">
       <div className="flex items-center gap-2">
-        <div className="flex flex-col">
-          <button
-            disabled={index === 0}
-            onClick={() => run(async () => {
-              await api('PUT', { kind: 'member', id: member.id, sort_order: index - 1 })
-            }, 'Ordine aggiornato')}
-            className="w-5 h-5 rounded flex items-center justify-center hover:bg-muted text-muted-foreground disabled:opacity-30"
-          >
-            <ChevronUp size={12} />
-          </button>
-          <button
-            disabled={index === total - 1}
-            onClick={() => run(async () => {
-              await api('PUT', { kind: 'member', id: member.id, sort_order: index + 1 })
-            }, 'Ordine aggiornato')}
-            className="w-5 h-5 rounded flex items-center justify-center hover:bg-muted text-muted-foreground disabled:opacity-30"
-          >
-            <ChevronDown size={12} />
-          </button>
-        </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">{member.full_name}</p>
           <p className="text-xs text-muted-foreground">
             {tokenCount}/{cycle} token · {member.is_active ? 'attivo' : 'inattivo'}
+            {member.is_lead && ' · caposquadra'}
           </p>
         </div>
+        <button
+          onClick={() => run(
+            () => api('PUT', { kind: 'member', id: member.id, is_lead: !member.is_lead }),
+            member.is_lead ? 'Caposquadra rimosso' : 'Caposquadra impostato',
+          )}
+          title={member.is_lead ? 'Rimuovi caposquadra' : 'Imposta come caposquadra'}
+          className={`p-1.5 rounded-lg hover:bg-muted ${member.is_lead ? 'text-primary' : 'text-muted-foreground'}`}
+        >
+          <Star size={14} fill={member.is_lead ? 'currentColor' : 'none'} />
+        </button>
         <Switch
           checked={member.is_active}
           onCheckedChange={v => run(() => api('PUT', { kind: 'member', id: member.id, is_active: v }), v ? 'Membro attivato' : 'Membro disattivato')}
@@ -420,7 +410,7 @@ function MemberRow({ member, index, total, cycle, run }: {
       </div>
 
       {editing && (
-        <div className="space-y-2 pl-7">
+        <div className="space-y-2">
           <Input value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" />
           <Textarea
             rows={2}
@@ -429,7 +419,7 @@ function MemberRow({ member, index, total, cycle, run }: {
             placeholder="Token separati da spazi (es. M9 N7S RC RI …)"
           />
           <div className="flex items-center justify-between">
-            <span className={`text-[11px] ${tokenCount === cycle ? 'text-muted-foreground' : 'text-amber-600'}`}>
+            <span className={`text-[11px] ${tokenCount === cycle ? 'text-muted-foreground' : 'text-destructive'}`}>
               {tokenCount}/{cycle} token
             </span>
             <div className="flex gap-2">
@@ -474,7 +464,7 @@ function MemberAdd({ teamId, cycle, onDone, run }: {
         placeholder={`Pattern di ${cycle} token separati da spazi`}
       />
       <div className="flex items-center justify-between">
-        <span className={`text-[11px] ${tokenCount === cycle ? 'text-muted-foreground' : 'text-amber-600'}`}>
+        <span className={`text-[11px] ${tokenCount === cycle ? 'text-muted-foreground' : 'text-destructive'}`}>
           {tokenCount}/{cycle} token
         </span>
         <div className="flex gap-2">

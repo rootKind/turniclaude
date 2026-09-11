@@ -29,6 +29,7 @@ interface MutBody {
   team_id?: string
   full_name?: string
   pattern?: string[]
+  is_lead?: boolean
 }
 
 export async function POST(req: NextRequest) {
@@ -91,6 +92,7 @@ export async function POST(req: NextRequest) {
       pattern: body.pattern,
       sort_order: body.sort_order ?? 0,
       is_active: body.is_active ?? true,
+      is_lead: body.is_lead ?? false,
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ ok: true })
@@ -143,6 +145,7 @@ export async function PUT(req: NextRequest) {
     if (body.team_id !== undefined) patch.team_id = body.team_id
     if (body.sort_order !== undefined) patch.sort_order = body.sort_order
     if (body.is_active !== undefined) patch.is_active = body.is_active
+    if (body.is_lead !== undefined) patch.is_lead = body.is_lead
     if (body.pattern !== undefined) {
       if (!body.pattern.length) return NextResponse.json({ error: 'Pattern vuoto' }, { status: 400 })
       patch.pattern = body.pattern

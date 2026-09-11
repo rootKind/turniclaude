@@ -145,12 +145,37 @@ export interface DaySchedule {
   altriPresenti: string[]
 }
 
+/**
+ * Forma compatta «colonnare» (v2) di un mese di turni reali.
+ *
+ * Un PDF contiene ~100 persone × ~31 giorni: salvare il nome del dipendente in
+ * ogni giorno duplica i dati (~90 KB/mese). Qui invece i codici turno stanno in
+ * un dizionario (`codes`) e ogni persona è due liste di indici (`d` effettivo,
+ * `t` teorico) più i giorni con sfondo giallo (`y`). Stesso contenuto, ~1/6 del
+ * peso, e — a differenza della v1 — CONSERVA TUTTI i codici, comprese le
+ * assenze (A, RC, RM, RI, D, Sp*, ISp*, VS…).
+ */
+export interface SalaMonthShiftRow {
+  d: number[]        // codici effettivi (indici in `codes`), uno per giorno; 0 = vuoto
+  t: number[]        // codici teorici (riga base pre-stampata), uno per giorno
+  y?: number[]       // giorni (1-based) con sfondo giallo = «turno da confermare»
+}
+
+export interface SalaMonthData {
+  v: 2
+  days: number       // giorni del mese
+  codes: string[]    // dizionario dei token; codes[0] = ''
+  names: string[]    // nomi canonici, in ordine di apparizione nel PDF
+  rows: SalaMonthShiftRow[]
+}
+
 export interface SalaSchedule {
   month: string               // "2026-04"
-  schedule: Record<number, DaySchedule>  // day 1–31
+  schedule: Record<number, DaySchedule>  // day 1–31 (derivato in v2)
   uploaded_at: string
   coloredPersons?: Record<number, Record<string, string>>
   source?: 'uploaded' | 'theoretical'   // theoretical = generato dai turni teorici
+  data?: SalaMonthData                  // forma compatta completa (v2), se disponibile
 }
 
 // ── Turni teorici (squadre e cicli) ──────────────────────────────────────────
@@ -180,6 +205,7 @@ export interface ShiftTeamMember {
   pattern: string[]            // lunghezza = cycle_days della tipologia
   sort_order: number
   is_active: boolean
+  is_lead: boolean             // true = caposquadra (compare nel nome visualizzato della squadra)
 }
 
 export interface ShiftAdjustment {

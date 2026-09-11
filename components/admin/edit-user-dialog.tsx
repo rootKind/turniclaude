@@ -145,7 +145,7 @@ export function EditUserDialog({ open, onClose }: Props) {
             <FormField control={form.control} name="userId" render={({ field }) => (
               <FormItem>
                 <FormLabel>Utente</FormLabel>
-                <Select onValueChange={(v) => { if (v) { field.onChange(v); onUserSelect(v) } }} value={field.value}>
+                <Select onValueChange={(v) => { if (v) { field.onChange(v); onUserSelect(v) } }} value={field.value} items={users.map(u => ({ value: u.id, label: `${u.cognome ?? ''} ${u.nome ?? ''}`.trim() }))}>
                   <FormControl>
                     <SelectTrigger><SelectValue placeholder="Seleziona utente" /></SelectTrigger>
                   </FormControl>
@@ -255,7 +255,7 @@ export function EditUserDialog({ open, onClose }: Props) {
                           : 'border-border text-foreground hover:bg-muted/60'
                       )}
                     >
-                      <span className="opacity-50 mr-1">{p}</span>
+                      <span className="opacity-60 mr-1">P{p} ·</span>
                       {VACATION_PERIOD_LABELS[p].label}
                     </button>
                   ))}

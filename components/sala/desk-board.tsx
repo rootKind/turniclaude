@@ -10,7 +10,7 @@ import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
-import { formatDisplayName } from '@/lib/utils'
+import { matchesCognome } from '@/lib/utils'
 import { useAllDuplicateCognomi } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
@@ -108,20 +108,6 @@ function initCards(cards: DeskCardType[]): DeskCardType[] {
   return [...cards]
     .sort((a, b) => ((a.row ?? 0) * 100 + (a.col ?? 0)) - ((b.row ?? 0) * 100 + (b.col ?? 0)))
     .map(migrateCard)
-}
-
-function matchesCognome(surnames: string[], cognome?: string, nome?: string, duplicateCognomi?: Set<string>): boolean {
-  if (!cognome) return false
-  const displayName = formatDisplayName({ nome: nome ?? '', cognome }, duplicateCognomi).toLowerCase().trim()
-  const normCognome = cognome.toLowerCase().trim()
-  const isOmonimo = duplicateCognomi?.has(cognome) ?? false
-  return surnames.some(s => {
-    const sNorm = s.toLowerCase().trim()
-    if (sNorm === displayName) return true
-    // PDF può aggiungere suffisso anche senza omonimia — strip fallback solo per non-omonimi
-    if (!isOmonimo && sNorm.replace(/\s+[a-z]+\.$/, '') === normCognome) return true
-    return false
-  })
 }
 
 interface Props {

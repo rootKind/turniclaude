@@ -148,3 +148,28 @@ export const SHIFT_PILL_CLASSES: Record<ShiftType, string> = {
   Pomeriggio: 'pill-pomeriggio',
   Notte:      'pill-notte',
 }
+
+/**
+ * True se uno dei cognomi/surnames letti dal PDF (es. "ROMANO R.") corrisponde
+ * all'utente. La disambiguazione degli omonimi usa `duplicateCognomi` (vedi
+ * `buildDuplicateCognomi`) e il suffisso del nome viene tollerato quando il
+ * PDF lo aggiunge.
+ */
+export function matchesCognome(
+  surnames: string[],
+  cognome?: string | null,
+  nome?: string | null,
+  duplicateCognomi?: Set<string>,
+): boolean {
+  if (!cognome) return false
+  const displayName = formatDisplayName({ nome: nome ?? '', cognome }, duplicateCognomi).toLowerCase().trim()
+  const normCognome = cognome.toLowerCase().trim()
+  const isOmonimo = duplicateCognomi?.has(cognome) ?? false
+  return surnames.some(s => {
+    const sNorm = s.toLowerCase().trim()
+    if (sNorm === displayName) return true
+    // PDF può aggiungere suffisso anche senza omonimia — strip fallback solo per non-omonimi
+    if (!isOmonimo && sNorm.replace(/\s+[a-z]+\.$/, '') === normCognome) return true
+    return false
+  })
+}

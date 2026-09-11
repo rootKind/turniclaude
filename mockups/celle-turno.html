@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Celle · «Il tuo turno» — 4 opzioni</title>
+<style>
+  /* ---------------------------------------------------------------
+     Palette presa dalla semantica del PDF e dell'app:
+     M azzurro · P ambra · N notte · riposo grigio · assenza rosso
+     disponibilità celeste · attività verde · giallo = da confermare
+     --------------------------------------------------------------- */
+  :root {
+    --bg: #0b0d10;
+    --panel: #14171c;
+    --panel-2: #1b1f26;
+    --line: #2a2f38;
+    --line-soft: #22262d;
+    --ink: #e8eaed;
+    --ink-2: #9aa3ae;
+    --ink-3: #6b7480;
+    --m: #4d7cae; --m-bg: #16283a; --m-ink: #a9cdf0;
+    --p: #b1832f; --p-bg: #33280f; --p-ink: #f0d79a;
+    --n: #6f58b8; --n-bg: #221c3c; --n-ink: #cdbdf5;
+    --rest: #3a3f47; --rest-bg: #1e2126; --rest-ink: #a6adb8;
+    --abs: #b85450; --abs-bg: #3a1c1b; --abs-ink: #f2b6b3;
+    --avail: #3f97b5; --avail-bg: #102b33; --avail-ink: #a8e0ef;
+    --duty: #4f9d6a; --duty-bg: #14301f; --duty-ink: #b0e3c2;
+    --pend: #d9a53a;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 72px; }
+
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 22px; margin-bottom: 30px; }
+  .eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  h1 { font-size: 27px; margin: 8px 0 6px; letter-spacing: -0.01em; }
+  h1 span { color: var(--ink-3); font-weight: 400; }
+  header.top p { margin: 0; max-width: 76ch; color: var(--ink-2); font-size: 13.5px; }
+
+  /* ── striscia dei casi ───────────────────────────────────── */
+  .cases { margin: 30px 0 34px; }
+  .cases h2, .opts h2 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 12px; font-weight: 600; }
+  .case-strip { display: flex; flex-wrap: wrap; gap: 14px; }
+  .case { width: 152px; }
+  .case .cap { font-size: 11px; color: var(--ink-3); margin-top: 7px; }
+  .case .cap b { color: var(--ink-2); font-weight: 600; }
+
+  /* ── settimana (componente comune, base per il confronto) ── */
+  .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 9px; max-width: 620px; }
+  .dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 9px; max-width: 620px; margin-bottom: 7px; }
+  .dow span { text-align: center; font-size: 10.5px; letter-spacing: .08em; color: var(--ink-3); font-weight: 600; }
+
+  .cell { position: relative; border-radius: var(--radius); min-height: 92px; display: flex; flex-direction: column; overflow: hidden; }
+  .cell .dh { display: flex; align-items: center; justify-content: space-between; padding: 5px 7px 0; font-size: 12px; font-weight: 700; }
+  .chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 5px; font-weight: 700; letter-spacing: .01em;
+    padding: 2px 5px; font-size: 11.5px; line-height: 1.15;
+    font-family: ui-monospace, Menlo, Consolas, monospace; white-space: nowrap;
+  }
+  .chip.lg { font-size: 15px; padding: 5px 7px; }
+  .chip.m  { background: var(--m-bg); color: var(--m-ink); }
+  .chip.p  { background: var(--p-bg); color: var(--p-ink); }
+  .chip.n  { background: var(--n-bg); color: var(--n-ink); }
+  .chip.rest  { background: var(--rest-bg); color: var(--rest-ink); }
+  .chip.abs   { background: var(--abs-bg); color: var(--abs-ink); }
+  .chip.avail { background: var(--avail-bg); color: var(--avail-ink); }
+  .chip.duty  { background: var(--duty-bg); color: var(--duty-ink); }
+  .chip.theo { background: #1c1f25; color: var(--ink-3); }
+  .chip.pend { box-shadow: inset 0 0 0 1.5px var(--pend); }
+
+  /* freccia di scostamento */
+  .dev { width: 6px; height: 6px; border-radius: 50%; background: var(--pend); }
+  .dev.onlysec { background: transparent; box-shadow: inset 0 0 0 1.5px var(--pend); }
+
+  /* ── opzioni ─────────────────────────────────────────────── */
+  .opts { display: grid; gap: 40px; }
+  .opt { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px 22px 20px; }
+  .opt-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .opt-tag { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--ink-3); }
+  .opt h3 { margin: 0; font-size: 17px; }
+  .opt .why { color: var(--ink-2); font-size: 13px; margin: 8px 0 18px; max-width: 82ch; }
+  .pros { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 16px; font-size: 12.5px; }
+  .pros div { flex: 1 1 260px; }
+  .pros .k { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); display: block; margin-bottom: 4px; }
+  .pros ul { margin: 0; padding-left: 16px; color: var(--ink-2); }
+  .pros li { margin-bottom: 3px; }
+
+  /* A — banda continua */
+  .A-cell { border: 1px solid var(--line); background: var(--panel-2); }
+  .A-cell .body { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2px 6px 0; }
+  .A-cell .theo-row { border-top: 1px dashed var(--line); margin-top: auto; padding: 4px 7px 5px; display: flex; align-items: center; gap: 5px; }
+  .A-cell .theo-row .lbl { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin-right: auto; }
+  .A-cell.real-m  { border-color: var(--m); box-shadow: inset 0 3px 0 var(--m); }
+  .A-cell.real-p  { border-color: var(--p); box-shadow: inset 0 3px 0 var(--p); }
+  .A-cell.real-n  { border-color: var(--n); box-shadow: inset 0 3px 0 var(--n); }
+  .A-cell.real-abs   { border-color: var(--abs); box-shadow: inset 0 3px 0 var(--abs); }
+  .A-cell.real-rest  { border-color: var(--rest); box-shadow: inset 0 3px 0 var(--rest); }
+  .A-cell.real-duty  { border-color: var(--duty); box-shadow: inset 0 3px 0 var(--duty); }
+  .A-cell.real-avail { border-color: var(--avail); box-shadow: inset 0 3px 0 var(--avail); }
+  .A-cell.theoonly { border-style: dashed; }
+
+  /* B — doppia banda 3/4 + 1/4 */
+  .B-cell { border: 1px solid var(--line-soft); }
+  .B-cell .real-band { flex: 3; display: flex; align-items: center; justify-content: center; }
+  .B-cell .theo-band { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; border-top: 1px solid var(--line); }
+  .B-cell.m .real-band { background: var(--m-bg); } .B-cell.m .theo-band { background: #131a22; }
+  .B-cell.p .real-band { background: var(--p-bg); } .B-cell.p .theo-band { background: #1e1a11; }
+  .B-cell.n .real-band { background: var(--n-bg); } .B-cell.n .theo-band { background: #171426; }
+  .B-cell.abs .real-band { background: var(--abs-bg); } .B-cell.abs .theo-band { background: #1d1313; }
+  .B-cell.rest .real-band { background: var(--rest-bg); } .B-cell.rest .theo-band { background: #17191d; }
+  .B-cell.duty .real-band { background: var(--duty-bg); } .B-cell.duty .theo-band { background: #121c16; }
+  .B-cell.avail .real-band { background: var(--avail-bg); } .B-cell.avail .theo-band { background: #0f1d22; }
+  .B-cell.strong-m .real-band { box-shadow: inset 0 4px 0 var(--m); }
+  .B-cell.strong-p .real-band { box-shadow: inset 0 4px 0 var(--p); }
+  .B-cell.strong-n .real-band { box-shadow: inset 0 4px 0 var(--n); }
+  .B-cell.strong-abs .real-band { box-shadow: inset 0 4px 0 var(--abs); }
+  .B-cell.strong-rest .real-band { box-shadow: inset 0 4px 0 var(--rest); }
+  .B-cell.strong-duty .real-band { box-shadow: inset 0 4px 0 var(--duty); }
+  .B-cell.strong-avail .real-band { box-shadow: inset 0 4px 0 var(--avail); }
+
+  /* C — reale pieno + teorico in angolo */
+  .C-cell { border: 1px solid var(--line-soft); background: var(--panel-2); display: flex; }
+  .C-cell .fill { flex: 1; display: flex; align-items: center; justify-content: center; }
+  .C-cell .corner { position: absolute; right: 4px; bottom: 4px; display: flex; align-items: center; gap: 3px; }
+  .C-cell .corner .tick { font-size: 9px; color: var(--ink-3); }
+  .C-cell.m { border-color: var(--m); } .C-cell.m .fill { background: var(--m-bg); }
+  .C-cell.p { border-color: var(--p); } .C-cell.p .fill { background: var(--p-bg); }
+  .C-cell.n { border-color: var(--n); } .C-cell.n .fill { background: var(--n-bg); }
+  .C-cell.abs { border-color: var(--abs); } .C-cell.abs .fill { background: var(--abs-bg); }
+  .C-cell.rest { border-color: var(--rest); } .C-cell.rest .fill { background: var(--rest-bg); }
+  .C-cell.duty { border-color: var(--duty); } .C-cell.duty .fill { background: var(--duty-bg); }
+  .C-cell.avail { border-color: var(--avail); } .C-cell.avail .fill { background: var(--avail-bg); }
+  .C-cell.theo-only { border-style: dashed; background: transparent; }
+
+  /* D — due righe etichettate */
+  .D-cell { border: 1px solid var(--line); background: var(--panel-2); }
+  .D-cell .row { display: flex; align-items: center; gap: 6px; padding: 0 7px; }
+  .D-cell .row.real { flex: 1; }
+  .D-cell .row.theo { border-top: 1px solid var(--line-soft); padding: 4px 7px 5px; }
+  .D-cell .row .tag { font-size: 9px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); width: 28px; }
+  .D-cell .bar { width: 3px; align-self: stretch; border-radius: 2px; margin: 5px 0; }
+  .D-cell.m .bar { background: var(--m); } .D-cell.p .bar { background: var(--p); } .D-cell.n .bar { background: var(--n); }
+  .D-cell.abs .bar { background: var(--abs); } .D-cell.rest .bar { background: var(--rest); }
+  .D-cell.duty .bar { background: var(--duty); } .D-cell.avail .bar { background: var(--avail); }
+
+  .note { color: var(--ink-3); font-size: 12px; margin-top: 14px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3); }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="eyebrow">Sala C.C.C. · calendario personale</div>
+    <h1>Cella del giorno <span>— quattro opzioni</span></h1>
+    <p>
+      Stessa settimana reale per tutte e quattro: <b class="mono">TROCCHIA</b>, 1–7 luglio 2026,
+      dove capitano insieme tutti i casi che dobbiamo distinguere — turno confermato, turno
+      diverso dal teorico, riposo previsto ma lavorato, assenza, e uno scostamento di sola sezione.
+      Sotto ogni opzione ci sono pregi e limiti.
+    </p>
+  </header>
+
+  <!-- ─── i casi da distinguere ─────────────────────────────── -->
+  <section class="cases">
+    <h2>Cosa deve saper dire una cella</h2>
+    <div class="case-strip">
+
+      <div class="case">
+        <div class="cell A-cell real-p" style="min-height:78px">
+          <div class="dh"><span>4</span></div>
+          <div class="body"><span class="chip lg p">N10</span></div>
+        </div>
+        <div class="cap"><b>Tipo diverso</b><br>N10 contro P10: cambia il turno.</div>
+      </div>
+
+      <div class="case">
+        <div class="cell A-cell real-m" style="min-height:78px">
+          <div class="dh"><span>5</span></div>
+          <div class="body"><span class="chip lg m">M11</span></div>
+          <div class="theo-row"><span class="lbl">teorico</span><span class="chip theo">RI</span></div>
+        </div>
+        <div class="cap"><b>Riposo lavorato</b><br>previsto RI, in servizio M11.</div>
+      </div>
+
+      <div class="case">
+        <div class="cell A-cell real-abs" style="min-height:78px">
+          <div class="dh"><span>5</span></div>
+          <div class="body"><span class="chip lg abs">A</span></div>
+        </div>
+        <div class="cap"><b>Assenza</b><br>Altre presenze al posto del turno.</div>
+      </div>
+
+      <div class="case">
+        <div class="cell A-cell real-p" style="min-height:78px">
+          <div class="dh"><span>14</span><span class="dev"></span></div>
+          <div class="body"><span class="chip lg p pend">M5</span></div>
+        </div>
+        <div class="cap"><b>Da confermare</b><br>sfondo giallo sul PDF: non è ancora approvato.</div>
+      </div>
+
+      <div class="case">
+        <div class="cell A-cell real-n" style="min-height:78px">
+          <div class="dh"><span>6</span><span class="dev onlysec"></span></div>
+          <div class="body"><span class="chip lg n">N10</span></div>
+          <div class="theo-row"><span class="lbl">teorico</span><span class="chip theo">N10T</span></div>
+        </div>
+        <div class="cap"><b>Solo sezione/slot</b><br>stesso turno: differenza minore.</div>
+      </div>
+
+      <div class="case">
+        <div class="cell A-cell theoonly" style="min-height:78px">
+          <div class="dh"><span>8</span></div>
+          <div class="body"><span class="chip lg rest">RI</span></div>
+        </div>
+        <div class="cap"><b>Solo teorico</b><br>nessun dato reale quel giorno.</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ─── opzioni ───────────────────────────────────────────── -->
+  <section class="opts">
+    <h2>Le quattro opzioni, sulla stessa settimana</h2>
+
+    <!-- ================= A ================= -->
+    <article class="opt">
+      <div class="opt-head"><span class="opt-tag">A</span><h3>Banda continua</h3>
+        <span class="badge"><span class="swatch" style="background:var(--p)"></span> bordo = colore del turno reale</span>
+      </div>
+      <p class="why">
+        La cella ha un solo blocco: il turno reale al centro, grande, e il teorico in una
+        sottile riga tratteggiata in fondo. Il colore del turno sale sul bordo e su una barra
+        in testa alla cella, così il mese si legge a distanza anche quando il chip è piccolo.
+      </p>
+
+      <div class="dow"><span>LUN</span><span>MAR</span><span>MER</span><span>GIO</span><span>VEN</span><span>SAB</span><span>DOM</span></div>
+      <div class="week">
+        <div class="cell A-cell real-m">
+          <div class="dh"><span>1</span></div>
+          <div class="body"><span class="chip lg m">M9</span></div>
+        </div>
+        <div class="cell A-cell real-n">
+          <div class="dh"><span>2</span></div>
+          <div class="body"><span class="chip lg n">N7</span></div>
+        </div>
+        <div class="cell A-cell real-m">
+          <div class="dh"><span>3</span><span class="dev"></span></div>
+          <div class="body"><span class="chip lg m">M11</span></div>
+          <div class="theo-row"><span class="lbl">teorico</span><span class="chip theo">RI</span></div>
+        </div>
+        <div class="cell A-cell real-p">
+          <div class="dh"><span>4</span><span class="dev"></span></div>
+          <div class="body"><span class="chip lg p">N10</span></div>
+          <div class="theo-row"><span class="lbl">teorico</span><span class="chip theo">P10</span></div>
+        </div>
+        <div class="cell A-cell real-abs">
+          <div class="dh"><span>5</span><span class="dev"></span></div>
+          <div class="body"><span class="chip lg abs">A</span></div>
+          <div class="theo-row"><span class="lbl">teorico</span><span class="chip theo">M10</span></div>
+        </div>
+        <div class="cell A-cell real-n">
+          <div class="dh"><span>6</span><span class="dev onlysec"></span></div>
+          <div class="body"><span class="chip lg n">N10</span></div>
+          <div class="theo-row"><span class="lbl">teorico</span><span class="chip theo">N10T</span></div>
+        </div>
+        <div class="cell A-cell real-rest">
+          <div class="dh"><span>7</span></div>
+          <div class="body"><span class="chip lg rest">RI</span></div>
+        </div>
+      </div>
+
+      <div class="pros">
+        <div><span class="k">A favore</span><ul>
+          <li>Chiude il problema «card nella card»: una sola cornice.</li>
+          <li>Pochissimo rumore: il teorico resta leggibile ma non compete.</li>
+        </ul></div>
+        <div><span class="k">Contro</span><ul>
+          <li>Il teorico è compresso in fondo: su 375px di schermo è una riga da 12px.</li>
+          <li>La barra in testa aggiunge un elemento decorativo che non porta informazione.</li>
+        </ul></div>
+      </div>
+    </article>
+
+    <!-- ================= B ================= -->
+    <article class="opt">
+      <div class="opt-head"><span class="opt-tag">B</span><h3>Doppia banda 3/4 + 1/4</h3>
+        <span class="badge">la proposta che citavi</span>
+      </div>
+      <p class="why">
+        La cella è divisa in due fasce: sopra i tre quarti col turno reale su fondo pieno del suo
+        colore, sotto un quarto col teorico su un fondo tenue. Lo scostamento diventa una
+        differenza di <em>fondo</em>, non solo di chip: due bande di colore diverso si vedono
+        anche senza leggere.
+      </p>
+
+      <div class="dow"><span>LUN</span><span>MAR</span><span>MER</span><span>GIO</span><span>VEN</span><span>SAB</span><span>DOM</span></div>
+      <div class="week">
+        <div class="cell B-cell m strong-m">
+          <div class="dh"><span>1</span></div>
+          <div class="real-band"><span class="chip lg m" style="background:transparent">M9</span></div>
+          <div class="theo-band"><span class="chip theo">M9</span></div>
+        </div>
+        <div class="cell B-cell n strong-n">
+          <div class="dh"><span>2</span></div>
+          <div class="real-band"><span class="chip lg n" style="background:transparent">N7</span></div>
+          <div class="theo-band"><span class="chip theo">N7</span></div>
+        </div>
+        <div class="cell B-cell p strong-p">
+          <div class="dh"><span>3</span><span class="dev"></span></div>
+          <div class="real-band"><span class="chip lg p" style="background:transparent">M11</span></div>
+          <div class="theo-band"><span class="chip theo">RI</span></div>
+        </div>
+        <div class="cell B-cell abs strong-abs">
+          <div class="dh"><span>4</span><span class="dev"></span></div>
+          <div class="real-band"><span class="chip lg abs" style="background:transparent">N10</span></div>
+          <div class="theo-band"><span class="chip theo">P10</span></div>
+        </div>
+        <div class="cell B-cell abs strong-abs">
+          <div class="dh"><span>5</span><span class="dev"></span></div>
+          <div class="real-band"><span class="chip lg abs" style="background:transparent">A</span></div>
+          <div class="theo-band"><span class="chip theo">M10</span></div>
+        </div>
+        <div class="cell B-cell n strong-n">
+          <div class="dh"><span>6</span><span class="dev onlysec"></span></div>
+          <div class="real-band"><span class="chip lg n" style="background:transparent">N10</span></div>
+          <div class="theo-band"><span class="chip theo">N10T</span></div>
+        </div>
+        <div class="cell B-cell rest strong-rest">
+          <div class="dh"><span>7</span></div>
+          <div class="real-band"><span class="chip lg rest" style="background:transparent">RI</span></div>
+          <div class="theo-band"><span class="chip theo">RI</span></div>
+        </div>
+      </div>
+      <p class="note">
+        Nota: quando reale e teorico coincidono la banda inferiore mostra lo stesso codice su
+        fondo neutro — spazio speso per ripetere un dato che non aggiunge nulla.
+      </p>
+
+      <div class="pros">
+        <div><span class="k">A favore</span><ul>
+          <li>Risponde esattamente alla richiesta: colore e bordo su tutta la cella, 3/4 e 1/4.</li>
+          <li>Lo scostamento si vede di colpo: due fondi diversi affiancati.</li>
+          <li>Il teorico ha un posto stabile, sempre alla stessa altezza.</li>
+        </ul></div>
+        <div><span class="k">Contro</span><ul>
+          <li>28px di banda inferiore si pagano su ogni cella del mese: righe più alte.</li>
+          <li>Il 16% dei giorni con reale = teorico ha una banda che non informa.</li>
+        </ul></div>
+      </div>
+    </article>
+
+    <!-- ================= C ================= -->
+    <article class="opt">
+      <div class="opt-head"><span class="opt-tag">C</span><h3>Reale pieno, teorico in angolo</h3>
+        <span class="badge">versione «quieta» della B</span>
+      </div>
+      <p class="why">
+        Il turno reale prende tutta la cella e la colora davvero (fondo + bordo). Il teorico
+        compare solo quando serve: se coincide non si stampa, se diverge appare come etichetta
+        piccola nell'angolo, col segno <span class="mono">≠</span> quando cambia anche il turno.
+      </p>
+
+      <div class="dow"><span>LUN</span><span>MAR</span><span>MER</span><span>GIO</span><span>VEN</span><span>SAB</span><span>DOM</span></div>
+      <div class="week">
+        <div class="cell C-cell m">
+          <div class="dh"><span>1</span></div>
+          <div class="fill"><span class="chip lg m" style="background:transparent">M9</span></div>
+        </div>
+        <div class="cell C-cell n">
+          <div class="dh"><span>2</span></div>
+          <div class="fill"><span class="chip lg n" style="background:transparent">N7</span></div>
+        </div>
+        <div class="cell C-cell p">
+          <div class="dh"><span>3</span></div>
+          <div class="fill"><span class="chip lg p" style="background:transparent">M11</span></div>
+          <div class="corner"><span class="tick">≠</span><span class="chip theo">RI</span></div>
+        </div>
+        <div class="cell C-cell abs">
+          <div class="dh"><span>4</span></div>
+          <div class="fill"><span class="chip lg abs" style="background:transparent">N10</span></div>
+          <div class="corner"><span class="tick">≠</span><span class="chip theo">P10</span></div>
+        </div>
+        <div class="cell C-cell rest">
+          <div class="dh"><span>5</span></div>
+          <div class="fill"><span class="chip lg abs" style="background:transparent">A</span></div>
+          <div class="corner"><span class="tick">≠</span><span class="chip theo">M10</span></div>
+        </div>
+        <div class="cell C-cell n">
+          <div class="dh"><span>6</span></div>
+          <div class="fill"><span class="chip lg n" style="background:transparent">N10</span></div>
+          <div class="corner"><span class="tick">~</span><span class="chip theo">N10T</span></div>
+        </div>
+        <div class="cell C-cell rest">
+          <div class="dh"><span>7</span></div>
+          <div class="fill"><span class="chip lg rest" style="background:transparent">RI</span></div>
+        </div>
+      </div>
+      <p class="note">
+        Sui mesi non caricati la cella è teorica pura: stesso disegno, bordo tratteggiato e sigla centrata.
+      </p>
+
+      <div class="pros">
+        <div><span class="k">A favore</span><ul>
+          <li>Celle compatte: il mese sta in una schermata, sempre il colpo d'occhio del colore.</li>
+          <li>Niente informazione ridondante quando reale e teorico coincidono.</li>
+          <li>Il segno ≠ distingue «turno diverso» da «solo sezione» (tilde).</li>
+        </ul></div>
+        <div><span class="k">Contro</span><ul>
+          <li>L'etichetta d'angolo è piccola: rischio che sfugga se il pollice copre la cella.</li>
+          <li>Meno esplicito per chi vuole confrontare reale e teorico a colpo d'occhio.</li>
+        </ul></div>
+      </div>
+    </article>
+
+    <!-- ================= D ================= -->
+    <article class="opt">
+      <div class="opt-head"><span class="opt-tag">D</span><h3>Due righe etichettate</h3>
+        <span class="badge">la più leggibile, la più alta</span>
+      </div>
+      <p class="why">
+        Due righe esplicite, ciascuna col nome del dato accanto: <span class="mono">TURNO</span> e
+        <span class="mono">TEORICO</span>. Una barra verticale colorata chiude la riga reale, così
+        il colore resta ancorato al turno invece che alla cella.
+      </p>
+
+      <div class="dow"><span>LUN</span><span>MAR</span><span>MER</span><span>GIO</span><span>VEN</span><span>SAB</span><span>DOM</span></div>
+      <div class="week">
+        <div class="cell D-cell m">
+          <div class="dh"><span>1</span></div>
+          <div class="row real"><span class="bar"></span><span class="chip lg m">M9</span></div>
+          <div class="row theo"><span class="tag">teor.</span><span class="chip theo">M9</span></div>
+        </div>
+        <div class="cell D-cell n">
+          <div class="dh"><span>2</span></div>
+          <div class="row real"><span class="bar"></span><span class="chip lg n">N7</span></div>
+          <div class="row theo"><span class="tag">teor.</span><span class="chip theo">N7</span></div>
+        </div>
+        <div class="cell D-cell p">
+          <div class="dh"><span>3</span><span class="dev"></span></div>
+          <div class="row real"><span class="bar"></span><span class="chip lg p">M11</span></div>
+          <div class="row theo"><span class="tag">teor.</span><span class="chip theo">RI</span></div>
+        </div>
+        <div class="cell D-cell abs">
+          <div class="dh"><span>4</span><span class="dev"></span></div>
+          <div class="row real"><span class="bar"></span><span class="chip lg abs">N10</span></div>
+          <div class="row theo"><span class="tag">teor.</span><span class="chip theo">P10</span></div>
+        </div>
+        <div class="cell D-cell rest">
+          <div class="dh"><span>5</span><span class="dev"></span></div>
+          <div class="row real"><span class="bar"></span><span class="chip lg abs">A</span></div>
+          <div class="row theo"><span class="tag">teor.</span><span class="chip theo">M10</span></div>
+        </div>
+        <div class="cell D-cell n">
+          <div class="dh"><span>6</span><span class="dev onlysec"></span></div>
+          <div class="row real"><span class="bar"></span><span class="chip lg n">N10</span></div>
+          <div class="row theo"><span class="tag">teor.</span><span class="chip theo">N10T</span></div>
+        </div>
+        <div class="cell D-cell rest">
+          <div class="dh"><span>7</span></div>
+          <div class="row real"><span class="bar"></span><span class="chip lg rest">RI</span></div>
+          <div class="row theo"><span class="tag">teor.</span><span class="chip theo">RI</span></div>
+        </div>
+      </div>
+
+      <div class="pros">
+        <div><span class="k">A favore</span><ul>
+          <li>Zero ambiguità: ogni riga dichiara cosa sta mostrando.</li>
+          <li>Regge bene anche i codici di assenza e le sigle lunghe (F.E., SpN, TRASF).</li>
+        </ul></div>
+        <div><span class="k">Contro</span><ul>
+          <li>È la più alta: su un mese da 31 giorni si scorre quasi sempre.</li>
+          <li>Le etichette «teor.» ripetute 31 volte sono rumore a lungo andare.</li>
+        </ul></div>
+      </div>
+    </article>
+
+  </section>
+</div>
+</body>
+</html>
