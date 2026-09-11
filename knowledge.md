@@ -385,16 +385,17 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   ancora in v1 (2026-08, 2026-09: i PDF non sono più disponibili) restano leggibili. Peso ~18-19 KB/mese
   contro ~90 KB/mese della v1, con MOLTI più dati. Modulo condiviso: `lib/sala-month.ts`
   (`encode/decodeSalaMonth`, `findMonthPerson`, `personDayShift`, `salaCodeInfo`).
-- **«Il tuo turno» — codici completi (11/09/2026):** la cella ora mostra anche assenze/riposi/disponibilità/
-  attività senza sezione, con i colori della legenda del PDF (rosso assenza, grigio riposo, celeste
-  disponibilità, verde attività) e il bordo tratteggiato ambra sui turni «da confermare» (cella gialla).
+- **«Il tuo turno» — codici completi (11/09/2026):** la cella mostra anche assenze/riposi/disponibilità/
+  attività senza sezione, con la tinta per tipo di turno della «variante E» (vedi più sotto); i turni
+  «da confermare» (cella gialla sul PDF) hanno l'anello interno ambra.
   Nota: il «teorico» della pagina è la rotazione ricostruita dall'app (`generateTheoreticalMonth`),
   NON la riga base del PDF — che ora però è conservata in `teorico[]` e sarebbe il riferimento esatto
   per i mesi caricati.
 - **Mockup celle (11/09/2026, NON parte dell'app):** `mockups/celle-turno.html`, 4 opzioni grafiche
   (A banda continua, B doppia banda 3/4+1/4, C reale pieno + teorico in angolo, D due righe etichettate)
-  sulla stessa settimana reale (TROCCHIA, 1-7 luglio 2026) con pregi/limiti. Da scegliere prima di
-  riscrivere la cella del calendario.
+  sulla stessa settimana reale (TROCCHIA, 1-7 luglio 2026) con pregi/limiti. **SCELTA (11/09/2026): la
+  variante E** — `mockups/celle-colore-pieno.html` (card interamente tinta, numero del giorno compreso)
+  — implementata nella pagina vera.
 - **NOTA (11/09/2026) — asimmetria del ruolo manager (NON da sviluppare per ora, su richiesta):**
   se un manager **rifiuta** una richiesta di cambio (`POST /api/manager/shift-requests/[id]` con
   `action: 'reject'`) avvisa solo il richiedente; chi aveva mostrato interesse resta senza notifica.
@@ -405,16 +406,18 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (server) carica profilo, elenco utenti, mesi caricati e l'albero delle squadre, poi li passa a
   `tuoturno-client.tsx`: intestazione «Il tuo turno» + nome della persona (tap → dialog con ricerca per
   scegliere QUALSIASI dipendente, default = utente loggato), calendario mensile con swipe orizzontale
-  (touch, soglia 50px; le frecce ‹ › fanno lo stesso) e legenda. Ogni cella (min-h 78px, chip a 11px)
-  mostra SOPRA il turno reale del PDF (chip colorato «M7», slot T/S nascosto) e SOTTO il token teorico
-  della rotazione (es. «RM», «D», «N7»): quando il reale c'è, il teorico passa in SECONDO PIANO (chip
-  grigio); quando la card reale manca (persona assente dal PDF, o mese non caricato) il teorico OCCUPA
-  TUTTA la casella, centrato e più grande. Il turno reale compare SOLO per i mesi presenti in
-  `sala_schedule`, gli altri restano teorici (etichetta «turni reali (PDF)» / «turni teorici» sotto il
-  mese). Le differenze reale↔teorico sono segnalate da un pallino su ogni giornata: PIENO = tipo diverso
-  (o uno dei due è a riposo), VUOTO = stesso turno ma sezione diversa — soglia calcolata da
-  `realTheoreticalMismatch` su `tokenCompareKey` (turno + sezione; slot T/S e TIR ignorati), quindi
-  «M4 vs M9» è una differenza mentre «M4S vs M4T» no. Nuovo `lib/person-shift.ts`:
+  (touch, soglia 50px; le frecce ‹ › fanno lo stesso) e legenda. Celle «variante E» (min-h 76px): la card
+  è INTERAMENTE tinta dal tipo di turno — numero del giorno compreso — azzurro Pomeriggio, rosa Mattina,
+  lilla Notte, grigio riposi, rosso assenze, verde attività senza sezione (`.cell-day` + `.cell-tint-*` in
+  `app/globals.css`, con variabili dedicate per tema chiaro e scuro). In evidenza c'è il codice REALE del
+  PDF (slot T/S nascosto); se il reale manca (persona assente dal PDF, o mese non caricato) c'è il
+  TEORICO. Quando i due differiscono il teorico compare BARRATO (10px) sopra il codice e la card prende
+  il BORDO TRATTEGGIATO ROSSO (`is-diff`), mentre l'anello interno ambra (`is-pend`) segna i turni con
+  sfondo giallo sul PDF = «da confermare»; il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
+  per i mesi presenti in `sala_schedule`, gli altri restano teorici (etichetta «turni reali (PDF)» /
+  «turni teorici» sotto il mese). La soglia di differenza è `realTheoreticalMismatch` su
+  `tokenCompareKey` (turno + sezione; slot T/S e TIR ignorati), quindi «M4 vs M9» è una differenza
+  mentre «M4S vs M4T» no. Nuovo `lib/person-shift.ts`:
   `findMemberForUser` + `theoreticalTokenFor` (→ `tokenForMember`) per il teorico, `realShiftFor` sul
   JSON del calendario per il reale, e `personNameMatches` che tollera i nomi del PDF con suffisso del
   nome («ESPOSITO AU.» → Esposito Aurora) — più permissivo di `matchesCognome` per gli omonimi con

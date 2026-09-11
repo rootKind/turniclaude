@@ -88,6 +88,19 @@
   --pill-notte-bg: #ede9fe;
   --pill-notte-text: #6d28d9;
 
+  /* Celle de «Il tuo turno» — variante E: card a tinta piena per tipo di turno */
+  --cell-m-bg: #f7d9ea;     --cell-m-text: #7a2653;
+  --cell-p-bg: #cfe2f3;     --cell-p-text: #1f4a70;
+  --cell-n-bg: #e3d9f7;     --cell-n-text: #4a3183;
+  --cell-rest-bg: #e4e6e9;  --cell-rest-text: #4a5057;
+  --cell-avail-bg: #d6ecf5; --cell-avail-text: #1d5568;
+  --cell-abs-bg: #fbd9d6;   --cell-abs-text: #8c2a24;
+  --cell-duty-bg: #d6f0dd;  --cell-duty-text: #1f5a34;
+  --cell-empty-bg: #eef0f2; --cell-empty-text: #8b939e;
+  --cell-diff-border: #b23a2e;
+  --cell-diff-soft: #c07a20;
+  --cell-pend-ring: #d9a53a;
+
   /* Impersonation banner — inverso (nero in chiaro, bianco in scuro) */
   --banner-impersonate-bg: #1c1c1c;
   --banner-impersonate-text: #ffffff;
@@ -259,6 +272,19 @@
   --pill-pomeriggio-text: #fbbf24;
   --pill-notte-bg: #2d1b69;
   --pill-notte-text: #a78bfa;
+
+  /* Celle «Il tuo turno» — dark: tinte risaturate sul fondo scuro */
+  --cell-m-bg: #3a1c2e;     --cell-m-text: #f7d9ea;
+  --cell-p-bg: #18304a;     --cell-p-text: #cfe2f3;
+  --cell-n-bg: #2a2047;     --cell-n-text: #e3d9f7;
+  --cell-rest-bg: #24282e;  --cell-rest-text: #aeb5bd;
+  --cell-avail-bg: #12303c; --cell-avail-text: #a8d8ea;
+  --cell-abs-bg: #3d1c1a;   --cell-abs-text: #fbd9d6;
+  --cell-duty-bg: #16301f;  --cell-duty-text: #9fd9b4;
+  --cell-empty-bg: #1b1f24; --cell-empty-text: #8b939e;
+  --cell-diff-border: #e2705f;
+  --cell-diff-soft: #d99a3c;
+  --cell-pend-ring: #d9a53a;
 
   /* Impersonation banner — dark (inverso: bianco) */
   --banner-impersonate-bg: #ffffff;
@@ -473,6 +499,23 @@
   .pill-mattina    { background: var(--pill-mattina-bg); color: var(--pill-mattina-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
   .pill-pomeriggio { background: var(--pill-pomeriggio-bg); color: var(--pill-pomeriggio-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
   .pill-notte      { background: var(--pill-notte-bg); color: var(--pill-notte-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+
+  /* Celle de «Il tuo turno» (variante E): card interamente tinta, numero del giorno compreso.
+     Lo stato vive sul bordo (dashed = reale diverso dal teorico) e su un anello interno
+     (ambra = turno da confermare, cioè sfondo giallo sul PDF). */
+  .cell-day { border: 1.5px solid transparent; background: var(--cell-empty-bg); color: var(--cell-empty-text); }
+  .cell-tint-m     { background: var(--cell-m-bg);     color: var(--cell-m-text); }
+  .cell-tint-p     { background: var(--cell-p-bg);     color: var(--cell-p-text); }
+  .cell-tint-n     { background: var(--cell-n-bg);     color: var(--cell-n-text); }
+  .cell-tint-rest  { background: var(--cell-rest-bg);  color: var(--cell-rest-text); }
+  .cell-tint-avail { background: var(--cell-avail-bg); color: var(--cell-avail-text); }
+  .cell-tint-abs   { background: var(--cell-abs-bg);   color: var(--cell-abs-text); }
+  .cell-tint-duty  { background: var(--cell-duty-bg);  color: var(--cell-duty-text); }
+  .cell-tint-empty { background: var(--cell-empty-bg); color: var(--cell-empty-text); }
+  .cell-day.is-diff { border: 1.5px dashed var(--cell-diff-border); }
+  .cell-day.is-pend { box-shadow: inset 0 0 0 2px var(--cell-pend-ring); }
+  .cell-day.is-diff.is-pend { border-color: var(--cell-diff-soft); }
+  .cell-day.is-today { outline: 2px solid var(--primary); outline-offset: -2px; }
 
   /* Safe area for bottom nav */
   .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }

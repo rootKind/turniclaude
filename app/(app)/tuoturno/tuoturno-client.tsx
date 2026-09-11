@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
-import { buildDuplicateCognomi, cn, SHIFT_PILL_CLASSES } from '@/lib/utils'
+import { buildDuplicateCognomi, cn } from '@/lib/utils'
 import {
   findMemberForUser,
   isWorkToken,
@@ -16,10 +16,11 @@ import {
   decodeSalaMonth,
   findMonthPerson,
   personDayShift,
+  salaCodeInfo,
   type PersonDayShift,
   type SalaCodeKind,
 } from '@/lib/sala-month'
-import type { DaySchedule, SalaSchedule, SalaShiftType, ShiftTeamTree, ShiftType } from '@/types/database'
+import type { DaySchedule, SalaSchedule, ShiftTeamTree } from '@/types/database'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 
@@ -28,11 +29,6 @@ const MONTHS_IT = [
   'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
 ]
 const WEEKDAYS = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM']
-const SHIFT_LABEL: Record<SalaShiftType, ShiftType> = {
-  M: 'Mattina',
-  P: 'Pomeriggio',
-  N: 'Notte',
-}
 
 function daysInMonth(month: string): number {
   const [y, m] = month.split('-').map(Number)
@@ -77,16 +73,46 @@ function legacyRealShift(
   return null
 }
 
-/** Stile dei codici non-turno, con i colori della legenda del PDF. */
-const KIND_CLASSES: Record<SalaCodeKind, string> = {
-  empty: '',
-  work: '',
-  rest: 'bg-muted/70 text-muted-foreground',
-  availability: 'bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200',
-  absence: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200',
-  duty: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
-  other: 'bg-muted/70 text-muted-foreground',
+/**
+ * Tinta della card (variante E): il colore segue il tipo di turno, così il mese
+ * si legge come una fascia di turni a colpo d'occhio.
+ */
+function cellTintClass(kind: SalaCodeKind, token: string): string {
+  switch (kind) {
+    case 'work':
+      if (token[0] === 'M') return 'cell-tint-m'
+      if (token[0] === 'P') return 'cell-tint-p'
+      if (token[0] === 'N') return 'cell-tint-n'
+      return 'cell-tint-duty'
+    case 'rest':
+      return 'cell-tint-rest'
+    case 'availability':
+      return 'cell-tint-avail'
+    case 'absence':
+      return 'cell-tint-abs'
+    case 'duty':
+    case 'other':
+      return 'cell-tint-duty'
+    default:
+      return 'cell-tint-empty'
+  }
 }
+
+/** Codice compatto: «M7S» → «M7» (lo slot non serve nella vista personale). */
+function displayToken(token: string): string {
+  return isWorkToken(token) ? tokenLabel(token) : token
+}
+
+/** Tinte della legenda della variante E. */
+const TINT_LEGEND: { cls: string; code: string; label: string }[] = [
+  { cls: 'cell-tint-p', code: 'P', label: 'pomeriggio' },
+  { cls: 'cell-tint-m', code: 'M', label: 'mattina' },
+  { cls: 'cell-tint-n', code: 'N', label: 'notte' },
+  { cls: 'cell-tint-rest', code: 'RR', label: 'riposo' },
+  { cls: 'cell-tint-avail', code: 'D', label: 'disponibilità' },
+  { cls: 'cell-tint-abs', code: 'A', label: 'assenza' },
+  { cls: 'cell-tint-duty', code: 'Sp', label: 'senza sezione' },
+]
 
 export interface UserOption {
   id: string
@@ -238,24 +264,24 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        {Array.from({ length: offset }).map((_, i) => <div key={`empty-${i}`} />)}
+        {Array.from({ length: offset }).map((_, i) => (
+          <div key={`empty-${i}`} className="rounded-xl border border-dashed border-border/50 min-h-[76px]" />
+        ))}
         {Array.from({ length: totalDays }, (_, i) => i + 1).map(d => {
           const dateISO = `${month}-${String(d).padStart(2, '0')}`
           const real = realShiftOfDay(d)
-          const realToken = real && real.kind === 'work' ? real.short : null
           const theo = theoreticalTokenFor(tree, selectedUser, dateISO, duplicateCognomi)
           const isToday = dateISO === today
+          // In evidenza c'è il reale del PDF; se manca, il teorico.
+          const primaryKind: SalaCodeKind = real
+            ? real.kind
+            : theo ? salaCodeInfo(theo).kind : 'empty'
+          const primaryToken = real ? real.short : theo
+          const primaryLabel = real
+            ? displayToken(real.short)
+            : theo ? displayToken(theo) : '—'
           // Un reale diverso dal teorico (anche solo per sezione) va notato subito.
-          const mismatch = isRealMonth && hasTheoretical
-            ? realTheoreticalMismatch(realToken, theo)
-            : false
-          // Stesso turno (M/P/N) ma sezione diversa: differenza più blanda.
-          const sectionOnly = mismatch
-            && isWorkToken(realToken ?? '')
-            && isWorkToken(theo)
-            && realToken![0] === theo[0]
-          // C'è una "card reale" solo se il PDF assegna davvero qualcosa.
-          const hasReal = !!real
+          const mismatch = !!(real && hasTheoretical && theo && realTheoreticalMismatch(real.short, theo))
 
           const realLabel = real ? (real.kind === 'work' ? tokenLabel(real.short) : `${real.label} (${real.short})`) : 'nessun turno'
           const theoLabel = theo ? tokenLabel(theo) : 'nessun turno'
@@ -269,51 +295,20 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
               key={d}
               title={cellTitle}
               className={cn(
-                'rounded-xl border px-1.5 py-1.5 min-h-[78px] flex flex-col gap-1',
-                isToday
-                  ? 'border-primary'
-                  : mismatch && !sectionOnly
-                    ? 'border-amber-500/50 bg-amber-500/[0.06]'
-                    : 'border-border/60',
-                'bg-card',
+                'cell-day rounded-xl min-h-[76px] px-0.5 py-1.5 flex flex-col items-center justify-center gap-0.5 text-center',
+                cellTintClass(primaryKind, primaryToken),
+                mismatch && 'is-diff',
+                real?.pending && 'is-pend',
+                isToday && 'is-today',
               )}
             >
-              <span className="flex items-center justify-between leading-none">
-                <span className={cn('text-xs font-semibold tabular-nums', isToday && 'text-primary')}>{d}</span>
-                {mismatch && (
-                  <span
-                    className={cn(
-                      'w-1.5 h-1.5 rounded-full',
-                      sectionOnly ? 'border border-amber-500' : 'bg-amber-500',
-                    )}
-                  />
-                )}
-              </span>
-
-              {hasReal ? (
-                <>
-                  <TokenChip
-                    token={real!.short}
-                    kind={real!.kind}
-                    pending={real!.pending}
-                    title={`${realLabel}${pendingLabel}${hasTheoretical && mismatch ? ' — diverso dal teorico' : ''}`}
-                  />
-                  <TokenChip
-                    token={theo || null}
-                    secondary
-                    title={`Teorico: ${theo || 'nessun turno'}`}
-                  />
-                </>
-              ) : (
-                // Nessun turno reale: il teorico occupa tutta la casella.
-                <span className="flex-1 flex items-center justify-center min-h-0">
-                  <TokenChip
-                    token={theo || null}
-                    size="lg"
-                    title={`Teorico: ${theo || 'nessun turno'}`}
-                  />
+              <span className="text-[14px] font-extrabold leading-none tracking-tight tabular-nums">{d}</span>
+              {mismatch && theo && (
+                <span className="text-[10px] font-semibold leading-none line-through opacity-60">
+                  {displayToken(theo)}
                 </span>
               )}
+              <span className="text-[11px] font-bold leading-tight">{primaryLabel}</span>
             </div>
           )
         })}
@@ -321,59 +316,43 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 
       {/* Legenda */}
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
-        {(['M', 'P', 'N'] as SalaShiftType[]).map(s => (
-          <span key={s} className="inline-flex items-center gap-1.5">
-            <span className={cn('px-1.5 py-0.5 rounded text-[11px] font-semibold', SHIFT_PILL_CLASSES[SHIFT_LABEL[s]])}>
-              {s}
+        {TINT_LEGEND.map(({ cls, code, label }) => (
+          <span key={code} className="inline-flex items-center gap-1.5">
+            <span className={cn('cell-day rounded px-1.5 py-0.5 text-[11px] font-bold leading-none', cls)}>
+              {code}
             </span>
-            {SHIFT_LABEL[s]}
+            {label}
           </span>
         ))}
         <span className="inline-flex items-center gap-1.5">
-          <span className={cn('px-1.5 py-0.5 rounded text-[11px] font-semibold', KIND_CLASSES.rest)}>RR</span>
-          riposo
+          <span className="cell-day is-pend rounded px-1.5 py-0.5 text-[11px] font-bold leading-none">M4</span>
+          da confermare
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className={cn('px-1.5 py-0.5 rounded text-[11px] font-semibold', KIND_CLASSES.availability)}>D</span>
-          disponibilità
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className={cn('px-1.5 py-0.5 rounded text-[11px] font-semibold', KIND_CLASSES.absence)}>A</span>
-          assenza
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className={cn('px-1.5 py-0.5 rounded text-[11px] font-semibold', KIND_CLASSES.duty)}>Sp</span>
-          attività senza sezione
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-500" /> tipo diverso
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full border border-amber-500" /> solo sezione
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold border border-dashed border-amber-500">M4</span>
-          turno da confermare
+          <span className="cell-day is-diff rounded px-1.5 py-0.5 text-[11px] font-bold leading-none">M4</span>
+          reale ≠ teorico
         </span>
       </div>
 
       {isRealMonth ? (
         <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-          Sopra il turno <b>reale</b> del PDF, sotto il <b>teorico</b> della rotazione (in grigio quando
-          il reale è presente); se il turno reale manca, il teorico riempie la casella. Il pallino
-          segnala le giornate in cui i due non coincidono. I turni con <b>bordo tratteggiato</b> hanno
-          lo sfondo giallo sul PDF, cioè sono <b>da confermare</b>. RM/RC/RI = riposi, D = disponibilità,
-          A = altre presenze, F.E. = ferie, VS = visita sanitaria, Sp/ISp/Dis/Tutor = attività senza sezione.
+          <b>L&apos;intera card è tinta dal turno</b>: azzurro pomeriggio, rosa mattina, lilla notte,
+          grigio riposi, rosso assenze, verde attività senza sezione. Il codice in evidenza è il{' '}
+          <b>reale</b> del PDF; se il reale manca compare il <b>teorico</b>. Quando i due
+          differiscono, il teorico appare <b>barrato</b> sopra il codice e la card prende il{' '}
+          <b>bordo tratteggiato rosso</b>. L&apos;<b>anello ambra</b> segna i turni con sfondo giallo sul
+          PDF, cioè <b>da confermare</b>. RM/RC/RI = riposi, D = disponibilità, A = altre presenze,
+          F.E. = ferie, VS = visita sanitaria, Sp/ISp/Dis/Tutor = attività senza sezione.
         </p>
       ) : (
         <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-          Mese non caricato: si vedono i <b>turni teorici</b> della rotazione. RM/RC/RI = riposi,
-          D = disponibilità.
+          Mese non caricato: si vedono i <b>turni teorici</b> della rotazione, con la stessa tinta
+          per tipo di turno. RM/RC/RI = riposi, D = disponibilità.
         </p>
       )}
       {!hasTheoretical && (
         <p className="mt-1.5 text-[11px] text-muted-foreground">
-          Questa persona non è nelle squadre dei turni teorici: sotto non compare nulla.
+          Questa persona non è nelle squadre dei turni teorici: senza PDF non compare nulla.
         </p>
       )}
       <p className="mt-1.5 text-[11px] text-muted-foreground">Scorri a destra o sinistra per cambiare mese.</p>
@@ -416,38 +395,5 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         </DialogContent>
       </Dialog>
     </main>
-  )
-}
-
-function TokenChip({ token, kind = 'work', secondary = false, size = 'sm', placeholder = '—', pending = false, title }: {
-  token: string | null
-  kind?: SalaCodeKind
-  secondary?: boolean
-  size?: 'sm' | 'lg'
-  placeholder?: string
-  pending?: boolean
-  title?: string
-}) {
-  if (!token) {
-    return <span className="text-[11px] leading-none text-muted-foreground/70" title={title}>{placeholder}</span>
-  }
-  const work = kind === 'work' && isWorkToken(token)
-  return (
-    <span
-      title={title}
-      className={cn(
-        'inline-flex items-center justify-center rounded font-semibold leading-none truncate',
-        size === 'lg' ? 'px-2 py-1 text-base' : 'px-1 py-0.5 text-[11px]',
-        secondary
-          ? 'bg-muted/50 text-muted-foreground/90'
-          : work
-            ? SHIFT_PILL_CLASSES[SHIFT_LABEL[token[0] as SalaShiftType]]
-            : KIND_CLASSES[kind],
-        // Sfondo giallo nel PDF = «turno da confermare»: bordo tratteggiato ambra.
-        pending && !secondary && 'border border-dashed border-amber-500',
-      )}
-    >
-      {work ? tokenLabel(token) : token}
-    </span>
   )
 }
