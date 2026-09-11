@@ -423,6 +423,27 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   nome («ESPOSITO AU.» → Esposito Aurora) — più permissivo di `matchesCognome` per gli omonimi con
   prefisso di 2 lettere. NB: `shift_team_members.user_id` è NULL per TUTTI i membri, quindi il
   collegamento utente↔membro avviene per nome.
+- **Caricamento di «Il tuo turno» (11/09/2026):** come le altre pagine della PWA, `app/(app)/tuoturno/
+  loading.tsx` (Skeleton: intestazione, nav mese, 7×5 celle da 76px, legenda) copre il primo render.
+  In più, dentro la pagina, mentre si scarica il PDF di un mese caricato ma non ancora in memoria
+  (`loadingReal`) la griglia mostra celle `Skeleton` invece dei turni — prima ci finivano i TEORICI
+  tinti come se fossero reali. In confronto: righe skeleton (2 per dipendente).
+- **Confronto fra più dipendenti (11/09/2026):** pulsante «Confronta» (icona `Users`) in alto a destra
+  ne «Il tuo turno» — la riga ha `mr-14` per non finire sotto la campanella delle notifiche — che apre
+  un dialog a SELEZIONE MULTIPLA (ricerca + checkbox, chip dei selezionati, «Azzera»; max 8 dipendenti)
+  e conferma con «Confronta (N)»; con meno di 2 selezioni il pulsante diventa «Chiudi confronto» e
+  riporta al calendario singolo. La vista di confronto è una TABELLA (`CompareTable`, stesso file):
+  una riga per dipendente, giorni in orizzontale con giorno della settimana e numero, colonna nome
+  sticky a sinistra, celle 34×34 tinte con lo stesso linguaggio della variante E (teorico barrato +
+  bordo tratteggiato rosso se diverge, anello ambra se «da confermare»; il teorico è anche nel tooltip).
+  Il mese viene spezzato in più BLOCCHI contigui con regola ADATTIVA: `splitDays(totalDays, min(4,
+  floor((window.innerHeight - 300) / (dipendenti*36 + 26))))`, così con 2-3 dipendenti e schermo alto
+  l'intero mese entra in 4 blocchi (8 giorni ciascuno) SENZA scroll orizzontale, mentre con molti
+  dipendenti o schermo basso i blocchi si riducono e la tabella scorre in orizzontale. Altezza finestra
+  letta con `useSyncExternalStore` (niente setState in effect, nessun mismatch in SSR). In confronto lo
+  SWIPE è disattivato (serve lo scroll orizzontale della tabella): si cambia mese con le frecce ‹ ›.
+  Attenzione: `shift_team_members.user_id` è NULL per tutti, quindi i turni teorici dei confrontati
+  vengono risolti per nome (`findMemberForUser`/`personNameMatches`).
 - **Pannello admin compatto (11/09/2026):** le 10 azioni non sono più card orizzontali impilate ma una
   griglia `grid-cols-3` di pulsanti verticali (`PanelButton` in `components/admin/admin-panel.tsx`:
   icona + etichetta breve, descrizione completa come `title`/`aria-label`, badge feedback in alto a
