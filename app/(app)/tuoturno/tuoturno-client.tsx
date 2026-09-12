@@ -138,16 +138,18 @@ function displayToken(token: string): string {
 
 // ─── confronto fra più dipendenti ────────────────────────────────────────────
 
-/** Cella del confronto: 44px — il badge data NON è assoluto (sovrapponeva il
-    codice: illeggibile) ma inline in testa, e i codici lunghi (MDCIF) stanno
-    dentro senza sforare. */
-const CMP_COL = 'w-[44px] h-[44px]'
+/** Cella del confronto: 44px di ALTEZZA — la larghezza si adatta al blocco
+    (w-full): il confronto usa tutta la pagina. Il badge data NON è assoluto
+    (sovrapponeva il codice: illeggibile) ma inline in testa. */
+const CMP_COL = 'h-[44px] w-[34px]'
+const CMP_CELL_FLEX = 'flex-1 basis-[34px] min-w-0'
 const CMP_ROW_H = 46       // cella + gap fra le righe
 const CMP_HEAD_H = 26      // intestazione con i numeri dei giorni
 const CMP_CHROME_H = 300   // header pagina + nav mese + bottom nav (stima)
 const CMP_MAX_PEOPLE = 8   // oltre, la tabella diventa illeggibile (e pesante)
+const CMP_COL_W = 34       // larghezza LOGICA colonna (le celle stretched riempiono il blocco)
 
-/** Altezza finestra, senza setState in effect (e senza mismatch in SSR). */
+/** Dimensioni finestra, senza setState in effect (e senza mismatch in SSR). */
 function subscribeResize(callback: () => void) {
   window.addEventListener('resize', callback)
   return () => window.removeEventListener('resize', callback)
@@ -210,7 +212,7 @@ function CompareTable({ rows, chunks, month, todayISO, palette, mismatchStyle }:
   mismatchStyle: MismatchStyle
 }) {
   return (
-    <div className="overflow-x-auto -mx-3 px-3 pb-1">
+    <div className="cmp-table overflow-x-auto -mx-3 px-3 pb-1">
       <div className="min-w-max">
         {chunks.map((days, ci) => (
           <div key={ci} className={cn(ci > 0 && 'mt-3')}>
@@ -220,8 +222,9 @@ function CompareTable({ rows, chunks, month, todayISO, palette, mismatchStyle }:
                 const dateISO = `${month}-${String(d).padStart(2, '0')}`
                 const wd = WEEKDAYS[(firstWeekdayOffset(month) + d - 1) % 7]
                 const isToday = dateISO === todayISO
+                // Le teste di colonna crescono con le celle (flex-1 come w-full)
                 return (
-                  <div key={d} className="w-[34px] shrink-0 pb-1 text-center leading-none">
+                  <div key={d} className={cn('pb-1 text-center leading-none', CMP_CELL_FLEX)}>
                     <span className={cn('block text-[9px] font-semibold text-muted-foreground', isToday && 'text-primary')}>
                       {wd.slice(0, 3)}
                     </span>
@@ -238,7 +241,7 @@ function CompareTable({ rows, chunks, month, todayISO, palette, mismatchStyle }:
                 </div>
                 {days.map(d => {
                   const c = r.cells[d - 1]
-                  if (!c) return <div key={d} className={cn(CMP_COL, 'shrink-0')} />
+                  if (!c) return <div key={d} className={cn(CMP_COL, CMP_CELL_FLEX)} />
                   const dateISO = `${month}-${String(d).padStart(2, '0')}`
                   const title = `${r.name} · ${dateISO} — ${c.label}`
                     + (c.pending ? ' · da confermare' : '')
@@ -256,7 +259,8 @@ function CompareTable({ rows, chunks, month, todayISO, palette, mismatchStyle }:
                       key={d}
                       title={title}
                       className={cn(
-                        'cell-day relative shrink-0 flex flex-col items-center text-center',
+                        'cell-day relative flex flex-col items-center text-center',
+                        CMP_CELL_FLEX,
                         cmpSplit ? 'cell-split px-0 py-0' : 'cmp-cell justify-center gap-0.5 px-0.5 rounded-lg',
                         CMP_COL,
                         cellTintClass(c.kind, c.token),
@@ -480,6 +484,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   }
   // ── confronto fra più dipendenti ──────────────────────────────────────────
   const viewportHeight = useSyncExternalStore(subscribeResize, () => window.innerHeight, () => 700)
+  const viewportWidth = useSyncExternalStore(subscribeResize, () => window.innerWidth, () => 700)
   const comparing = compareIds.length >= 2
   const comparePeople = useMemo(
     () => compareIds.map(id => users.find(u => u.id === id)).filter((u): u is UserOption => !!u),
@@ -513,15 +518,25 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     })
   }, [comparing, comparePeople, realPeople, tree, duplicateCognomi, totalDays, month, isRealMonth, realSchedule, personTheoretical])
 
-  // Quanti blocchi di giorni per riga: più ne stanno in altezza, meno si scorre
-  // in orizzontale — con 2 dipendenti e uno schermo alto il mese sta tutto in 3-4 blocchi.
+  // Quanti blocchi di giorni per riga: SI ADATTA ANCHE ALLA LARGHEZZA — in ogni
+  // blocco devono stare le colonne del blocco + la colonna nome (64px) entro la
+  // larghezza disponibile: altrimenti si spezza di più (con 2 righe di 44px resta
+  // tutto leggibile e il mese riempie tutta la pagina invece di accatastarsi).
   const compareChunks = useMemo(() => {
     if (!comparing) return []
     const perBlock = compareRows.length * CMP_ROW_H + CMP_HEAD_H
     const available = Math.max(150, viewportHeight - CMP_CHROME_H)
     const maxByHeight = Math.max(1, Math.min(4, Math.floor(available / perBlock)))
-    return splitDays(totalDays, Math.min(maxByHeight, Math.ceil(totalDays / 7)))
-  }, [comparing, compareRows.length, viewportHeight, totalDays])
+    // viewportWidth è reattivo (subscribeResize); 700 in SSR come per l'altezza.
+    const availW = Math.max(280, viewportWidth - 24) // padding pagina
+    const perCol = 34 // CMP_COL_W
+    const maxByWidth = Math.max(4, Math.floor((availW - 64) / perCol))
+    // blocchi minimi per stare in larghezza, ma MAI più blocchi del necessario:
+    // se in un blocco stanno ≥ i giorni che il limite d'altezza assegna, si usa quello.
+    const minChunks = Math.ceil(totalDays / maxByWidth)
+    const chunkCount = Math.max(minChunks, Math.min(maxByHeight, Math.ceil(totalDays / 7)))
+    return splitDays(totalDays, Math.min(chunkCount, totalDays))
+  }, [comparing, compareRows.length, viewportHeight, viewportWidth, totalDays])
 
   const goPrev = () => setMonth(m => addMonths(m, -1))
   const goNext = () => setMonth(m => addMonths(m, 1))
