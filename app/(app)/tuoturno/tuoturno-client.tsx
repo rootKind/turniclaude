@@ -560,14 +560,17 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
               Il menù è ancorato al bottone (lo «span» mese anno): parte da lì, non
               dalla caption sotto. */}
           <div className="relative inline-block">
+            {/* Nessun bordo: l'affordance è il CHEVRON (segnale universale di
+                menù a tendina, come il trigger di turnisala) + il feedback hover. */}
             <button
               type="button"
               onClick={() => setMonthPickerOpen(v => !v)}
               aria-label="Scegli mese e anno"
               aria-expanded={monthPickerOpen}
-              className="rounded-xl border border-border/60 px-3 py-1.5 font-semibold leading-tight text-lg hover:bg-muted transition-colors"
+              className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold leading-tight text-lg hover:bg-muted active:bg-muted transition-colors"
             >
               {formatMonthLabel(month)}
+              <ChevronDown size={16} className={cn('text-muted-foreground transition-transform', monthPickerOpen && 'rotate-180')} />
             </button>
             {monthPickerOpen && (
               <MonthYearPicker
