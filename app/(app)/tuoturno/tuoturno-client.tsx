@@ -24,10 +24,12 @@ import {
   cardPaletteStore,
   CARD_KINDS,
   mismatchStyleStore,
+  pendingRingStore,
   predictTheoreticalMonth,
   type CardKind,
   type CardPalette,
   type MismatchStyle,
+  type PendingRing,
   type PersonTheoretical,
 } from '@/lib/person-cycle'
 import type { DaySchedule, SalaSchedule, ShiftTeamTree } from '@/types/database'
@@ -457,6 +459,8 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const [monthPickerOpen, setMonthPickerOpen] = useState(false)
   const palette = useSyncExternalStore(cardPaletteStore.subscribe, cardPaletteStore.get, () => EMPTY_PALETTE)
   const mismatchStyle = useSyncExternalStore(mismatchStyleStore.subscribe, mismatchStyleStore.get, () => 'split' as MismatchStyle)
+  // Contorno dei giorni «da confermare»: giallo/rosso, continuo/tratteggiato.
+  const pendingRing = useSyncExternalStore(pendingRingStore.subscribe, pendingRingStore.get, () => 'yellow-solid' as PendingRing)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
 
   const duplicateCognomi = useMemo(() => buildDuplicateCognomi(users), [users])
@@ -655,7 +659,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   }
 
   return (
-    <main className="max-w-lg mx-auto px-3 pt-6 pb-4">
+    <main data-pending-ring={pendingRing} className="max-w-lg mx-auto px-3 pt-6 pb-4">
       {/* Intestazione: tocca il nome per cambiare persona; le azioni (confronto,
           personalizzazione) vivono nel Fab in basso a destra, con mini-Fab che spuntano */}
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -809,10 +813,48 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         <DialogContent className="max-h-[80vh] max-w-sm flex flex-col overflow-hidden">
           <DialogHeader><DialogTitle>Personalizza le card</DialogTitle></DialogHeader>
           <p className="text-xs leading-snug text-muted-foreground">
-            Scegli sfondo e testo per ogni tipologia e come mostrare i giorni diversi dal teorico:
-            si applicano subito e restano su questo dispositivo. Senza personalizzazione valgono i
-            colori del tema.
+            Scegli sfondo e testo per ogni tipologia, come mostrare i giorni diversi dal teorico e il
+            contorno dei giorni da confermare: si applicano subito e restano su questo dispositivo.
+            Senza personalizzazione valgono i colori del tema.
           </p>
+          <div className="rounded-xl border border-border/60 p-2">
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Contorno giorni da confermare
+            </p>
+            <div className="grid grid-cols-4 gap-1">
+              {(
+                [
+                  ['yellow-solid', 'Giallo', 'Cornice gialla continua (predefinita)'],
+                  ['yellow-dashed', 'Tratteggio', 'Cornice gialla tratteggiata'],
+                  ['red-solid', 'Rosso', 'Cornice rossa continua'],
+                  ['red-dashed', 'Rosso tratteggiato', 'Cornice rossa tratteggiata'],
+                ] as const
+              ).map(([value, label, title]) => (
+                <button
+                  key={value}
+                  onClick={() => pendingRingStore.set(value)}
+                  title={title}
+                  aria-pressed={pendingRing === value}
+                  className={cn(
+                    'rounded-md px-1 py-1.5 text-[10px] font-semibold leading-tight transition-colors',
+                    pendingRing === value
+                      ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {/* anteprima: mini cornice nello stile della variante */}
+                  <span
+                    className={cn(
+                      'mx-auto mb-1 block h-4 w-7 rounded-[4px] border-2 bg-muted/50',
+                      value.endsWith('-dashed') ? 'border-dashed' : 'border-solid',
+                    )}
+                    style={{ borderColor: value.startsWith('red') ? '#dc2626' : 'var(--cell-pend-ring)' }}
+                  />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="rounded-xl border border-border/60 p-2">
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Giorni diversi dal teorico

@@ -534,6 +534,23 @@
     border-color: var(--cell-pend-ring);
     box-shadow: 0 0 0 1px var(--cell-pend-ring);
   }
+  /* Contorno «da confermare» PERSONALIZZABILE (richiesta 12/09/2026): l'attributo
+     data-pending-ring sul <main> sceglie colore (giallo/rosso) e tratto
+     (continuo/tratteggiato). Il box-shadow segue il colore; il dashed si applica
+     al bordo della card (e delle metà sulle card split). */
+  [data-pending-ring='yellow-solid'] { --cell-pend-ring: #d9a53a; }
+  [data-pending-ring='red-solid'] { --cell-pend-ring: #dc2626; }
+  [data-pending-ring='yellow-dashed'] { --cell-pend-ring: #d9a53a; }
+  [data-pending-ring='red-dashed'] { --cell-pend-ring: #dc2626; }
+  [data-pending-ring$='-dashed'] .cell-day.is-pend {
+    border-style: dashed;
+    box-shadow: 0 0 0 1px var(--cell-pend-ring);
+  }
+  /* Card SPLIT: il contorno lo disegnano le METÀ (la card è border-width 0),
+     quindi il tratteggio deve arrivare anche lì. */
+  [data-pending-ring$='-dashed'] .cell-day.cell-split.is-pend > .cell-half {
+    border-style: dashed;
+  }
   /* Data in BADGE nell'angolo alto-sinistra (scelta D, mockup celle-data-turno.html):
      il numero del giorno stacca su OGNI tinta — incluse quelle personalizzate dal pannello
      «Colori» — e il centro della card spetta al turno. Nello scuro la targhetta diventa

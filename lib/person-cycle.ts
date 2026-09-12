@@ -546,3 +546,39 @@ export const mismatchStyleStore = {
     }
   },
 }
+
+/** Contorno dei giorni «da confermare» (turni in giallo): 4 varianti. */
+export type PendingRing = 'yellow-solid' | 'yellow-dashed' | 'red-solid' | 'red-dashed'
+
+const PENDING_RING_KEY = 'tuoturno-pending-ring'
+const PENDING_RINGS: PendingRing[] = ['yellow-solid', 'yellow-dashed', 'red-solid', 'red-dashed']
+
+/**
+ * Preferenza del contorno «da confermare»: colore (giallo/rosso) e tratto
+ * (continuo/tratteggiato). Snapshot primitivo, come mismatchStyleStore.
+ */
+export const pendingRingStore = {
+  listeners: new Set<() => void>(),
+  get(): PendingRing {
+    try {
+      const v = localStorage.getItem(PENDING_RING_KEY) as PendingRing | null
+      return v && PENDING_RINGS.includes(v) ? v : 'yellow-solid'
+    } catch {
+      return 'yellow-solid'
+    }
+  },
+  set(v: PendingRing) {
+    try {
+      localStorage.setItem(PENDING_RING_KEY, v)
+    } catch {
+      /* storage non disponibile: la preferenza resta per la sessione */
+    }
+    pendingRingStore.listeners.forEach(l => l())
+  },
+  subscribe(l: () => void) {
+    pendingRingStore.listeners.add(l)
+    return () => {
+      pendingRingStore.listeners.delete(l)
+    }
+  },
+}
