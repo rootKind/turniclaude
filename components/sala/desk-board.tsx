@@ -482,15 +482,21 @@ export function DeskBoard({
               onClick={() => setShowDayPicker(v => !v)}
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none sala-toolbar-nav-bg sala-toolbar-nav-text"
             >
-              <span className="text-sm font-semibold text-muted-foreground uppercase leading-none">{weekdayLabel}</span>
+              {/* STILE OMogeneo (richiesta 12/09/2026): font, misura e colore
+                  identici su tutta la data — «SAB 12 SETT 2026». Nessun override
+                  di colore: tutti gli span ereditano il tinta-bottone della nav.
+                  Mese ESTESO solo se c'è spazio (≥ sm) per stare sulla riga dei
+                  P M N; sotto quel limite si abbrevia a 3 lettere. */}
+              <span className="text-sm font-semibold uppercase leading-none">{weekdayLabel}</span>
               <span className="text-sm font-semibold tabular-nums leading-none">{selectedDay}</span>
               {/* Mese e anno nel trigger solo a picker CHIUSO: a pannello aperto
                   le tendine in testa al calendario dicono già mese e anno — il
                   trigger si riduce a «GIO 11» per non ripeterli sotto. */}
               {!showDayPicker && (
                 <>
-                  <span className="text-sm font-semibold leading-none">{MONTHS_IT[cm - 1]}</span>
-                  <span className="text-sm font-semibold text-muted-foreground leading-none">{cy}</span>
+                  <span className="text-sm font-semibold uppercase leading-none hidden sm:inline">{MONTHS_IT[cm - 1]}</span>
+                  <span className="text-sm font-semibold uppercase leading-none sm:hidden">{MONTHS_IT[cm - 1].slice(0, 3)}</span>
+                  <span className="text-sm font-semibold tabular-nums leading-none">{cy}</span>
                 </>
               )}
               <ChevronDown size={12} className={`text-muted-foreground transition-transform ${showDayPicker ? 'rotate-180' : ''}`} />
