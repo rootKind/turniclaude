@@ -393,9 +393,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   per i mesi caricati.
 - **Mockup celle (11/09/2026, NON parte dell'app):** `mockups/celle-turno.html`, 4 opzioni grafiche
   (A banda continua, B doppia banda 3/4+1/4, C reale pieno + teorico in angolo, D due righe etichettate)
-  sulla stessa settimana reale (TROCCHIA, 1-7 luglio 2026) con pregi/limiti. **SCELTA (11/09/2026): la
-  variante E** — `mockups/celle-colore-pieno.html` (card interamente tinta, numero del giorno compreso)
-  — implementata nella pagina vera.
+  sulla stessa settimana reale (TROCCHIA, 1-7 luglio 2026) con pregi/limiti.**SCELTA (11/09/2026): la variante E** — `mockups/celle-colore-pieno.html` (card interamente tinta, numero del giorno compreso) — implementata nella pagina vera. Le tinte M/P/N replicano i colori delle pill dei turni della dashboard (var `--pill-mattina/pomeriggio/notte-*`), chiaro e scuro.
 - **NOTA (11/09/2026) — asimmetria del ruolo manager (NON da sviluppare per ora, su richiesta):**
   se un manager **rifiuta** una richiesta di cambio (`POST /api/manager/shift-requests/[id]` con
   `action: 'reject'`) avvisa solo il richiedente; chi aveva mostrato interesse resta senza notifica.
@@ -409,7 +407,8 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (touch, soglia 50px; le frecce ‹ › fanno lo stesso) e legenda. Celle «variante E» (min-h 76px): la card
   è INTERAMENTE tinta dal tipo di turno — numero del giorno compreso — azzurro Pomeriggio, rosa Mattina,
   lilla Notte, grigio riposi, rosso assenze, verde attività senza sezione (`.cell-day` + `.cell-tint-*` in
-  `app/globals.css`, con variabili dedicate per tema chiaro e scuro). In evidenza c'è il codice REALE del
+  `app/globals.css`, con variabili dedicate per tema chiaro e scuro; dal 12/09/2026 le tinte M/P/N puntano
+  alle variabili `--pill-*` della dashboard — stessa tinta, testo leggermente più tenue per la cella grande). In evidenza c'è il codice REALE del
   PDF (slot T/S nascosto); se il reale manca (persona assente dal PDF, o mese non caricato) c'è il
   TEORICO. Quando i due differiscono il teorico compare BARRATO (10px) sopra il codice e la card prende
   il BORDO TRATTEGGIATO ROSSO (`is-diff`), mentre l'anello interno ambra (`is-pend`) segna i turni con

@@ -88,10 +88,12 @@
   --pill-notte-bg: #ede9fe;
   --pill-notte-text: #6d28d9;
 
-  /* Celle de «Il tuo turno» — variante E: card a tinta piena per tipo di turno */
-  --cell-m-bg: #f7d9ea;     --cell-m-text: #7a2653;
-  --cell-p-bg: #cfe2f3;     --cell-p-text: #1f4a70;
-  --cell-n-bg: #e3d9f7;     --cell-n-text: #4a3183;
+  /* Celle de «Il tuo turno» — variante E: card a tinta piena per tipo di turno.
+     M/P/N allineate ai colori delle pill dei turni della dashboard (stessa tinta,
+     testo più tenue per l'equilibrio visivo della cella grande). */
+  --cell-m-bg: var(--pill-mattina-bg);     --cell-m-text: #5c729a;
+  --cell-p-bg: var(--pill-pomeriggio-bg);  --cell-p-text: var(--pill-pomeriggio-text);
+  --cell-n-bg: var(--pill-notte-bg);       --cell-n-text: #8f7dd0;
   --cell-rest-bg: #e4e6e9;  --cell-rest-text: #4a5057;
   --cell-avail-bg: #d6ecf5; --cell-avail-text: #1d5568;
   --cell-abs-bg: #fbd9d6;   --cell-abs-text: #8c2a24;
@@ -273,10 +275,11 @@
   --pill-notte-bg: #2d1b69;
   --pill-notte-text: #a78bfa;
 
-  /* Celle «Il tuo turno» — dark: tinte risaturate sul fondo scuro */
-  --cell-m-bg: #3a1c2e;     --cell-m-text: #f7d9ea;
-  --cell-p-bg: #18304a;     --cell-p-text: #cfe2f3;
-  --cell-n-bg: #2a2047;     --cell-n-text: #e3d9f7;
+  /* Celle «Il tuo turno» — dark: M/P/N allineate alle pill (stessa tinta dello
+     sfondo pill dark), testo più tenue per l'equilibrio della cella grande. */
+  --cell-m-bg: var(--pill-mattina-bg);     --cell-m-text: #9db8dd;
+  --cell-p-bg: var(--pill-pomeriggio-bg);  --cell-p-text: #d9a86c;
+  --cell-n-bg: var(--pill-notte-bg);       --cell-n-text: #c3b4ef;
   --cell-rest-bg: #24282e;  --cell-rest-text: #aeb5bd;
   --cell-avail-bg: #12303c; --cell-avail-text: #a8d8ea;
   --cell-abs-bg: #3d1c1a;   --cell-abs-text: #fbd9d6;
