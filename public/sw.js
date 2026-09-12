@@ -28,11 +28,13 @@ function uuid() {
 
 // Minimal offline support: cache-first for static assets (icons/manifest), so the
 // app shell renders when offline. Dynamic API calls still require network.
-const CACHE_NAME = 'turni-static-v4'
+// v5: /manifest.json (file statico) → /manifest.webmanifest (route dinamica,
+// nome PWA «Turni DEV» vs produzione) + icone *_dev.png.
+const CACHE_NAME = 'turni-static-v5'
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache =>
-      cache.addAll(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/badge-96.png', '/icons/apple-icon.png', '/manifest.json'])
+      cache.addAll(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/badge-96.png', '/icons/apple-icon.png', '/manifest.webmanifest'])
     ).catch(() => {})
   )
   self.skipWaiting()
@@ -61,7 +63,7 @@ self.addEventListener('fetch', (event) => {
   // Only cache static assets — never pages/API (stale HTML/JSON is worse than offline)
   if (
     /^\/icons\//.test(url.pathname) ||
-    url.pathname === '/manifest.json' ||
+    url.pathname === '/manifest.webmanifest' ||
     /^\/_next\/static\//.test(url.pathname)
   ) {
     event.respondWith(

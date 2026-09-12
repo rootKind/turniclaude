@@ -50,7 +50,7 @@ lib/            queries/* (accesso dati), supabase/*, push/send-to-user, cache, 
 stores/         zustand: user-store (profilo persist)
 types/          database.ts — tipi schema + ADMIN_ID + isAdmin/isManager
 supabase/       migrations/ 001–018 (schema completo), functions/cleanup-shifts (edge function cron)
-public/         manifest.json, sw.js (solo push + click)
+public/         sw.js (solo push + click); il manifest è una ROUTE: app/manifest.ts → /manifest.webmanifest
 proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato proxy.ts)
 ```
 
@@ -134,8 +134,17 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   primo elemento del `<body>`) SOLO su iOS via `@supports (-webkit-touch-callout: none)` in
   `globals.css` (su Android è `display:none` per evitare il doppio splash con quella nativa).
   Icone `icon-192/512` TRASPARENTI, NIENTE `purpose: maskable`; `apple-icon.png` (home iOS)
-  a sfondo BIANCO `#ffffff` cotto. `manifest.json` colori `#0a0a0a` = FALLBACK legacy.
-  Bump `CACHE_NAME` in `sw.js` a ogni cambio icone/manifest (cache-first).
+  a sfondo BIANCO `#ffffff` cotto. Bump `CACHE_NAME` in `sw.js` a ogni cambio icone/manifest (cache-first).
+- **PWA «Turni DEV» (13/09/2026):** il manifest NON è più un file statico ma la route
+  `app/manifest.ts` servita a `/manifest.webmanifest` (`public/manifest.json` rimosso):
+  a BUILD time `VERCEL_GIT_COMMIT_REF === 'master'` → «Turni Sala C.C.C.» + icone originali;
+  qualsiasi altro branch (e il dev locale, dove la env non esiste) → «Turni DEV» + icone
+  `icon-192/512-dev.png` e `apple-icon-dev.png` con banda gialla/nera «lavori in corso» generata
+  da `scripts/make-dev-icons.mjs` (codec PNG a mano, self-check dei pixel; rilanciare se cambia
+  il logo). Stessa env-check in `app/layout.tsx` per title/appleWebApp/favicon. sw.js → v5
+  (cachato `/manifest.webmanifest` invece di `/manifest.json`). Nota: l'install PWA legge il
+  manifest della DEPLOY corrente — la live installata resta «Turni Sala» finché non si reinstalla
+  da una deploy non-master.
 - **Bordi card turni/ferie — ARCHITETTURA (25/08/2026, 2° fix):** il bordo e lo sfondo della
   card vivono sul WRAPPER INTERNO (`shift-item.tsx` / `vacation-request-item.tsx`: il primo
   div dopo l'outer che porta ring/shadow), che contiene riga + pannello espanso: `stateClass`

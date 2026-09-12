@@ -15,17 +15,21 @@ import './globals.css'
 
 const geist = Geist({ subsets: ['latin'] })
 
+// Come app/manifest.ts: build-time branch check (Vercel). master = PWA live;
+// qualsiasi altro branch (e il dev locale, dove la env non esiste) = «DEV».
+const IS_PROD = process.env.VERCEL_GIT_COMMIT_REF === 'master'
+
 export const metadata: Metadata = {
-  title: 'Turni Sala C.C.C.',
+  title: IS_PROD ? 'Turni Sala C.C.C.' : 'Turni DEV',
   description: 'Gestione scambi turni',
-  manifest: '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Turni' },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: IS_PROD ? 'Turni' : 'Turni DEV' },
   icons: {
     icon: [
-      { url: '/icons/icon-192.png', sizes: '192x192' },
-      { url: '/icons/icon-512.png', sizes: '512x512' },
+      { url: IS_PROD ? '/icons/icon-192.png' : '/icons/icon-192-dev.png', sizes: '192x192' },
+      { url: IS_PROD ? '/icons/icon-512.png' : '/icons/icon-512-dev.png', sizes: '512x512' },
     ],
-    apple: [{ url: '/icons/apple-icon.png', sizes: '180x180' }],
+    apple: [{ url: IS_PROD ? '/icons/apple-icon.png' : '/icons/apple-icon-dev.png', sizes: '180x180' }],
   },
 }
 
