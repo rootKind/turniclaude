@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser } from 'lucide-react'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { getAppSettings, updateAppSettings } from '@/lib/queries/app-settings'
@@ -78,7 +78,18 @@ export function AdminPanel() {
 
   return (
     <div className="max-w-lg mx-auto px-4 pt-6 pb-4 space-y-6">
-      <h1 className="text-lg font-bold">Pannello Admin</h1>
+      {/* Torna indietro (utile da PC/preview, dove manca la barra di navigazione) */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => router.back()}
+          aria-label="Torna indietro"
+          title="Torna indietro"
+          className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X size={20} />
+        </button>
+        <h1 className="flex-1 text-lg font-bold">Pannello Admin</h1>
+      </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3">

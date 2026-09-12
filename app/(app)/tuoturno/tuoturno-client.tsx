@@ -949,7 +949,7 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
   return (
     <div
       ref={ref}
-      className="absolute left-1/2 top-full z-30 mt-2 w-[240px] -translate-x-1/2 rounded-xl border border-border bg-card p-2 shadow-lg"
+      className="month-pop absolute left-1/2 top-full z-30 mt-2 w-[240px] -translate-x-1/2 rounded-xl border border-border bg-card p-2 shadow-lg"
     >
       <div className="grid grid-cols-2 gap-2">
         <div>

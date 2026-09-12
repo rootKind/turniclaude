@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, ArrowLeft, ArrowRight, Upload, History, Pencil, LayoutGrid, Palette, Users } from 'lucide-react'
@@ -12,6 +12,18 @@ function nextManagerPage(current: string): string {
   const idx = MANAGER_CYCLE.indexOf(current)
   return MANAGER_CYCLE[(idx + 1) % MANAGER_CYCLE.length]
 }
+
+/* Ultima pagina visitata per i gruppi «Turni» e «Cambi» (localStorage). Letti via
+   useSyncExternalStore (snapshot PRIMITIVO, confrontato per valore: niente loop
+   «getSnapshot should be cached»); la scrittura emette l'evento 'nav-lastpage'
+   che notifica i sottoscrittori — senza setState in effect (vietato dal lint). */
+const NAV_LAST_EVENT = 'nav-lastpage'
+function subscribeNavLast(cb: () => void) {
+  window.addEventListener(NAV_LAST_EVENT, cb)
+  return () => window.removeEventListener(NAV_LAST_EVENT, cb)
+}
+const readNavLast = (key: string, fallback: string) => () =>
+  localStorage.getItem(key) ?? fallback
 
 interface Props {
   feedbackUnread?: number
@@ -35,33 +47,23 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
   const [tuoTurnoFabOpen, setTuoTurnoFabOpen] = useState(false)
   const [adminFabOpen, setAdminFabOpen] = useState(false)
   const [ferieAdminFabOpen, setFerieAdminFabOpen] = useState(false)
-  const [turniLastPage, setTurniLastPage] = useState('/turnisala')
-  const [cambiLastPage, setCambiLastPage] = useState('/dashboard')
+  // Ultima pagina dei gruppi Turni/Cambi: store esterno (vedi nota in testa al file).
+  const turniLastPage = useSyncExternalStore(subscribeNavLast, readNavLast('turni-last-page', '/turnisala'), () => '/turnisala')
+  const cambiLastPage = useSyncExternalStore(subscribeNavLast, readNavLast('cambi-last-page', '/dashboard'), () => '/dashboard')
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressTriggered = useRef(false)
   const ferieLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ferieLongPressTriggered = useRef(false)
 
+  // Memorizza l'ultima pagina di ciascun gruppo (scrittura localStorage = sistema
+  // esterno; l'evento 'nav-lastpage' notifica gli useSyncExternalStore in ascolto).
   useEffect(() => {
-    const saved = localStorage.getItem('turni-last-page')
-    if (saved === '/turnisala' || saved === '/turniferie') setTurniLastPage(saved)
-    const savedCambi = localStorage.getItem('cambi-last-page')
-    if (savedCambi === '/dashboard' || savedCambi === '/vacanze') setCambiLastPage(savedCambi)
-  }, [])
-
-  useEffect(() => {
-    if (isTurni) {
-      localStorage.setItem('turni-last-page', pathname)
-      setTurniLastPage(pathname)
+    if (isTurni || isCambi) {
+      const key = isTurni ? 'turni-last-page' : 'cambi-last-page'
+      localStorage.setItem(key, pathname)
+      window.dispatchEvent(new Event(NAV_LAST_EVENT))
     }
-  }, [isTurni, pathname])
-
-  useEffect(() => {
-    if (isCambi) {
-      localStorage.setItem('cambi-last-page', pathname)
-      setCambiLastPage(pathname)
-    }
-  }, [isCambi, pathname])
+  }, [isTurni, isCambi, pathname])
   const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
 
   function handleTurniSalaFabPointerDown() {
@@ -273,7 +275,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
       {isTuoTurno && tuoTurnoFabOpen && (
         <div className="fixed inset-0 z-40" onClick={() => setTuoTurnoFabOpen(false)}>
           <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
-            <div className="flex items-center gap-2 pointer-events-auto">
+            <div className="fab-mini-pop flex items-center gap-2 pointer-events-auto">
               <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
                 Confronta
               </span>
@@ -285,7 +287,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
                 <Users size={18} />
               </button>
             </div>
-            <div className="flex items-center gap-2 pointer-events-auto">
+            <div className="fab-mini-pop flex items-center gap-2 pointer-events-auto" style={{ animationDelay: '.05s' }}>
               <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
                 Personalizza
               </span>

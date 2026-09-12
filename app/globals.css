@@ -592,6 +592,27 @@
   .no-scrollbar { scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
 
+  /* Pop «molla» per mini-Fab e pannello mese/anno: entra con overshoot (spring),
+     stallima breve e atterraggio morbido. Nota per .month-pop: il pannello usa
+     -translate-x-1/2 per centrarsi — i keyframe ricompongono la STESSA traslazione
+     (-50%) più la scala, così l'animazione non sposta il perimetro. */
+  @keyframes fab-mini-pop {
+    0% { opacity: 0; transform: translateY(12px) scale(.55); }
+    60% { opacity: 1; transform: translateY(-2px) scale(1.07); }
+    80% { transform: translateY(0) scale(.98); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .fab-mini-pop { animation: fab-mini-pop .34s cubic-bezier(.34, 1.56, .64, 1) both; }
+  @keyframes month-pop {
+    0% { opacity: 0; transform: translate(-50%, -7px) scale(.9); }
+    60% { opacity: 1; transform: translate(-50%, 1px) scale(1.02); }
+    100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  }
+  .month-pop { animation: month-pop .28s cubic-bezier(.34, 1.56, .64, 1) both; }
+  @media (prefers-reduced-motion: reduce) {
+    .fab-mini-pop, .month-pop { animation: none; }
+  }
+
   /* ── Hardcoded-color replacements ────────────────────────────── */
   .banner-impersonate { background: var(--banner-impersonate-bg); color: var(--banner-impersonate-text); }
 

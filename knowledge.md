@@ -262,10 +262,16 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   garantisce che sotto quella soglia vada su 2 righe. Nessuna pagina genera scroll orizzontale
   (bodyOverflowX false) a viewport 651 (landscape). Le card sala sono `grid-cols-3` (design previsto).
 
+- **Pannello Admin (12/09/2026):** l'header di `components/admin/admin-panel.tsx` ha un bottone X
+  (`router.back()`): da PC/preview la pagina admin è fuori dal gruppo `(app)` quindi SENZA bottom
+  nav e senza la X si restava bloccati (le statistiche admin hanno già la freccia indietro).
+
 - **Bottom nav (25/08/2026):** `components/nav/bottom-nav.tsx`. Struttura a 4 slot + FAB centrale
   (sinistra→destra): (1) **"Cambi"** (icona `ArrowLeftRight` — frecce-scambio) UNICO bottone che
     gestisce /dashboard (cambi turno) e /vacanze (cambi ferie): il tapping alterna tra le due
-    pagine e salva l'ultima in `localStorage['cambi-last-page']`; il bottone "Cambi" ha un layout
+    pagine e salva l'ultima in `localStorage['cambi-last-page']` (dal 12/09/2026 le letture
+    «ultima pagina» passano da `useSyncExternalStore` con snapshot primitivo + evento
+    `nav-lastpage`: niente setState-in-effect, stesso schema della palette); il bottone "Cambi" ha un layout
     COMPATTO: due frecce ORIZZONTALI (→ 'Turni' `ArrowRight`, ← 'Ferie' `ArrowLeft`) impilate
     una sopra l'altra, 'Cambi' sotto. Si illumina SOLO la freccia della pagina attiva
     (foreground+bold+stroke 2.5): su /dashboard →'Turni', su /vacanze ←'Ferie'; l'altra resta
@@ -495,7 +501,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (X quando aperto) e apre i mini-Fab «Confronta» e «Personalizza» con etichetta, come gli
   overlay di turnisala/notifiche. La comunicazione col client usa lo schema CustomEvent del
   progetto: `tuoturno-open-confronta` / `tuoturno-open-personalizza`, ascoltati in
-  `tuoturno-client.tsx` che apre i rispettivi dialog.
+  `tuoturno-client.tsx` che apre i rispettivi dialog. I mini-Fab entrano con una pop «molla»
+  (`.fab-mini-pop`: overshoot 1.07 con cubic-bezier(.34,1.56,.64,1)); anche il pannello
+  mese/anno (`.month-pop`, i keyframe ricompongono la translate(-50%) di centratura).
+  Rispettano `prefers-reduced-motion` (nessuna animazione).
   Il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
   per i mesi presenti in `sala_schedule`, gli altri restano teorici (etichetta «turni reali (PDF)» /
   «turni teorici» sotto il mese). La soglia di differenza è `realTheoreticalMismatch` su
