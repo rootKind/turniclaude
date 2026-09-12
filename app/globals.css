@@ -855,3 +855,8 @@
    Force flex on the weekdays row and block on each <th> so flex-1 works. */
 .ios-dialog-fix .rdp-weekdays { display: flex !important; }
 .ios-dialog-fix .rdp-weekday { display: block !important; flex: 1; text-align: center; }
+/* La caption «mese anno» di react-day-picker è ridondante: mese e anno si
+   scelgono già dalle tendine in testa al pannello. Fuori dai layer (come le
+   regole qui sopra): la classe Tailwind «flex» sulla caption vive nel layer
+   utilities e batterebbe comunque una regola dentro @layer components. */
+.cal-panel .rdp-month_caption { display: none !important; }
