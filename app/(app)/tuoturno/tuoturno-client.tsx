@@ -20,6 +20,7 @@ import {
   type PersonDayShift,
   type SalaCodeKind,
 } from '@/lib/sala-month'
+import { predictTheoreticalMonth, type PersonTheoretical } from '@/lib/person-cycle'
 import type { DaySchedule, SalaSchedule, ShiftTeamTree } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -258,10 +259,12 @@ interface Props {
   users: UserOption[]
   uploadedMonths: string[]
   tree: ShiftTeamTree | null
+  /** Predittore del teorico per utente (dalla storia dei PDF, vedi page.tsx). */
+  personTheoretical: Record<string, PersonTheoretical>
   initialMonth: string
 }
 
-export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, tree, initialMonth }: Props) {
+export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, tree, personTheoretical, initialMonth }: Props) {
   const [selectedUserId, setSelectedUserId] = useState(currentUserId)
   const [month, setMonth] = useState(initialMonth)
   const [schedules, setSchedules] = useState<Record<string, SalaSchedule | null>>({})
@@ -318,9 +321,28 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     return legacyRealShift(realSchedule?.schedule?.[d], selectedUser, duplicateCognomi)
   }
 
-  const hasTheoretical = useMemo(
-    () => !!findMemberForUser(tree, selectedUser, duplicateCognomi),
-    [tree, selectedUser, duplicateCognomi],
+  // ── teorico: tre sorgenti in ordine di priorità ──────────────────────────
+  // 1. riga base del PDF del mese (esatta per definizione);
+  // 2. predizione dalla STORIA dei PDF (ciclo dedotto o rotazione a blocchi);
+  // 3. rotazione delle squadre del DB (solo ultimo fallback).
+  const theoSrc = selectedUser ? personTheoretical[selectedUser.id] ?? null : null
+  const theoPredicted = useMemo(
+    () => predictTheoreticalMonth(theoSrc, month),
+    [theoSrc, month],
+  )
+  const theoreticalFor = (d: number): string => {
+    if (isRealMonth && realPerson) {
+      // Il PDF è la verità: la riga base stampata vale anche quando è vuota.
+      return realPerson.teorico[d - 1] ?? ''
+    }
+    const pred = theoPredicted[d - 1] ?? ''
+    if (pred) return pred
+    return theoreticalTokenFor(tree, selectedUser, `${month}-${String(d).padStart(2, '0')}`, duplicateCognomi)
+  }
+  const hasTheoretical = !!(
+    (isRealMonth && realPerson?.teorico.some(t => t)) ||
+    theoSrc ||
+    findMemberForUser(tree, selectedUser, duplicateCognomi)
   )
 
   // ── confronto fra più dipendenti ──────────────────────────────────────────
@@ -334,7 +356,13 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     if (!comparing) return []
     return comparePeople.map(u => {
       const person = realPeople ? findMonthPerson(realPeople, u, duplicateCognomi) : null
-      const hasTheo = !!findMemberForUser(tree, u, duplicateCognomi)
+      const src = personTheoretical[u.id] ?? null
+      const predicted = predictTheoreticalMonth(src, month)
+      const hasTheo = !!(
+        (isRealMonth && person?.teorico.some(t => t)) ||
+        src ||
+        findMemberForUser(tree, u, duplicateCognomi)
+      )
       const cells = Array.from({ length: totalDays }, (_, i) => {
         const d = i + 1
         const dateISO = `${month}-${String(d).padStart(2, '0')}`
@@ -343,12 +371,14 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           : person
             ? personDayShift(person, d)
             : legacyRealShift(realSchedule?.schedule?.[d], u, duplicateCognomi)
-        const theo = theoreticalTokenFor(tree, u, dateISO, duplicateCognomi)
+        const theo = (isRealMonth ? person?.teorico[d - 1] : undefined)
+          || predicted[d - 1]
+          || theoreticalTokenFor(tree, u, dateISO, duplicateCognomi)
         return buildCompareDay(real, theo, hasTheo)
       })
       return { id: u.id, name: [u.cognome, u.nome].filter(Boolean).join(' '), cells }
     })
-  }, [comparing, comparePeople, realPeople, tree, duplicateCognomi, totalDays, month, isRealMonth, realSchedule])
+  }, [comparing, comparePeople, realPeople, tree, duplicateCognomi, totalDays, month, isRealMonth, realSchedule, personTheoretical])
 
   // Quanti blocchi di giorni per riga: più ne stanno in altezza, meno si scorre
   // in orizzontale — con 2 dipendenti e uno schermo alto il mese sta tutto in 3-4 blocchi.
@@ -505,7 +535,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map(d => {
                   const dateISO = `${month}-${String(d).padStart(2, '0')}`
                   const real = realShiftOfDay(d)
-                  const theo = theoreticalTokenFor(tree, selectedUser, dateISO, duplicateCognomi)
+                  const theo = theoreticalFor(d)
                   const isToday = dateISO === today
                   // In evidenza c'è il reale del PDF; se manca, il teorico.
                   const primaryKind: SalaCodeKind = real
@@ -516,7 +546,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                     ? displayToken(real.short)
                     : theo ? displayToken(theo) : '—'
                   // Un reale diverso dal teorico (anche solo per sezione) va notato subito.
-                  const mismatch = !!(real && hasTheoretical && theo && realTheoreticalMismatch(real.short, theo))
+                  const mismatch = !!(real && theo && realTheoreticalMismatch(real.short, theo))
                   // Evidenziazione UNICA per card: l'anello ambra «da confermare» vince
                   // sulla condizione «diverso dal teorico» (solo barrato + tooltip).
                   const showPending = !!real?.pending && !mismatch
@@ -584,7 +614,8 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
           <b>L&apos;intera card è tinta dal turno</b>: azzurro pomeriggio, rosa mattina, lilla notte,
           grigio riposi, rosso assenze, verde attività senza sezione. Il codice in evidenza è il{' '}
-          <b>reale</b> del PDF; se il reale manca compare il <b>teorico</b>. Quando i due
+          <b>reale</b> del PDF; se il reale manca compare il <b>teorico</b> (la riga base del PDF o,
+          dove manca, la previsione dalla tua storia dei mesi passati). Quando i due
           differiscono, il teorico appare <b>barrato</b> sopra il codice (e nel tooltip del giorno).
           L&apos;<b>anello ambra</b> segna i turni con sfondo giallo sul PDF, cioè <b>da confermare</b>.
           RM/RC/RI = riposi, D = disponibilità, A = altre presenze,
@@ -592,13 +623,16 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         </p>
       ) : (
         <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-          Mese non caricato: si vedono i <b>turni teorici</b> della rotazione, con la stessa tinta
-          per tipo di turno. RM/RC/RI = riposi, D = disponibilità.
+          Mese non caricato: si vedono i <b>turni teorici</b> — per la maggior parte delle persone
+          ricavati dalla <b>propria storia dei mesi passati</b> (ciclo dedotto o rotazione dei
+          blocchi di lavoro), altrimenti dalla rotazione delle squadre — con la stessa tinta per
+          tipo di turno. RM/RC/RI = riposi, D = disponibilità.
         </p>
       )}
       {!comparing && !hasTheoretical && (
         <p className="mt-1.5 text-[11px] text-muted-foreground">
-          Questa persona non è nelle squadre dei turni teorici: senza PDF non compare nulla.
+          Questa persona non compare nei turni del PDF e non ha un ciclo deducibile: per i mesi
+          senza PDF non si può prevedere nulla.
         </p>
       )}
       {!comparing && (

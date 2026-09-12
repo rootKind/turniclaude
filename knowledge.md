@@ -389,9 +389,18 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   attività senza sezione, con la tinta per tipo di turno della «variante E» (vedi più sotto); i turni
   «da confermare» (cella gialla sul PDF) hanno l'anello interno ambra 3px, che è l'UNICO marcatore
   sulle card (12/09/2026).
-  Nota: il «teorico» della pagina è la rotazione ricostruita dall'app (`generateTheoreticalMonth`),
-  NON la riga base del PDF — che ora però è conservata in `teorico[]` e sarebbe il riferimento esatto
-  per i mesi caricati.
+  Nota (AGGIORNATA 12/09/2026): il «teorico» della pagina NON è più solo la rotazione ricostruita
+  dall'app (`generateTheoreticalMonth`): ha tre sorgenti in ordine di priorità — (1) la riga base del
+  PDF (`teorico[]`) per i mesi caricati, che è il riferimento esatto; (2) per i mesi SENZA PDF, la
+  predizione dalla STORIA dei PDF (lib/person-cycle.ts: ciclo rigido dedotto oppure rotazione a
+  blocchi via macchina a stati); (3) la rotazione del DB come ultimo fallback. Motivo: la rotazione
+  del seed corrisponde alla riga base dei PDF solo per ~56% (cicli reali > 28gg troncati nel seed,
+  es. la tipologia «in terza» ruota su un ciclo di ~41gg): con il solo DB Minino risultava «sbarrata
+  sezione 11» mentre il suo teorico (e reale) è sezione 5. Verifica out-of-sample sui PDF dev
+  (scripts/verify-person-cycle.mjs): 25 persone con ciclo rigido dedotto al ≥90-100%; per la famiglia
+  «in terza» (ciclo non periodico su calendario) la macchina a stati indovina blocchi e sezioni al
+  100% ma i riposi tra blocchi solo al ~45-68% (variano 1-3gg nei ritocchi di piano): meglio del
+  fallback DB e sempre coerente con la riga base appena c'è un PDF del mese.
 - **Mockup celle (11/09/2026, NON parte dell'app):** `mockups/celle-turno.html`, 4 opzioni grafiche
   (A banda continua, B doppia banda 3/4+1/4, C reale pieno + teorico in angolo, D due righe etichettate)
   sulla stessa settimana reale (TROCCHIA, 1-7 luglio 2026) con pregi/limiti.**SCELTA (11/09/2026): la variante E** — `mockups/celle-colore-pieno.html` (card interamente tinta, numero del giorno compreso) — implementata nella pagina vera. Le tinte M/P/N replicano i colori delle pill dei turni della dashboard (var `--pill-mattina/pomeriggio/notte-*`), chiaro e scuro.
