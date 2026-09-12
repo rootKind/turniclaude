@@ -512,3 +512,37 @@ export const cardPaletteStore = {
     }
   },
 }
+
+/** Come mostrare i giorni in cui il reale differisce dal teorico. */
+export type MismatchStyle = 'split' | 'strike'
+
+const MISMATCH_KEY = 'tuoturno-mismatch'
+
+/**
+ * Preferenza «card divisa in due» vs «teorico barrato a card intera». Lo snapshot
+ * è una stringa primitiva: stabile per Object.is senza bisogno di cache.
+ */
+export const mismatchStyleStore = {
+  listeners: new Set<() => void>(),
+  get(): MismatchStyle {
+    try {
+      return localStorage.getItem(MISMATCH_KEY) === 'strike' ? 'strike' : 'split'
+    } catch {
+      return 'split'
+    }
+  },
+  set(v: MismatchStyle) {
+    try {
+      localStorage.setItem(MISMATCH_KEY, v)
+    } catch {
+      /* storage non disponibile: la preferenza resta per la sessione */
+    }
+    mismatchStyleStore.listeners.forEach(l => l())
+  },
+  subscribe(l: () => void) {
+    mismatchStyleStore.listeners.add(l)
+    return () => {
+      mismatchStyleStore.listeners.delete(l)
+    }
+  },
+}

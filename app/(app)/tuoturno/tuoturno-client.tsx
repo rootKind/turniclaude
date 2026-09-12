@@ -23,9 +23,11 @@ import {
 import {
   cardPaletteStore,
   CARD_KINDS,
+  mismatchStyleStore,
   predictTheoreticalMonth,
   type CardKind,
   type CardPalette,
+  type MismatchStyle,
   type PersonTheoretical,
 } from '@/lib/person-cycle'
 import type { DaySchedule, SalaSchedule, ShiftTeamTree } from '@/types/database'
@@ -356,9 +358,10 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const [compareOpen, setCompareOpen] = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareDraft, setCompareDraft] = useState<string[]>([])
-  // Pannello colori + palette personalizzata delle card (persistita in locale).
+  // Pannello «Personalizza» + palette e stile delle modifiche (persistiti in locale).
   const [colorsOpen, setColorsOpen] = useState(false)
   const palette = useSyncExternalStore(cardPaletteStore.subscribe, cardPaletteStore.get, () => EMPTY_PALETTE)
+  const mismatchStyle = useSyncExternalStore(mismatchStyleStore.subscribe, mismatchStyleStore.get, () => 'split' as MismatchStyle)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
 
   const duplicateCognomi = useMemo(() => buildDuplicateCognomi(users), [users])
@@ -527,11 +530,11 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={() => setColorsOpen(true)}
-            aria-label="Personalizza i colori delle card"
+            aria-label="Personalizza colori e stile delle card"
             className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Palette size={14} />
-            Colori
+            Personalizza
           </button>
           <button
             onClick={() => { setCompareDraft(compareIds); setQuery(''); setCompareOpen(true) }}
@@ -633,11 +636,11 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                   const primaryLabel = real
                     ? displayToken(real.short)
                     : theo ? displayToken(theo) : '—'
-                  // Un reale diverso dal teorico (anche solo per sezione) va notato subito.
+                  // Un reale diverso dal teorico (anche solo per sezione) divide la card in due.
                   const mismatch = !!(real && theo && realTheoreticalMismatch(real.short, theo))
-                  // Evidenziazione UNICA per card: l'anello ambra «da confermare»
+                  // Evidenziazione UNICA per card: il contorno ambra «da confermare»
                   // (sfondo giallo sul PDF) compare SEMPRE quando il PDF lo indica,
-                  // anche se il reale differisce dal teorico (lì il teorico resta barrato).
+                  // anche sulla card divisa.
                   const showPending = !!real?.pending
 
                   const realLabel = real ? (real.kind === 'work' ? tokenLabel(real.short) : `${real.label} (${real.short})`) : 'nessun turno'
@@ -647,25 +650,61 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                     ? `${dateISO} — reale: ${realLabel}${pendingLabel} · teorico: ${theoLabel}${mismatch ? ' (diversi)' : ''}`
                     : `${dateISO} — teorico: ${theoLabel}`
 
+                  // Card DIVISA solo quando il reale differisce dal teorico E lo stile
+                  // scelto è «divisa»: sopra il teorico (sulla mezzeria, barra sottile),
+                  // sotto il reale. Con lo stile «barrato» la card resta intera come un
+                  // giorno normale, con il teorico barrato sopra il codice.
+                  // cellTintClass dà alle due metà la STESSA tinta quando il tipo di turno
+                  // è lo stesso (cambio di sola sezione): la modifica la racconta la barra.
+                  const theoKind: SalaCodeKind = theo ? salaCodeInfo(theo).kind : 'empty'
+                  const split = mismatch && mismatchStyle === 'split'
                   return (
                     <div
                       key={d}
                       title={cellTitle}
                       className={cn(
-                        'cell-day relative rounded-xl min-h-[76px] px-0.5 pt-3 pb-1.5 flex flex-col items-center justify-center gap-1 text-center',
+                        'cell-day relative rounded-xl min-h-[76px] text-center flex',
+                        split ? 'cell-split px-0 py-0' : 'px-0.5 pt-3 pb-1.5 flex-col items-center justify-center gap-1',
                         cellTintClass(primaryKind, primaryToken),
                         showPending && 'is-pend',
                         isToday && 'is-today',
                       )}
-                      style={cardOverride(primaryKind, primaryToken, palette)}
+                      style={split ? undefined : cardOverride(primaryKind, primaryToken, palette)}
                     >
                       <span className="day-badge tabular-nums">{d}</span>
-                      {mismatch && theo && (
-                        <span className="text-[12px] font-semibold leading-none line-through opacity-60">
-                          {displayToken(theo)}
-                        </span>
+                      {split ? (
+                        <>
+                          <span
+                            className={cn(
+                              'cell-half cell-half-theo cell-barred',
+                              cellTintClass(theoKind, theo || ''),
+                            )}
+                            style={cardOverride(theoKind, theo || '', palette)}
+                          >
+                            <span className="text-[11px] font-bold leading-none">
+                              {theo ? displayToken(theo) : '—'}
+                            </span>
+                          </span>
+                          <span
+                            className={cn(
+                              'cell-half',
+                              cellTintClass(primaryKind, primaryToken),
+                            )}
+                            style={cardOverride(primaryKind, primaryToken, palette)}
+                          >
+                            <span className="text-[14px] font-extrabold leading-tight">{primaryLabel}</span>
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          {mismatch && theo && (
+                            <span className="text-[12px] font-semibold leading-none line-through opacity-60">
+                              {displayToken(theo)}
+                            </span>
+                          )}
+                          <span className="text-[14px] font-extrabold leading-tight">{primaryLabel}</span>
+                        </>
                       )}
-                      <span className="text-[14px] font-extrabold leading-tight">{primaryLabel}</span>
                     </div>
                   )
                 })}
@@ -675,14 +714,48 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         </>
       )}
 
-      {/* Pannello colori: personalizza la tinta di ogni tipologia di contenuto */}
+      {/* Pannello personalizza: stile delle modifiche + tinta di ogni tipologia */}
       <Dialog open={colorsOpen} onOpenChange={setColorsOpen}>
         <DialogContent className="max-h-[80vh] max-w-sm flex flex-col overflow-hidden">
-          <DialogHeader><DialogTitle>Colori delle card</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Personalizza le card</DialogTitle></DialogHeader>
           <p className="text-xs leading-snug text-muted-foreground">
-            Scegli sfondo e testo per ogni tipologia: si applicano subito e restano su questo
-            dispositivo. Senza personalizzazione valgono i colori del tema.
+            Scegli sfondo e testo per ogni tipologia e come mostrare i giorni diversi dal teorico:
+            si applicano subito e restano su questo dispositivo. Senza personalizzazione valgono i
+            colori del tema.
           </p>
+          <div className="rounded-xl border border-border/60 p-2">
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Giorni diversi dal teorico
+            </p>
+            <div className="flex items-center gap-0.5 rounded-lg bg-muted/60 p-0.5">
+              {(
+                [
+                  ['split', 'Card divisa', 'Teorico sbarrato sopra, reale sotto'],
+                  ['strike', 'Teorico barrato', 'Card intera, teorico barrato sopra il codice'],
+                ] as const
+              ).map(([value, label, title]) => (
+                <button
+                  key={value}
+                  onClick={() => mismatchStyleStore.set(value)}
+                  title={title}
+                  aria-pressed={mismatchStyle === value}
+                  className={cn(
+                    'flex-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors',
+                    mismatchStyle === value
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span>Tipologia</span>
+            <span>Riempimento</span>
+            <span>Contorno</span>
+          </div>
           <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
             {CARD_KINDS.map(({ kind, label, hint }) => (
               <PaletteRow

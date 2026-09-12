@@ -462,6 +462,12 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   marcatore: segna i turni con sfondo giallo sul PDF = «da confermare» (dal 12/09/2026 compare SEMPRE
   quando il PDF lo indica, anche se il reale differisce dal teorico — prima veniva soppresso in quel
   caso e Minino 23/09 non risultava «giallo»; il barrato del teorico resta in aggiunta).
+  **DUE STILI per i giorni real ≠ teorico (12/09/2026):** toggle nel pannello «Personalizza» —
+  «Card divisa» (predefinita: card split in due metà, teorico sopra ancorato alla mezzeria con barra
+  sottile 2px al 55%, reale sotto; stessa tinta se cambia solo la sezione) oppure «Teorico barrato»
+  (card intera come un giorno normale, teorico barrato sopra il codice). Preferenza in localStorage
+  (`tuoturno-mismatch`, `mismatchStyleStore`, snapshot primitivo: niente cache come per la palette).
+  Il contorno ambra «da confermare» vale identico in entrambi gli stili.
   **STILE (12/09/2026, ricetta `.desk-card-highlight` di turnisala):** CONTOURNO SOLIDO di 2px ESATTO
   sul bordo della card — `border-color: var(--cell-pend-ring)` + `box-shadow: 0 0 0 1px` dello stesso
   colore — NON più un anello `inset` 3px: gli anelli inset partono DENTRO il bordo e l'evidenziazione
