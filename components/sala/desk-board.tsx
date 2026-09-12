@@ -484,8 +484,15 @@ export function DeskBoard({
             >
               <span className="text-sm font-semibold text-muted-foreground uppercase leading-none">{weekdayLabel}</span>
               <span className="text-sm font-semibold tabular-nums leading-none">{selectedDay}</span>
-              <span className="text-sm font-semibold leading-none">{MONTHS_IT[cm - 1]}</span>
-              <span className="text-sm font-semibold text-muted-foreground leading-none">{cy}</span>
+              {/* Mese e anno nel trigger solo a picker CHIUSO: a pannello aperto
+                  le tendine in testa al calendario dicono già mese e anno — il
+                  trigger si riduce a «GIO 11» per non ripeterli sotto. */}
+              {!showDayPicker && (
+                <>
+                  <span className="text-sm font-semibold leading-none">{MONTHS_IT[cm - 1]}</span>
+                  <span className="text-sm font-semibold text-muted-foreground leading-none">{cy}</span>
+                </>
+              )}
               <ChevronDown size={12} className={`text-muted-foreground transition-transform ${showDayPicker ? 'rotate-180' : ''}`} />
             </button>
             {showDayPicker && (
