@@ -104,8 +104,6 @@ function buildSeq(
 
 /** Ciclo rigido dedotto: cycle[r] è il codice del giorno anchor + r. */
 export interface PersonCycle {
-  /** Mesi (AA-MM) con PDF usati per la deduzione. */
-  months: string[]
   cycle: string[]
   /** Data ISO su cui cade cycle[0]. */
   anchor: string
@@ -126,10 +124,10 @@ export function deducePersonCycle(
 ): PersonCycle | null {
   const built = buildSeq(toMap(pdfMonths), user, duplicateCognomi)
   if (!built) return null
-  return deduceCycleFromSeq(built.seq, built.months)
+  return deduceCycleFromSeq(built.seq)
 }
 
-function deduceCycleFromSeq(seq: Map<number, string>, months: string[]): PersonCycle | null {
+function deduceCycleFromSeq(seq: Map<number, string>): PersonCycle | null {
   if (seq.size < MIN_DAYS) return null
 
   const keys = [...seq.keys()].sort((a, b) => a - b)
@@ -176,7 +174,6 @@ function deduceCycleFromSeq(seq: Map<number, string>, months: string[]): PersonC
     if (keySet.size < 2) continue
     if (![...keySet].some(k => k !== 'R')) continue
     return {
-      months,
       cycle,
       anchor: isoFromDayKey(first),
       support: ok,
@@ -354,7 +351,7 @@ export function buildPersonTheoretical(
   const built = buildSeq(toMap(pdfMonths), user, duplicateCognomi)
   if (!built) return null
 
-  const cycle = deduceCycleFromSeq(built.seq, built.months)
+  const cycle = deduceCycleFromSeq(built.seq)
   if (cycle && cycle.confidence >= MIN_CYCLE_CONFIDENCE) {
     return { tier: 'cycle', cycle, machine: null }
   }
