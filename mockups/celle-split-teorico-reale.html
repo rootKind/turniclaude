@@ -51,14 +51,18 @@
   .split { flex-direction: column; }
   .half { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
           position: relative; gap: 2px; }
-  .half.theo { border-radius: 11px 11px 0 0; margin-top: 0; }
+  /* Il teorico sta al FONDO della sua metà, ancorato alla linea di mezzeria:
+     così non può toccare il badge della data (alto-sinistra) nemmeno su uno
+     smartphone a 360px, dove la singola metà è alta ~36px e larga ~45px. */
+  .half.theo { border-radius: 11px 11px 0 0; justify-content: flex-end; padding-bottom: 5px; }
   .half.real { border-radius: 0 0 11px 11px; }
   .half.theo .code { font-size: 11px; font-weight: 700; }
   .half.real .code { font-size: 14px; font-weight: 800; }
-  /* SBARRATA diagonale: una barra inclinata su tutta la metà teorica */
+  /* SBARRATA diagonale: la barra passa sulla RIGA del codice (in fondo alla metà),
+     leggermente inclinata: colpisce il codice invece di galleggiare al centro. */
   .half.theo.barred::after { content: ''; position: absolute; left: 5%; right: 5%;
-    top: calc(50% - 1.5px); height: 3px; border-radius: 2px;
-    background: currentColor; opacity: .8; transform: rotate(-9deg); }
+    bottom: 7px; height: 3px; border-radius: 2px;
+    background: currentColor; opacity: .8; transform: rotate(-6deg); }
   /* variante hatch: sottili righe diagonali ripetute */
   .half.theo.hatched::before { content: ''; position: absolute; inset: 0;
     background: repeating-linear-gradient(-45deg, transparent 0 5px,
@@ -81,9 +85,16 @@
   .zoom .cellz { display: flex; flex-direction: column; gap: 6px; align-items: center; }
   .zoom .day { min-height: 132px; width: 104px; border-radius: 14px; }
   .zoom .day-badge { font-size: 13px; top: 8px; left: 8px; padding: 3px 8px; border-radius: 7px; }
+  .zoom .half.theo { padding-bottom: 9px; }
   .zoom .half.theo .code { font-size: 14px; }
   .zoom .half.real .code { font-size: 17px; }
+  .zoom .half.theo.barred::after { bottom: 11px; }
   .zoom .cap { font-size: 10.5px; color: var(--ink2); text-align: center; line-height: 1.35; max-width: 116px; }
+
+  /* Prova dello schermo stretto: una griglia larga ESATTAMENTE come uno
+     smartphone da 360px, per verificare che badge e teorico non si tocchino. */
+  .phone { width: 360px; max-width: 100%; margin: 6px auto 0; }
+  .phonecap { text-align: center; color: var(--ink3); font-size: 11px; margin-top: 8px; }
 
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 16px; }
   .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
@@ -136,10 +147,15 @@
   <div class="card">
     <div class="head"><span class="tag">SPLIT</span><h3>Teorico sbarrato sopra, reale sotto</h3></div>
     <p class="why">
-      Le card intere raccontano i giorni «come da piano»; le card divise raccontano le modifiche:
-      la coppia di colori dice cosa era previsto e cosa è stato fatto, la sbarrata diagonale dice che
-      il teorico è stato sostituito. Il contorno ambra «da confermare» avvolge la card intera
-      (giorno 21: teorico <span class="mono">P4S</span> sbarrato, reale <span class="mono">VS</span>).
+      Le card intere raccontano i giorni «come da piano»; le card divise raccontano le modifiche.
+      <b>Aggiornato dopo il feedback</b>: (1) se cambia solo la SEZIONE ma non il turno, la metà
+      superiore mantiene la <b>stessa tinta</b> del reale — la cambia solo la sbarrata (giorno 25:
+      <span class="mono">P5T→P8</span>, tutto blu, sopra sbarrato); due colori compaiono solo quando
+      cambia il TIPO di turno. (2) Il teorico è <b>ancorato alla linea di mezzeria</b> invece che al
+      centro della sua metà: il badge della data non può sovrapporgli, nemmeno sullo schermo stretto
+      di un telefono (dimostrazione a 360px in fondo alla pagina). Il contorno ambra «da confermare»
+      avvolge la card intera (giorno 21: teorico <span class="mono">P4S</span> sbarrato, reale
+      <span class="mono">VS</span>).
     </p>
     <div id="opt-split"></div>
     <div id="zoom-split" class="zoom"></div>
@@ -147,18 +163,32 @@
       <div><span class="k">A favore</span><ul>
         <li>Entrambi i turni restano visibili e colorati: la storia del giorno si legge senza tooltip.</li>
         <li>La sbarrata diagonale è più evidente del solo testo barrato, e resta leggibile il codice.</li>
-        <li>I giorni normali non cambiano: il rumore visivo sta solo dove c'è una modifica.</li>
+        <li>Stesso turno, sezione diversa = una sola tinta e una sbarrata: la griglia non si scompone in arcobaleno.</li>
       </ul></div>
       <div><span class="k">Contro</span><ul>
         <li>Ogni codice ha metà card (~38px): il reale perde il risalto che ha oggi a card piena.</li>
-        <li>Due tinte forti nella stessa card possono leggere come «due giorni»; per chi ha sempre turni diversi la griglia diventa tutta divisa.</li>
-        <li>Coppie di tinte vicine (es. P su P di sezione diversa) rendono lo split poco percepibile: la sbarrata fa da garanzia.</li>
+        <li>Per chi ha sempre turni diversi (tipo e sezione) la griglia resta tutta divisa e bicolore.</li>
+        <li>Nelle modifiche di sola sezione la sbarrata è l'UNICO segnale: serve un colpo d'occhio in più.</li>
       </ul></div>
     </div>
     <p class="note">
       Nello zoom: la variante a <b>tratteggio diagonale</b> (righe sottili ripetute) come alternativa
-      alla barra singola — su metà card di 38px la barra singola resta più pulita.
+      alla barra singola. Sotto lo zoom, la <b>prova a 360px</b>: la larghezza reale di uno smartphone,
+      dove la metà teorica è alta ~36px — con il teorico ancorato alla mezzeria, badge e codice non
+      si toccano.
     </p>
+  </div>
+
+  <h2>Prova su schermo stretto (360px, come un telefono vero)</h2>
+  <div class="card">
+    <div class="head"><span class="tag">360px</span><h3>Badge della data e teorico non si sovrappongono</h3></div>
+    <p class="why">
+      A 360px ogni card è larga ~45px e ogni metà alta ~36px: con il teorico centrato nella metà
+      (la vecchia versione) il codice finiva nell'angolo del badge. Ora il teorico sta sulla
+      mezzeria: la zona del badge (in alto) resta libera su OGNI card.
+    </p>
+    <div class="phone" id="opt-phone"></div>
+    <p class="phonecap">Griglia a larghezza nativa 360px — giorni 5, 14, 15, 21, 22, 25, 29 di luglio.</p>
   </div>
 
   <h2>Lo stesso mese in tema scuro</h2>
@@ -187,7 +217,9 @@ function kind(code) {
   return "duty";
 }
 
-/** Una card: intera se reale=teorico (o reale assente), divisa se differiscono. */
+/** Una card: intera se reale=teorico (o reale assente), divisa se differiscono.
+ *  Se cambia solo la SEZIONE (stesso tipo di turno), le due metà hanno la STESSA tinta:
+ *  la modifica la racconta solo la sbarrata sulla metà teorica. */
 function cell(i, opts = {}) {
   const d = i + 1, real = days[i] ?? "", theo = teorico[i] ?? "";
   const isPend = yellow.includes(d);
@@ -201,10 +233,12 @@ function cell(i, opts = {}) {
       <span style="margin:auto" class="code">${real || theo || "—"}</span></div>`;
   }
   const hatch = opts.hatch ? " hatched" : " barred";
+  const sameKind = kind(theo) === kind(real);
+  const theoTint = sameKind ? "t-" + kind(real) : "t-" + kind(theo);
   const cls = ["day", "split"];
   if (isPend) cls.push("pend");
-  return `<div class="${cls.join(" ")}">${badge}
-    <span class="half theo t-${kind(theo)}${hatch}"><span class="code">${theo}</span></span>
+  return `<div class="${cls.join(" ")}"${sameKind ? ' title="cambio solo di sezione: stessa tinta, solo sbarrata"' : ''}>${badge}
+    <span class="half theo ${theoTint}${hatch}"><span class="code">${theo}</span></span>
     <span class="half real t-${kind(real)}"><span class="code">${real}</span></span>
   </div>`;
 }
@@ -219,9 +253,9 @@ function month(opts = {}) {
 /** Casi singoli con didascalia. */
 const CASES = [
   { i: 0,  cap: "Normale: reale = teorico, card intera" },
-  { i: 24, cap: "Split: teorico P5T sbarrato, reale P8" },
-  { i: 4,  cap: "Riposo lavorato: RC sbarrato, reale P6T" },
-  { i: 28, cap: "Assenza: teorico P5S sbarrato, reale A" },
+  { i: 24, cap: "Solo sezione diversa (P5T→P8): STESSA tinta, solo sbarrata" },
+  { i: 4,  cap: "Tipo diverso (RC→P6T): due tinte, teorico sbarrato" },
+  { i: 28, cap: "Assenza (P5S→A): teorico sbarrato, reale rosso" },
   { i: 20, cap: "Da confermare + split (come 23/9 di Minino)" },
   { i: 13, cap: "Da confermare senza variazioni: card intera" },
 ];
@@ -258,6 +292,13 @@ renderCases();
 document.getElementById("opt-split").innerHTML = month({});
 document.getElementById("zoom-split").innerHTML = renderZoom();
 document.getElementById("opt-split-dark").innerHTML = month({});
+
+// Prova a 360px: una settimana di luglio con i casi di split, alla larghezza di un telefono.
+document.getElementById("opt-phone").innerHTML = (() => {
+  const picks = [4, 13, 14, 20, 21, 24, 28]; // RC→P6T · pend · N10T pend · RC→M10S · P4S→VS · P5T→P8 · P5S→A
+  const cells = picks.map(i => cell(i, {})).join("");
+  return `<div class="grid">${cells}</div>`;
+})();
 </script>
 </body>
 </html>
