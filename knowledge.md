@@ -464,10 +464,20 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   caso e Minino 23/09 non risultava «giallo»; il barrato del teorico resta in aggiunta).
   **DUE STILI per i giorni real ≠ teorico (12/09/2026):** toggle nel pannello «Personalizza» —
   «Card divisa» (predefinita: card split in due metà, teorico sopra ancorato alla mezzeria con barra
-  sottile 2px al 55%, reale sotto; stessa tinta se cambia solo la sezione) oppure «Teorico barrato»
+  sottile 2px al 40%, reale sotto; stessa tinta se cambia solo la sezione) oppure «Teorico barrato»
   (card intera come un giorno normale, teorico barrato sopra il codice). Preferenza in localStorage
   (`tuoturno-mismatch`, `mismatchStyleStore`, snapshot primitivo: niente cache come per la palette).
   Il contorno ambra «da confermare» vale identico in entrambi gli stili.
+  **BORDO DIVISO (12/09/2026, fix dopo il tentativo zoppo di `1244b57`):** sulle card split il bordo
+  si divide come i riempimenti ma le metà SONO il perimetro: la card ha `border-width: 0` (prima il
+  bordo trasparente da 1.5px lasciava trapelare un anello del colore di fondo attorno alle metà) e
+  NON dichiara raggi sulle metà — è `overflow: hidden` + il raggio `rounded-xl` (14px, prima 11px:
+  disallineato) della card a ritagliare gli angoli, così le tinte arrivano esattamente al bordo
+  arrotondato. Ogni metà porta il proprio bordo 1px `currentColor 30%` (teorico senza bordo in
+  basso, reale senza bordo in alto: la mezzeria è pulita). «Da confermare» ha priorità: le metà
+  ricolorano TUTTO il loro perimetro in ambra 1.5px (`.cell-split.is-pend > .cell-half`) e la card
+  ripristina il proprio bordo ambra + spread shadow — un solo contorno, non tre linee concentriche
+  (il vecchio codice sommava bordo-card ambra + bordi tinta delle metà).
   **STILE (12/09/2026, ricetta `.desk-card-highlight` di turnisala):** CONTOURNO SOLIDO di 2px ESATTO
   sul bordo della card — `border-color: var(--cell-pend-ring)` + `box-shadow: 0 0 0 1px` dello stesso
   colore — NON più un anello `inset` 3px: gli anelli inset partono DENTRO il bordo e l'evidenziazione

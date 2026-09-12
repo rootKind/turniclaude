@@ -550,12 +550,12 @@
      solo la SEZIONE (stesso tipo di turno) le metà hanno la STESSA tinta del reale: la
      modifica la racconta solo la barra. La tinta della CARD resta quella del reale, così
      il bordo segue il turno effettivo come nelle card intere. */
-  .cell-day.cell-split { flex-direction: column; overflow: hidden; }
-  /* Il BORDO si divide come i riempimenti: ogni metà porta il proprio bordo nel
-     colore della propria tinta (currentColor 30%, come le card intere); quello della
-     card diventa trasparente — TRANNNE quando è «da confermare», dove il contorno
-     ambra 2px deve avvolgere tutta la card (is-pend ridefinisce il border-color). */
-  .cell-day.cell-split:not(.is-pend) { border-color: transparent; }
+  .cell-day.cell-split { flex-direction: column; overflow: hidden; border-width: 0; }
+  /* Il BORDO si divide come i riempimenti: le metà coprono l'intera card (border-width 0
+     sulla card: niente anello del colore di fondo che trapela tra bordo e metà) e ognuna
+     porta il proprio bordo nel colore della propria tinta (currentColor 30%, come le card
+     intere). I raggi non si dichiarano sulle metà: è overflow:hidden + il raggio della
+     card a ritagliare gli angoli, così la tinta arriva ESATTAMENTE al bordo arrotondato. */
   .cell-day.cell-split > .cell-half {
     flex: 1 1 0; display: flex; flex-direction: column; align-items: center;
     justify-content: center; position: relative; text-align: center;
@@ -563,11 +563,17 @@
   }
   .cell-day.cell-split > .cell-half-theo {
     justify-content: flex-end; padding-bottom: 4px;
-    border-bottom: 0; border-radius: 11px 11px 0 0;
+    border-bottom: 0;
   }
-  .cell-day.cell-split > .cell-half:last-child { border-top: 0; border-radius: 0 0 11px 11px; }
-  /* Barra diagonale SULLA riga del codice teorico: sottile (2px) e trasparente (55%)
-     per segnalare la sostituzione senza coprire il codice (richiesta 12/09/2026). */
+  .cell-day.cell-split > .cell-half:last-child { border-top: 0; }
+  /* «Da confermare» su card divisa: il contorno ambra ha la priorità e avvolge TUTTA la
+     card — le metà gli cedono il perimetro (bordo esterno ricolorato ambra, come le card
+     intere dove is-pend ricolora il bordo), senza contorni doppi o mix di colori. */
+  .cell-day.cell-split.is-pend > .cell-half { border-color: var(--cell-pend-ring); border-width: 1.5px; }
+  .cell-day.cell-split.is-pend > .cell-half-theo { border-bottom-width: 0; }
+  .cell-day.cell-split.is-pend > .cell-half:last-child { border-top-width: 0; }
+  /* Barra diagonale SULLA riga del codice teorico: sottile (2px) e molto trasparente
+     (40%) per segnalare la sostituzione senza coprire il codice (richiesta 12/09/2026). */
   .cell-day .cell-half-theo.cell-barred::after {
     content: ''; position: absolute; left: 6%; right: 6%; bottom: 9px; height: 2px;
     border-radius: 1px; background: currentColor; opacity: .4; transform: rotate(-6deg);
