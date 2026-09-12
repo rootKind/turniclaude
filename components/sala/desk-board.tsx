@@ -510,13 +510,14 @@ export function DeskBoard({
                       className="cal-monthsel w-[86px] rounded-lg border border-border bg-card px-2 py-1 text-xs font-semibold"
                       aria-label="Scegli anno"
                     >
-                      {Array.from({ length: 1000 }, (_, i) => 2001 + i).map(yy => (
+                      {Array.from({ length: 81 }, (_, i) => 2020 + i).map(yy => (
                         <option key={yy} value={yy}>{yy}</option>
                       ))}
                     </select>
                   </div>
                   <Calendar
                     mode="single"
+                    hideNavigation /* mese e anno si scelgono dalle tendine in testa: niente frecce doppie */
                     selected={new Date(cy, cm - 1, selectedDay)}
                     onSelect={(date) => {
                       if (!date) return

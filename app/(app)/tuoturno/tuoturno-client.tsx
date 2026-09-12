@@ -935,14 +935,14 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
   const [y, m] = month.split('-').map(Number)
   const years = useMemo(() => {
     const list: number[] = []
-    for (let yy = 2001; yy <= 3000; yy++) list.push(yy)
+    for (let yy = 2020; yy <= 2100; yy++) list.push(yy)
     return list
   }, [])
   // La lista anni parte scrollata sull'anno selezionato (~30px per voce).
   const yearListRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = yearListRef.current
-    if (el) el.scrollTop = Math.max(0, (y - 2001) * 30 - el.clientHeight / 2 + 15)
+    if (el) el.scrollTop = Math.max(0, (y - 2020) * 30 - el.clientHeight / 2 + 15)
   }, [y])
   const ref = useRef<HTMLDivElement>(null)
   // Tap fuori dal pannello lo chiude; tasto ESC pure.
