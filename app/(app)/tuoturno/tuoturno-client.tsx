@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { Check, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
@@ -238,7 +238,7 @@ const CMP_COL = 'h-[44px] w-[34px]'
 const CMP_CELL_FLEX = 'flex-1 basis-[34px] min-w-0'
 const CMP_ROW_H = 46       // cella + gap fra le righe
 const CMP_HEAD_H = 26      // intestazione con i numeri dei giorni
-const CMP_CHROME_H = 300   // header pagina + nav mese + bottom nav (stima)
+const CMP_CHROME_FALLBACK = 300 // stima chrome (header+nav) PRIMA della misura reale
 const CMP_MAX_PEOPLE = 8   // oltre, la tabella diventa illeggibile (e pesante)
 const CMP_COL_W = 34       // larghezza LOGICA colonna (le celle stretched riempiono il blocco)
 
@@ -262,11 +262,7 @@ interface CompareDay {
   kind: SalaCodeKind
   token: string
   label: string
-  mismatch: boolean
   pending: boolean
-  theoLabel: string
-  /** Token teorico GREZZO: serve alla card divisa per tinta e codice della metà teorica. */
-  theoToken: string
 }
 
 interface CompareRow {
@@ -275,17 +271,18 @@ interface CompareRow {
   cells: CompareDay[]
 }
 
-/** Cella di confronto di UNA persona in UN giorno: stessa lettura della griglia. */
+/** Cella di confronto di UNA persona in UN giorno: SOLO il turno reale (richiesta
+    12/09/2026: meno informazioni, più spazio — teorico e split/strike restano
+    solo nella griglia personale). Fallback: nessun reale nel mese → il teorico
+    diventa il valore della cella. */
 function buildCompareDay(real: PersonDayShift | null, theo: string, hasTheoretical: boolean): CompareDay {
-  const kind: SalaCodeKind = real ? real.kind : theo ? salaCodeInfo(theo).kind : 'empty'
+  const useTheo = !real && hasTheoretical && !!theo
+  const kind: SalaCodeKind = useTheo ? salaCodeInfo(theo).kind : real ? real.kind : 'empty'
   return {
     kind,
-    token: real ? real.short : theo,
-    label: real ? displayToken(real.short) : theo ? displayToken(theo) : '—',
-    mismatch: !!(real && hasTheoretical && theo && realTheoreticalMismatch(real.short, theo)),
+    token: useTheo ? theo : real ? real.short : '',
+    label: useTheo ? displayToken(theo) : real ? displayToken(real.short) : '—',
     pending: !!real?.pending,
-    theoLabel: theo ? tokenLabel(theo) : '',
-    theoToken: theo,
   }
 }
 
@@ -296,13 +293,12 @@ function buildCompareDay(real: PersonDayShift | null, theo: string, hasTheoretic
  * così si evita di scorrere: con 2 soli dipendenti e uno schermo alto l'intero
  * mese sta in 3-4 blocchi senza scroll.
  */
-function CompareTable({ rows, chunks, month, todayISO, palette, mismatchStyle }: {
+function CompareTable({ rows, chunks, month, todayISO, palette }: {
   rows: CompareRow[]
   chunks: number[][]
   month: string
   todayISO: string
   palette: CardPalette
-  mismatchStyle: MismatchStyle
 }) {
   return (
     <div className="cmp-table overflow-x-auto -mx-3 px-3 pb-1">
@@ -336,22 +332,23 @@ function CompareTable({ rows, chunks, month, todayISO, palette, mismatchStyle }:
                   const c = r.cells[d - 1]
                   if (!c) return <div key={d} className={cn(CMP_COL, CMP_CELL_FLEX)} />
                   const dateISO = `${month}-${String(d).padStart(2, '0')}`
-                  const title = `${r.name} · ${dateISO} — ${c.label}`
+                  const empty = c.kind === 'empty' && !c.token
+                  const title = `${r.name} · ${dateISO} — ${empty ? 'nessun turno' : c.label}`
                     + (c.pending ? ' · da confermare' : '')
-                    + (c.mismatch ? ` · teorico: ${c.theoLabel}` : '')
-                  // STESSO componente della griglia personale (size sm): ogni fix
-                  // alla card vale automaticamente per entrambe le schermate.
+                  // STESSO componente della griglia personale (size sm, SOLO reale:
+                  // theo=null → mai split/strike, il teorico compare solo come
+                  // contenuto di fallback quando la riga non ha turni reali).
                   return (
                     <ShiftDayCard
                       key={d}
                       day={d}
-                      real={c.kind !== 'empty' || c.token ? { kind: c.kind, short: c.token, label: c.label, pending: c.pending } : null}
-                      theo={c.theoToken}
+                      real={empty ? null : { kind: c.kind, short: c.token, label: c.label, pending: c.pending }}
+                      theo=""
                       isToday={dateISO === todayISO}
                       size="sm"
                       title={title}
                       palette={palette}
-                      mismatchStyle={mismatchStyle}
+                      mismatchStyle="split"
                       className={CMP_CELL_FLEX}
                     />
                   )
@@ -541,7 +538,30 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   // ── confronto fra più dipendenti ──────────────────────────────────────────
   const viewportHeight = useSyncExternalStore(subscribeResize, () => window.innerHeight, () => 700)
   const viewportWidth = useSyncExternalStore(subscribeResize, () => window.innerWidth, () => 700)
+  // Chrome MISURATO: tutto ciò che sta sopra la tabella (header pagina + nav
+  // mese) + la bottom nav sotto. Niente stima fissa: al variare di font/density
+  // il numero di blocchi resta quello giusto. La misura è ASINCRONA (request-
+  //AnimationFrame): niente setState dentro l'effetto, niente loop di layout.
+  const monthNavRef = useRef<HTMLDivElement | null>(null)
+  const [chromePx, setChromePx] = useState<number | null>(null)
+  const measureChrome = useCallback(() => {
+    // chrome = tutto tranne lo spazio per la tabella: SOPRA (dal bordo superiore
+    // del viewport al fondo della nav mese) + SOTTO (dal top della bottom nav al
+    // fondo del viewport; se la nav copre l'ultimo pixel, la tabella finirebbe sotto).
+    const top = monthNavRef.current?.getBoundingClientRect().bottom ?? 0
+    const nav = document.querySelector('nav')
+    const bottom = nav ? Math.max(0, window.innerHeight - nav.getBoundingClientRect().top) : 0
+    const next = Math.round(top + bottom)
+    setChromePx(prev => (prev === next ? prev : next))
+  }, [])
   const comparing = compareIds.length >= 2
+  useEffect(() => {
+    if (!comparing) return
+    let raf = requestAnimationFrame(measureChrome)
+    const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(measureChrome) }
+    window.addEventListener('resize', onResize)
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize) }
+  }, [comparing, measureChrome])
   const comparePeople = useMemo(
     () => compareIds.map(id => users.find(u => u.id === id)).filter((u): u is UserOption => !!u),
     [compareIds, users],
@@ -581,18 +601,23 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const compareChunks = useMemo(() => {
     if (!comparing) return []
     const perBlock = compareRows.length * CMP_ROW_H + CMP_HEAD_H
-    const available = Math.max(150, viewportHeight - CMP_CHROME_H)
-    const maxByHeight = Math.max(1, Math.min(4, Math.floor(available / perBlock)))
-    // viewportWidth è reattivo (subscribeResize); 700 in SSR come per l'altezza.
-    const availW = Math.max(280, viewportWidth - 24) // padding pagina
-    const perCol = 34 // CMP_COL_W
-    const maxByWidth = Math.max(4, Math.floor((availW - 64) / perCol))
-    // blocchi minimi per stare in larghezza, ma MAI più blocchi del necessario:
-    // se in un blocco stanno ≥ i giorni che il limite d'altezza assegna, si usa quello.
+    // Spazio davvero disponibile: chrome MISURATO nel DOM (header pagina + nav
+    // mese + bottom nav reali del dispositivo), fallback alla stima fissa.
+    const available = Math.max(150, viewportHeight - (chromePx ?? CMP_CHROME_FALLBACK))
+    // IN ALTEZZA (richiesta 12/09/2026): niente cap artificiale a 4 — su schermi
+    // lunghi il mese si SPANDE in vertica (più blocchi, zero scroll) invece di
+    // lasciare metà pagina vuota.
+    const maxByHeight = Math.max(1, Math.floor(available / perBlock))
+    // IN LARGHEZZA: la main è max-w-lg (512px); min 5 giorni per colonna —
+    // sotto, i codici tipo MDCIF non ci stanno più anche comprimendo.
+    const availW = Math.max(280, Math.min(viewportWidth, 512) - 24)
+    const maxByWidth = Math.max(5, Math.floor((availW - 64) / CMP_COL_W))
+    // Blocchi MINIMI per la larghezza, ma MAI più del necessario: si preferiscono
+    // blocchi larghi (colonna nome ripetuta meno volte, celle più respirate).
     const minChunks = Math.ceil(totalDays / maxByWidth)
     const chunkCount = Math.max(minChunks, Math.min(maxByHeight, Math.ceil(totalDays / 7)))
     return splitDays(totalDays, Math.min(chunkCount, totalDays))
-  }, [comparing, compareRows.length, viewportHeight, viewportWidth, totalDays])
+  }, [comparing, compareRows.length, viewportHeight, viewportWidth, totalDays, chromePx])
 
   const goPrev = () => setMonth(m => addMonths(m, -1))
   const goNext = () => setMonth(m => addMonths(m, 1))
@@ -654,7 +679,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
       </div>
 
       {/* Navigazione mese */}
-      <div className="flex items-center justify-between mb-3">
+      <div ref={monthNavRef} className="flex items-center justify-between mb-3">
         <button
           onClick={goPrev}
           aria-label="Mese precedente"
@@ -712,7 +737,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             ))}
           </div>
         ) : (
-          <CompareTable rows={compareRows} chunks={compareChunks} month={month} todayISO={today} palette={palette} mismatchStyle={mismatchStyle} />
+          <CompareTable rows={compareRows} chunks={compareChunks} month={month} todayISO={today} palette={palette} />
         )
       ) : (
         <>
@@ -887,8 +912,8 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         <DialogContent className="max-w-sm max-h-[80vh] flex flex-col overflow-hidden">
           <DialogHeader><DialogTitle>Confronta i turni</DialogTitle></DialogHeader>
           <p className="text-xs leading-snug text-muted-foreground">
-            Scegli da 2 a {CMP_MAX_PEOPLE} dipendenti: i loro turni finiscono in una tabella, una riga
-            a testa, giorno per giorno.
+            Scegli da 2 a {CMP_MAX_PEOPLE} dipendenti: i loro turni reali finiscono in una tabella,
+            una riga a testa, giorno per giorno. Per i mesi senza PDF si confrontano i turni teorici.
           </p>
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
