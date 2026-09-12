@@ -962,9 +962,10 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
       ref={ref}
       className="month-pop absolute left-1/2 top-full z-30 mt-2 w-[240px] -translate-x-1/2 rounded-xl border border-border bg-card p-2 shadow-lg"
     >
+      {/* Niente teste «Mese»/«Anno»: le colonne si spiegano da sole (l'anno è
+          una lista di numeri) e il menù parte direttamente dal bottone. */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Mese</p>
           <div className="flex max-h-56 flex-col overflow-y-auto">
             {MONTHS_IT.map((label, i) => {
               const iso = `${y}-${String(i + 1).padStart(2, '0')}`
@@ -988,7 +989,6 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
           </div>
         </div>
         <div>
-          <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Anno</p>
           <div ref={yearListRef} className="flex max-h-56 flex-col overflow-y-auto">
             {years.map(yy => (
               <button
