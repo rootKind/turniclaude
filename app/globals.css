@@ -621,23 +621,24 @@
      stretch in larghezza: lo forzo qui. */
   .cmp-table .cell-split { border-radius: 8px; align-items: stretch; }
   .cmp-table .cell-split > .cell-half { align-self: stretch; }
-  .cmp-table .cell-split > .cell-half-theo { border-radius: 8px 8px 0 0; padding-bottom: 2px; }
+  .cmp-table .cell-split > .cell-half-theo { border-radius: 8px 8px 0 0; padding-bottom: 1px; }
   .cmp-table .cell-split > .cell-half:last-child { border-radius: 0 0 8px 8px; }
   .cmp-table .cell-half-theo.cell-barred::after { bottom: 4px; height: 1.5px; }
-  .cmp-table .cell-split.is-pend > .cell-half { border-width: 1px; }
-  /* Nel confronto SPLIT il chip data esce dal flusso (assoluto, in alto a
-     destra): a 44px in-flow occupava 14px sui 44, schiacciando le due metà a
-     ~15px l'una e seppellendo il codice teorico sotto la barra. Assoluto, le
-     metà si spartiscono i 44px INTERI (22+22) come nelle card grandi. Il chip
-     sta sopra le metà (z-index), in alto a DESTRA per non coprire il codice
-     teorico ancorato in basso alla sua metà. */
+  .cmp-table .cell-split.is-pend > .cell-half { border-width: 1.5px; }
+  /* La regola base dichiara il bordo come SHORTHAND (border: 1px solid …):
+     il width del pend qui sopra può perdere contro quella shorthand nonostante
+     la specificità. Longhand esplicito = nessuna ambiguità di cascade. */
+  .cmp-table .cell-split.is-pend > .cell-half { border-top-width: 1.5px; border-left-width: 1.5px; border-right-width: 1.5px; }
+  /* STESSA GRAFICA della griglia personale: chip data assoluto in alto a SINISTRA
+     (come il badge .day-badge), non a destra: il numero resta nello stesso punto di
+     ogni altra card. Il codice teorico è ancorato al FONDO della sua metà
+     (justify-end): il chip in alto non lo tocca. A 44px però chip e codice si
+     sfiorano (chip fino a ~13px, codice da ~11px sui codici larghi): chip ridotto
+     (8px) e al top-left 1px, teorico sceso di 1px (padding-bottom 1). */
   .cmp-table .cell-split .cmp-day {
-    position: absolute; top: 2px; right: 2px; left: auto;
-    font-size: 8.5px; padding: 0 3px; z-index: 1;
+    position: absolute; top: 1px; left: 1px;
+    font-size: 8px; padding: 0 2px; z-index: 1;
   }
-  /* Il codice teorico non entra sotto il chip: la metà gli cede a destra lo spazio
-     del chip (padding-right = larghezza chip + margine). */
-  .cmp-table .cell-split > .cell-half-theo { padding-right: 17px; padding-left: 3px; }
   .cell-day.is-today { outline: 2px solid var(--primary); outline-offset: -2px; }
 
   /* Safe area for bottom nav */
