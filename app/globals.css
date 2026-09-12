@@ -604,6 +604,17 @@
     content: ''; position: absolute; left: 6%; right: 6%; bottom: 9px; height: 2px;
     border-radius: 1px; background: currentColor; opacity: .4; transform: rotate(-6deg);
   }
+  /* Card SPLIT nella tabella di CONFRONTO (celle 44px): stessi rapporti della
+     griglia personale ma scalati — raggi 8px (la cella è rounded-lg), barra più
+     in alto (la metà teorica è più corta) e teste più strette. */
+  .cmp-cell.cell-split { border-radius: 8px; }
+  .cmp-cell.cell-split > .cell-half-theo { border-radius: 8px 8px 0 0; padding-bottom: 2px; }
+  .cmp-cell.cell-split > .cell-half:last-child { border-radius: 0 0 8px 8px; }
+  .cmp-cell .cell-half-theo.cell-barred::after { bottom: 5px; height: 1.5px; }
+  .cmp-cell.cell-split.is-pend > .cell-half { border-width: 1px; }
+  /* La data inline NON partecipa allo split: sta sopra le metà, come il badge
+     assoluto nelle card grandi. */
+  .cmp-cell.cell-split .cmp-day { z-index: 1; }
   .cell-day.is-today { outline: 2px solid var(--primary); outline-offset: -2px; }
 
   /* Safe area for bottom nav */

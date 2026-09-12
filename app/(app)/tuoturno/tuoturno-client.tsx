@@ -170,6 +170,8 @@ interface CompareDay {
   mismatch: boolean
   pending: boolean
   theoLabel: string
+  /** Token teorico GREZZO: serve alla card divisa per tinta e codice della metà teorica. */
+  theoToken: string
 }
 
 interface CompareRow {
@@ -188,6 +190,7 @@ function buildCompareDay(real: PersonDayShift | null, theo: string, hasTheoretic
     mismatch: !!(real && hasTheoretical && theo && realTheoreticalMismatch(real.short, theo)),
     pending: !!real?.pending,
     theoLabel: theo ? tokenLabel(theo) : '',
+    theoToken: theo,
   }
 }
 
@@ -198,12 +201,13 @@ function buildCompareDay(real: PersonDayShift | null, theo: string, hasTheoretic
  * così si evita di scorrere: con 2 soli dipendenti e uno schermo alto l'intero
  * mese sta in 3-4 blocchi senza scroll.
  */
-function CompareTable({ rows, chunks, month, todayISO, palette }: {
+function CompareTable({ rows, chunks, month, todayISO, palette, mismatchStyle }: {
   rows: CompareRow[]
   chunks: number[][]
   month: string
   todayISO: string
   palette: CardPalette
+  mismatchStyle: MismatchStyle
 }) {
   return (
     <div className="overflow-x-auto -mx-3 px-3 pb-1">
@@ -239,28 +243,56 @@ function CompareTable({ rows, chunks, month, todayISO, palette }: {
                   const title = `${r.name} · ${dateISO} — ${c.label}`
                     + (c.pending ? ' · da confermare' : '')
                     + (c.mismatch ? ` · teorico: ${c.theoLabel}` : '')
+                  // STESSA logica della griglia personale (scelta dal pannello
+                  // «Personalizza», vale per entrambe le schermate):
+                  // - «split»: card divisa in due metà (tinta della metà = quella
+                  //   del REALE anche quando cambia solo la sezione; la barra
+                  //   racconta la sostituzione)
+                  // - «strike»: card intera, teorico barrato sopra il codice
+                  const theoKind: SalaCodeKind = c.theoToken ? salaCodeInfo(c.theoToken).kind : 'empty'
+                  const cmpSplit = c.mismatch && c.theoLabel && mismatchStyle === 'split'
                   return (
                     <div
                       key={d}
                       title={title}
                       className={cn(
-                        'cmp-cell cell-day relative shrink-0 rounded-lg flex flex-col items-center justify-center text-center gap-0.5 px-0.5',
+                        'cell-day relative shrink-0 flex flex-col items-center text-center',
+                        cmpSplit ? 'cell-split px-0 py-0' : 'cmp-cell justify-center gap-0.5 px-0.5 rounded-lg',
                         CMP_COL,
                         cellTintClass(c.kind, c.token),
                         c.pending && 'is-pend',
                         dateISO === todayISO && 'is-today',
                       )}
-                      style={cardOverride(c.kind, c.token, palette)}
+                      style={cmpSplit ? undefined : cardOverride(c.kind, c.token, palette)}
                     >
-                      {/* Badge data INLINE (non assoluto): a 44px quello assoluto
-                          delle card 76px finiva SOPRA il codice → illeggibile. */}
+                      {/* Data INLINE (non assoluto): a 44px quello assoluto delle
+                          card 76px finiva SOPRA il codice → illeggibile. */}
                       <span className="cmp-day tabular-nums">{d}</span>
-                      {c.mismatch && c.theoLabel && (
-                        <span className="text-[8px] font-semibold leading-none line-through opacity-60 max-w-full truncate">
-                          {c.theoLabel}
-                        </span>
+                      {cmpSplit ? (
+                        <>
+                          <span
+                            className={cn('cell-half cell-half-theo cell-barred', cellTintClass(theoKind, c.theoToken || ''))}
+                            style={cardOverride(theoKind, c.theoToken || '', palette)}
+                          >
+                            <span className="text-[9px] font-bold leading-none max-w-full truncate">{c.theoLabel}</span>
+                          </span>
+                          <span
+                            className={cn('cell-half', cellTintClass(c.kind, c.token))}
+                            style={cardOverride(c.kind, c.token, palette)}
+                          >
+                            <span className="text-[11px] font-bold leading-none max-w-full truncate">{c.label}</span>
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          {c.mismatch && c.theoLabel && (
+                            <span className="text-[8px] font-semibold leading-none line-through opacity-60 max-w-full truncate">
+                              {c.theoLabel}
+                            </span>
+                          )}
+                          <span className="text-[11px] font-bold leading-none max-w-full truncate">{c.label}</span>
+                        </>
                       )}
-                      <span className="text-[11px] font-bold leading-none max-w-full truncate">{c.label}</span>
                     </div>
                   )
                 })}
@@ -609,7 +641,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             ))}
           </div>
         ) : (
-          <CompareTable rows={compareRows} chunks={compareChunks} month={month} todayISO={today} palette={palette} />
+          <CompareTable rows={compareRows} chunks={compareChunks} month={month} todayISO={today} palette={palette} mismatchStyle={mismatchStyle} />
         )
       ) : (
         <>
