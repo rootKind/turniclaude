@@ -240,7 +240,7 @@ function CompareTable({ rows, chunks, month, todayISO, palette }: {
                       key={d}
                       title={title}
                       className={cn(
-                        'cell-day shrink-0 rounded-lg flex flex-col items-center justify-center text-center',
+                        'cell-day relative shrink-0 rounded-lg flex flex-col items-center justify-center text-center pt-1.5',
                         CMP_COL,
                         cellTintClass(c.kind, c.token),
                         c.pending && 'is-pend',
@@ -248,12 +248,13 @@ function CompareTable({ rows, chunks, month, todayISO, palette }: {
                       )}
                       style={cardOverride(c.kind, c.token, palette)}
                     >
+                      <span className="day-badge tabular-nums">{d}</span>
                       {c.mismatch && c.theoLabel && (
-                        <span className="text-[8px] font-semibold leading-none line-through opacity-60">
+                        <span className="text-[9px] font-semibold leading-none line-through opacity-60">
                           {c.theoLabel}
                         </span>
                       )}
-                      <span className="text-[10px] font-bold leading-none">{c.label}</span>
+                      <span className="text-[12px] font-bold leading-none">{c.label}</span>
                     </div>
                   )
                 })}
@@ -651,20 +652,20 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                       key={d}
                       title={cellTitle}
                       className={cn(
-                        'cell-day rounded-xl min-h-[76px] px-0.5 py-1.5 flex flex-col items-center justify-center gap-0.5 text-center',
+                        'cell-day relative rounded-xl min-h-[76px] px-0.5 pt-3 pb-1.5 flex flex-col items-center justify-center gap-1 text-center',
                         cellTintClass(primaryKind, primaryToken),
                         showPending && 'is-pend',
                         isToday && 'is-today',
                       )}
                       style={cardOverride(primaryKind, primaryToken, palette)}
                     >
-                      <span className="text-[14px] font-extrabold leading-none tracking-tight tabular-nums">{d}</span>
+                      <span className="day-badge tabular-nums">{d}</span>
                       {mismatch && theo && (
-                        <span className="text-[10px] font-semibold leading-none line-through opacity-60">
+                        <span className="text-[12px] font-semibold leading-none line-through opacity-60">
                           {displayToken(theo)}
                         </span>
                       )}
-                      <span className="text-[11px] font-bold leading-tight">{primaryLabel}</span>
+                      <span className="text-[14px] font-extrabold leading-tight">{primaryLabel}</span>
                     </div>
                   )
                 })}
