@@ -389,18 +389,22 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   attività senza sezione, con la tinta per tipo di turno della «variante E» (vedi più sotto); i turni
   «da confermare» (cella gialla sul PDF) hanno l'anello interno ambra 3px, che è l'UNICO marcatore
   sulle card (12/09/2026).
-  Nota (AGGIORNATA 12/09/2026): il «teorico» della pagina NON è più solo la rotazione ricostruita
+  Nota (AGGIORNATA 12/09/2026, v2): il «teorico» della pagina NON è più solo la rotazione ricostruita
   dall'app (`generateTheoreticalMonth`): ha tre sorgenti in ordine di priorità — (1) la riga base del
   PDF (`teorico[]`) per i mesi caricati, che è il riferimento esatto; (2) per i mesi SENZA PDF, la
   predizione dalla STORIA dei PDF (lib/person-cycle.ts: ciclo rigido dedotto oppure rotazione a
-  blocchi via macchina a stati); (3) la rotazione del DB come ultimo fallback. Motivo: la rotazione
-  del seed corrisponde alla riga base dei PDF solo per ~56% (cicli reali > 28gg troncati nel seed,
-  es. la tipologia «in terza» ruota su un ciclo di ~41gg): con il solo DB Minino risultava «sbarrata
-  sezione 11» mentre il suo teorico (e reale) è sezione 5. Verifica out-of-sample sui PDF dev
-  (scripts/verify-person-cycle.mjs): 25 persone con ciclo rigido dedotto al ≥90-100%; per la famiglia
-  «in terza» (ciclo non periodico su calendario) la macchina a stati indovina blocchi e sezioni al
-  100% ma i riposi tra blocchi solo al ~45-68% (variano 1-3gg nei ritocchi di piano): meglio del
-  fallback DB e sempre coerente con la riga base appena c'è un PDF del mese.
+  blocchi via macchina a stati); (3) la rotazione del DB come ultimo fallback. **LA CAUSA RADICE È
+  STATA RIPARATA NEL DB (12/09/2026, scripts/apply-super-cycle.mjs su dev):** il ciclo del turno è
+  28gg ma quello delle SEZIONI è 42gg («in terza»), quindi lo stato completo turno+sezione si ripete
+  ogni LCM(28,42)=84 giorni: il seed a 28gg troncava la rotazione e copriva solo ~56% dei PDF. Ora
+  le tipologie hanno cycle_days=periodo reale dedotto dai PDF («in terza» 28→84, le altre
+  confermate: in seconda 84, Scorte 28, RIC/ASTER 84), pattern_start COMUNE = 2026-03-01 e pattern
+  membri = codici completi turno+sezione per classe di resto (maggioranza, parità → la più recente;
+  backup JSON in scripts/backup-rotation-*.json). Verifica (scripts/verify-tuoturno.mjs): MININO
+  212/214 giorni (98,6%), BORRELLI 214/214, CETRANCOLO 210/214 — gli scarti restanti sono ritocchi
+  di piano. ATTENZIONE BUG script: il match membro→utente deve iterare i membri DENTRO il proprio
+  team (come findMemberForUser), un loop piatto abbinava MININO alla tipologia inattiva IAP. Lo
+  strato (2) rimane per robustezza e per gli utenti senza storia.
 - **Mockup celle (11/09/2026, NON parte dell'app):** `mockups/celle-turno.html`, 4 opzioni grafiche
   (A banda continua, B doppia banda 3/4+1/4, C reale pieno + teorico in angolo, D due righe etichettate)
   sulla stessa settimana reale (TROCCHIA, 1-7 luglio 2026) con pregi/limiti.**SCELTA (11/09/2026): la variante E** — `mockups/celle-colore-pieno.html` (card interamente tinta, numero del giorno compreso) — implementata nella pagina vera. Le tinte M/P/N replicano i colori delle pill dei turni della dashboard (var `--pill-mattina/pomeriggio/notte-*`), chiaro e scuro.

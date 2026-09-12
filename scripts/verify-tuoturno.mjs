@@ -108,14 +108,26 @@ for (const t of tree.types) {
 }
 const activeMembers = (members ?? []).filter(m => m.is_active)
 
-// match per user_id (priorità) poi per nome
+// match per user_id (priorità) poi per nome — SOLO tra i membri del proprio
+// team e solo tipologie attive (lo stesso ordine di findMemberForUser dell'app:
+// un loop piatto abbinerebbe il nome alla prima tipologia iterata, es. IAP).
 let ref = null
-for (const t of tree.types) for (const team of t.teams) for (const m of activeMembers) {
-  if (m.user_id === user.id) ref = { type: t, team, member: m }
+for (const t of tree.types) {
+  if (!t.is_active) continue
+  for (const team of t.teams) {
+    for (const m of activeMembers.filter(x => x.team_id === team.id)) {
+      if (user.id && m.user_id === user.id) ref = { type: t, team, member: m }
+    }
+  }
 }
 if (!ref) {
-  for (const t of tree.types) for (const team of t.teams) for (const m of activeMembers) {
-    if (personNameMatches(m.full_name, user)) { ref = { type: t, team, member: m }; break }
+  outer: for (const t of tree.types) {
+    if (!t.is_active) continue
+    for (const team of t.teams) {
+      for (const m of activeMembers.filter(x => x.team_id === team.id)) {
+        if (personNameMatches(m.full_name, user)) { ref = { type: t, team, member: m }; break outer }
+      }
+    }
   }
 }
 if (!ref) { console.error('Membro squadra non trovato (né per user_id né per nome)'); process.exit(1) }
