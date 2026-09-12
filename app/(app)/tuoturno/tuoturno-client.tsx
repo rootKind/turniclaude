@@ -300,6 +300,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const loadingReal = isRealMonth && !(month in schedules)
   const today = todayISO()
   const totalDays = daysInMonth(month)
+  const offset = firstWeekdayOffset(month)
 
   // Formato compatto v2: codici completi per persona (assenze incluse) + celle
   // gialle «da confermare». Senza data si ricade sulle sezioni del giorno.
@@ -483,16 +484,24 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             onTouchEnd={onTouchEnd}
           >
             {loadingReal ? (
-              // Il PDF del mese sta arrivando: celle skeleton SOLO per i giorni reali,
-              // come le card vuote di coda (il mese può non iniziare di lunedì).
-              Array.from({ length: totalDays }).map((_, i) => (
-                <Skeleton key={`sk-${i}`} className="h-[76px] w-full rounded-xl" />
-              ))
+              // Il PDF del mese sta arrivando: celle skeleton SOLO per i giorni reali.
+              // I sostegni dell'offset sono prima, così i skeleton cadono sulle colonne giuste.
+              <>
+                {Array.from({ length: offset }).map((_, i) => (
+                  <div key={`pad-sk-${i}`} aria-hidden />
+                ))}
+                {Array.from({ length: totalDays }).map((_, i) => (
+                  <Skeleton key={`sk-${i}`} className="h-[76px] w-full rounded-xl" />
+                ))}
+              </>
             ) : (
               <>
-                {/* Niente card vuote PRIMA del giorno 1: le celle scartate del lunedì
-                    lasciano la griglia allineata da sola (coerente con i vuoti di coda,
-                    che non vengono generati a fine mese). */}
+                {/* Sostegni INVISIBILI per l'offset del lunedì: allineano il giorno 1 alla
+                    sua colonna (la grid non salta celle da sola). Niente bordi/riempimenti:
+                    le «card vuote» prima del mese sono sparite alla vista, non dall'layout. */}
+                {Array.from({ length: offset }).map((_, i) => (
+                  <div key={`pad-${i}`} aria-hidden />
+                ))}
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map(d => {
                   const dateISO = `${month}-${String(d).padStart(2, '0')}`
                   const real = realShiftOfDay(d)
