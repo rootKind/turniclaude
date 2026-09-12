@@ -338,6 +338,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `theme-color`. NON rimuovere questo workaround.
 - **Version footer hardcoded** in `components/settings/settings-page.tsx`
   (`vX.YYY · <hash> — ultimo aggiornamento: ...`): va AGGIORNATO a ogni release. NON refactorarlo in dinamico.
+- **Truncate sui codici anche nelle card lg di /tuoturno** (12/09/2026): il codice grande
+  (14px) e il teorico barrato (11px) portano `max-w-full truncate`: a 320px le card scendono
+  a ~37px e codici a 4 lettere (SPCA…) uscivano dalla card. L'ellipsis subentra solo sotto
+  ~375px; a larghezze normali il testo ci sta sempre e non cambia nulla visivamente.
 
 ---
 

@@ -176,8 +176,10 @@ function ShiftDayCard({
   const showPending = !!real?.pending
   const theoKind: SalaCodeKind = theo ? salaCodeInfo(theo).kind : 'empty'
   const split = mismatch && mismatchStyle === 'split'
-  const codeSize = size === 'lg' ? 'text-[14px] font-extrabold leading-tight' : 'text-[11px] font-bold leading-none max-w-full truncate'
-  const theoSize = size === 'lg' ? 'text-[11px] font-bold leading-none' : 'text-[9px] font-bold leading-none max-w-full truncate'
+  // truncate anche su lg: a 320px le card scendono a ~37px e codici a 4 lettere
+  // (SPCA…) escono dalla card; sotto ~375px l'ellipsis subentra solo lì.
+  const codeSize = size === 'lg' ? 'text-[14px] font-extrabold leading-tight max-w-full truncate' : 'text-[11px] font-bold leading-none max-w-full truncate'
+  const theoSize = size === 'lg' ? 'text-[11px] font-bold leading-none max-w-full truncate' : 'text-[9px] font-bold leading-none max-w-full truncate'
   return (
     <div
       title={title}
