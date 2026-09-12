@@ -429,7 +429,11 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `lib/person-cycle.ts`), per ognuna si scelgono sfondo e testo (color input + anteprima) e si
   può ripristinare il default; palette persistita in localStorage (`tuoturno-colori`) via store
   esterno `cardPaletteStore` + `useSyncExternalStore` (niente setState in effect: il lint
-  `react-hooks/set-state-in-effect` lo vieta). Gli override viaggiano come variabili CSS inline
+  `react-hooks/set-state-in-effect` lo vieta). ATTENZIONE: `getSnapshot` deve restituire lo STESSO
+  riferimento tra i render — un oggetto nuovo a ogni chiamata manda React in loop
+  («The result of getSnapshot should be cached to avoid an infinite loop») e la pagina va in errore
+  («this page couldn't load»): per questo la store usa una cache a livello di modulo, invalidata
+  solo da set/reset (fix 12/09/2026; contratto verificato da `scripts/check-palette-store.mjs`). Gli override viaggiano come variabili CSS inline
   `--c-bg`/`--c-text`, che ogni `.cell-tint-*` consuma con fallback `var(--c-bg, var(--cell-*-bg))`
   — così il bordo `color-mix(currentColor 30%)` segue automaticamente il colore personalizzato.
   Ha sostituito il precedente selettore a tre modalità «Turno/Contenuto/Sezione» (visto e rimosso

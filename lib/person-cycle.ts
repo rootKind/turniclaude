@@ -462,18 +462,33 @@ function readPalette(): CardPalette {
 }
 
 /**
+ * Cache del modulo: `getSnapshot` di useSyncExternalStore deve restituire lo
+ * STESSO riferimento tra un cambio e l'altro — un oggetto nuovo a ogni chiamata
+ * fa andare React in loop («The result of getSnapshot should be cached to avoid
+ * an infinite loop») e manda in errore la pagina. Il riferimento cambia SOLO
+ * dopo set/reset, che notificano gli iscritti.
+ */
+let paletteCache: CardPalette | null = null
+
+function cachedPalette(): CardPalette {
+  if (paletteCache === null) paletteCache = readPalette()
+  return paletteCache
+}
+
+/**
  * Palette personalizzata dell'utente, persistita in localStorage. Store esterno
  * letto con `useSyncExternalStore` (niente setState in effect: il lint lo vieta).
  */
 export const cardPaletteStore = {
   listeners: new Set<() => void>(),
   get(): CardPalette {
-    return readPalette()
+    return cachedPalette()
   },
   set(kind: CardKind, colors: { bg: string; text: string } | null) {
-    const p = readPalette()
+    const p: CardPalette = { ...cachedPalette() }
     if (colors) p[kind] = colors
     else delete p[kind]
+    paletteCache = p
     try {
       localStorage.setItem(PALETTE_KEY, JSON.stringify(p))
     } catch {
@@ -482,6 +497,7 @@ export const cardPaletteStore = {
     cardPaletteStore.listeners.forEach(l => l())
   },
   reset() {
+    paletteCache = {}
     try {
       localStorage.removeItem(PALETTE_KEY)
     } catch {
