@@ -138,9 +138,11 @@ function displayToken(token: string): string {
 
 // ─── confronto fra più dipendenti ────────────────────────────────────────────
 
-/** Altezza/larghezza di una cella del confronto (una cifra corta come «M10S» ci sta). */
-const CMP_COL = 'w-[34px] h-[34px]'
-const CMP_ROW_H = 36       // cella + gap fra le righe
+/** Cella del confronto: 44px — il badge data NON è assoluto (sovrapponeva il
+    codice: illeggibile) ma inline in testa, e i codici lunghi (MDCIF) stanno
+    dentro senza sforare. */
+const CMP_COL = 'w-[44px] h-[44px]'
+const CMP_ROW_H = 46       // cella + gap fra le righe
 const CMP_HEAD_H = 26      // intestazione con i numeri dei giorni
 const CMP_CHROME_H = 300   // header pagina + nav mese + bottom nav (stima)
 const CMP_MAX_PEOPLE = 8   // oltre, la tabella diventa illeggibile (e pesante)
@@ -242,7 +244,7 @@ function CompareTable({ rows, chunks, month, todayISO, palette }: {
                       key={d}
                       title={title}
                       className={cn(
-                        'cell-day relative shrink-0 rounded-lg flex flex-col items-center justify-center text-center pt-1.5',
+                        'cmp-cell cell-day relative shrink-0 rounded-lg flex flex-col items-center justify-center text-center gap-0.5 px-0.5',
                         CMP_COL,
                         cellTintClass(c.kind, c.token),
                         c.pending && 'is-pend',
@@ -250,13 +252,15 @@ function CompareTable({ rows, chunks, month, todayISO, palette }: {
                       )}
                       style={cardOverride(c.kind, c.token, palette)}
                     >
-                      <span className="day-badge tabular-nums">{d}</span>
+                      {/* Badge data INLINE (non assoluto): a 44px quello assoluto
+                          delle card 76px finiva SOPRA il codice → illeggibile. */}
+                      <span className="cmp-day tabular-nums">{d}</span>
                       {c.mismatch && c.theoLabel && (
-                        <span className="text-[9px] font-semibold leading-none line-through opacity-60">
+                        <span className="text-[8px] font-semibold leading-none line-through opacity-60 max-w-full truncate">
                           {c.theoLabel}
                         </span>
                       )}
-                      <span className="text-[12px] font-bold leading-none">{c.label}</span>
+                      <span className="text-[11px] font-bold leading-none max-w-full truncate">{c.label}</span>
                     </div>
                   )
                 })}

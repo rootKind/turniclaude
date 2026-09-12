@@ -553,6 +553,20 @@
     border-color: rgb(255 255 255 / 16%); /* bordo bianco 16% come i bottoni */
     box-shadow: none;
   }
+  /* Celle del CONFRONTO (44px): la data NON è il badge assoluto delle card 76px
+     (sovrapponeva il codice → illeggibile) ma una riga inline in testa, stessa
+     ricetta colori del badge (superficie tema, bordo --border/60). */
+  .cmp-cell { padding-top: 3px; }
+  .cmp-cell .cmp-day {
+    font-size: 9.5px; font-weight: 800; line-height: 1; letter-spacing: -.02em;
+    color: var(--foreground);
+    background: var(--background); border-radius: 5px; padding: 1px 4px;
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  }
+  .dark .cmp-cell .cmp-day {
+    color: var(--foreground); background: var(--card);
+    border-color: rgb(255 255 255 / 16%);
+  }
   /* Card SPLIT (mockup celle-split-teorico-reale.html, scelta 12/09/2026): divisa in
      due metà SOLO quando il reale differisce dal teorico; altrimenti card intera come
      sempre. Teorico sopra, ANCORATO ALLA MEZZERIA (justify-content flex-end): non può
