@@ -30,7 +30,7 @@ export function SettingsPage() {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
 
-  async function handleToggle(field: 'notify_on_interest' | 'notify_on_new_shift' | 'notify_on_vacation_interest' | 'notify_on_new_vacation' | 'notify_on_cross_shifts' | 'notification_enabled', value: boolean) {
+  async function handleToggle(field: 'notify_on_interest' | 'notify_on_new_shift' | 'notify_on_vacation_interest' | 'notify_on_new_vacation' | 'notify_on_cross_shifts' | 'notify_shift_filter' | 'notification_enabled', value: boolean) {
     try {
       await updateUserProfile({ [field]: value })
       queryClient.invalidateQueries({ queryKey: ['current-user'] })
@@ -153,6 +153,25 @@ export function SettingsPage() {
                   onCheckedChange={v => handleToggle('notify_on_new_shift', v)}
                   disabled={!profile?.notification_enabled}
                 />
+              </div>
+              {/* Filtro «posso coprirlo»: notifica solo i cambi che corrispondono al
+                  MIO turno del giorno offerto (reale dal PDF, altrimenti teorico). */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notif-shift-filter" className="text-muted-foreground">
+                    Solo se posso coprirlo
+                  </Label>
+                  <Switch
+                    id="notif-shift-filter"
+                    checked={profile?.notify_shift_filter ?? false}
+                    onCheckedChange={v => handleToggle('notify_shift_filter', v)}
+                    disabled={!profile?.notification_enabled || !(profile?.notify_on_new_shift ?? false)}
+                  />
+                </div>
+                <p className="text-[10px] leading-snug text-muted-foreground">
+                  Ti avvisiamo solo dei cambi compatibili col tuo turno del giorno offerto
+                  (prima quello reale, altrimenti il teorico).
+                </p>
               </div>
               {/* DCO+ e Noni ricevono notifiche dei turni dell'altro gruppo (mansioni superiori) */}
               {(profile?.is_dco_plus || profile?.is_secondary) && (

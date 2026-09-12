@@ -42,6 +42,13 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
   const [requestedShifts, setRequestedShifts] = useState<ShiftType[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [compatibleMatches, setCompatibleMatches] = useState<Shift[]>([])
+  // Avviso di fattibilità (richiesta 12/09/2026): prima di pubblicare si chiede
+  // all'API se il MIO turno del giorno offerto (reale→teorico) copre uno dei
+  // turni cercati. Se no, popup di conferma: la richiesta resta possibile (il
+  // motore di match guarda le richieste degli ALTRI) ma senza il turno giusto
+  // è destinata a restare senza match.
+  const [compatCheck, setCompatCheck] = useState<{ myShift: ShiftType | null; source: 'real' | 'theoretical' | 'none' } | null>(null)
+  const [compatLoading, setCompatLoading] = useState(false)
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
   const { data: shifts = [] } = useShifts(isSecondary, isDcoPlus)
@@ -75,6 +82,7 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
     setOfferedShift(null)
     setRequestedShifts([])
     setCompatibleMatches([])
+    setCompatCheck(null)
   }
 
   async function doPublish() {
@@ -148,6 +156,25 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
       setCompatibleMatches(matches)
       return
     }
+    // Verifica di fattibilità: il mio turno quel giorno (reale, altrimenti teorico)
+    // è fra i turni che cerco? Se no → popup di conferma prima di pubblicare.
+    if (!impersonatingUserId) {
+      setCompatLoading(true)
+      try {
+        const res = await fetch(`/api/shift-compat?date=${dateStr}&requested=${requestedShifts.join(',')}`)
+        if (res.ok) {
+          const json = await res.json() as { myShift: ShiftType | null; source: 'real' | 'theoretical' | 'none'; compatible: boolean }
+          if (!json.compatible) {
+            setCompatCheck({ myShift: json.myShift, source: json.source })
+            return
+          }
+        }
+      } catch {
+        /* verifica non disponibile: si pubblica senza popup, come prima */
+      } finally {
+        setCompatLoading(false)
+      }
+    }
     await doPublish()
   }
 
@@ -202,7 +229,42 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
         style={{ maxHeight: isIOS ? '85dvh' : '85svh' }}
       >
         <div className="scroll-area overflow-y-auto flex-1 min-h-0 px-5 pb-5 pt-5 space-y-5">
-          {compatibleMatches.length > 0 ? (
+          {compatCheck ? (
+            /* Popup «non è fattibile col tuo turno»: conferma o annulla */
+            <div className="space-y-4">
+              <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 space-y-2">
+                <p className="text-[13px] font-bold">Richiesta non coperta dal tuo turno</p>
+                <p className="text-[12px] leading-snug text-muted-foreground">
+                  Il {format(selectedDate!, 'd MMMM', { locale: it })} hai{' '}
+                  <span className="font-semibold text-foreground">
+                    {compatCheck.myShift
+                      ? compatCheck.myShift.toLowerCase()
+                      : compatCheck.source === 'theoretical' ? 'riposo (teorico)' : 'nessun turno'}
+                  </span>
+                  {' '}(dal {compatCheck.source === 'real' ? 'turno reale' : 'turno teorico'}), ma offri{' '}
+                  <span className="font-semibold text-foreground">{offeredShift?.toLowerCase()}</span> cercando{' '}
+                  <span className="font-semibold text-foreground">{requestedShifts.join(' o ').toLowerCase()}</span>.
+                  Chi ha quel giorno uno dei turni cercati potrebbe accettare, ma tu non potresti
+                  mai ricambiare: la richiesta resterà senza match.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => { setCompatCheck(null); setOfferedShift(null); setRequestedShifts([]) }}
+              >
+                Ho capito, correggo
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full text-[12px]"
+                onClick={() => { setCompatCheck(null); doPublish() }}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Pubblicazione...' : 'Pubblica comunque la mia richiesta'}
+              </Button>
+            </div>
+          ) : compatibleMatches.length > 0 ? (
             <CompatibilityPanel
               matches={compatibleMatches}
               onInterest={handleInterest}
@@ -286,8 +348,8 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
                 </div>
               )}
 
-              <Button onClick={handleSubmit} disabled={isSubmitting || !canSubmit} className="w-full">
-                {isSubmitting ? 'Pubblicazione...' : 'Pubblica'}
+              <Button onClick={handleSubmit} disabled={isSubmitting || compatLoading || !canSubmit} className="w-full">
+                {isSubmitting || compatLoading ? 'Verifica...' : 'Pubblica'}
               </Button>
             </>
           )}

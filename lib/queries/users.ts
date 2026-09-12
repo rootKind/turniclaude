@@ -21,6 +21,7 @@ export async function updateUserProfile(updates: Partial<Pick<UserProfile,
   | 'notify_on_vacation_interest'
   | 'notify_on_new_vacation'
   | 'notify_on_cross_shifts'
+  | 'notify_shift_filter'
 >>) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -607,6 +607,16 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (`001c315b-…-f3ff`), Mariapia Di Napoli (`51a6cc71-…-cb2`).
 - **Attenzione auth/push:** `app/api/vacanze/check-chains` accetta `newRequestUserId`/`isSecondary`
   dal client senza validarli (vettore spam notifiche). Da validare se si tocca quella route.
+- **Filtro notifiche «solo se posso coprirlo» (12/09/2026, migration 023 APPLICATA a dev):**
+  `users.notify_shift_filter` (default false = riceve tutto). Se attivo, `/api/push/notify` type
+  `new_shift` notifica l'utente SOLO se il SUO turno del giorno offerto (REALE dal PDF del mese;
+  in mancanza TEORICO dalle squadre DB via `getUserShiftOnDate` in `lib/shift-compat.ts`) è fra
+  i `requested_shifts` della richiesta. La stessa lib serve `GET /api/shift-compat?date=&requested=`
+  per la verifica PRE-pubblicazione in `shift-dialog.tsx`: se il mio turno non copre nessuno dei
+  turni cercati → popup di conferma (amber, «Richiesta non coperta dal tuo turno» con il turno
+  trovato e la sua fonte) con «Ho capito, correggo» / «Pubblica comunque». La verifica gira SOLO
+  per pubblicazioni normali (non impersonate). Su PRODUCTION la 023 va ancora applicata (SQL
+  editor/Management API, come da nota release).
 - **Lint noti, non bloccanti:** `react-hooks/purity` (Math.random, accettato),
   `react-hooks/refs` in `shift-list.tsx:241,244`, `no-explicit-any` in `lib/pdf-parser.ts:275,279`,
   `lib/queries/sala-layout.ts:13`, `lib/queries/vacations.ts:125–127,136`.

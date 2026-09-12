@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { pushToUser } from '@/lib/push/send-to-user'
 import { formatDateShort } from '@/lib/utils'
 import { VACATION_PERIOD_LABELS_SHORT } from '@/lib/vacations'
-import type { VacationPeriod } from '@/types/database'
+import { getUserShiftOnDate, userCoversRequest } from '@/lib/shift-compat'
+import type { VacationPeriod, ShiftType } from '@/types/database'
 
 const KNOWN_TYPES = ['new_shift', 'interest', 'vacation_interest', 'new_vacation']
 
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
     // Notify everyone who can see it, with master switch + new-shift opt-in, excluding the actor
     const { data: targets } = await supabase
       .from('users')
-      .select('id, is_secondary, is_dco_plus, notify_on_cross_shifts')
+      .select('id, is_secondary, is_dco_plus, notify_on_cross_shifts, notify_shift_filter')
       .eq('notification_enabled', true)
       .eq('notify_on_new_shift', true)
       .neq('id', user.id)
@@ -70,8 +71,26 @@ export async function POST(req: Request) {
       return true
     })
 
+    // Filtro «solo se posso coprirlo» (richiesta 12/09/2026): l'utente riceve la
+    // notifica solo se il SUO turno del giorno offerto (reale dal PDF, altrimenti
+    // teorico) è fra i turni cercati dalla richiesta. I richiedenti senza filtro
+    // restano fuori da questo controllo.
+    const requestedList = Array.isArray(requestedShifts) ? (requestedShifts as ShiftType[]) : []
+    const filterIds = eligible.filter(t => t.notify_shift_filter === true).map(t => t.id)
+    const compatByUser = new Map<string, boolean>()
+    if (filterIds.length && shiftDate && typeof shiftDate === 'string' && requestedList.length) {
+      await Promise.all(filterIds.map(async id => {
+        const mine = await getUserShiftOnDate(supabase, id, shiftDate)
+        compatByUser.set(id, userCoversRequest(mine.shift, requestedList))
+      }))
+    }
+
     if (eligible.length) {
       const dateLabel = shiftDate ? formatDateShort(shiftDate as string) : ''
+      // Applica il filtro di compatibilità (default false = riceve tutto, come prima).
+      const finalTargets = eligible.filter(t =>
+        t.notify_shift_filter !== true || compatByUser.get(t.id) === true,
+      )
       const requestedLabel = Array.isArray(requestedShifts) ? (requestedShifts as string[]).join('/') : ''
       const payload = {
         title: 'Nuovo turno disponibile',
@@ -81,7 +100,7 @@ export async function POST(req: Request) {
         type: 'new_shift',
         shiftId: shiftId ? Number(shiftId) : null,
       }
-      await Promise.allSettled(eligible.map(t => pushToUser(t.id, payload)))
+      await Promise.allSettled(finalTargets.map(t => pushToUser(t.id, payload)))
     }
   } else if (type === 'interest') {
     // Notify the shift owner if they have the master switch + interest opt-in
