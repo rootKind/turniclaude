@@ -772,6 +772,8 @@
      richiesta esplicita 12/09/2026 — #dfe8f2 nel chiaro, #454545 nello scuro. */
   .picker-sel-m { background: var(--picker-sel-bg); border: 1px solid var(--picker-sel-border); color: var(--picker-sel-text); }
   .picker-sel-y { background: var(--picker-sel-bg); border: 1px solid var(--picker-sel-border); color: var(--picker-sel-text); }
+  /* Pallino «PDF caricato» nel picker mese/anno: accent del tema. */
+  .pdf-dot { background: var(--picker-sel-bg); border: 1px solid var(--picker-sel-border); }
 
   /* Calendario di turnisala (react-day-picker): pannello #171717 in scuro,
      giorno selezionato #dfe8f2 chiaro / #454545 scuro (richiesta 12/09/2026). */

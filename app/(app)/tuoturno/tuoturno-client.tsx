@@ -982,7 +982,9 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
                   )}
                 >
                   {label}
-                  {hasPdf && <span className={cn('h-1.5 w-1.5 rounded-full', on ? 'bg-current' : 'bg-primary')} aria-label="PDF caricato" />}
+                  {/* Pallino PDF: accent del tema (#dfe8f2 chiaro / #454545 scuro)
+                      su tutte le voci, selezionate incluse. */}
+                  {hasPdf && <span className="pdf-dot h-1.5 w-1.5 rounded-full" aria-label="PDF caricato" />}
                 </button>
               )
             })}
