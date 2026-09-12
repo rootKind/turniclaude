@@ -419,11 +419,19 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `tuoturno-client.tsx`: intestazione «Il tuo turno» + nome della persona (tap → dialog con ricerca per
   scegliere QUALSIASI dipendente, default = utente loggato), calendario mensile con swipe orizzontale
   (touch, soglia 50px; le frecce ‹ › fanno lo stesso) e legenda. Celle «variante E» (min-h 76px): la card
-  è INTERAMENTE tinta dal tipo di turno — numero del giorno compreso — blu Mattina, ambra Pomeriggio,
+  è INTERAMENTE tinta — numero del giorno compreso — blu Mattina, ambra Pomeriggio,
   lilla Notte (tinte = pill della dashboard), grigio riposi, rosso assenze, verde attività senza sezione
   (`.cell-day` + `.cell-tint-*` in `app/globals.css`; dal 12/09/2026 le tinte M/P/N puntano alle
-  variabili `--pill-*` della dashboard e le card a SINGOLO turno M/P/N portano il bordo pill 1px
-  `color-mix(currentColor 30%)`, come le pill della dashboard). Le «card vuote» prima del giorno 1
+  variabili `--pill-*` della dashboard). **Modalità colore (12/09/2026):** tre selettori sotto la nav
+  del mese — «Turno» (predefinita: colore per tipo di turno), «Contenuto» (tutti i turni in una tinta
+  unica neutra, `cell-tint-work`; riposi/assenze/disponibilità/attività restano distinti) e «Sezione»
+  (colore per sezione 2..11, `cell-sec-*`: la rotazione si legge a colpo d'occhio; i non-turni restano
+  con le tinte di contenuto). Scelta persistita in localStorage (`tuoturno-color`) via store esterno +
+  `useSyncExternalStore` (niente setState in effect: il lint `react-hooks/set-state-in-effect` lo vieta).
+  **Bordo pill su TUTTE le card (12/09/2026):** ogni tinta `.cell-tint-*` e `.cell-sec-*` porta
+  `border: 1px solid color-mix(currentColor 30%)` nel colore del proprio riempimento, per tema.
+  **La legenda sotto la nav del mese è stata RIMOSSA (12/09/2026):** i significati dei codici stanno
+  nel testo esplicativo in fondo pagina. Le «card vuote» prima del giorno 1
   (mese che non inizia di lunedì) sono INVISIBILI ma esistono ancora nel layout: sono sostegni vuoti
   (`div aria-hidden`, niente bordi) perché la grid NON salta celle da sola — rimuoverli del tutto
   fa partire ogni mese dal lunedì (bug 12/09/2026, fix `3ac8704`); gli skeleton di caricamento
@@ -433,8 +441,9 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   sta nel tooltip del giorno (12/09/2026: il BORDO TRATTEGGIATO ROSSO `is-diff` è stato RIMOSSO —
   chi fa sempre turni diversi dal teorico vedrebbe tutte le card tratteggiate; rimaste le variabili
   `--cell-diff-*` sono state eliminate). L'anello interno ambra (`is-pend`, 3px) è l'UNICO marcatore:
-  segna i turni con sfondo giallo sul PDF = «da confermare» e VINCE sulla condizione «diverso»
-  (una card gialla non porta mai anche il barrato); il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
+  segna i turni con sfondo giallo sul PDF = «da confermare» (dal 12/09/2026 compare SEMPRE quando il
+  PDF lo indica, anche se il reale differisce dal teorico — prima veniva soppresso in quel caso e
+  Minino 23/09 non risultava «giallo»; il barrato del teorico resta in aggiunta); il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
   per i mesi presenti in `sala_schedule`, gli altri restano teorici (etichetta «turni reali (PDF)» /
   «turni teorici» sotto il mese). La soglia di differenza è `realTheoreticalMismatch` su
   `tokenCompareKey` (turno + sezione; slot T/S e TIR ignorati), quindi «M4 vs M9» è una differenza

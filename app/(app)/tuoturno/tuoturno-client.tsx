@@ -76,11 +76,57 @@ function legacyRealShift(
   return null
 }
 
+/** Come colorare le card del calendario. */
+type ColorMode = 'shift' | 'content' | 'section'
+
+/** Preferenza della modalità colore, persistita in locale (store esterno per evitare setState in effect). */
+const colorPref = {
+  listeners: new Set<() => void>(),
+  get(): ColorMode {
+    const v = localStorage.getItem('tuoturno-color')
+    return v === 'content' || v === 'section' ? v : 'shift'
+  },
+  set(v: ColorMode) {
+    localStorage.setItem('tuoturno-color', v)
+    colorPref.listeners.forEach(l => l())
+  },
+  subscribe(l: () => void) {
+    colorPref.listeners.add(l)
+    return () => { colorPref.listeners.delete(l) }
+  },
+}
+
 /**
- * Tinta della card (variante E): il colore segue il tipo di turno, così il mese
- * si legge come una fascia di turni a colpo d'occhio.
+ * Tinta della card (variante E), secondo la modalità scelta:
+ * - «shift» (predefinita): il colore segue il tipo di turno, come la dashboard;
+ * - «content»: tutti i turni nella stessa tinta neutra (il tipo di contenuto —
+ *   riposo/assenza/disponibilità/attività — resta distinguibile);
+ * - «section»: il colore segue la sezione (2..11), così la rotazione si legge a colpo d'occhio.
  */
-function cellTintClass(kind: SalaCodeKind, token: string): string {
+function cellTintClass(kind: SalaCodeKind, token: string, mode: ColorMode): string {
+  if (mode === 'section') {
+    if (kind !== 'work') return cellTintClass(kind, token, 'content')
+    const m = token.match(/\d+/)
+    const sec = m ? Number(m[0]) : 0
+    return sec >= 2 && sec <= 11 ? `cell-sec-${sec}` : 'cell-tint-duty'
+  }
+  if (mode === 'content') {
+    switch (kind) {
+      case 'work':
+        return 'cell-tint-work'
+      case 'rest':
+        return 'cell-tint-rest'
+      case 'availability':
+        return 'cell-tint-avail'
+      case 'absence':
+        return 'cell-tint-abs'
+      case 'duty':
+      case 'other':
+        return 'cell-tint-duty'
+      default:
+        return 'cell-tint-empty'
+    }
+  }
   switch (kind) {
     case 'work':
       if (token[0] === 'M') return 'cell-tint-m'
@@ -105,17 +151,6 @@ function cellTintClass(kind: SalaCodeKind, token: string): string {
 function displayToken(token: string): string {
   return isWorkToken(token) ? tokenLabel(token) : token
 }
-
-/** Tinte della legenda della variante E. */
-const TINT_LEGEND: { cls: string; code: string; label: string }[] = [
-  { cls: 'cell-tint-p', code: 'P', label: 'pomeriggio' },
-  { cls: 'cell-tint-m', code: 'M', label: 'mattina' },
-  { cls: 'cell-tint-n', code: 'N', label: 'notte' },
-  { cls: 'cell-tint-rest', code: 'RR', label: 'riposo' },
-  { cls: 'cell-tint-avail', code: 'D', label: 'disponibilità' },
-  { cls: 'cell-tint-abs', code: 'A', label: 'assenza' },
-  { cls: 'cell-tint-duty', code: 'Sp', label: 'senza sezione' },
-]
 
 // ─── confronto fra più dipendenti ────────────────────────────────────────────
 
@@ -165,7 +200,7 @@ function buildCompareDay(real: PersonDayShift | null, theo: string, hasTheoretic
     token: real ? real.short : theo,
     label: real ? displayToken(real.short) : theo ? displayToken(theo) : '—',
     mismatch: !!(real && hasTheoretical && theo && realTheoreticalMismatch(real.short, theo)),
-    pending: !!(real?.pending && !(real && hasTheoretical && theo && realTheoreticalMismatch(real.short, theo))),
+    pending: !!real?.pending,
     theoLabel: theo ? tokenLabel(theo) : '',
   }
 }
@@ -177,11 +212,12 @@ function buildCompareDay(real: PersonDayShift | null, theo: string, hasTheoretic
  * così si evita di scorrere: con 2 soli dipendenti e uno schermo alto l'intero
  * mese sta in 3-4 blocchi senza scroll.
  */
-function CompareTable({ rows, chunks, month, todayISO }: {
+function CompareTable({ rows, chunks, month, todayISO, colorMode }: {
   rows: CompareRow[]
   chunks: number[][]
   month: string
   todayISO: string
+  colorMode: ColorMode
 }) {
   return (
     <div className="overflow-x-auto -mx-3 px-3 pb-1">
@@ -224,8 +260,8 @@ function CompareTable({ rows, chunks, month, todayISO }: {
                       className={cn(
                         'cell-day shrink-0 rounded-lg flex flex-col items-center justify-center text-center',
                         CMP_COL,
-                        cellTintClass(c.kind, c.token),
-                        !c.mismatch && c.pending && 'is-pend',
+                        cellTintClass(c.kind, c.token, colorMode),
+                        c.pending && 'is-pend',
                         dateISO === todayISO && 'is-today',
                       )}
                     >
@@ -275,6 +311,8 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const [compareOpen, setCompareOpen] = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareDraft, setCompareDraft] = useState<string[]>([])
+  // Modalità colore delle card (Turno / Contenuto / Sezione), persistita in locale.
+  const colorMode = useSyncExternalStore(colorPref.subscribe, colorPref.get, () => 'shift' as ColorMode)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
 
   const duplicateCognomi = useMemo(() => buildDuplicateCognomi(users), [users])
@@ -487,6 +525,32 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         </button>
       </div>
 
+      {/* Modalità colore delle card */}
+      <div className="mx-auto mb-3 flex w-fit items-center gap-0.5 rounded-xl border border-border/60 p-0.5">
+        {(
+          [
+            ['shift', 'Turno', 'Colore per tipo di turno (come la dashboard)'],
+            ['content', 'Contenuto', 'Un colore unico per tutti i turni'],
+            ['section', 'Sezione', 'Colore per sezione: la rotazione a colpo d\'occhio'],
+          ] as const
+        ).map(([value, label, title]) => (
+          <button
+            key={value}
+            onClick={() => colorPref.set(value)}
+            title={title}
+            aria-pressed={colorMode === value}
+            className={cn(
+              'rounded-lg px-3 py-1 text-[11px] font-semibold transition-colors',
+              colorMode === value
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {comparing ? (
         loadingReal ? (
           // Il PDF del mese sta arrivando: righe skeleton, come le altre pagine.
@@ -496,7 +560,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             ))}
           </div>
         ) : (
-          <CompareTable rows={compareRows} chunks={compareChunks} month={month} todayISO={today} />
+          <CompareTable rows={compareRows} chunks={compareChunks} month={month} todayISO={today} colorMode={colorMode} />
         )
       ) : (
         <>
@@ -547,9 +611,10 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                     : theo ? displayToken(theo) : '—'
                   // Un reale diverso dal teorico (anche solo per sezione) va notato subito.
                   const mismatch = !!(real && theo && realTheoreticalMismatch(real.short, theo))
-                  // Evidenziazione UNICA per card: l'anello ambra «da confermare» vince
-                  // sulla condizione «diverso dal teorico» (solo barrato + tooltip).
-                  const showPending = !!real?.pending && !mismatch
+                  // Evidenziazione UNICA per card: l'anello ambra «da confermare»
+                  // (sfondo giallo sul PDF) compare SEMPRE quando il PDF lo indica,
+                  // anche se il reale differisce dal teorico (lì il teorico resta barrato).
+                  const showPending = !!real?.pending
 
                   const realLabel = real ? (real.kind === 'work' ? tokenLabel(real.short) : `${real.label} (${real.short})`) : 'nessun turno'
                   const theoLabel = theo ? tokenLabel(theo) : 'nessun turno'
@@ -564,8 +629,8 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                       title={cellTitle}
                       className={cn(
                         'cell-day rounded-xl min-h-[76px] px-0.5 py-1.5 flex flex-col items-center justify-center gap-0.5 text-center',
-                        cellTintClass(primaryKind, primaryToken),
-                        !mismatch && showPending && 'is-pend',
+                        cellTintClass(primaryKind, primaryToken, colorMode),
+                        showPending && 'is-pend',
                         isToday && 'is-today',
                       )}
                     >
@@ -585,22 +650,6 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         </>
       )}
 
-      {/* Legenda */}
-      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
-        {TINT_LEGEND.map(({ cls, code, label }) => (
-          <span key={code} className="inline-flex items-center gap-1.5">
-            <span className={cn('cell-day rounded px-1.5 py-0.5 text-[11px] font-bold leading-none', cls)}>
-              {code}
-            </span>
-            {label}
-          </span>
-        ))}
-        <span className="inline-flex items-center gap-1.5">
-          <span className="cell-day is-pend rounded px-1.5 py-0.5 text-[11px] font-bold leading-none">M4</span>
-          da confermare
-        </span>
-      </div>
-
       {comparing ? (
         <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
           <b>Una riga per dipendente</b>, i giorni in orizzontale con giorno della settimana e numero.
@@ -612,8 +661,11 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         </p>
       ) : isRealMonth ? (
         <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-          <b>L&apos;intera card è tinta dal turno</b>: azzurro pomeriggio, rosa mattina, lilla notte,
-          grigio riposi, rosso assenze, verde attività senza sezione. Il codice in evidenza è il{' '}
+          <b>L&apos;intera card è tinta dal contenuto</b>: in modalità «Turno» gli stessi colori
+          delle pill della dashboard (pomeriggio azzurro, mattina ambra, notte lilla, riposi grigi,
+          assenze rosse, disponibilità azzurro chiaro, attività senza sezione verdi); con
+          «Contenuto» tutti i turni hanno una tinta unica; con «Sezione» il colore segue la
+          sezione e la rotazione si legge a colpo d&apos;occhio. Il codice in evidenza è il{' '}
           <b>reale</b> del PDF; se il reale manca compare il <b>teorico</b> (la riga base del PDF o,
           dove manca, la previsione dalla tua storia dei mesi passati). Quando i due
           differiscono, il teorico appare <b>barrato</b> sopra il codice (e nel tooltip del giorno).

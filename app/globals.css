@@ -100,6 +100,18 @@
   --cell-duty-bg: #d6f0dd;  --cell-duty-text: #1f5a34;
   --cell-empty-bg: #eef0f2; --cell-empty-text: #8b939e;
   --cell-pend-ring: #d9a53a;
+  --cell-work-bg: #d8e0ea;  --cell-work-text: #33475e;
+  /* Tinte per SEZIONE (modalità «Sezione» de «Il tuo turno»), sezioni 2..11. */
+  --cell-sec-2-bg: #cceceb;  --cell-sec-2-text: #0f5a58;
+  --cell-sec-3-bg: #ffe4cc;  --cell-sec-3-text: #92400e;
+  --cell-sec-4-bg: #dbeafe;  --cell-sec-4-text: #1e40af;
+  --cell-sec-5-bg: #d3f0d9;  --cell-sec-5-text: #166534;
+  --cell-sec-6-bg: #fdd8d3;  --cell-sec-6-text: #991b1b;
+  --cell-sec-7-bg: #e6dcfb;  --cell-sec-7-text: #5b21b6;
+  --cell-sec-8-bg: #fdeeb8;  --cell-sec-8-text: #854d0e;
+  --cell-sec-9-bg: #cff3f7;  --cell-sec-9-text: #155e75;
+  --cell-sec-10-bg: #dbe4ff; --cell-sec-10-text: #3730a3;
+  --cell-sec-11-bg: #fbd5ec; --cell-sec-11-text: #9d174d;
 
   /* Impersonation banner — inverso (nero in chiaro, bianco in scuro) */
   --banner-impersonate-bg: #1c1c1c;
@@ -284,6 +296,18 @@
   --cell-duty-bg: #16301f;  --cell-duty-text: #9fd9b4;
   --cell-empty-bg: #1b1f24; --cell-empty-text: #8b939e;
   --cell-pend-ring: #d9a53a;
+  --cell-work-bg: #232b36;  --cell-work-text: #aebfd4;
+  /* Tinte per SEZIONE (modalità «Sezione» de «Il tuo turno»), sezioni 2..11. */
+  --cell-sec-2-bg: #0e3332;  --cell-sec-2-text: #7fd8d4;
+  --cell-sec-3-bg: #3a2410;  --cell-sec-3-text: #f0b077;
+  --cell-sec-4-bg: #1e3a5f;  --cell-sec-4-text: #9db8dd;
+  --cell-sec-5-bg: #14361f;  --cell-sec-5-text: #86d9a5;
+  --cell-sec-6-bg: #44191a;  --cell-sec-6-text: #f2a49e;
+  --cell-sec-7-bg: #2d1b69;  --cell-sec-7-text: #c3b4ef;
+  --cell-sec-8-bg: #3b2f07;  --cell-sec-8-text: #e3c766;
+  --cell-sec-9-bg: #0d3742;  --cell-sec-9-text: #86d3e8;
+  --cell-sec-10-bg: #232a5c; --cell-sec-10-text: #aab8f2;
+  --cell-sec-11-bg: #431736; --cell-sec-11-text: #f0a6d3;
 
   /* Impersonation banner — dark (inverso: bianco) */
   --banner-impersonate-bg: #ffffff;
@@ -508,11 +532,27 @@
   .cell-tint-m     { background: var(--cell-m-bg);     color: var(--cell-m-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
   .cell-tint-p     { background: var(--cell-p-bg);     color: var(--cell-p-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
   .cell-tint-n     { background: var(--cell-n-bg);     color: var(--cell-n-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
-  .cell-tint-rest  { background: var(--cell-rest-bg);  color: var(--cell-rest-text); }
-  .cell-tint-avail { background: var(--cell-avail-bg); color: var(--cell-avail-text); }
-  .cell-tint-abs   { background: var(--cell-abs-bg);   color: var(--cell-abs-text); }
-  .cell-tint-duty  { background: var(--cell-duty-bg);  color: var(--cell-duty-text); }
-  .cell-tint-empty { background: var(--cell-empty-bg); color: var(--cell-empty-text); }
+  /* Bordo pill (1px currentColor 30%) su TUTTE le card: il colore segue il
+     riempimento di ciascuna tinta, chiaro e scuro. */
+  .cell-tint-rest  { background: var(--cell-rest-bg);  color: var(--cell-rest-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-avail { background: var(--cell-avail-bg); color: var(--cell-avail-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-abs   { background: var(--cell-abs-bg);   color: var(--cell-abs-text);   border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-duty  { background: var(--cell-duty-bg);  color: var(--cell-duty-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-empty { background: var(--cell-empty-bg); color: var(--cell-empty-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  /* Modalità «Contenuto»: tutti i turni in un'unica tinta neutra (il tipo di
+     contenuto — riposo/assenza/disponibilità/attività — resta distinguibile). */
+  .cell-tint-work  { background: var(--cell-work-bg);  color: var(--cell-work-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  /* Modalità «Sezione»: tinta per numero di sezione (2..11), stesso bordo. */
+  .cell-sec-2  { background: var(--cell-sec-2-bg);  color: var(--cell-sec-2-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-sec-3  { background: var(--cell-sec-3-bg);  color: var(--cell-sec-3-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-sec-4  { background: var(--cell-sec-4-bg);  color: var(--cell-sec-4-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-sec-5  { background: var(--cell-sec-5-bg);  color: var(--cell-sec-5-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-sec-6  { background: var(--cell-sec-6-bg);  color: var(--cell-sec-6-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-sec-7  { background: var(--cell-sec-7-bg);  color: var(--cell-sec-7-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-sec-8  { background: var(--cell-sec-8-bg);  color: var(--cell-sec-8-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-sec-9  { background: var(--cell-sec-9-bg);  color: var(--cell-sec-9-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-sec-10 { background: var(--cell-sec-10-bg); color: var(--cell-sec-10-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-sec-11 { background: var(--cell-sec-11-bg); color: var(--cell-sec-11-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
   /* «Da confermare» (sfondo giallo sul PDF): anello interno ambra 3px — è l'UNICO
      marcatore sulle card (il bordo tratteggiato dei «diversi dal teorico» è stato
      rimosso 12/09/2026: chi fa sempre turni diversi vedrebbe tutto tratteggiato). */
