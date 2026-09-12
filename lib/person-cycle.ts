@@ -414,3 +414,85 @@ export function predictTheoreticalMonth(
 
   return new Array(n).fill('')
 }
+
+// ─── colori delle card «Il tuo turno» (variante E) ─────────────────────────
+
+/** Tipologia di contenuto di una card del calendario personale. */
+export type CardKind =
+  | 'mattina'
+  | 'pomeriggio'
+  | 'notte'
+  | 'rest'
+  | 'availability'
+  | 'absence'
+  | 'duty'
+
+/** Colori { sfondo, testo } per tipologia; `undefined` = il tema fa da padrone (default CSS). */
+export type CardPalette = Partial<Record<CardKind, { bg: string; text: string }>>
+
+export const CARD_KINDS: { kind: CardKind; label: string; hint: string }[] = [
+  { kind: 'pomeriggio', label: 'Pomeriggio (P)', hint: 'Turni pomeriggio' },
+  { kind: 'mattina', label: 'Mattina (M)', hint: 'Turni mattina' },
+  { kind: 'notte', label: 'Notte (N)', hint: 'Turni notte' },
+  { kind: 'rest', label: 'Riposo (RM/RC/RI)', hint: 'Riposi' },
+  { kind: 'availability', label: 'Disponibilità (D)', hint: 'Disponibilità' },
+  { kind: 'absence', label: 'Assenza (A, F.E., VS…)', hint: 'Assenze e congedi' },
+  { kind: 'duty', label: 'Senza sezione (Sp, ISp…)', hint: 'Presente ma non in sezione' },
+]
+
+const PALETTE_KEY = 'tuoturno-colori'
+
+function readPalette(): CardPalette {
+  try {
+    const raw = localStorage.getItem(PALETTE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as CardPalette
+    if (!parsed || typeof parsed !== 'object') return {}
+    const out: CardPalette = {}
+    for (const { kind } of CARD_KINDS) {
+      const v = parsed[kind]
+      if (v && typeof v.bg === 'string' && typeof v.text === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.bg) && /^#[0-9a-fA-F]{6}$/.test(v.text)) {
+        out[kind] = { bg: v.bg, text: v.text }
+      }
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Palette personalizzata dell'utente, persistita in localStorage. Store esterno
+ * letto con `useSyncExternalStore` (niente setState in effect: il lint lo vieta).
+ */
+export const cardPaletteStore = {
+  listeners: new Set<() => void>(),
+  get(): CardPalette {
+    return readPalette()
+  },
+  set(kind: CardKind, colors: { bg: string; text: string } | null) {
+    const p = readPalette()
+    if (colors) p[kind] = colors
+    else delete p[kind]
+    try {
+      localStorage.setItem(PALETTE_KEY, JSON.stringify(p))
+    } catch {
+      /* storage pieno o non disponibile: la preferenza resta solo per la sessione */
+    }
+    cardPaletteStore.listeners.forEach(l => l())
+  },
+  reset() {
+    try {
+      localStorage.removeItem(PALETTE_KEY)
+    } catch {
+      /* come sopra */
+    }
+    cardPaletteStore.listeners.forEach(l => l())
+  },
+  subscribe(l: () => void) {
+    cardPaletteStore.listeners.add(l)
+    return () => {
+      cardPaletteStore.listeners.delete(l)
+    }
+  },
+}

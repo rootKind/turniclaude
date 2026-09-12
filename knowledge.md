@@ -387,7 +387,8 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (`encode/decodeSalaMonth`, `findMonthPerson`, `personDayShift`, `salaCodeInfo`).
 - **«Il tuo turno» — codici completi (11/09/2026):** la cella mostra anche assenze/riposi/disponibilità/
   attività senza sezione, con la tinta per tipo di turno della «variante E» (vedi più sotto); i turni
-  «da confermare» (cella gialla sul PDF) hanno l'anello interno ambra 3px, che è l'UNICO marcatore
+  «da confermare» (cella gialla sul PDF) hanno il contorno solido ambra di 2px ESATTO sul bordo
+  della card (non un anello interno: vedi nota stile più sotto), che è l'UNICO marcatore
   sulle card (12/09/2026).
   Nota (AGGIORNATA 12/09/2026, v2): il «teorico» della pagina NON è più solo la rotazione ricostruita
   dall'app (`generateTheoreticalMonth`): ha tre sorgenti in ordine di priorità — (1) la riga base del
@@ -422,16 +423,22 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   è INTERAMENTE tinta — numero del giorno compreso — blu Mattina, ambra Pomeriggio,
   lilla Notte (tinte = pill della dashboard), grigio riposi, rosso assenze, verde attività senza sezione
   (`.cell-day` + `.cell-tint-*` in `app/globals.css`; dal 12/09/2026 le tinte M/P/N puntano alle
-  variabili `--pill-*` della dashboard). **Modalità colore (12/09/2026):** tre selettori sotto la nav
-  del mese — «Turno» (predefinita: colore per tipo di turno), «Contenuto» (tutti i turni in una tinta
-  unica neutra, `cell-tint-work`; riposi/assenze/disponibilità/attività restano distinti) e «Sezione»
-  (colore per sezione 2..11, `cell-sec-*`: la rotazione si legge a colpo d'occhio; i non-turni restano
-  con le tinte di contenuto). Scelta persistita in localStorage (`tuoturno-color`) via store esterno +
-  `useSyncExternalStore` (niente setState in effect: il lint `react-hooks/set-state-in-effect` lo vieta).
-  **Bordo pill su TUTTE le card (12/09/2026):** ogni tinta `.cell-tint-*` e `.cell-sec-*` porta
+  variabili `--pill-*` della dashboard). **Pannello COLORI (12/09/2026):** pulsante «Colori»
+  (icona Palette) accanto a «Confronta» in alto: dialog con una riga per tipologia di contenuto
+  (Pomeriggio, Mattina, Notte, Riposo, Disponibilità, Assenza, Senza sezione — `CARD_KINDS` in
+  `lib/person-cycle.ts`), per ognuna si scelgono sfondo e testo (color input + anteprima) e si
+  può ripristinare il default; palette persistita in localStorage (`tuoturno-colori`) via store
+  esterno `cardPaletteStore` + `useSyncExternalStore` (niente setState in effect: il lint
+  `react-hooks/set-state-in-effect` lo vieta). Gli override viaggiano come variabili CSS inline
+  `--c-bg`/`--c-text`, che ogni `.cell-tint-*` consuma con fallback `var(--c-bg, var(--cell-*-bg))`
+  — così il bordo `color-mix(currentColor 30%)` segue automaticamente il colore personalizzato.
+  Ha sostituito il precedente selettore a tre modalità «Turno/Contenuto/Sezione» (visto e rimosso
+  in giornata: la modalità «Sezione» non è piaciuta).
+  **Bordo pill su TUTTE le card (12/09/2026):** ogni tinta `.cell-tint-*` porta
   `border: 1px solid color-mix(currentColor 30%)` nel colore del proprio riempimento, per tema.
-  **La legenda sotto la nav del mese è stata RIMOSSA (12/09/2026):** i significati dei codici stanno
-  nel testo esplicativo in fondo pagina. Le «card vuote» prima del giorno 1
+  **RIMOSSI dalla pagina (12/09/2026):** la legenda sotto la nav del mese E tutti i testi
+  esplicativi sotto il calendario (spiegazioni, suggerimento swipe, avviso «nulla da prevedere»):
+  la pagina ora finisce con la griglia. Le «card vuote» prima del giorno 1
   (mese che non inizia di lunedì) sono INVISIBILI ma esistono ancora nel layout: sono sostegni vuoti
   (`div aria-hidden`, niente bordi) perché la grid NON salta celle da sola — rimuoverli del tutto
   fa partire ogni mese dal lunedì (bug 12/09/2026, fix `3ac8704`); gli skeleton di caricamento
@@ -440,10 +447,15 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   TEORICO. Quando i due differiscono il teorico compare BARRATO (10px) sopra il codice e il dettaglio
   sta nel tooltip del giorno (12/09/2026: il BORDO TRATTEGGIATO ROSSO `is-diff` è stato RIMOSSO —
   chi fa sempre turni diversi dal teorico vedrebbe tutte le card tratteggiate; rimaste le variabili
-  `--cell-diff-*` sono state eliminate). L'anello interno ambra (`is-pend`, 3px) è l'UNICO marcatore:
-  segna i turni con sfondo giallo sul PDF = «da confermare» (dal 12/09/2026 compare SEMPRE quando il
-  PDF lo indica, anche se il reale differisce dal teorico — prima veniva soppresso in quel caso e
-  Minino 23/09 non risultava «giallo»; il barrato del teorico resta in aggiunta); il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
+  `--cell-diff-*` sono state eliminate). L'evidenziazione «da confermare» (`is-pend`) è l'UNICO
+  marcatore: segna i turni con sfondo giallo sul PDF = «da confermare» (dal 12/09/2026 compare SEMPRE
+  quando il PDF lo indica, anche se il reale differisce dal teorico — prima veniva soppresso in quel
+  caso e Minino 23/09 non risultava «giallo»; il barrato del teorico resta in aggiunta).
+  **STILE (12/09/2026, ricetta `.desk-card-highlight` di turnisala):** CONTOURNO SOLIDO di 2px ESATTO
+  sul bordo della card — `border-color: var(--cell-pend-ring)` + `box-shadow: 0 0 0 1px` dello stesso
+  colore — NON più un anello `inset` 3px: gli anelli inset partono DENTRO il bordo e l'evidenziazione
+  non coincide con il perimetro della card (stesso bug già visto in turnisala/turniferie, vedi 25/08).
+  Il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
   per i mesi presenti in `sala_schedule`, gli altri restano teorici (etichetta «turni reali (PDF)» /
   «turni teorici» sotto il mese). La soglia di differenza è `realTheoreticalMismatch` su
   `tokenCompareKey` (turno + sezione; slot T/S e TIR ignorati), quindi «M4 vs M9» è una differenza

@@ -1,6 +1,6 @@
 'use client'
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, Users, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Palette, RotateCcw, Search, Users, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
 import { buildDuplicateCognomi, cn } from '@/lib/utils'
@@ -20,7 +20,14 @@ import {
   type PersonDayShift,
   type SalaCodeKind,
 } from '@/lib/sala-month'
-import { predictTheoreticalMonth, type PersonTheoretical } from '@/lib/person-cycle'
+import {
+  cardPaletteStore,
+  CARD_KINDS,
+  predictTheoreticalMonth,
+  type CardKind,
+  type CardPalette,
+  type PersonTheoretical,
+} from '@/lib/person-cycle'
 import type { DaySchedule, SalaSchedule, ShiftTeamTree } from '@/types/database'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -76,75 +83,50 @@ function legacyRealShift(
   return null
 }
 
-/** Come colorare le card del calendario. */
-type ColorMode = 'shift' | 'content' | 'section'
+/** Palette vuota (snapshot server per useSyncExternalStore). */
+const EMPTY_PALETTE: CardPalette = {}
 
-/** Preferenza della modalità colore, persistita in locale (store esterno per evitare setState in effect). */
-const colorPref = {
-  listeners: new Set<() => void>(),
-  get(): ColorMode {
-    const v = localStorage.getItem('tuoturno-color')
-    return v === 'content' || v === 'section' ? v : 'shift'
-  },
-  set(v: ColorMode) {
-    localStorage.setItem('tuoturno-color', v)
-    colorPref.listeners.forEach(l => l())
-  },
-  subscribe(l: () => void) {
-    colorPref.listeners.add(l)
-    return () => { colorPref.listeners.delete(l) }
-  },
+/** Classe CSS di default per ogni tipologia di contenuto (i colori vivono in globals.css). */
+const TINT_BY_KIND: Record<CardKind, string> = {
+  pomeriggio: 'cell-tint-p',
+  mattina: 'cell-tint-m',
+  notte: 'cell-tint-n',
+  rest: 'cell-tint-rest',
+  availability: 'cell-tint-avail',
+  absence: 'cell-tint-abs',
+  duty: 'cell-tint-duty',
 }
 
-/**
- * Tinta della card (variante E), secondo la modalità scelta:
- * - «shift» (predefinita): il colore segue il tipo di turno, come la dashboard;
- * - «content»: tutti i turni nella stessa tinta neutra (il tipo di contenuto —
- *   riposo/assenza/disponibilità/attività — resta distinguibile);
- * - «section»: il colore segue la sezione (2..11), così la rotazione si legge a colpo d'occhio.
- */
-function cellTintClass(kind: SalaCodeKind, token: string, mode: ColorMode): string {
-  if (mode === 'section') {
-    if (kind !== 'work') return cellTintClass(kind, token, 'content')
-    const m = token.match(/\d+/)
-    const sec = m ? Number(m[0]) : 0
-    return sec >= 2 && sec <= 11 ? `cell-sec-${sec}` : 'cell-tint-duty'
+/** Codice del giorno → tipologia di contenuto (per la palette personalizzabile); null = cella vuota. */
+function kindOf(kind: SalaCodeKind, token: string): CardKind | null {
+  if (kind === 'work') {
+    if (token[0] === 'M') return 'mattina'
+    if (token[0] === 'P') return 'pomeriggio'
+    if (token[0] === 'N') return 'notte'
+    return 'duty'
   }
-  if (mode === 'content') {
-    switch (kind) {
-      case 'work':
-        return 'cell-tint-work'
-      case 'rest':
-        return 'cell-tint-rest'
-      case 'availability':
-        return 'cell-tint-avail'
-      case 'absence':
-        return 'cell-tint-abs'
-      case 'duty':
-      case 'other':
-        return 'cell-tint-duty'
-      default:
-        return 'cell-tint-empty'
-    }
-  }
-  switch (kind) {
-    case 'work':
-      if (token[0] === 'M') return 'cell-tint-m'
-      if (token[0] === 'P') return 'cell-tint-p'
-      if (token[0] === 'N') return 'cell-tint-n'
-      return 'cell-tint-duty'
-    case 'rest':
-      return 'cell-tint-rest'
-    case 'availability':
-      return 'cell-tint-avail'
-    case 'absence':
-      return 'cell-tint-abs'
-    case 'duty':
-    case 'other':
-      return 'cell-tint-duty'
-    default:
-      return 'cell-tint-empty'
-  }
+  if (kind === 'rest') return 'rest'
+  if (kind === 'availability') return 'availability'
+  if (kind === 'absence') return 'absence'
+  if (kind === 'duty' || kind === 'other') return 'duty'
+  return null
+}
+
+/** Tinta di default della card (variante E): il colore segue il tipo di contenuto. */
+function cellTintClass(kind: SalaCodeKind, token: string): string {
+  const k = kindOf(kind, token)
+  return k ? TINT_BY_KIND[k] : 'cell-tint-empty'
+}
+
+/** Converte {bg,text} nelle variabili CSS consumate dalle tinte .cell-tint-* (mai usate direttamente). */
+function inlineColors(v: { bg: string; text: string } | undefined): CSSProperties | undefined {
+  return v ? ({ '--c-bg': v.bg, '--c-text': v.text } as CSSProperties) : undefined
+}
+
+/** Override inline della palette personalizzata (pannello «Colori»); undefined = default del tema. */
+function cardOverride(kind: SalaCodeKind, token: string, palette: CardPalette): CSSProperties | undefined {
+  const k = kindOf(kind, token)
+  return k ? inlineColors(palette[k]) : undefined
 }
 
 /** Codice compatto: «M7S» → «M7» (lo slot non serve nella vista personale). */
@@ -158,7 +140,7 @@ function displayToken(token: string): string {
 const CMP_COL = 'w-[34px] h-[34px]'
 const CMP_ROW_H = 36       // cella + gap fra le righe
 const CMP_HEAD_H = 26      // intestazione con i numeri dei giorni
-const CMP_CHROME_H = 300   // header pagina + nav mese + legenda + bottom nav (stima)
+const CMP_CHROME_H = 300   // header pagina + nav mese + bottom nav (stima)
 const CMP_MAX_PEOPLE = 8   // oltre, la tabella diventa illeggibile (e pesante)
 
 /** Altezza finestra, senza setState in effect (e senza mismatch in SSR). */
@@ -212,12 +194,12 @@ function buildCompareDay(real: PersonDayShift | null, theo: string, hasTheoretic
  * così si evita di scorrere: con 2 soli dipendenti e uno schermo alto l'intero
  * mese sta in 3-4 blocchi senza scroll.
  */
-function CompareTable({ rows, chunks, month, todayISO, colorMode }: {
+function CompareTable({ rows, chunks, month, todayISO, palette }: {
   rows: CompareRow[]
   chunks: number[][]
   month: string
   todayISO: string
-  colorMode: ColorMode
+  palette: CardPalette
 }) {
   return (
     <div className="overflow-x-auto -mx-3 px-3 pb-1">
@@ -260,10 +242,11 @@ function CompareTable({ rows, chunks, month, todayISO, colorMode }: {
                       className={cn(
                         'cell-day shrink-0 rounded-lg flex flex-col items-center justify-center text-center',
                         CMP_COL,
-                        cellTintClass(c.kind, c.token, colorMode),
+                        cellTintClass(c.kind, c.token),
                         c.pending && 'is-pend',
                         dateISO === todayISO && 'is-today',
                       )}
+                      style={cardOverride(c.kind, c.token, palette)}
                     >
                       {c.mismatch && c.theoLabel && (
                         <span className="text-[8px] font-semibold leading-none line-through opacity-60">
@@ -279,6 +262,67 @@ function CompareTable({ rows, chunks, month, todayISO, colorMode }: {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+/** Riga del pannello colori: anteprima della tinta + selettori sfondo/testo + ripristino. */
+function PaletteRow({ kind, label, hint, value, onChange, onClear }: {
+  kind: CardKind
+  label: string
+  hint: string
+  value: { bg: string; text: string } | undefined
+  onChange: (v: { bg: string; text: string }) => void
+  onClear: () => void
+}) {
+  return (
+    <div className="flex items-center gap-2 py-1.5">
+      <span
+        className={cn('cell-day inline-flex h-9 w-12 items-center justify-center rounded-lg text-[11px] font-bold', TINT_BY_KIND[kind])}
+        style={inlineColors(value)}
+      >
+        M7
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-medium leading-tight">{label}</span>
+        <span className="block truncate text-[10px] leading-tight text-muted-foreground">{hint}</span>
+      </span>
+      <label className="relative h-7 w-7 shrink-0" title="Colore sfondo">
+        <input
+          type="color"
+          value={value?.bg ?? '#000000'}
+          onChange={e => onChange({ bg: e.target.value, text: value?.text ?? '#ffffff' })}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          aria-label={`${label}: colore sfondo`}
+        />
+        <span
+          className="block h-7 w-7 rounded-full border border-border"
+          style={{ background: value?.bg }}
+        />
+      </label>
+      <label className="relative h-7 w-7 shrink-0" title="Colore testo">
+        <input
+          type="color"
+          value={value?.text ?? '#ffffff'}
+          onChange={e => onChange({ bg: value?.bg ?? '#000000', text: e.target.value })}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          aria-label={`${label}: colore testo`}
+        />
+        <span
+          className="block h-7 w-7 rounded-full border border-border"
+          style={{ background: value?.text }}
+        />
+      </label>
+      {value && (
+        <button
+          onClick={onClear}
+          title="Ripristina il colore predefinito"
+          aria-label={`Ripristina ${label}`}
+          className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <RotateCcw size={13} />
+        </button>
+      )}
     </div>
   )
 }
@@ -311,8 +355,9 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const [compareOpen, setCompareOpen] = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
   const [compareDraft, setCompareDraft] = useState<string[]>([])
-  // Modalità colore delle card (Turno / Contenuto / Sezione), persistita in locale.
-  const colorMode = useSyncExternalStore(colorPref.subscribe, colorPref.get, () => 'shift' as ColorMode)
+  // Pannello colori + palette personalizzata delle card (persistita in locale).
+  const [colorsOpen, setColorsOpen] = useState(false)
+  const palette = useSyncExternalStore(cardPaletteStore.subscribe, cardPaletteStore.get, () => EMPTY_PALETTE)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
 
   const duplicateCognomi = useMemo(() => buildDuplicateCognomi(users), [users])
@@ -377,12 +422,6 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     if (pred) return pred
     return theoreticalTokenFor(tree, selectedUser, `${month}-${String(d).padStart(2, '0')}`, duplicateCognomi)
   }
-  const hasTheoretical = !!(
-    (isRealMonth && realPerson?.teorico.some(t => t)) ||
-    theoSrc ||
-    findMemberForUser(tree, selectedUser, duplicateCognomi)
-  )
-
   // ── confronto fra più dipendenti ──────────────────────────────────────────
   const viewportHeight = useSyncExternalStore(subscribeResize, () => window.innerHeight, () => 700)
   const comparing = compareIds.length >= 2
@@ -484,19 +523,29 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             </button>
           )}
         </div>
-        <button
-          onClick={() => { setCompareDraft(compareIds); setQuery(''); setCompareOpen(true) }}
-          aria-label={comparing ? 'Modifica il confronto' : 'Confronta i turni di più dipendenti'}
-          className={cn(
-            'shrink-0 inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors',
-            comparing
-              ? 'border-primary/40 bg-primary/10 text-primary'
-              : 'border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground',
-          )}
-        >
-          <Users size={14} />
-          {comparing ? 'Modifica' : 'Confronta'}
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => setColorsOpen(true)}
+            aria-label="Personalizza i colori delle card"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Palette size={14} />
+            Colori
+          </button>
+          <button
+            onClick={() => { setCompareDraft(compareIds); setQuery(''); setCompareOpen(true) }}
+            aria-label={comparing ? 'Modifica il confronto' : 'Confronta i turni di più dipendenti'}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors',
+              comparing
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
+          >
+            <Users size={14} />
+            {comparing ? 'Modifica' : 'Confronta'}
+          </button>
+        </div>
       </div>
 
       {/* Navigazione mese */}
@@ -525,32 +574,6 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         </button>
       </div>
 
-      {/* Modalità colore delle card */}
-      <div className="mx-auto mb-3 flex w-fit items-center gap-0.5 rounded-xl border border-border/60 p-0.5">
-        {(
-          [
-            ['shift', 'Turno', 'Colore per tipo di turno (come la dashboard)'],
-            ['content', 'Contenuto', 'Un colore unico per tutti i turni'],
-            ['section', 'Sezione', 'Colore per sezione: la rotazione a colpo d\'occhio'],
-          ] as const
-        ).map(([value, label, title]) => (
-          <button
-            key={value}
-            onClick={() => colorPref.set(value)}
-            title={title}
-            aria-pressed={colorMode === value}
-            className={cn(
-              'rounded-lg px-3 py-1 text-[11px] font-semibold transition-colors',
-              colorMode === value
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
       {comparing ? (
         loadingReal ? (
           // Il PDF del mese sta arrivando: righe skeleton, come le altre pagine.
@@ -560,7 +583,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             ))}
           </div>
         ) : (
-          <CompareTable rows={compareRows} chunks={compareChunks} month={month} todayISO={today} colorMode={colorMode} />
+          <CompareTable rows={compareRows} chunks={compareChunks} month={month} todayISO={today} palette={palette} />
         )
       ) : (
         <>
@@ -629,10 +652,11 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                       title={cellTitle}
                       className={cn(
                         'cell-day rounded-xl min-h-[76px] px-0.5 py-1.5 flex flex-col items-center justify-center gap-0.5 text-center',
-                        cellTintClass(primaryKind, primaryToken, colorMode),
+                        cellTintClass(primaryKind, primaryToken),
                         showPending && 'is-pend',
                         isToday && 'is-today',
                       )}
+                      style={cardOverride(primaryKind, primaryToken, palette)}
                     >
                       <span className="text-[14px] font-extrabold leading-none tracking-tight tabular-nums">{d}</span>
                       {mismatch && theo && (
@@ -650,46 +674,36 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         </>
       )}
 
-      {comparing ? (
-        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-          <b>Una riga per dipendente</b>, i giorni in orizzontale con giorno della settimana e numero.
-          Il codice è il <b>reale</b> del PDF (o il <b>teorico</b>, se il reale manca); quando i due
-          differiscono il teorico compare <b>barrato</b> e sta nel tooltip, mentre l&apos;<b>anello
-          ambra</b> segna i turni <b>da confermare</b> (sfondo giallo sul PDF). Con pochi dipendenti il mese
-          viene spezzato in più blocchi per non farti scorrere; altrimenti scorri la tabella in
-          orizzontale. Il mese si cambia con le frecce ‹ › (in confronto lo swipe è disattivato).
-        </p>
-      ) : isRealMonth ? (
-        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-          <b>L&apos;intera card è tinta dal contenuto</b>: in modalità «Turno» gli stessi colori
-          delle pill della dashboard (pomeriggio azzurro, mattina ambra, notte lilla, riposi grigi,
-          assenze rosse, disponibilità azzurro chiaro, attività senza sezione verdi); con
-          «Contenuto» tutti i turni hanno una tinta unica; con «Sezione» il colore segue la
-          sezione e la rotazione si legge a colpo d&apos;occhio. Il codice in evidenza è il{' '}
-          <b>reale</b> del PDF; se il reale manca compare il <b>teorico</b> (la riga base del PDF o,
-          dove manca, la previsione dalla tua storia dei mesi passati). Quando i due
-          differiscono, il teorico appare <b>barrato</b> sopra il codice (e nel tooltip del giorno).
-          L&apos;<b>anello ambra</b> segna i turni con sfondo giallo sul PDF, cioè <b>da confermare</b>.
-          RM/RC/RI = riposi, D = disponibilità, A = altre presenze,
-          F.E. = ferie, VS = visita sanitaria, Sp/ISp/Dis/Tutor = attività senza sezione.
-        </p>
-      ) : (
-        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-          Mese non caricato: si vedono i <b>turni teorici</b> — per la maggior parte delle persone
-          ricavati dalla <b>propria storia dei mesi passati</b> (ciclo dedotto o rotazione dei
-          blocchi di lavoro), altrimenti dalla rotazione delle squadre — con la stessa tinta per
-          tipo di turno. RM/RC/RI = riposi, D = disponibilità.
-        </p>
-      )}
-      {!comparing && !hasTheoretical && (
-        <p className="mt-1.5 text-[11px] text-muted-foreground">
-          Questa persona non compare nei turni del PDF e non ha un ciclo deducibile: per i mesi
-          senza PDF non si può prevedere nulla.
-        </p>
-      )}
-      {!comparing && (
-        <p className="mt-1.5 text-[11px] text-muted-foreground">Scorri a destra o sinistra per cambiare mese.</p>
-      )}
+      {/* Pannello colori: personalizza la tinta di ogni tipologia di contenuto */}
+      <Dialog open={colorsOpen} onOpenChange={setColorsOpen}>
+        <DialogContent className="max-h-[80vh] max-w-sm flex flex-col overflow-hidden">
+          <DialogHeader><DialogTitle>Colori delle card</DialogTitle></DialogHeader>
+          <p className="text-xs leading-snug text-muted-foreground">
+            Scegli sfondo e testo per ogni tipologia: si applicano subito e restano su questo
+            dispositivo. Senza personalizzazione valgono i colori del tema.
+          </p>
+          <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
+            {CARD_KINDS.map(({ kind, label, hint }) => (
+              <PaletteRow
+                key={kind}
+                kind={kind}
+                label={label}
+                hint={hint}
+                value={palette[kind]}
+                onChange={v => cardPaletteStore.set(kind, v)}
+                onClear={() => cardPaletteStore.set(kind, null)}
+              />
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => cardPaletteStore.reset()}
+            disabled={Object.keys(palette).length === 0}
+          >
+            Ripristina tutti i colori predefiniti
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       {/* Selettore utente */}
       <Dialog open={pickerOpen} onOpenChange={v => !v && setPickerOpen(false)}>
