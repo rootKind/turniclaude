@@ -554,8 +554,10 @@
   /* Il BORDO si divide come i riempimenti: le metà coprono l'intera card (border-width 0
      sulla card: niente anello del colore di fondo che trapela tra bordo e metà) e ognuna
      porta il proprio bordo nel colore della propria tinta (currentColor 30%, come le card
-     intere). I raggi non si dichiarano sulle metà: è overflow:hidden + il raggio della
-     card a ritagliare gli angoli, così la tinta arriva ESATTAMENTE al bordo arrotondato. */
+     intere). Le metà ESTERNE dichiarano raggi che RADDOPPIANO quello della card
+     (rounded-xl 14px → 12px sulle metà, un filo dentro): senza, l'arco della card
+     taglia il tratto d'angolo del bordo della metà e l'angolo resta squadrato.
+     Così invece bordo e tinta seguono la curva fino in fondo. */
   .cell-day.cell-split > .cell-half {
     flex: 1 1 0; display: flex; flex-direction: column; align-items: center;
     justify-content: center; position: relative; text-align: center;
@@ -563,9 +565,9 @@
   }
   .cell-day.cell-split > .cell-half-theo {
     justify-content: flex-end; padding-bottom: 4px;
-    border-bottom: 0;
+    border-bottom: 0; border-radius: 12px 12px 0 0;
   }
-  .cell-day.cell-split > .cell-half:last-child { border-top: 0; }
+  .cell-day.cell-split > .cell-half:last-child { border-top: 0; border-radius: 0 0 12px 12px; }
   /* «Da confermare» su card divisa: il contorno ambra ha la priorità e avvolge TUTTA la
      card — le metà gli cedono il perimetro (bordo esterno ricolorato ambra, come le card
      intere dove is-pend ricolora il bordo), senza contorni doppi o mix di colori. */
@@ -589,6 +591,10 @@
   /* Hide scrollbar while keeping scroll functionality */
   .no-scrollbar { scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
+
+  /* Fab de «Il tuo turno»: il principale ruota di 45° (griglia → X) quando è aperto */
+  .fab-main { transition: transform .2s ease; }
+  .fab-main.fab-open { transform: rotate(45deg); }
 
   /* ── Hardcoded-color replacements ────────────────────────────── */
   .banner-impersonate { background: var(--banner-impersonate-bg); color: var(--banner-impersonate-text); }

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Palette, RotateCcw, Search, Users, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, LayoutGrid, Palette, RotateCcw, Search, Users, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
 import { buildDuplicateCognomi, cn } from '@/lib/utils'
@@ -360,6 +360,9 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const [compareDraft, setCompareDraft] = useState<string[]>([])
   // Pannello «Personalizza» + palette e stile delle modifiche (persistiti in locale).
   const [colorsOpen, setColorsOpen] = useState(false)
+  // Fab delle azioni (mini-Fab Personalizza/Confronta) e selettore mese/anno.
+  const [fabOpen, setFabOpen] = useState(false)
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false)
   const palette = useSyncExternalStore(cardPaletteStore.subscribe, cardPaletteStore.get, () => EMPTY_PALETTE)
   const mismatchStyle = useSyncExternalStore(mismatchStyleStore.subscribe, mismatchStyleStore.get, () => 'split' as MismatchStyle)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -508,8 +511,9 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 
   return (
     <main className="max-w-lg mx-auto px-3 pt-6 pb-4">
-      {/* Intestazione: tocca il nome per cambiare persona, o «Confronta» per più dipendenti */}
-      <div className="mb-4 mr-14 flex items-start justify-between gap-3">
+      {/* Intestazione: tocca il nome per cambiare persona; le azioni (confronto,
+          personalizzazione) vivono nel Fab in basso a destra, con mini-Fab che spuntano */}
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-xl font-bold leading-snug">Il tuo turno</h1>
           {comparing ? (
@@ -527,29 +531,6 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             </button>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            onClick={() => setColorsOpen(true)}
-            aria-label="Personalizza colori e stile delle card"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Palette size={14} />
-            Personalizza
-          </button>
-          <button
-            onClick={() => { setCompareDraft(compareIds); setQuery(''); setCompareOpen(true) }}
-            aria-label={comparing ? 'Modifica il confronto' : 'Confronta i turni di più dipendenti'}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors',
-              comparing
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-border/60 text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
-          >
-            <Users size={14} />
-            {comparing ? 'Modifica' : 'Confronta'}
-          </button>
-        </div>
       </div>
 
       {/* Navigazione mese */}
@@ -562,12 +543,29 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           <ChevronLeft size={20} />
         </button>
         <div className="text-center">
-          <p className="text-lg font-semibold leading-tight">{formatMonthLabel(month)}</p>
+          {/* Mese e anno SELEZIONABILI: tap etichetta o frecce → menù di scelta rapida */}
+          <button
+            type="button"
+            onClick={() => setMonthPickerOpen(v => !v)}
+            aria-label="Scegli mese e anno"
+            aria-expanded={monthPickerOpen}
+            className="text-lg font-semibold leading-tight hover:text-foreground transition-colors"
+          >
+            {formatMonthLabel(month)}
+          </button>
           <p className={cn('text-[11px] leading-tight', isRealMonth ? 'text-primary' : 'text-muted-foreground')}>
             {isRealMonth
               ? (loadingReal ? 'caricamento…' : 'turni reali (PDF)')
               : 'turni teorici'}
           </p>
+          {monthPickerOpen && (
+            <MonthYearPicker
+              month={month}
+              uploadedMonths={uploadedMonths}
+              onPick={m => { setMonth(m); setMonthPickerOpen(false) }}
+              onClose={() => setMonthPickerOpen(false)}
+            />
+          )}
         </div>
         <button
           onClick={goNext}
@@ -906,6 +904,123 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Fab principale + mini-Fab (Personalizza, Confronta) che spuntano quando si apre */}
+      <div className="fixed bottom-20 right-4 z-40 flex flex-col items-center gap-2">
+        {fabOpen && (
+          <>
+            <button
+              onClick={() => { setColorsOpen(true); setFabOpen(false) }}
+              aria-label="Personalizza colori e stile delle card"
+              className="fab-mini flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg transition-colors hover:bg-muted"
+            >
+              <Palette size={18} />
+            </button>
+            <button
+              onClick={() => { setCompareDraft(compareIds); setQuery(''); setCompareOpen(true); setFabOpen(false) }}
+              aria-label={comparing ? 'Modifica il confronto' : 'Confronta i turni di più dipendenti'}
+              className={cn(
+                'fab-mini flex h-11 w-11 items-center justify-center rounded-full border shadow-lg transition-colors',
+                comparing
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border bg-card text-foreground hover:bg-muted',
+              )}
+            >
+              <Users size={18} />
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => setFabOpen(v => !v)}
+          aria-label={fabOpen ? 'Chiudi il menù delle azioni' : 'Apri il menù delle azioni'}
+          aria-expanded={fabOpen}
+          className={cn(
+            'fab-main flex h-14 w-14 items-center justify-center rounded-full shadow-lg text-primary-foreground',
+            fabOpen && 'fab-open',
+          )}
+          style={{ background: 'var(--primary)' }}
+        >
+          <LayoutGrid size={24} />
+        </button>
+      </div>
     </main>
+  )
+}
+
+/** Selettore rapido di MESE e ANNO: due colonne scorrevoli, il mese lascia in evidenza
+ *  quelli con PDF caricato (pallino), l'anno si estende a coprire i mesi caricati. */
+function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
+  month: string
+  uploadedMonths: string[]
+  onPick: (m: string) => void
+  onClose: () => void
+}) {
+  const [y, m] = month.split('-').map(Number)
+  const years = useMemo(() => {
+    const ys = new Set<number>([y])
+    for (const mm of uploadedMonths) ys.add(Number(mm.split('-')[0]))
+    const d = new Date()
+    ys.add(d.getFullYear())
+    return [...ys].sort((a, b) => a - b)
+  }, [uploadedMonths, y])
+  const ref = useRef<HTMLDivElement>(null)
+  // Tap fuori dal pannello lo chiude; tasto ESC pure.
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose() }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
+  }, [onClose])
+  return (
+    <div
+      ref={ref}
+      className="absolute left-1/2 top-full z-30 mt-2 w-[240px] -translate-x-1/2 rounded-xl border border-border bg-card p-2 shadow-lg"
+    >
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Mese</p>
+          <div className="flex max-h-56 flex-col overflow-y-auto">
+            {MONTHS_IT.map((label, i) => {
+              const iso = `${y}-${String(i + 1).padStart(2, '0')}`
+              const on = i + 1 === m
+              const hasPdf = uploadedMonths.includes(iso)
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => onPick(iso)}
+                  className={cn(
+                    'flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-[13px] font-semibold transition-colors',
+                    on ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                  )}
+                >
+                  {label}
+                  {hasPdf && <span className={cn('h-1.5 w-1.5 rounded-full', on ? 'bg-primary-foreground' : 'bg-primary')} aria-label="PDF caricato" />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        <div>
+          <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Anno</p>
+          <div className="flex max-h-56 flex-col overflow-y-auto">
+            {years.map(yy => (
+              <button
+                key={yy}
+                type="button"
+                onClick={() => onPick(`${yy}-${String(m).padStart(2, '0')}`)}
+                className={cn(
+                  'rounded-lg px-2 py-1.5 text-left text-[13px] font-semibold transition-colors',
+                  yy === y ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                )}
+              >
+                {yy}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

@@ -430,8 +430,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   è INTERAMENTE tinta — numero del giorno compreso — blu Mattina, ambra Pomeriggio,
   lilla Notte (tinte = pill della dashboard), grigio riposi, rosso assenze, verde attività senza sezione
   (`.cell-day` + `.cell-tint-*` in `app/globals.css`; dal 12/09/2026 le tinte M/P/N puntano alle
-  variabili `--pill-*` della dashboard). **Pannello COLORI (12/09/2026):** pulsante «Colori»
-  (icona Palette) accanto a «Confronta» in alto: dialog con una riga per tipologia di contenuto
+  variabili `--pill-*` della dashboard). **Pannello COLORI (12/09/2026):** dialog apribile dal
+  mini-Fab «Personalizza» — le azioni «Personalizza» e «Confronta» abitano dei mini-Fab che
+  spuntano dal Fab principale in basso a destra (icona griglia `LayoutGrid`, ruota di 45° quando
+  aperto) — con una riga per tipologia di contenuto
   (Pomeriggio, Mattina, Notte, Riposo, Disponibilità, Assenza, Senza sezione — `CARD_KINDS` in
   `lib/person-cycle.ts`), per ognuna si scelgono sfondo e testo (color input + anteprima) e si
   può ripristinare il default; palette persistita in localStorage (`tuoturno-colori`) via store
@@ -468,7 +470,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (card intera come un giorno normale, teorico barrato sopra il codice). Preferenza in localStorage
   (`tuoturno-mismatch`, `mismatchStyleStore`, snapshot primitivo: niente cache come per la palette).
   Il contorno ambra «da confermare» vale identico in entrambi gli stili.
-  **BORDO DIVISO (12/09/2026, fix dopo il tentativo zoppo di `1244b57`):** sulle card split il bordo
+  **BORDO DIVISO (12/09/2026, fix dopo il tentativo zoppo di `1244b57`, angoli rifatti dopo):** sulle card split il bordo
   si divide come i riempimenti ma le metà SONO il perimetro: la card ha `border-width: 0` (prima il
   bordo trasparente da 1.5px lasciava trapelare un anello del colore di fondo attorno alle metà) e
   NON dichiara raggi sulle metà — è `overflow: hidden` + il raggio `rounded-xl` (14px, prima 11px:
@@ -482,6 +484,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   sul bordo della card — `border-color: var(--cell-pend-ring)` + `box-shadow: 0 0 0 1px` dello stesso
   colore — NON più un anello `inset` 3px: gli anelli inset partono DENTRO il bordo e l'evidenziazione
   non coincide con il perimetro della card (stesso bug già visto in turnisala/turniferie, vedi 25/08).
+  **Selettore MESE/ANNO (12/09/2026):** l'etichetta «Settembre 2026» tra le frecce è un bottone:
+  apre un pannello a due colonne (Mese | Anno) con scroll, il mese corrente in evidenza, un
+  pallino sui mesi con PDF caricato e gli anni presi da quelli caricati + anno corrente.
+  `MonthYearPicker` in `tuoturno-client.tsx`; chiusura con tap fuori o ESC.
   Il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
   per i mesi presenti in `sala_schedule`, gli altri restano teorici (etichetta «turni reali (PDF)» /
   «turni teorici» sotto il mese). La soglia di differenza è `realTheoreticalMismatch` su
