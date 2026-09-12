@@ -550,11 +550,21 @@
      modifica la racconta solo la barra. La tinta della CARD resta quella del reale, così
      il bordo segue il turno effettivo come nelle card intere. */
   .cell-day.cell-split { flex-direction: column; overflow: hidden; }
+  /* Il BORDO si divide come i riempimenti: ogni metà porta il proprio bordo nel
+     colore della propria tinta (currentColor 30%, come le card intere); quello della
+     card diventa trasparente — TRANNNE quando è «da confermare», dove il contorno
+     ambra 2px deve avvolgere tutta la card (is-pend ridefinisce il border-color). */
+  .cell-day.cell-split:not(.is-pend) { border-color: transparent; }
   .cell-day.cell-split > .cell-half {
     flex: 1 1 0; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; border: 0; border-radius: 0; position: relative; text-align: center;
+    justify-content: center; position: relative; text-align: center;
+    border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
   }
-  .cell-day.cell-split > .cell-half-theo { justify-content: flex-end; padding-bottom: 4px; }
+  .cell-day.cell-split > .cell-half-theo {
+    justify-content: flex-end; padding-bottom: 4px;
+    border-bottom: 0; border-radius: 11px 11px 0 0;
+  }
+  .cell-day.cell-split > .cell-half:last-child { border-top: 0; border-radius: 0 0 11px 11px; }
   /* Barra diagonale SULLA riga del codice teorico: sottile (2px) e trasparente (55%)
      per segnalare la sostituzione senza coprire il codice (richiesta 12/09/2026). */
   .cell-day .cell-half-theo.cell-barred::after {
