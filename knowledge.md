@@ -405,8 +405,8 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   212/214 giorni (98,6%), BORRELLI 214/214, CETRANCOLO 210/214 — gli scarti restanti sono ritocchi
   di piano. ATTENZIONE BUG script: il match membro→utente deve iterare i membri DENTRO il proprio
   team (come findMemberForUser), un loop piatto abbinava MININO alla tipologia inattiva IAP. Lo
-  strato (2) rimane per robustezza e per gli utenti senza storia.
-- **Mockup celle (11/09/2026, NON parte dell'app):** `mockups/celle-turno.html`, 4 opzioni grafiche
+  strato (2) rimane per robustezza e per gli utenti senza storia. - **Mockup data/turno nella card (12/09/2026, NON parte dell'app):** `mockups/celle-data-turno.html`, 3 varianti per separare numero del giorno e codice turno nella card «variante E» (A oggi centrato-attaccato come riferimento, B distanziati alto/basso, C data piccola nell'angolo alto-sinistra stile Google Calendar, D data in badge chiaro nell'angolo) su dati reali MININO luglio 2026, con zoom delle card chiave e verifica tema scuro. In attesa della scelta.
+ - **Mockup celle (11/09/2026, NON parte dell'app):** `mockups/celle-turno.html`, 4 opzioni grafiche
   (A banda continua, B doppia banda 3/4+1/4, C reale pieno + teorico in angolo, D due righe etichettate)
   sulla stessa settimana reale (TROCCHIA, 1-7 luglio 2026) con pregi/limiti.**SCELTA (11/09/2026): la variante E** — `mockups/celle-colore-pieno.html` (card interamente tinta, numero del giorno compreso) — implementata nella pagina vera. Le tinte M/P/N replicano i colori delle pill dei turni della dashboard (var `--pill-mattina/pomeriggio/notte-*`), chiaro e scuro.
 - **NOTA (11/09/2026) — asimmetria del ruolo manager (NON da sviluppare per ora, su richiesta):**
