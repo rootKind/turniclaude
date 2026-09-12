@@ -410,9 +410,11 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   lilla Notte (tinte = pill della dashboard), grigio riposi, rosso assenze, verde attività senza sezione
   (`.cell-day` + `.cell-tint-*` in `app/globals.css`; dal 12/09/2026 le tinte M/P/N puntano alle
   variabili `--pill-*` della dashboard e le card a SINGOLO turno M/P/N portano il bordo pill 1px
-  `color-mix(currentColor 30%)`, come le pill della dashboard). La griglia NON ha più card vuote prima
-  del giorno 1 (mese che non inizia di lunedì: le celle scartate lasciano la griglia allineata —
-  coerente con i vuoti di coda, mai generati; gli skeleton di caricamento coprono solo i giorni reali). In evidenza c'è il codice REALE del
+  `color-mix(currentColor 30%)`, come le pill della dashboard). Le «card vuote» prima del giorno 1
+  (mese che non inizia di lunedì) sono INVISIBILI ma esistono ancora nel layout: sono sostegni vuoti
+  (`div aria-hidden`, niente bordi) perché la grid NON salta celle da sola — rimuoverli del tutto
+  fa partire ogni mese dal lunedì (bug 12/09/2026, fix `3ac8704`); gli skeleton di caricamento
+  stanno dopo i sostegni, così cadono sulle colonne giuste. In evidenza c'è il codice REALE del
   PDF (slot T/S nascosto); se il reale manca (persona assente dal PDF, o mese non caricato) c'è il
   TEORICO. Quando i due differiscono il teorico compare BARRATO (10px) sopra il codice e il dettaglio
   sta nel tooltip del giorno (12/09/2026: il BORDO TRATTEGGIATO ROSSO `is-diff` è stato RIMOSSO —
