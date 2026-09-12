@@ -209,6 +209,7 @@ export function DeskBoard({
   /* Nessun limite di navigazione: il teorico si genera per QUALSIASI mese/anno.
      Restano solo i set per distinguere mese caricato vs teorico. */
   const isTheoreticalMonth = useMemo(() => new Set(theoreticalMonths), [theoreticalMonths])
+  const uploadedMonthsSet = useMemo(() => new Set(availableMonths), [availableMonths])
 
   const currentMonthRef = useRef(currentMonth)
   const onMonthChangeRef = useRef(onMonthChange)
@@ -489,8 +490,31 @@ export function DeskBoard({
             </button>
             {showDayPicker && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowDayPicker(false)} />
-                <div className="absolute top-full left-0 z-50 mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+                <div className="fixed inset-0 z-40" onClick={() => setShowDayPicker(false)} />                <div className="absolute top-full left-0 z-50 mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden cal-panel">
+                  {/* Selettori MESE e ANNO in testa (come «Il tuo turno»): il teorico
+                      si calcola per qualsiasi mese, quindi l'anno copre il millennio. */}
+                  <div className="flex gap-1.5 p-2 border-b border-border bg-muted/40">
+                    <select
+                      value={cm}
+                      onChange={e => setPickerMonth(new Date(pickerMonth.getFullYear(), Number(e.target.value), 1))}
+                      className="cal-monthsel flex-1 rounded-lg border border-border bg-card px-2 py-1 text-xs font-semibold"
+                      aria-label="Scegli mese"
+                    >
+                      {MONTHS_IT.map((label, i) => (
+                        <option key={label} value={i + 1}>{label}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={pickerMonth.getFullYear()}
+                      onChange={e => setPickerMonth(new Date(Number(e.target.value), pickerMonth.getMonth(), 1))}
+                      className="cal-monthsel w-[86px] rounded-lg border border-border bg-card px-2 py-1 text-xs font-semibold"
+                      aria-label="Scegli anno"
+                    >
+                      {Array.from({ length: 1000 }, (_, i) => 2001 + i).map(yy => (
+                        <option key={yy} value={yy}>{yy}</option>
+                      ))}
+                    </select>
+                  </div>
                   <Calendar
                     mode="single"
                     selected={new Date(cy, cm - 1, selectedDay)}
@@ -508,8 +532,10 @@ export function DeskBoard({
                     onMonthChange={setPickerMonth}
                     disabled={(date) => {
                       const dateMonthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-                      // Mesi teorici: tutti i giorni navigabili; uploadati: solo i giorni presenti
-                      if (dateMonthStr === currentMonth && activeDays && !isTheoreticalMonth.has(dateMonthStr)) return !activeDays.has(date.getDate())
+                      // Solo nei mesi caricati da PDF si limitano i giorni a quelli
+                      // presenti nel file; i mesi teorici (anche fuori dalla lista
+                      // precalcolata) sono interamente navigabili.
+                      if (dateMonthStr === currentMonth && activeDays && !isTheoreticalMonth.has(dateMonthStr) && uploadedMonthsSet.has(dateMonthStr)) return !activeDays.has(date.getDate())
                       return false
                     }}
                     showOutsideDays={false}

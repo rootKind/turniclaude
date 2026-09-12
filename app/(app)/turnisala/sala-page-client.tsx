@@ -89,21 +89,25 @@ export function SalaPageClient({
   }
 
   const isTheoretical = (month: string) => theoreticalMonths.includes(month)
+  // Mese caricato a mano nel DB (PDF): per questi ha senso interrogare la tabella.
+  // TUTTI gli altri (anche fuori dalla lista finita theoreticalMonths, che copre
+  // solo mese−1..+12) sono teorici: generarli e NON sovrascriverli con il
+  // risultato del fetch (che per mesi mai caricati è null = board vuota).
+  const isUploaded = (month: string) => availableMonths.includes(month)
 
   const handleMonthChange = async (month: string) => {
     setCurrentMonth(month)
     setSchedule(null)
-    // Qualsiasi mese/anno è navigabile: il teorico si genera al volo; i mesi
-    // caricati restano letti dal DB. Prima senza albero squadre non si poteva
-    // generare niente: ora si attende il fetch (il fallback arriva nel .then
-    // del caricamento iniziale, vedi nota sotto).
-    if (shiftTree) {
-      setSchedule(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments))
+    if (!isUploaded(month)) {
+      // Mese teorico: si genera al volo. Se l'albero squadre non è ancora
+      // arrivato, l'effetto di caricamento iniziale rigenera appena arriva.
+      if (shiftTree) setSchedule(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments))
+      return
     }
-    if (isTheoretical(month)) return
+    // Mese caricato: leggi il PDF dal DB (fallback teorico se assente).
     const supabase = createClient()
     const data = await getSalaSchedule(supabase, month)
-    setSchedule(data)
+    setSchedule(data ?? (shiftTree ? generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments) : null))
   }
 
   const handleUpload = async (file: File, month: string) => {

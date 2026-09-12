@@ -411,7 +411,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   212/214 giorni (98,6%), BORRELLI 214/214, CETRANCOLO 210/214 — gli scarti restanti sono ritocchi
   di piano. ATTENZIONE BUG script: il match membro→utente deve iterare i membri DENTRO il proprio
   team (come findMemberForUser), un loop piatto abbinava MININO alla tipologia inattiva IAP. Lo
-  strato (2) rimane per robustezza e per gli utenti senza storia. - **Mockup data/turno nella card (12/09/2026, NON parte dell'app):** `mockups/celle-data-turno.html`, 3 varianti per separare numero del giorno e codice turno nella card «variante E» (A oggi centrato-attaccato come riferimento, B distanziati alto/basso, C data piccola nell'angolo alto-sinistra stile Google Calendar, D data in badge chiaro nell'angolo) su dati reali MININO luglio 2026, con zoom delle card chiave e verifica tema scuro. **SCELTA (12/09/2026): la variante D** — implementata nella pagina vera: numero del giorno in badge chiaro nell'angolo alto-sinistra (`.cell-day .day-badge`: bianco al 78% nel chiaro, bianco traslucido al 16% nello scuro, radius 6px, padding 2×6px, position absolute con `relative` sulla card), testo centrale INGRANDITO per leggibilità (griglia: codice 11→14px extrabold, teorico barrato 10→12px; confronto: codice 10→12px, teorico 8→9px) e contenuto leggermente abbassato (pt-3/pt-1.5) per non finire sotto il badge. Il badge è negli override del pannello Colori? NO: resta su ogni tinta, anche personalizzata — è la sua funzione (contrasto garantito): testo NERO nel chiaro (#111) e BIANCO nello scuro (dal 12/09/2026, richiesta esplicita). Il bordo ambra «da confermare» e l'outline «oggi» non vengono coperti dal badge (padding interno, non toccano il bordo).
+  strato (2) rimane per robustezza e per gli utenti senza storia. - **Mockup data/turno nella card (12/09/2026, NON parte dell'app):** `mockups/celle-data-turno.html`, 3 varianti per separare numero del giorno e codice turno nella card «variante E» (A oggi centrato-attaccato come riferimento, B distanziati alto/basso, C data piccola nell'angolo alto-sinistra stile Google Calendar, D data in badge chiaro nell'angolo) su dati reali MININO luglio 2026, con zoom delle card chiave e verifica tema scuro. **SCELTA (12/09/2026): la variante D** — implementata nella pagina vera: numero del giorno in badge chiaro nell'angolo alto-sinistra (`.cell-day .day-badge`: bianco al 78% nel chiaro, bianco traslucido al 16% nello scuro, radius 6px, padding 2×6px, position absolute con `relative` sulla card), testo centrale INGRANDITO per leggibilità (griglia: codice 11→14px extrabold, teorico barrato 10→12px; confronto: codice 10→12px, teorico 8→9px) e contenuto leggermente abbassato (pt-3/pt-1.5) per non finire sotto il badge. Il badge è negli override del pannello Colori? NO: resta su ogni tinta, anche personalizzata — è la sua funzione (contrasto garantito): testo NERO nel chiaro (#111) e BIANCO nello scuro (dal 12/09/2026, richiesta esplicita). Aggiornato ancora (12/09/2026): piccolo bordo al badge — NERO #111 nel chiaro; nello scuro bordo BIANCO e fill SOLIDO `#171717` (riempimento omogeneo e contrastato come il bianco al 78% del chiaro). Il bordo ambra «da confermare» e l'outline «oggi» non vengono coperti dal badge (padding interno, non toccano il bordo).
  - **Mockup card SPLIT teorico/reale (12/09/2026, NON parte dell'app):** `mockups/celle-split-teorico-reale.html`, anteprima della struttura richiesta: card divisa in due metà SOLO quando il reale differisce dal teorico — teorico sopra con tinta del proprio turno e SBARRATA diagonale, reale sotto con tinta del proprio colore; giorni normali invariati (card intera). Sei casi chiave (riposo lavorato, assenza, split+«da confermare» come il 23/9 di Minino, giallo senza variazioni), zoom barra singola vs tratteggio diagonale ripetuto, tema scuro. In attesa della scelta.
   **Aggiornato dopo feedback (12/09/2026):** (1) se cambia solo la SEZIONE e non il tipo di turno,
   le due metà hanno la STESSA tinta (quella del reale) e la modifica la racconta solo la sbarrata —
@@ -505,13 +505,23 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (`.fab-mini-pop`: overshoot 1.07 con cubic-bezier(.34,1.56,.64,1)); anche il pannello
   mese/anno (`.month-pop`, i keyframe ricompongono la translate(-50%) di centratura).
   Rispettano `prefers-reduced-motion` (nessuna animazione).
-  **Selezione nel picker mese/anno (12/09/2026):** stessi colori delle pill ATTIVE P/M/N di
-  turnisala (`.picker-sel-m` = Mattina `--dialog-pill-mattina-active-*`, `.picker-sel-y` =
-  Pomeriggio `--dialog-pill-pomeriggio-active-*`), già adattivi chiaro/scuro via variabili.
-  **Navigatorazione LIBERA (12/09/2026):** il picker de «Il tuo turno» offre 10 anni (±5 dall'anno
-  corrente + anni caricati); turnisala NON limita più il calendario (rimossi `fromMonth`/`toMonth`
-  e la guardia `navigableMonthsSet` sugli swipe): `generateTheoreticalMonth` è funzione pura
-  della data, quindi si naviga ovunque e il teorico si genera al volo.
+  **Selezione nel picker mese/anno (12/09/2026, aggiornata a fine giornata):** colori richiesti
+  esplicitamente dall'utente — `#dfe8f2` nel chiaro, `#454545` nello scuro (variabili
+  `--picker-sel-bg/-border/-text`); voleva questi, NON le pill P/M/N di turnisala (prima versione).
+  Stesse variabili usate dal calendario di turnisala (giorno selezionato, `.cal-panel`).
+  **Navigatorazione LIBERA (12/09/2026, seconda iterazione):** il picker de «Il tuo turno» e le
+  select del calendario di turnisala coprono TUTTO il millennio (2001–3000) con autoscroll
+  all'anno selezionato; turnisala non limita più il calendario (rimossi `fromMonth`/`toMonth` e
+  la guardia `navigableMonthsSet` sugli swipe). Il teorico si genera per QUALSIASI mese.
+  **BUG FIX reload turnisala (12/09/2026):** in `handleMonthChange` i mesi NON caricati a mano
+  si identificano con `availableMonths` (non con la lista finita `theoreticalMonths`, che copre
+  solo mese−1..+12): per gli altri il fetch DB tornava null e SOVRASCRIVEVA il teorico generato
+  (board vuota sui mesi lontani). Ora i mesi non caricati restano teorici; i caricati fanno
+  fallback teorico se il fetch è vuoto. Nel calendario i giorni si disabilitano SOLO se il mese
+  è in `availableMonths` (prima ogni mese fuori lista teorica risultava inagibile).
+  Verifica: script `scripts/check-remote-theoretical.mjs` genera Febbraio 2025 dai dati veri
+  (1327 presenze: M 517 / P 503 / N 307); end-to-end in preview la board 2025 mostra «Turno
+  teorico» con le scrivane popolate.
   **BUG FIX `tokenForMember` (12/09/2026):** il periodo è la lunghezza del pattern DEL MEMBRO,
   non `cycle_days` del tipo: dopo il super-ciclo («in terza» 84gg) i membri senza storia PDF
   hanno pattern 28 — indicizzati con 84 producevano idx≥28 → token vuoto → persone SCOMPARSE

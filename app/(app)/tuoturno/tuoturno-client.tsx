@@ -922,9 +922,9 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 }
 
 /** Selettore rapido di MESE e ANNO: due colonne scorrevoli, il mese lascia in evidenza
- *  quelli con PDF caricato (pallino). ANNI LIBERI: 10 anni attorno all'anno
- *  corrente (±5) — il teorico si calcola per QUALSIASI mese/anno, quindi nessun
- *  limite alla scelta. Selezione = colori pill attive P/M/N di turnisala
+ *  quelli con PDF caricato (pallino). ANNI: TUTTO il millennio (2001–3000) —
+ *  il teorico si calcola per QUALSIASI mese/anno; la lista parte scrollata
+ *  sull'anno selezionato. Selezione = #dfe8f2 chiaro / #454545 scuro
  *  (picker-sel-m / picker-sel-y). */
 function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
   month: string
@@ -933,16 +933,17 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
   onClose: () => void
 }) {
   const [y, m] = month.split('-').map(Number)
-  const thisYear = new Date().getFullYear()
   const years = useMemo(() => {
     const list: number[] = []
-    for (let yy = thisYear - 5; yy <= thisYear + 5; yy++) list.push(yy)
-    for (const mm of uploadedMonths) {
-      const yy = Number(mm.split('-')[0])
-      if (!list.includes(yy)) list.push(yy)
-    }
-    return list.sort((a, b) => a - b)
-  }, [thisYear, uploadedMonths])
+    for (let yy = 2001; yy <= 3000; yy++) list.push(yy)
+    return list
+  }, [])
+  // La lista anni parte scrollata sull'anno selezionato (~30px per voce).
+  const yearListRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = yearListRef.current
+    if (el) el.scrollTop = Math.max(0, (y - 2001) * 30 - el.clientHeight / 2 + 15)
+  }, [y])
   const ref = useRef<HTMLDivElement>(null)
   // Tap fuori dal pannello lo chiude; tasto ESC pure.
   useEffect(() => {
@@ -984,7 +985,7 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
         </div>
         <div>
           <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Anno</p>
-          <div className="flex max-h-56 flex-col overflow-y-auto">
+          <div ref={yearListRef} className="flex max-h-56 flex-col overflow-y-auto">
             {years.map(yy => (
               <button
                 key={yy}

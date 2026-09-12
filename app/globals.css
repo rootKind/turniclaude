@@ -100,6 +100,10 @@
   --cell-duty-bg: #d6f0dd;  --cell-duty-text: #1f5a34;
   --cell-empty-bg: #eef0f2; --cell-empty-text: #8b939e;
   --cell-pend-ring: #d9a53a;
+  /* Selezione picker mese/anno (richiesta 12/09/2026) */
+  --picker-sel-bg: #dfe8f2;
+  --picker-sel-border: #b8c8dc;
+  --picker-sel-text: #1e293b;
 
   /* Impersonation banner — inverso (nero in chiaro, bianco in scuro) */
   --banner-impersonate-bg: #1c1c1c;
@@ -284,6 +288,9 @@
   --cell-duty-bg: #16301f;  --cell-duty-text: #9fd9b4;
   --cell-empty-bg: #1b1f24; --cell-empty-text: #8b939e;
   --cell-pend-ring: #d9a53a;
+  --picker-sel-bg: #454545;
+  --picker-sel-border: #5a5a5a;
+  --picker-sel-text: #ffffff;
 
   /* Impersonation banner — dark (inverso: bianco) */
   --banner-impersonate-bg: #ffffff;
@@ -537,11 +544,13 @@
     font-size: 10.5px; font-weight: 800; line-height: 1; letter-spacing: -.02em;
     color: #111; /* sempre nero: il numero della data non segue la tinta della card */
     background: rgba(255, 255, 255, .78); border-radius: 6px; padding: 2px 6px;
+    border: 1px solid #111; /* piccolo bordo nero nel tema chiaro (richiesta 12/09/2026) */
     box-shadow: 0 1px 0 rgba(0, 0, 0, .06);
   }
   .dark .cell-day .day-badge {
     color: #fff; /* in scuro le cifre delle card sono bianche */
-    background: rgba(255, 255, 255, .16);
+    background: #171717; /* fill SCURO SOLIDO: contrasto come il bianco del chiaro */
+    border-color: #fff; /* piccolo bordo bianco */
     box-shadow: none;
   }
   /* Card SPLIT (mockup celle-split-teorico-reale.html, scelta 12/09/2026): divisa in
@@ -759,11 +768,38 @@
   .dialog-pill-m.dp-active { background: var(--dialog-pill-mattina-active-bg);    border-color: var(--dialog-pill-mattina-active-border); }
   .dialog-pill-p.dp-active { background: var(--dialog-pill-pomeriggio-active-bg); border-color: var(--dialog-pill-pomeriggio-active-border); }
   .dialog-pill-n.dp-active { background: var(--dialog-pill-notte-active-bg);      border-color: var(--dialog-pill-notte-active-border); }
-  /* Selezione nel picker mese/anno de «Il tuo turno»: stessi colori delle pill
-     attive P/M/N di turnisala (Mese = Mattina, Anno = Pomeriggio), già
-     adattivi ai due temi via variabili. */
-  .picker-sel-m { background: var(--dialog-pill-mattina-active-bg); border: 1px solid var(--dialog-pill-mattina-active-border); color: var(--pill-mattina-text); }
-  .picker-sel-y { background: var(--dialog-pill-pomeriggio-active-bg); border: 1px solid var(--dialog-pill-pomeriggio-active-border); color: var(--pill-pomeriggio-text); }
+  /* Selezione nel picker mese/anno («Il tuo turno» e calendario di turnisala):
+     richiesta esplicita 12/09/2026 — #dfe8f2 nel chiaro, #454545 nello scuro. */
+  .picker-sel-m { background: var(--picker-sel-bg); border: 1px solid var(--picker-sel-border); color: var(--picker-sel-text); }
+  .picker-sel-y { background: var(--picker-sel-bg); border: 1px solid var(--picker-sel-border); color: var(--picker-sel-text); }
+
+  /* Calendario di turnisala (react-day-picker): pannello #171717 in scuro,
+     giorno selezionato #dfe8f2 chiaro / #454545 scuro (richiesta 12/09/2026). */
+  .dark .cal-panel { background: #171717; }
+  .cal-monthsel { color-scheme: light; }
+  .dark .cal-monthsel { color-scheme: dark; }
+  .cal-panel .rdp-day_button[data-selected="true"],
+  .cal-panel .rdp-selected .rdp-day_button,
+  .cal-panel [data-selected="true"] .rdp-day_button,
+  /* shadcn/react-day-picker v9: il giorno scelto porta data-selected-single */
+  .cal-panel [data-selected-single="true"] {
+    background: var(--picker-sel-bg) !important;
+    border: 1px solid var(--picker-sel-border) !important;
+    color: var(--picker-sel-text) !important;
+    border-radius: 8px;
+  }
+  .cal-panel .rdp-selected,
+  .cal-panel [data-selected="true"],
+  .cal-panel [data-selected-single="true"] {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 8px;
+  }
+  .cal-panel .rdp-selected button,
+  .cal-panel [data-selected="true"] button,
+  .cal-panel [data-selected-single="true"] {
+    color: var(--picker-sel-text) !important;
+  }
 }
 
 /* Page transition & loading bar */
