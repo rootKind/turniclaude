@@ -470,7 +470,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (card intera come un giorno normale, teorico barrato sopra il codice). Preferenza in localStorage
   (`tuoturno-mismatch`, `mismatchStyleStore`, snapshot primitivo: niente cache come per la palette).
   Il contorno ambra «da confermare» vale identico in entrambi gli stili.
-  **BORDO DIVISO (12/09/2026, fix dopo il tentativo zoppo di `1244b57`, angoli rifatti dopo):** sulle card split il bordo
+  **BORDO DIVISO (12/09/2026, fix dopo il tentativo zoppo di `1244b57`, angoli rifatti due volte):** sulle card split il bordo
   si divide come i riempimenti ma le metà SONO il perimetro: la card ha `border-width: 0` (prima il
   bordo trasparente da 1.5px lasciava trapelare un anello del colore di fondo attorno alle metà) e
   NON dichiara raggi sulle metà — è `overflow: hidden` + il raggio `rounded-xl` (14px, prima 11px:
@@ -487,7 +487,15 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   **Selettore MESE/ANNO (12/09/2026):** l'etichetta «Settembre 2026» tra le frecce è un bottone:
   apre un pannello a due colonne (Mese | Anno) con scroll, il mese corrente in evidenza, un
   pallino sui mesi con PDF caricato e gli anni presi da quelli caricati + anno corrente.
-  `MonthYearPicker` in `tuoturno-client.tsx`; chiusura con tap fuori o ESC.
+  `MonthYearPicker` in `tuoturno-client.tsx`; chiusura con tap fuori o ESC. Il contenitore
+  dell'etichetta DEVE essere `position: relative` (il pannello è `absolute top-full`): senza,
+  si ancora al viewport e finisce FUORI SCHERMO (sembra che non si apra nulla).
+  **FAB su /tuoturno (12/09/2026):** le azioni vivono nel FAB centrale della bottom-nav
+  (`components/nav/bottom-nav.tsx`), che su /tuoturno diventa il bottone griglia `LayoutGrid`
+  (X quando aperto) e apre i mini-Fab «Confronta» e «Personalizza» con etichetta, come gli
+  overlay di turnisala/notifiche. La comunicazione col client usa lo schema CustomEvent del
+  progetto: `tuoturno-open-confronta` / `tuoturno-open-personalizza`, ascoltati in
+  `tuoturno-client.tsx` che apre i rispettivi dialog.
   Il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
   per i mesi presenti in `sala_schedule`, gli altri restano teorici (etichetta «turni reali (PDF)» /
   «turni teorici» sotto il mese). La soglia di differenza è `realTheoreticalMismatch` su

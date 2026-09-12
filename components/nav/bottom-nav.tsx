@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, ArrowLeft, ArrowRight, Upload, History, Pencil } from 'lucide-react'
+import { Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, ArrowLeft, ArrowRight, Upload, History, Pencil, LayoutGrid, Palette, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
@@ -31,6 +31,8 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
   const isTuoTurno = pathname === '/tuoturno'
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [notifFabOpen, setNotifFabOpen] = useState(false)
+  // Fab azioni de «Il tuo turno»: Personalizza + Confronta (mini-Fab che spuntano).
+  const [tuoTurnoFabOpen, setTuoTurnoFabOpen] = useState(false)
   const [adminFabOpen, setAdminFabOpen] = useState(false)
   const [ferieAdminFabOpen, setFerieAdminFabOpen] = useState(false)
   const [turniLastPage, setTurniLastPage] = useState('/turnisala')
@@ -265,6 +267,40 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
         </div>
       )}
 
+      {/* Mini-fabs «Il tuo turno»: Personalizza (palette) + Confronta (utenti).
+          Stesso schema degli overlay manager/notifiche: backdrop che chiude al tap
+          e colonna di bottoni con etichetta, ancorata sopra la barra. */}
+      {isTuoTurno && tuoTurnoFabOpen && (
+        <div className="fixed inset-0 z-40" onClick={() => setTuoTurnoFabOpen(false)}>
+          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Confronta
+              </span>
+              <button
+                onClick={e => { e.stopPropagation(); setTuoTurnoFabOpen(false); document.dispatchEvent(new CustomEvent('tuoturno-open-confronta')) }}
+                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
+                aria-label="Confronta i turni di più dipendenti"
+              >
+                <Users size={18} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Personalizza
+              </span>
+              <button
+                onClick={e => { e.stopPropagation(); setTuoTurnoFabOpen(false); document.dispatchEvent(new CustomEvent('tuoturno-open-personalizza')) }}
+                className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:bg-primary/90 transition-colors"
+                aria-label="Personalizza colori e stile delle card"
+              >
+                <Palette size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Notifiche mini-fabs overlay */}
       {isNotifiche && notifFabOpen && history.length > 0 && (
         <div className="fixed left-0 right-0 flex flex-col items-center gap-3 z-40 pointer-events-none" style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem)' }}>
@@ -324,8 +360,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
 
             {/* 'Il tuo turno': icona calendario singolo che apre la mia piantina personale (/tuoturno).
                 Concettualmente distinta da 'Cambi' (frecce-scambio) e da 'Turni' (calendario+palma), anche
-                se condivide l'icona calendario con 'Turni'. */}
-            <Link
+                se condivide l'icona calendario con 'Turni'. */}            <Link
               href="/tuoturno"
               className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
               aria-label="Il tuo turno"
@@ -340,7 +375,20 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
 
             {/* FAB center button */}
             <div className="flex-1 flex items-center justify-center">
-              {isAdmin && isImpostazioni ? (
+              {isTuoTurno ? (
+                <button
+                  onClick={() => setTuoTurnoFabOpen(v => !v)}
+                  className={cn(
+                    'w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors',
+                    tuoTurnoFabOpen
+                      ? 'bg-muted text-foreground border border-border'
+                      : 'bg-primary text-primary-foreground',
+                  )}
+                  aria-label={tuoTurnoFabOpen ? 'Chiudi menu' : 'Azioni turno'}
+                >
+                  {tuoTurnoFabOpen ? <X size={20} /> : <LayoutGrid size={20} />}
+                </button>
+              ) : isAdmin && isImpostazioni ? (
                 <Link
                   href="/admin"
                   className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"

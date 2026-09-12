@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
-import { Check, ChevronDown, ChevronLeft, ChevronRight, LayoutGrid, Palette, RotateCcw, Search, Users, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
 import { buildDuplicateCognomi, cn } from '@/lib/utils'
@@ -360,8 +360,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const [compareDraft, setCompareDraft] = useState<string[]>([])
   // Pannello «Personalizza» + palette e stile delle modifiche (persistiti in locale).
   const [colorsOpen, setColorsOpen] = useState(false)
-  // Fab delle azioni (mini-Fab Personalizza/Confronta) e selettore mese/anno.
-  const [fabOpen, setFabOpen] = useState(false)
+  // Selettore mese/anno (aperto dall'etichetta tra le frecce).
   const [monthPickerOpen, setMonthPickerOpen] = useState(false)
   const palette = useSyncExternalStore(cardPaletteStore.subscribe, cardPaletteStore.get, () => EMPTY_PALETTE)
   const mismatchStyle = useSyncExternalStore(mismatchStyleStore.subscribe, mismatchStyleStore.get, () => 'split' as MismatchStyle)
@@ -394,6 +393,20 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const today = todayISO()
   const totalDays = daysInMonth(month)
   const offset = firstWeekdayOffset(month)
+
+  // ── Azioni del FAB nella barra di navigazione ────────────────────────────
+  // La bottom-nav emette CustomEvent (stesso schema di turnisala/turniferie);
+  // qui li ascoltiamo e apriamo i rispettivi dialog.
+  useEffect(() => {
+    const openPersonalizza = () => setColorsOpen(true)
+    const openConfronta = () => { setCompareDraft(compareIds); setQuery(''); setCompareOpen(true) }
+    document.addEventListener('tuoturno-open-personalizza', openPersonalizza)
+    document.addEventListener('tuoturno-open-confronta', openConfronta)
+    return () => {
+      document.removeEventListener('tuoturno-open-personalizza', openPersonalizza)
+      document.removeEventListener('tuoturno-open-confronta', openConfronta)
+    }
+  }, [compareIds])
 
   // Formato compatto v2: codici completi per persona (assenze incluse) + celle
   // gialle «da confermare». Senza data si ricade sulle sezioni del giorno.
@@ -542,7 +555,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         >
           <ChevronLeft size={20} />
         </button>
-        <div className="text-center">
+        <div className="relative text-center">
           {/* Mese e anno SELEZIONABILI: tap etichetta o frecce → menù di scelta rapida */}
           <button
             type="button"
@@ -904,45 +917,6 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Fab principale + mini-Fab (Personalizza, Confronta) che spuntano quando si apre */}
-      <div className="fixed bottom-20 right-4 z-40 flex flex-col items-center gap-2">
-        {fabOpen && (
-          <>
-            <button
-              onClick={() => { setColorsOpen(true); setFabOpen(false) }}
-              aria-label="Personalizza colori e stile delle card"
-              className="fab-mini flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg transition-colors hover:bg-muted"
-            >
-              <Palette size={18} />
-            </button>
-            <button
-              onClick={() => { setCompareDraft(compareIds); setQuery(''); setCompareOpen(true); setFabOpen(false) }}
-              aria-label={comparing ? 'Modifica il confronto' : 'Confronta i turni di più dipendenti'}
-              className={cn(
-                'fab-mini flex h-11 w-11 items-center justify-center rounded-full border shadow-lg transition-colors',
-                comparing
-                  ? 'border-primary/40 bg-primary/10 text-primary'
-                  : 'border-border bg-card text-foreground hover:bg-muted',
-              )}
-            >
-              <Users size={18} />
-            </button>
-          </>
-        )}
-        <button
-          onClick={() => setFabOpen(v => !v)}
-          aria-label={fabOpen ? 'Chiudi il menù delle azioni' : 'Apri il menù delle azioni'}
-          aria-expanded={fabOpen}
-          className={cn(
-            'fab-main flex h-14 w-14 items-center justify-center rounded-full shadow-lg text-primary-foreground',
-            fabOpen && 'fab-open',
-          )}
-          style={{ background: 'var(--primary)' }}
-        >
-          <LayoutGrid size={24} />
-        </button>
-      </div>
     </main>
   )
 }
