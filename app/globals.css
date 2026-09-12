@@ -542,6 +542,25 @@
     background: rgba(255, 255, 255, .16);
     box-shadow: none;
   }
+  /* Card SPLIT (mockup celle-split-teorico-reale.html, scelta 12/09/2026): divisa in
+     due metà SOLO quando il reale differisce dal teorico; altrimenti card intera come
+     sempre. Teorico sopra, ANCORATO ALLA MEZZERIA (justify-content flex-end): non può
+     toccare il badge della data nemmeno a 360px; reale sotto, a cuore di card. Se cambia
+     solo la SEZIONE (stesso tipo di turno) le metà hanno la STESSA tinta del reale: la
+     modifica la racconta solo la barra. La tinta della CARD resta quella del reale, così
+     il bordo segue il turno effettivo come nelle card intere. */
+  .cell-day.cell-split { flex-direction: column; overflow: hidden; }
+  .cell-day.cell-split > .cell-half {
+    flex: 1 1 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; border: 0; border-radius: 0; position: relative; text-align: center;
+  }
+  .cell-day.cell-split > .cell-half-theo { justify-content: flex-end; padding-bottom: 4px; }
+  /* Barra diagonale SULLA riga del codice teorico: sottile (2px) e trasparente (55%)
+     per segnalare la sostituzione senza coprire il codice (richiesta 12/09/2026). */
+  .cell-day .cell-half-theo.cell-barred::after {
+    content: ''; position: absolute; left: 6%; right: 6%; bottom: 9px; height: 2px;
+    border-radius: 1px; background: currentColor; opacity: .55; transform: rotate(-6deg);
+  }
   .cell-day.is-today { outline: 2px solid var(--primary); outline-offset: -2px; }
 
   /* Safe area for bottom nav */
