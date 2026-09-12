@@ -562,7 +562,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             onClick={() => setMonthPickerOpen(v => !v)}
             aria-label="Scegli mese e anno"
             aria-expanded={monthPickerOpen}
-            className="text-lg font-semibold leading-tight hover:text-foreground transition-colors"
+            className="rounded-xl border border-border/60 px-3 py-1.5 font-semibold leading-tight text-lg hover:bg-muted transition-colors"
           >
             {formatMonthLabel(month)}
           </button>
