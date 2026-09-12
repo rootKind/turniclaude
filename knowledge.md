@@ -505,6 +505,18 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (`.fab-mini-pop`: overshoot 1.07 con cubic-bezier(.34,1.56,.64,1)); anche il pannello
   mese/anno (`.month-pop`, i keyframe ricompongono la translate(-50%) di centratura).
   Rispettano `prefers-reduced-motion` (nessuna animazione).
+  **Selezione nel picker mese/anno (12/09/2026):** stessi colori delle pill ATTIVE P/M/N di
+  turnisala (`.picker-sel-m` = Mattina `--dialog-pill-mattina-active-*`, `.picker-sel-y` =
+  Pomeriggio `--dialog-pill-pomeriggio-active-*`), già adattivi chiaro/scuro via variabili.
+  **Navigatorazione LIBERA (12/09/2026):** il picker de «Il tuo turno» offre 10 anni (±5 dall'anno
+  corrente + anni caricati); turnisala NON limita più il calendario (rimossi `fromMonth`/`toMonth`
+  e la guardia `navigableMonthsSet` sugli swipe): `generateTheoreticalMonth` è funzione pura
+  della data, quindi si naviga ovunque e il teorico si genera al volo.
+  **BUG FIX `tokenForMember` (12/09/2026):** il periodo è la lunghezza del pattern DEL MEMBRO,
+  non `cycle_days` del tipo: dopo il super-ciclo («in terza» 84gg) i membri senza storia PDF
+  hanno pattern 28 — indicizzati con 84 producevano idx≥28 → token vuoto → persone SCOMPARSE
+  dai mesi teorici lontani (board turnisala vuota su mesi fuori range). Ora ogni pattern cicla
+  sulla SUA lunghezza (contratto in `scripts/check-token-member.mjs`).
   Il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
   per i mesi presenti in `sala_schedule`, gli altri restano teorici (etichetta «turni reali (PDF)» /
   «turni teorici» sotto il mese). La soglia di differenza è `realTheoreticalMismatch` su

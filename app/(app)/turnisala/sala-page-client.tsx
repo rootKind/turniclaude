@@ -73,7 +73,9 @@ export function SalaPageClient({
     fetchShiftTeamTree(supabase)
       .then(t => {
         setShiftTree(t)
-        if (theoreticalMonths.includes(currentMonthRef.current) && !scheduleRef.current) {
+        // Il mese corrente è teorico e non è ancora stato generato (arrivato
+        // prima dell'albero squadre): rigenera ora, per QUALSIASI mese.
+        if (!scheduleRef.current) {
           setSchedule(generateTheoreticalMonth(currentMonthRef.current, t, t.adjustments))
         }
       })
@@ -91,15 +93,15 @@ export function SalaPageClient({
   const handleMonthChange = async (month: string) => {
     setCurrentMonth(month)
     setSchedule(null)
-    const supabase = createClient()
-    if (isTheoretical(month)) {
-      // Mese non caricato: generato dai turni teorici. Se i dati non sono
-      // ancora pronti, il .then sopra rigenera appena arrivano.
-      if (shiftTree) {
-        setSchedule(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments))
-      }
-      return
+    // Qualsiasi mese/anno è navigabile: il teorico si genera al volo; i mesi
+    // caricati restano letti dal DB. Prima senza albero squadre non si poteva
+    // generare niente: ora si attende il fetch (il fallback arriva nel .then
+    // del caricamento iniziale, vedi nota sotto).
+    if (shiftTree) {
+      setSchedule(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments))
     }
+    if (isTheoretical(month)) return
+    const supabase = createClient()
     const data = await getSalaSchedule(supabase, month)
     setSchedule(data)
   }

@@ -759,6 +759,11 @@
   .dialog-pill-m.dp-active { background: var(--dialog-pill-mattina-active-bg);    border-color: var(--dialog-pill-mattina-active-border); }
   .dialog-pill-p.dp-active { background: var(--dialog-pill-pomeriggio-active-bg); border-color: var(--dialog-pill-pomeriggio-active-border); }
   .dialog-pill-n.dp-active { background: var(--dialog-pill-notte-active-bg);      border-color: var(--dialog-pill-notte-active-border); }
+  /* Selezione nel picker mese/anno de «Il tuo turno»: stessi colori delle pill
+     attive P/M/N di turnisala (Mese = Mattina, Anno = Pomeriggio), già
+     adattivi ai due temi via variabili. */
+  .picker-sel-m { background: var(--dialog-pill-mattina-active-bg); border: 1px solid var(--dialog-pill-mattina-active-border); color: var(--pill-mattina-text); }
+  .picker-sel-y { background: var(--dialog-pill-pomeriggio-active-bg); border: 1px solid var(--dialog-pill-pomeriggio-active-border); color: var(--pill-pomeriggio-text); }
 }
 
 /* Page transition & loading bar */

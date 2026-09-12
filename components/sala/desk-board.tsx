@@ -206,14 +206,10 @@ export function DeskBoard({
   const selectedShiftRef = useRef<SalaShiftType>(selectedShift)
   const selectedDayRef = useRef<number>(selectedDay)
   // Mesi navigabili = caricati a mano + mesi teorici (non ancora caricati).
-  const navigableMonths = useMemo(() =>
-    [...new Set([...availableMonths, ...theoreticalMonths])].sort(),
-    [availableMonths, theoreticalMonths],
-  )
-  const navigableMonthsSet = useMemo(() => new Set(navigableMonths), [navigableMonths])
+  /* Nessun limite di navigazione: il teorico si genera per QUALSIASI mese/anno.
+     Restano solo i set per distinguere mese caricato vs teorico. */
   const isTheoreticalMonth = useMemo(() => new Set(theoreticalMonths), [theoreticalMonths])
 
-  const availableMonthsRef = useRef(navigableMonths)
   const currentMonthRef = useRef(currentMonth)
   const onMonthChangeRef = useRef(onMonthChange)
   const swipeMonthChangeRef = useRef(false)
@@ -222,7 +218,6 @@ export function DeskBoard({
   useEffect(() => { isEditingRef.current = isEditing }, [isEditing])
   useEffect(() => { selectedShiftRef.current = selectedShift }, [selectedShift])
   useEffect(() => { selectedDayRef.current = selectedDay }, [selectedDay])
-  useEffect(() => { availableMonthsRef.current = navigableMonths }, [navigableMonths])
   useEffect(() => { currentMonthRef.current = currentMonth }, [currentMonth])
   useEffect(() => { onMonthChangeRef.current = onMonthChange }, [onMonthChange])
 
@@ -238,13 +233,9 @@ export function DeskBoard({
   const [pickerMonth, setPickerMonth] = useState(() => new Date(cy, cm - 1))
   useEffect(() => { setPickerMonth(new Date(cy, cm - 1)) }, [cy, cm])
 
-  const sortedAvailable = navigableMonths
-  const calFromMonth = sortedAvailable.length > 0
-    ? (() => { const [y, m] = sortedAvailable[0].split('-').map(Number); return new Date(y, m - 1) })()
-    : new Date(cy, cm - 1)
-  const calToMonth = sortedAvailable.length > 0
-    ? (() => { const [y, m] = sortedAvailable[sortedAvailable.length - 1].split('-').map(Number); return new Date(y, m - 1) })()
-    : new Date(cy, cm - 1)
+  /* Nessun limite di calendario: il teorico si genera per QUALSIASI mese/anno
+     (generateTheoreticalMonth è funzione pura della data), quindi si può
+     navigare ovunque, anche oltre i mesi caricati. */
 
   const weekdayLabel = format(new Date(cy, cm - 1, selectedDay), 'EEE', { locale: it }).replace('.', '').toUpperCase().slice(0, 3)
 
@@ -269,13 +260,12 @@ export function DeskBoard({
           setSelectedDay(day + 1)
           setSelectedShift(SHIFT_ORDER[0])
         } else {
+          // LIBERO: il teorico si calcola per qualsiasi mese, niente guardia
           const next = getNextMonth(currentMonthRef.current)
-          if (availableMonthsRef.current.includes(next)) {
-            swipeMonthChangeRef.current = true
-            setSelectedDay(1)
-            setSelectedShift(SHIFT_ORDER[0])
-            onMonthChangeRef.current(next)
-          }
+          swipeMonthChangeRef.current = true
+          setSelectedDay(1)
+          setSelectedShift(SHIFT_ORDER[0])
+          onMonthChangeRef.current(next)
         }
       } else {
         if (idx > 0) {
@@ -284,14 +274,13 @@ export function DeskBoard({
           setSelectedDay(day - 1)
           setSelectedShift(SHIFT_ORDER[SHIFT_ORDER.length - 1])
         } else {
+          // LIBERO: il teorico si calcola per qualsiasi mese, niente guardia
           const prev = getPrevMonth(currentMonthRef.current)
-          if (availableMonthsRef.current.includes(prev)) {
-            const lastDay = getDaysInMonth(prev)
-            swipeMonthChangeRef.current = true
-            setSelectedDay(lastDay)
-            setSelectedShift(SHIFT_ORDER[SHIFT_ORDER.length - 1])
-            onMonthChangeRef.current(prev)
-          }
+          const lastDay = getDaysInMonth(prev)
+          swipeMonthChangeRef.current = true
+          setSelectedDay(lastDay)
+          setSelectedShift(SHIFT_ORDER[SHIFT_ORDER.length - 1])
+          onMonthChangeRef.current(prev)
         }
       }
     }
@@ -517,11 +506,8 @@ export function DeskBoard({
                     }}
                     month={pickerMonth}
                     onMonthChange={setPickerMonth}
-                    fromMonth={calFromMonth}
-                    toMonth={calToMonth}
                     disabled={(date) => {
                       const dateMonthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-                      if (!navigableMonthsSet.has(dateMonthStr)) return true
                       // Mesi teorici: tutti i giorni navigabili; uploadati: solo i giorni presenti
                       if (dateMonthStr === currentMonth && activeDays && !isTheoreticalMonth.has(dateMonthStr)) return !activeDays.has(date.getDate())
                       return false

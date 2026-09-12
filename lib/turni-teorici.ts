@@ -60,7 +60,13 @@ export function tokenForMember(
 ): string {
   const offset = adjustmentOffset(adjustments, teamId, dateISO)
   const anchor = addDays(type.pattern_start, offset)
-  const idx = ((daysBetween(anchor, dateISO) % type.cycle_days) + type.cycle_days) % type.cycle_days
+  /* Il periodo è la lunghezza del pattern DEL MEMBRO, non cycle_days del tipo:
+     dopo il super-ciclo (es. «in terza» 84gg) i membri senza storia PDF hanno
+     conservato pattern più corti (28) — indicizzarli con il periodo del tipo
+     produce indici fuori pattern (token vuoto = persona che sparisce dai
+     mesi teorici). Ogni pattern cicla sulla SUA lunghezza. */
+  const period = Math.max(1, member.pattern.length || type.cycle_days)
+  const idx = ((daysBetween(anchor, dateISO) % period) + period) % period
   return member.pattern[idx] ?? ''
 }
 

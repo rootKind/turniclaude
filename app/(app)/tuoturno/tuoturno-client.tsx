@@ -922,7 +922,10 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 }
 
 /** Selettore rapido di MESE e ANNO: due colonne scorrevoli, il mese lascia in evidenza
- *  quelli con PDF caricato (pallino), l'anno si estende a coprire i mesi caricati. */
+ *  quelli con PDF caricato (pallino). ANNI LIBERI: 10 anni attorno all'anno
+ *  corrente (±5) — il teorico si calcola per QUALSIASI mese/anno, quindi nessun
+ *  limite alla scelta. Selezione = colori pill attive P/M/N di turnisala
+ *  (picker-sel-m / picker-sel-y). */
 function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
   month: string
   uploadedMonths: string[]
@@ -930,13 +933,16 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
   onClose: () => void
 }) {
   const [y, m] = month.split('-').map(Number)
+  const thisYear = new Date().getFullYear()
   const years = useMemo(() => {
-    const ys = new Set<number>([y])
-    for (const mm of uploadedMonths) ys.add(Number(mm.split('-')[0]))
-    const d = new Date()
-    ys.add(d.getFullYear())
-    return [...ys].sort((a, b) => a - b)
-  }, [uploadedMonths, y])
+    const list: number[] = []
+    for (let yy = thisYear - 5; yy <= thisYear + 5; yy++) list.push(yy)
+    for (const mm of uploadedMonths) {
+      const yy = Number(mm.split('-')[0])
+      if (!list.includes(yy)) list.push(yy)
+    }
+    return list.sort((a, b) => a - b)
+  }, [thisYear, uploadedMonths])
   const ref = useRef<HTMLDivElement>(null)
   // Tap fuori dal pannello lo chiude; tasto ESC pure.
   useEffect(() => {
@@ -966,11 +972,11 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
                   onClick={() => onPick(iso)}
                   className={cn(
                     'flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-[13px] font-semibold transition-colors',
-                    on ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                    on ? 'picker-sel-m' : 'hover:bg-muted',
                   )}
                 >
                   {label}
-                  {hasPdf && <span className={cn('h-1.5 w-1.5 rounded-full', on ? 'bg-primary-foreground' : 'bg-primary')} aria-label="PDF caricato" />}
+                  {hasPdf && <span className={cn('h-1.5 w-1.5 rounded-full', on ? 'bg-current' : 'bg-primary')} aria-label="PDF caricato" />}
                 </button>
               )
             })}
@@ -986,7 +992,7 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
                 onClick={() => onPick(`${yy}-${String(m).padStart(2, '0')}`)}
                 className={cn(
                   'rounded-lg px-2 py-1.5 text-left text-[13px] font-semibold transition-colors',
-                  yy === y ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                  yy === y ? 'picker-sel-y' : 'hover:bg-muted',
                 )}
               >
                 {yy}
