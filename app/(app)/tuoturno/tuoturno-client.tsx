@@ -136,6 +136,97 @@ function displayToken(token: string): string {
   return isWorkToken(token) ? tokenLabel(token) : token
 }
 
+/** ─── Card turno CONDIVISA: un solo codice per la griglia personale E il confronto ───
+ * Stessa struttura, stesse classi, stessa logica split/strike/pending/today:
+ * ciò che cambiano sono le dimensioni (scala «sm» per le celle del confronto)
+ * e la larghezza (w-full nelle tabelle, larghezza libera nella grid). Così ogni
+ * fix alla card vale automaticamente per entrambe le schermate. */
+function ShiftDayCard({
+  day,
+  real,
+  theo,
+  isToday,
+  size,
+  title,
+  palette,
+  mismatchStyle,
+  className,
+}: {
+  day: number
+  /** Reale del PDF; null = mese teorico (mostra solo il teorico). */
+  real: { kind: SalaCodeKind; short: string; label: string; pending?: boolean } | null
+  theo: string
+  isToday?: boolean
+  /** 'lg' = griglia personale (card 76px, badge assoluto); 'sm' = confronto (44px, data in chip inline). */
+  size: 'lg' | 'sm'
+  title?: string
+  /** Palette e stile mismatch arrivano dal chiamante: la pagina è già sottoscritta
+      ai rispettivi store (niente useSyncExternalStore dentro le card del loop). */
+  palette: CardPalette
+  mismatchStyle: MismatchStyle
+  className?: string
+}) {
+  // In evidenza c'è il reale del PDF; se manca, il teorico.
+  const primaryKind: SalaCodeKind = real
+    ? real.kind
+    : theo ? salaCodeInfo(theo).kind : 'empty'
+  const primaryToken = real ? real.short : theo
+  const primaryLabel = real ? displayToken(real.short) : theo ? displayToken(theo) : '—'
+  const mismatch = !!(real && theo && realTheoreticalMismatch(real.short, theo))
+  const showPending = !!real?.pending
+  const theoKind: SalaCodeKind = theo ? salaCodeInfo(theo).kind : 'empty'
+  const split = mismatch && mismatchStyle === 'split'
+  const codeSize = size === 'lg' ? 'text-[14px] font-extrabold leading-tight' : 'text-[11px] font-bold leading-none max-w-full truncate'
+  const theoSize = size === 'lg' ? 'text-[11px] font-bold leading-none' : 'text-[9px] font-bold leading-none max-w-full truncate'
+  return (
+    <div
+      title={title}
+      className={cn(
+        'cell-day relative text-center flex',
+        size === 'lg'
+          ? cn('rounded-xl min-h-[76px]', split ? 'cell-split px-0 py-0' : 'px-0.5 pt-3 pb-1.5 flex-col items-center justify-center gap-1')
+          : cn('rounded-lg h-[44px]', split ? 'cell-split px-0 py-0' : 'px-0.5 pt-[3px] pb-0.5 flex-col items-center justify-center gap-0.5'),
+        cellTintClass(primaryKind, primaryToken),
+        showPending && 'is-pend',
+        isToday && 'is-today',
+        className,
+      )}
+      style={split ? undefined : cardOverride(primaryKind, primaryToken, palette)}
+    >
+      {size === 'lg' ? (
+        <span className="day-badge tabular-nums">{day}</span>
+      ) : (
+        <span className="cmp-day tabular-nums">{day}</span>
+      )}
+      {split ? (
+        <>
+          <span
+            className={cn('cell-half cell-half-theo cell-barred', cellTintClass(theoKind, theo || ''))}
+            style={cardOverride(theoKind, theo || '', palette)}
+          >
+            <span className={theoSize}>{theo ? displayToken(theo) : '—'}</span>
+          </span>
+          <span
+            className={cn('cell-half', cellTintClass(primaryKind, primaryToken))}
+            style={cardOverride(primaryKind, primaryToken, palette)}
+          >
+            <span className={codeSize}>{primaryLabel}</span>
+          </span>
+        </>
+      ) : (
+        <>
+          {mismatch && theo && (
+            <span className={cn('font-semibold leading-none line-through opacity-60 max-w-full truncate', size === 'lg' ? 'text-[12px]' : 'text-[8px]')}>
+              {displayToken(theo)}
+            </span>
+          )}
+          <span className={codeSize}>{primaryLabel}</span>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ─── confronto fra più dipendenti ────────────────────────────────────────────
 
 /** Cella del confronto: 44px di ALTEZZA — la larghezza si adatta al blocco
@@ -246,58 +337,21 @@ function CompareTable({ rows, chunks, month, todayISO, palette, mismatchStyle }:
                   const title = `${r.name} · ${dateISO} — ${c.label}`
                     + (c.pending ? ' · da confermare' : '')
                     + (c.mismatch ? ` · teorico: ${c.theoLabel}` : '')
-                  // STESSA logica della griglia personale (scelta dal pannello
-                  // «Personalizza», vale per entrambe le schermate):
-                  // - «split»: card divisa in due metà (tinta della metà = quella
-                  //   del REALE anche quando cambia solo la sezione; la barra
-                  //   racconta la sostituzione)
-                  // - «strike»: card intera, teorico barrato sopra il codice
-                  const theoKind: SalaCodeKind = c.theoToken ? salaCodeInfo(c.theoToken).kind : 'empty'
-                  const cmpSplit = c.mismatch && c.theoLabel && mismatchStyle === 'split'
+                  // STESSO componente della griglia personale (size sm): ogni fix
+                  // alla card vale automaticamente per entrambe le schermate.
                   return (
-                    <div
+                    <ShiftDayCard
                       key={d}
+                      day={d}
+                      real={c.kind !== 'empty' || c.token ? { kind: c.kind, short: c.token, label: c.label, pending: c.pending } : null}
+                      theo={c.theoToken}
+                      isToday={dateISO === todayISO}
+                      size="sm"
                       title={title}
-                      className={cn(
-                        'cell-day relative flex flex-col items-center text-center',
-                        CMP_CELL_FLEX,
-                        cmpSplit ? 'cell-split px-0 py-0' : 'cmp-cell justify-center gap-0.5 px-0.5 rounded-lg',
-                        CMP_COL,
-                        cellTintClass(c.kind, c.token),
-                        c.pending && 'is-pend',
-                        dateISO === todayISO && 'is-today',
-                      )}
-                      style={cmpSplit ? undefined : cardOverride(c.kind, c.token, palette)}
-                    >
-                      {/* Data INLINE (non assoluto): a 44px quello assoluto delle
-                          card 76px finiva SOPRA il codice → illeggibile. */}
-                      <span className="cmp-day tabular-nums">{d}</span>
-                      {cmpSplit ? (
-                        <>
-                          <span
-                            className={cn('cell-half cell-half-theo cell-barred', cellTintClass(theoKind, c.theoToken || ''))}
-                            style={cardOverride(theoKind, c.theoToken || '', palette)}
-                          >
-                            <span className="text-[9px] font-bold leading-none max-w-full truncate">{c.theoLabel}</span>
-                          </span>
-                          <span
-                            className={cn('cell-half', cellTintClass(c.kind, c.token))}
-                            style={cardOverride(c.kind, c.token, palette)}
-                          >
-                            <span className="text-[11px] font-bold leading-none max-w-full truncate">{c.label}</span>
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          {c.mismatch && c.theoLabel && (
-                            <span className="text-[8px] font-semibold leading-none line-through opacity-60 max-w-full truncate">
-                              {c.theoLabel}
-                            </span>
-                          )}
-                          <span className="text-[11px] font-bold leading-none max-w-full truncate">{c.label}</span>
-                        </>
-                      )}
-                    </div>
+                      palette={palette}
+                      mismatchStyle={mismatchStyle}
+                      className={CMP_CELL_FLEX}
+                    />
                   )
                 })}
               </div>
@@ -697,84 +751,24 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                   const real = realShiftOfDay(d)
                   const theo = theoreticalFor(d)
                   const isToday = dateISO === today
-                  // In evidenza c'è il reale del PDF; se manca, il teorico.
-                  const primaryKind: SalaCodeKind = real
-                    ? real.kind
-                    : theo ? salaCodeInfo(theo).kind : 'empty'
-                  const primaryToken = real ? real.short : theo
-                  const primaryLabel = real
-                    ? displayToken(real.short)
-                    : theo ? displayToken(theo) : '—'
-                  // Un reale diverso dal teorico (anche solo per sezione) divide la card in due.
-                  const mismatch = !!(real && theo && realTheoreticalMismatch(real.short, theo))
-                  // Evidenziazione UNICA per card: il contorno ambra «da confermare»
-                  // (sfondo giallo sul PDF) compare SEMPRE quando il PDF lo indica,
-                  // anche sulla card divisa.
-                  const showPending = !!real?.pending
-
                   const realLabel = real ? (real.kind === 'work' ? tokenLabel(real.short) : `${real.label} (${real.short})`) : 'nessun turno'
                   const theoLabel = theo ? tokenLabel(theo) : 'nessun turno'
                   const pendingLabel = real?.pending ? ' · da confermare' : ''
                   const cellTitle = isRealMonth
-                    ? `${dateISO} — reale: ${realLabel}${pendingLabel} · teorico: ${theoLabel}${mismatch ? ' (diversi)' : ''}`
+                    ? `${dateISO} — reale: ${realLabel}${pendingLabel} · teorico: ${theoLabel}${real && theo && realTheoreticalMismatch(real.short, theo) ? ' (diversi)' : ''}`
                     : `${dateISO} — teorico: ${theoLabel}`
-
-                  // Card DIVISA solo quando il reale differisce dal teorico E lo stile
-                  // scelto è «divisa»: sopra il teorico (sulla mezzeria, barra sottile),
-                  // sotto il reale. Con lo stile «barrato» la card resta intera come un
-                  // giorno normale, con il teorico barrato sopra il codice.
-                  // cellTintClass dà alle due metà la STESSA tinta quando il tipo di turno
-                  // è lo stesso (cambio di sola sezione): la modifica la racconta la barra.
-                  const theoKind: SalaCodeKind = theo ? salaCodeInfo(theo).kind : 'empty'
-                  const split = mismatch && mismatchStyle === 'split'
                   return (
-                    <div
+                    <ShiftDayCard
                       key={d}
+                      day={d}
+                      real={real ? { kind: real.kind, short: real.short, label: real.label, pending: real.pending } : null}
+                      theo={theo}
+                      isToday={isToday}
+                      size="lg"
                       title={cellTitle}
-                      className={cn(
-                        'cell-day relative rounded-xl min-h-[76px] text-center flex',
-                        split ? 'cell-split px-0 py-0' : 'px-0.5 pt-3 pb-1.5 flex-col items-center justify-center gap-1',
-                        cellTintClass(primaryKind, primaryToken),
-                        showPending && 'is-pend',
-                        isToday && 'is-today',
-                      )}
-                      style={split ? undefined : cardOverride(primaryKind, primaryToken, palette)}
-                    >
-                      <span className="day-badge tabular-nums">{d}</span>
-                      {split ? (
-                        <>
-                          <span
-                            className={cn(
-                              'cell-half cell-half-theo cell-barred',
-                              cellTintClass(theoKind, theo || ''),
-                            )}
-                            style={cardOverride(theoKind, theo || '', palette)}
-                          >
-                            <span className="text-[11px] font-bold leading-none">
-                              {theo ? displayToken(theo) : '—'}
-                            </span>
-                          </span>
-                          <span
-                            className={cn(
-                              'cell-half',
-                              cellTintClass(primaryKind, primaryToken),
-                            )}
-                            style={cardOverride(primaryKind, primaryToken, palette)}
-                          >
-                            <span className="text-[14px] font-extrabold leading-tight">{primaryLabel}</span>
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          {mismatch && theo && (
-                            <span className="text-[12px] font-semibold leading-none line-through opacity-60">
-                              {displayToken(theo)}
-                            </span>
-                          )}
-                          <span className="text-[14px] font-extrabold leading-tight">{primaryLabel}</span>
-                        </>
-                      )}
-                    </div>
+                      palette={palette}
+                      mismatchStyle={mismatchStyle}
+                    />
                   )
                 })}
               </>
