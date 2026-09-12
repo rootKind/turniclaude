@@ -555,33 +555,34 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         >
           <ChevronLeft size={20} />
         </button>
-        <div className="relative text-center">
-          {/* Mese e anno SELEZIONABILI: tap etichetta o frecce → menù di scelta rapida */}
-          <button
-            type="button"
-            onClick={() => setMonthPickerOpen(v => !v)}
-            aria-label="Scegli mese e anno"
-            aria-expanded={monthPickerOpen}
-            className="rounded-xl border border-border/60 px-3 py-1.5 font-semibold leading-tight text-lg hover:bg-muted transition-colors"
-          >
-            {/* Stesso pattern del trigger di turnisala: a pannello APERTO il testo
-                collassa al solo anno — i mesi sono la colonna interattiva subito
-                sotto, quindi il mese appare solo nel pannello. */}
-            {monthPickerOpen ? <span className="tabular-nums">{month.split('-')[0]}</span> : formatMonthLabel(month)}
-          </button>
+        <div className="text-center">
+          {/* Mese e anno SELEZIONABILI: tap etichetta o frecce → menù di scelta rapida.
+              Il menù è ancorato al bottone (lo «span» mese anno): parte da lì, non
+              dalla caption sotto. */}
+          <div className="relative inline-block">
+            <button
+              type="button"
+              onClick={() => setMonthPickerOpen(v => !v)}
+              aria-label="Scegli mese e anno"
+              aria-expanded={monthPickerOpen}
+              className="rounded-xl border border-border/60 px-3 py-1.5 font-semibold leading-tight text-lg hover:bg-muted transition-colors"
+            >
+              {formatMonthLabel(month)}
+            </button>
+            {monthPickerOpen && (
+              <MonthYearPicker
+                month={month}
+                uploadedMonths={uploadedMonths}
+                onPick={m => { setMonth(m); setMonthPickerOpen(false) }}
+                onClose={() => setMonthPickerOpen(false)}
+              />
+            )}
+          </div>
           <p className={cn('text-[11px] leading-tight', isRealMonth ? 'text-primary' : 'text-muted-foreground')}>
             {isRealMonth
               ? (loadingReal ? 'caricamento…' : 'turni reali (PDF)')
               : 'turni teorici'}
           </p>
-          {monthPickerOpen && (
-            <MonthYearPicker
-              month={month}
-              uploadedMonths={uploadedMonths}
-              onPick={m => { setMonth(m); setMonthPickerOpen(false) }}
-              onClose={() => setMonthPickerOpen(false)}
-            />
-          )}
         </div>
         <button
           onClick={goNext}
