@@ -164,7 +164,7 @@ function buildCompareDay(real: PersonDayShift | null, theo: string, hasTheoretic
     token: real ? real.short : theo,
     label: real ? displayToken(real.short) : theo ? displayToken(theo) : '—',
     mismatch: !!(real && hasTheoretical && theo && realTheoreticalMismatch(real.short, theo)),
-    pending: !!real?.pending,
+    pending: !!(real?.pending && !(real && hasTheoretical && theo && realTheoreticalMismatch(real.short, theo))),
     theoLabel: theo ? tokenLabel(theo) : '',
   }
 }
@@ -224,8 +224,7 @@ function CompareTable({ rows, chunks, month, todayISO }: {
                         'cell-day shrink-0 rounded-lg flex flex-col items-center justify-center text-center',
                         CMP_COL,
                         cellTintClass(c.kind, c.token),
-                        c.mismatch && 'is-diff',
-                        c.pending && 'is-pend',
+                        !c.mismatch && c.pending && 'is-pend',
                         dateISO === todayISO && 'is-today',
                       )}
                     >
@@ -301,7 +300,6 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const loadingReal = isRealMonth && !(month in schedules)
   const today = todayISO()
   const totalDays = daysInMonth(month)
-  const offset = firstWeekdayOffset(month)
 
   // Formato compatto v2: codici completi per persona (assenze incluse) + celle
   // gialle «da confermare». Senza data si ricade sulle sezioni del giorno.
@@ -485,15 +483,16 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             onTouchEnd={onTouchEnd}
           >
             {loadingReal ? (
-              // Il PDF del mese sta arrivando: celle skeleton, come le altre pagine.
-              Array.from({ length: offset + totalDays }).map((_, i) => (
+              // Il PDF del mese sta arrivando: celle skeleton SOLO per i giorni reali,
+              // come le card vuote di coda (il mese può non iniziare di lunedì).
+              Array.from({ length: totalDays }).map((_, i) => (
                 <Skeleton key={`sk-${i}`} className="h-[76px] w-full rounded-xl" />
               ))
             ) : (
               <>
-                {Array.from({ length: offset }).map((_, i) => (
-                  <div key={`empty-${i}`} className="rounded-xl border border-dashed border-border/50 min-h-[76px]" />
-                ))}
+                {/* Niente card vuote PRIMA del giorno 1: le celle scartate del lunedì
+                    lasciano la griglia allineata da sola (coerente con i vuoti di coda,
+                    che non vengono generati a fine mese). */}
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map(d => {
                   const dateISO = `${month}-${String(d).padStart(2, '0')}`
                   const real = realShiftOfDay(d)
@@ -509,6 +508,9 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                     : theo ? displayToken(theo) : '—'
                   // Un reale diverso dal teorico (anche solo per sezione) va notato subito.
                   const mismatch = !!(real && hasTheoretical && theo && realTheoreticalMismatch(real.short, theo))
+                  // Evidenziazione UNICA per card: l'anello ambra «da confermare» vince
+                  // sulla condizione «diverso dal teorico» (solo barrato + tooltip).
+                  const showPending = !!real?.pending && !mismatch
 
                   const realLabel = real ? (real.kind === 'work' ? tokenLabel(real.short) : `${real.label} (${real.short})`) : 'nessun turno'
                   const theoLabel = theo ? tokenLabel(theo) : 'nessun turno'
@@ -524,8 +526,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                       className={cn(
                         'cell-day rounded-xl min-h-[76px] px-0.5 py-1.5 flex flex-col items-center justify-center gap-0.5 text-center',
                         cellTintClass(primaryKind, primaryToken),
-                        mismatch && 'is-diff',
-                        real?.pending && 'is-pend',
+                        !mismatch && showPending && 'is-pend',
                         isToday && 'is-today',
                       )}
                     >
@@ -559,18 +560,14 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           <span className="cell-day is-pend rounded px-1.5 py-0.5 text-[11px] font-bold leading-none">M4</span>
           da confermare
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="cell-day is-diff rounded px-1.5 py-0.5 text-[11px] font-bold leading-none">M4</span>
-          reale ≠ teorico
-        </span>
       </div>
 
       {comparing ? (
         <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
           <b>Una riga per dipendente</b>, i giorni in orizzontale con giorno della settimana e numero.
           Il codice è il <b>reale</b> del PDF (o il <b>teorico</b>, se il reale manca); quando i due
-          differiscono la card prende il <b>bordo tratteggiato rosso</b> e il teorico è nel tooltip,
-          l&apos;<b>anello ambra</b> segna i turni <b>da confermare</b>. Con pochi dipendenti il mese
+          differiscono il teorico compare <b>barrato</b> e sta nel tooltip, mentre l&apos;<b>anello
+          ambra</b> segna i turni <b>da confermare</b> (sfondo giallo sul PDF). Con pochi dipendenti il mese
           viene spezzato in più blocchi per non farti scorrere; altrimenti scorri la tabella in
           orizzontale. Il mese si cambia con le frecce ‹ › (in confronto lo swipe è disattivato).
         </p>
@@ -579,9 +576,9 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           <b>L&apos;intera card è tinta dal turno</b>: azzurro pomeriggio, rosa mattina, lilla notte,
           grigio riposi, rosso assenze, verde attività senza sezione. Il codice in evidenza è il{' '}
           <b>reale</b> del PDF; se il reale manca compare il <b>teorico</b>. Quando i due
-          differiscono, il teorico appare <b>barrato</b> sopra il codice e la card prende il{' '}
-          <b>bordo tratteggiato rosso</b>. L&apos;<b>anello ambra</b> segna i turni con sfondo giallo sul
-          PDF, cioè <b>da confermare</b>. RM/RC/RI = riposi, D = disponibilità, A = altre presenze,
+          differiscono, il teorico appare <b>barrato</b> sopra il codice (e nel tooltip del giorno).
+          L&apos;<b>anello ambra</b> segna i turni con sfondo giallo sul PDF, cioè <b>da confermare</b>.
+          RM/RC/RI = riposi, D = disponibilità, A = altre presenze,
           F.E. = ferie, VS = visita sanitaria, Sp/ISp/Dis/Tutor = attività senza sezione.
         </p>
       ) : (

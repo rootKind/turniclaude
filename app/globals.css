@@ -99,8 +99,6 @@
   --cell-abs-bg: #fbd9d6;   --cell-abs-text: #8c2a24;
   --cell-duty-bg: #d6f0dd;  --cell-duty-text: #1f5a34;
   --cell-empty-bg: #eef0f2; --cell-empty-text: #8b939e;
-  --cell-diff-border: #b23a2e;
-  --cell-diff-soft: #c07a20;
   --cell-pend-ring: #d9a53a;
 
   /* Impersonation banner — inverso (nero in chiaro, bianco in scuro) */
@@ -285,8 +283,6 @@
   --cell-abs-bg: #3d1c1a;   --cell-abs-text: #fbd9d6;
   --cell-duty-bg: #16301f;  --cell-duty-text: #9fd9b4;
   --cell-empty-bg: #1b1f24; --cell-empty-text: #8b939e;
-  --cell-diff-border: #e2705f;
-  --cell-diff-soft: #d99a3c;
   --cell-pend-ring: #d9a53a;
 
   /* Impersonation banner — dark (inverso: bianco) */
@@ -507,17 +503,20 @@
      Lo stato vive sul bordo (dashed = reale diverso dal teorico) e su un anello interno
      (ambra = turno da confermare, cioè sfondo giallo sul PDF). */
   .cell-day { border: 1.5px solid transparent; background: var(--cell-empty-bg); color: var(--cell-empty-text); }
-  .cell-tint-m     { background: var(--cell-m-bg);     color: var(--cell-m-text); }
-  .cell-tint-p     { background: var(--cell-p-bg);     color: var(--cell-p-text); }
-  .cell-tint-n     { background: var(--cell-n-bg);     color: var(--cell-n-text); }
+  /* Card a SINGOLO turno (M/P/N): bordo pill 1px come la dashboard
+     (color-mix currentColor 30% — vedi .pill-mattina e simili). */
+  .cell-tint-m     { background: var(--cell-m-bg);     color: var(--cell-m-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-p     { background: var(--cell-p-bg);     color: var(--cell-p-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-n     { background: var(--cell-n-bg);     color: var(--cell-n-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
   .cell-tint-rest  { background: var(--cell-rest-bg);  color: var(--cell-rest-text); }
   .cell-tint-avail { background: var(--cell-avail-bg); color: var(--cell-avail-text); }
   .cell-tint-abs   { background: var(--cell-abs-bg);   color: var(--cell-abs-text); }
   .cell-tint-duty  { background: var(--cell-duty-bg);  color: var(--cell-duty-text); }
   .cell-tint-empty { background: var(--cell-empty-bg); color: var(--cell-empty-text); }
-  .cell-day.is-diff { border: 1.5px dashed var(--cell-diff-border); }
-  .cell-day.is-pend { box-shadow: inset 0 0 0 2px var(--cell-pend-ring); }
-  .cell-day.is-diff.is-pend { border-color: var(--cell-diff-soft); }
+  /* «Da confermare» (sfondo giallo sul PDF): anello interno ambra 3px — è l'UNICO
+     marcatore sulle card (il bordo tratteggiato dei «diversi dal teorico» è stato
+     rimosso 12/09/2026: chi fa sempre turni diversi vedrebbe tutto tratteggiato). */
+  .cell-day.is-pend { box-shadow: inset 0 0 0 3px var(--cell-pend-ring); }
   .cell-day.is-today { outline: 2px solid var(--primary); outline-offset: -2px; }
 
   /* Safe area for bottom nav */

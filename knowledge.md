@@ -387,7 +387,8 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (`encode/decodeSalaMonth`, `findMonthPerson`, `personDayShift`, `salaCodeInfo`).
 - **«Il tuo turno» — codici completi (11/09/2026):** la cella mostra anche assenze/riposi/disponibilità/
   attività senza sezione, con la tinta per tipo di turno della «variante E» (vedi più sotto); i turni
-  «da confermare» (cella gialla sul PDF) hanno l'anello interno ambra.
+  «da confermare» (cella gialla sul PDF) hanno l'anello interno ambra 3px, che è l'UNICO marcatore
+  sulle card (12/09/2026).
   Nota: il «teorico» della pagina è la rotazione ricostruita dall'app (`generateTheoreticalMonth`),
   NON la riga base del PDF — che ora però è conservata in `teorico[]` e sarebbe il riferimento esatto
   per i mesi caricati.
@@ -405,14 +406,20 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `tuoturno-client.tsx`: intestazione «Il tuo turno» + nome della persona (tap → dialog con ricerca per
   scegliere QUALSIASI dipendente, default = utente loggato), calendario mensile con swipe orizzontale
   (touch, soglia 50px; le frecce ‹ › fanno lo stesso) e legenda. Celle «variante E» (min-h 76px): la card
-  è INTERAMENTE tinta dal tipo di turno — numero del giorno compreso — azzurro Pomeriggio, rosa Mattina,
-  lilla Notte, grigio riposi, rosso assenze, verde attività senza sezione (`.cell-day` + `.cell-tint-*` in
-  `app/globals.css`, con variabili dedicate per tema chiaro e scuro; dal 12/09/2026 le tinte M/P/N puntano
-  alle variabili `--pill-*` della dashboard — stessa tinta, testo leggermente più tenue per la cella grande). In evidenza c'è il codice REALE del
+  è INTERAMENTE tinta dal tipo di turno — numero del giorno compreso — blu Mattina, ambra Pomeriggio,
+  lilla Notte (tinte = pill della dashboard), grigio riposi, rosso assenze, verde attività senza sezione
+  (`.cell-day` + `.cell-tint-*` in `app/globals.css`; dal 12/09/2026 le tinte M/P/N puntano alle
+  variabili `--pill-*` della dashboard e le card a SINGOLO turno M/P/N portano il bordo pill 1px
+  `color-mix(currentColor 30%)`, come le pill della dashboard). La griglia NON ha più card vuote prima
+  del giorno 1 (mese che non inizia di lunedì: le celle scartate lasciano la griglia allineata —
+  coerente con i vuoti di coda, mai generati; gli skeleton di caricamento coprono solo i giorni reali). In evidenza c'è il codice REALE del
   PDF (slot T/S nascosto); se il reale manca (persona assente dal PDF, o mese non caricato) c'è il
-  TEORICO. Quando i due differiscono il teorico compare BARRATO (10px) sopra il codice e la card prende
-  il BORDO TRATTEGGIATO ROSSO (`is-diff`), mentre l'anello interno ambra (`is-pend`) segna i turni con
-  sfondo giallo sul PDF = «da confermare»; il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
+  TEORICO. Quando i due differiscono il teorico compare BARRATO (10px) sopra il codice e il dettaglio
+  sta nel tooltip del giorno (12/09/2026: il BORDO TRATTEGGIATO ROSSO `is-diff` è stato RIMOSSO —
+  chi fa sempre turni diversi dal teorico vedrebbe tutte le card tratteggiate; rimaste le variabili
+  `--cell-diff-*` sono state eliminate). L'anello interno ambra (`is-pend`, 3px) è l'UNICO marcatore:
+  segna i turni con sfondo giallo sul PDF = «da confermare» e VINCE sulla condizione «diverso»
+  (una card gialla non porta mai anche il barrato); il giorno corrente ha un outline interno `--primary`. Il reale compare SOLO
   per i mesi presenti in `sala_schedule`, gli altri restano teorici (etichetta «turni reali (PDF)» /
   «turni teorici» sotto il mese). La soglia di differenza è `realTheoreticalMismatch` su
   `tokenCompareKey` (turno + sezione; slot T/S e TIR ignorati), quindi «M4 vs M9» è una differenza
@@ -434,7 +441,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   riporta al calendario singolo. La vista di confronto è una TABELLA (`CompareTable`, stesso file):
   una riga per dipendente, giorni in orizzontale con giorno della settimana e numero, colonna nome
   sticky a sinistra, celle 34×34 tinte con lo stesso linguaggio della variante E (teorico barrato +
-  bordo tratteggiato rosso se diverge, anello ambra se «da confermare»; il teorico è anche nel tooltip).
+  tooltip se diverge — niente più bordo tratteggiato; anello ambra se «da confermare», unico marcatore).
   Il mese viene spezzato in più BLOCCHI contigui con regola ADATTIVA: `splitDays(totalDays, min(4,
   floor((window.innerHeight - 300) / (dipendenti*36 + 26))))`, così con 2-3 dipendenti e schermo alto
   l'intero mese entra in 4 blocchi (8 giorni ciascuno) SENZA scroll orizzontale, mentre con molti
