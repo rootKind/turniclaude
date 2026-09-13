@@ -14,7 +14,7 @@ async function requireAdminManager(): Promise<NextResponse | null> {
   return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
 }
 
-type Kind = 'type' | 'team' | 'member'
+type Kind = 'type' | 'team' | 'member' | 'template'
 
 interface MutBody {
   kind?: Kind
@@ -25,11 +25,24 @@ interface MutBody {
   is_active?: boolean
   sort_order?: number
   shift_type_id?: string
-  phase_offset_days?: number
   team_id?: string
+  phase_offset_days?: number
   full_name?: string
   pattern?: string[]
   is_lead?: boolean
+  description?: string
+}
+
+export async function GET() {
+  const denied = await requireAdminManager()
+  if (denied) return denied
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('shift_cycle_templates')
+    .select('id, shift_type_id, team_id, name, description, pattern, cycle_days, pattern_start, is_builtin')
+    .order('name', { ascending: true })
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json({ templates: data ?? [] })
 }
 
 export async function POST(req: NextRequest) {
@@ -93,6 +106,36 @@ export async function POST(req: NextRequest) {
       sort_order: body.sort_order ?? 0,
       is_active: body.is_active ?? true,
       is_lead: body.is_lead ?? false,
+    })
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true })
+  }
+
+  if (kind === 'template') {
+    if (!body.shift_type_id || !body.name || !body.pattern?.length) {
+      return NextResponse.json({ error: 'shift_type_id, name e pattern richiesti' }, { status: 400 })
+    }
+    const { data: type } = await supabase
+      .from('shift_types')
+      .select('cycle_days, pattern_start')
+      .eq('id', body.shift_type_id)
+      .single()
+    if (!type) return NextResponse.json({ error: 'Tipologia non trovata' }, { status: 400 })
+    if (body.pattern.length !== type.cycle_days) {
+      return NextResponse.json(
+        { error: `Il pattern deve avere ${type.cycle_days} token (ciclo della tipologia)` },
+        { status: 400 },
+      )
+    }
+    const { error } = await supabase.from('shift_cycle_templates').insert({
+      shift_type_id: body.shift_type_id,
+      team_id: body.team_id ?? null,
+      name: body.name,
+      description: body.description ?? null,
+      pattern: body.pattern,
+      cycle_days: type.cycle_days,
+      pattern_start: type.pattern_start,
+      is_builtin: false,
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ ok: true })
@@ -169,7 +212,11 @@ export async function DELETE(req: NextRequest) {
   if (!kind || !id) return NextResponse.json({ error: 'kind e id richiesti' }, { status: 400 })
 
   const table =
-    kind === 'type' ? 'shift_types' : kind === 'team' ? 'shift_teams' : kind === 'member' ? 'shift_team_members' : null
+    kind === 'type' ? 'shift_types'
+    : kind === 'team' ? 'shift_teams'
+    : kind === 'member' ? 'shift_team_members'
+    : kind === 'template' ? 'shift_cycle_templates'
+    : null
   if (!table) return NextResponse.json({ error: 'kind non valido' }, { status: 400 })
 
   const { error } = await supabase.from(table as 'shift_types').delete().eq('id', id)

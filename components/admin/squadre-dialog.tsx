@@ -1,9 +1,9 @@
 'use client'
-import { useCallback, useEffect, useState } from 'react'
-import { ChevronDown, ChevronUp, Pencil, Plus, Star, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ChevronDown, ChevronUp, Pencil, Plus, Save, Star, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
+import { fetchShiftCycleTemplates, fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import type { ShiftTeamTree } from '@/types/database'
+import type { ShiftCycleTemplate, ShiftTeamTree } from '@/types/database'
 
 interface Props {
   open: boolean
@@ -46,6 +46,7 @@ async function api(method: string, body?: unknown) {
 
 export function SquadreDialog({ open, onClose }: Props) {
   const [tree, setTree] = useState<ShiftTeamTree | null>(null)
+  const [templates, setTemplates] = useState<ShiftCycleTemplate[]>([])
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState('types')
   const [membersTypeId, setMembersTypeId] = useState('')
@@ -53,7 +54,12 @@ export function SquadreDialog({ open, onClose }: Props) {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      setTree(await fetchShiftTeamTree(createClient()))
+      const [t, tpl] = await Promise.all([
+        fetchShiftTeamTree(createClient()),
+        fetchShiftCycleTemplates(createClient()),
+      ])
+      setTree(t)
+      setTemplates(tpl)
     } catch (err) {
       toast.error('Errore caricamento: ' + (err as Error).message)
     } finally {
@@ -106,7 +112,7 @@ export function SquadreDialog({ open, onClose }: Props) {
             <TabsContent value="types"><TypesTab tree={tree} run={run} onEditMembers={openMembers} /></TabsContent>
             <TabsContent value="teams"><TeamsTab tree={tree} run={run} /></TabsContent>
             <TabsContent value="members">
-              <MembersTab tree={tree} run={run} typeId={membersTypeId} onTypeChange={setMembersTypeId} />
+              <MembersTab tree={tree} templates={templates} run={run} typeId={membersTypeId} onTypeChange={setMembersTypeId} />
             </TabsContent>
           </div>
         </Tabs>
@@ -291,8 +297,139 @@ function TeamPhaseEditor({ team, run }: { team: Team; run: (fn: () => Promise<vo
 
 // ─── Membri ──────────────────────────────────────────────────────────────────
 
-function MembersTab({ tree, run, typeId, onTypeChange }: {
+/** Anteprima compatta dei token di un ciclo: riposo/disponibilità in grigio, lavoro in tinta. */
+function PatternPreview({ pattern, max = 14 }: { pattern: string[]; max?: number }) {
+  return (
+    <div className="flex flex-wrap gap-0.5">
+      {pattern.slice(0, max).map((tok, i) => (
+        <span
+          key={i}
+          className={`px-1 py-0.5 rounded text-[9px] font-mono leading-none ${
+            /^(RM|RC|RI)$/.test(tok)
+              ? 'bg-muted text-muted-foreground'
+              : tok === 'D'
+                ? 'bg-muted/50 text-muted-foreground/60'
+                : 'bg-primary/10 text-primary'
+          }`}
+        >
+          {tok}
+        </span>
+      ))}
+      {pattern.length > max && <span className="text-[9px] text-muted-foreground self-center">+{pattern.length - max}</span>}
+    </div>
+  )
+}
+
+/**
+ * Catalogo dei cicli pronti: scegli un template e il pattern si compila da solo.
+ * Prima i template della squadra selezionata, poi quelli generici della
+ * tipologia, infine quelli delle altre squadre (clic per applicare comunque).
+ * «Salva» memorizza il pattern corrente nel catalogo per riutilizzarlo.
+ */
+function CyclePicker({ templates, typeId, teamId, cycle, pattern, onApply }: {
+  templates: ShiftCycleTemplate[]
+  typeId: string
+  teamId: string
+  cycle: number
+  pattern: string[]            // pattern corrente dell'editor
+  onApply: (tokens: string[]) => void
+}) {
+  const [savingName, setSavingName] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const forTeam = useMemo(
+    () => templates.filter(t => t.shift_type_id === typeId && t.team_id === teamId),
+    [templates, typeId, teamId],
+  )
+  const forType = useMemo(
+    () => templates.filter(t => t.shift_type_id === typeId && !t.team_id),
+    [templates, typeId],
+  )
+  const others = useMemo(
+    () => templates.filter(t => t.shift_type_id === typeId && t.team_id && t.team_id !== teamId),
+    [templates, typeId, teamId],
+  )
+
+  const save = async () => {
+    const name = savingName.trim()
+    if (!name) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/shift-teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'template', shift_type_id: typeId, team_id: teamId, name, pattern }),
+      })
+      const b = await res.json()
+      if (!res.ok) throw new Error(b.error || 'Errore')
+      toast.success(`Ciclo "${name}" salvato nel catalogo`)
+      setSavingName('')
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const Group = ({ label, items }: { label: string; items: ShiftCycleTemplate[] }) =>
+    items.length ? (
+      <div className="space-y-1">
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+        <div className="grid gap-1">
+          {items.map(t => {
+            const active = t.pattern.join('|') === pattern.join('|')
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => onApply(t.pattern)}
+                className={`text-left rounded-lg border px-2 py-1.5 transition-colors ${
+                  active ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium truncate flex-1">{t.name}</span>
+                  {t.pattern.length !== cycle && (
+                    <span className="text-[9px] text-destructive shrink-0">{t.pattern.length} token ≠ ciclo {cycle}</span>
+                  )}
+                </div>
+                <PatternPreview pattern={t.pattern} max={14} />
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    ) : null
+
+  return (
+    <div className="space-y-2 rounded-lg border bg-muted/20 p-2">
+      <p className="text-xs font-medium">Cicli pronti</p>
+      {forTeam.length === 0 && forType.length === 0 && others.length === 0 && (
+        <p className="text-xs text-muted-foreground">Nessun ciclo memorizzato per questa tipologia.</p>
+      )}
+      <Group label="Di questa squadra" items={forTeam} />
+      <Group label="Validi per tutta la tipologia" items={forType} />
+      <Group label="Altre squadre della tipologia" items={others} />
+      {pattern.length > 0 && (
+        <div className="flex gap-1 items-center pt-1">
+          <Input
+            value={savingName}
+            onChange={e => setSavingName(e.target.value)}
+            placeholder="Salva questo ciclo come…"
+            className="h-7 text-xs flex-1"
+          />
+          <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={!savingName.trim() || saving} onClick={save}>
+            <Save size={12} /> Salva
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MembersTab({ tree, templates, run, typeId, onTypeChange }: {
   tree: ShiftTeamTree
+  templates: ShiftCycleTemplate[]
   run: (fn: () => Promise<void>, ok: string) => Promise<void>
   typeId: string
   onTypeChange: (typeId: string) => void
@@ -336,6 +473,9 @@ function MembersTab({ tree, run, typeId, onTypeChange }: {
               key={m.id}
               member={m}
               cycle={type?.cycle_days ?? 0}
+              templates={templates}
+              typeId={activeTypeId}
+              teamId={team.id}
               run={run}
             />
           ))}
@@ -344,6 +484,8 @@ function MembersTab({ tree, run, typeId, onTypeChange }: {
           )}
           {adding ? (
             <MemberAdd
+              templates={templates}
+              typeId={activeTypeId}
               teamId={team.id}
               cycle={type?.cycle_days ?? 0}
               onDone={() => setAdding(false)}
@@ -360,9 +502,12 @@ function MembersTab({ tree, run, typeId, onTypeChange }: {
   )
 }
 
-function MemberRow({ member, cycle, run }: {
+function MemberRow({ member, cycle, templates, typeId, teamId, run }: {
   member: Team['members'][number]
   cycle: number
+  templates: ShiftCycleTemplate[]
+  typeId: string
+  teamId: string
   run: (fn: () => Promise<void>, ok: string) => Promise<void>
 }) {
   const [editing, setEditing] = useState(false)
@@ -412,6 +557,14 @@ function MemberRow({ member, cycle, run }: {
       {editing && (
         <div className="space-y-2">
           <Input value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" />
+          <CyclePicker
+            templates={templates}
+            typeId={typeId}
+            teamId={teamId}
+            cycle={cycle}
+            pattern={pattern.trim() ? pattern.trim().split(/\s+/) : []}
+            onApply={tokens => setPattern(tokens.join(' '))}
+          />
           <Textarea
             rows={2}
             value={pattern}
@@ -444,7 +597,9 @@ function MemberRow({ member, cycle, run }: {
   )
 }
 
-function MemberAdd({ teamId, cycle, onDone, run }: {
+function MemberAdd({ templates, typeId, teamId, cycle, onDone, run }: {
+  templates: ShiftCycleTemplate[]
+  typeId: string
   teamId: string
   cycle: number
   onDone: () => void
@@ -457,6 +612,14 @@ function MemberAdd({ teamId, cycle, onDone, run }: {
   return (
     <div className="rounded-xl border bg-card px-3 py-3 space-y-2">
       <Input value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" />
+      <CyclePicker
+        templates={templates}
+        typeId={typeId}
+        teamId={teamId}
+        cycle={cycle}
+        pattern={pattern.trim() ? pattern.trim().split(/\s+/) : []}
+        onApply={tokens => setPattern(tokens.join(' '))}
+      />
       <Textarea
         rows={2}
         value={pattern}

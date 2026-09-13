@@ -1,5 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { ShiftAdjustment, ShiftTeamTree } from '@/types/database'
+import type { ShiftAdjustment, ShiftCycleTemplate, ShiftTeamTree } from '@/types/database'
+
+/** Catalogo dei cicli pronti per assegnare pattern ai membri senza riscriverli. */
+export async function fetchShiftCycleTemplates(supabase: SupabaseClient): Promise<ShiftCycleTemplate[]> {
+  const { data, error } = await supabase
+    .from('shift_cycle_templates')
+    .select('id, shift_type_id, team_id, name, description, pattern, cycle_days, pattern_start, is_builtin')
+    .order('name', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as ShiftCycleTemplate[]
+}
 
 export async function fetchShiftTeamTree(supabase: SupabaseClient): Promise<ShiftTeamTree> {
   const [typesRes, teamsRes, membersRes, adjustmentsRes] = await Promise.all([

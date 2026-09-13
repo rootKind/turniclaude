@@ -606,6 +606,19 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   + MINICOZZI+MAROTTA fasi = 4 persone); DOPO **0**. ATTENZIONE: `scripts/generate-seed.mjs` +
   migration 020 generano ancora la vecchia struttura (2 tipologie scorte, nessun is_lead, fasi con
   turni M/P/N): se il seed viene rigenerato va riallineato (021+022 sono idempotenti e lavorano per NOME).
+- **Catalogo cicli pronti (13/09/2026, migration 025 su dev):** tabella `shift_cycle_templates`
+  (shift_type_id, team_id opzionale, name, description, pattern, cycle_days, pattern_start,
+  is_builtin, unique(shift_type_id,name), RLS convenzione 019). Seed: 81 template GENERATI dai
+  pattern attuali (scripts/gen-cycle-templates.mjs → output incollato nella migration; nome =
+  etichetta squadra, capisquadra uniti da '-', con suffisso «· Cognome» se la squadra ha pattern
+  distinti — tipico delle squadre con capi numerati). API: GET `/api/admin/shift-teams` ritorna
+  `{templates}`; POST/DELETE con `kind:'template'` (la lunghezza del pattern è validata contro
+  cycle_days della tipologia). UI (squadre-dialog): `CyclePicker` nel form nuovo membro e nella
+  matita di modifica — raggruppa «Di questa squadra» / «Validi per tutta la tipologia» / «Altre
+  squadre», anteprima token (riposo/disp grigi, lavoro in tinta), badge se la lunghezza ≠ ciclo,
+  e campo «Salva questo ciclo come…» per memorizzare pattern nuovi (es. subentro) riutilizzabili.
+  Clic su un template compila il pattern dell'editor. Verificato live end-to-end (creazione
+  membro con pattern da template, salvataggio nuovo ciclo, pulizia righe di test).
 - **Mini-squadre scorte + pattern di consenso (13/09/2026, migration 024 su dev):** verificando i
   cicli dai PDF (anchoring 28gg su pattern_start 2026-03-01) emerso che: (1) il Rilievo è diviso in
   MINI-SQUADRE con riposi sfalzati — ora la gestione squadre li separa in Rilievo A/B/C/D

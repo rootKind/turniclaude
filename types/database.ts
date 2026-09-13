@@ -220,6 +220,22 @@ export interface ShiftAdjustment {
   created_at: string
 }
 
+// Ciclo di token «pronto» memorizzato nel catalogo (migration 025): permette di
+// assegnare a un membro un pattern già verificato invece di scriverlo a mano.
+// team_id null = ciclo valido per tutta la tipologia; se impostato, il ciclo
+// appartiene a quella squadra (es. i riposi sfalzati di un Rilievo specifico).
+export interface ShiftCycleTemplate {
+  id: string
+  shift_type_id: string
+  team_id: string | null
+  name: string                // es. «Rilievo A», «Fase +7», «DI MONDA-ROMANO N.»
+  description: string | null
+  pattern: string[]
+  cycle_days: number
+  pattern_start: string
+  is_builtin: boolean         // true = seed verificato dai PDF, non modificabile dalla UI
+}
+
 export interface ShiftTeamTree {
   types: Array<ShiftTypeGroup & {
     teams: Array<ShiftTeam & {
