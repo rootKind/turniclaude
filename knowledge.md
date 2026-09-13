@@ -636,10 +636,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **Turni teorici — riorganizzazione squadre + regola sezioni (10/09/2026, migrations 021+022, applicate SOLO a dev):**
   tipologie rinominate «Con notti»→**Squadra in terza**, «Senza notti»→**Squadra in seconda**;
   le due scorte sono ora UN solo gruppo **Scorte** con 6 squadre (Rilievo + Fase +0/+7/+14/+21 +
-  Varianti, sort_order 1–6). Nuovo flag `shift_team_members.is_lead` = caposquadra: il nome
+  Varianti [dal 14/09/2026, migration 028, rinominata **Maternità**], sort_order 1–6). Nuovo flag `shift_team_members.is_lead` = caposquadra: il nome
   visualizzato della squadra sono SOLO i cognomi dei capisquadra uniti da '-' (es. «D'ELIA-PASSANNANTI»,
   «ALBANO»), senza più le diciture «Squadra A»/«Squadra arancione»; le squadre senza capisquadra
-  usano il proprio nome senza il prefisso «Squadra» (es. «Fase +0», «Varianti»). Resta allineato ai membri.
+  usano il proprio nome senza il prefisso «Squadra» (es. «Fase +0», «Varianti» [oggi «Maternità»]). Resta allineato ai membri.
   RIC/ASTER e IAP invariati. In `components/admin/squadre-dialog.tsx`: RIMOSSO l'ordinamento
   manuale dei membri (resta `sort_order` in DB), la matita in Tipologie apre la scheda Membri di
   quella tipologia (niente più modifica di ciclo/pattern_start dalla UI), la stella imposta/rimuove
@@ -663,7 +663,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   gruppo DCO ha UNA SEZIONE PER SQUADRA dei turni teorici, nell'ordine: in terza
   (D'ELIA-PASSANNANTI, DI MONDA-ROMANO N., ARMENANTE-DI MONACO, COPPETA-LONI G., ALBANO, DI MEO,
   LANGIONE) → in seconda → Rilievo (SENATORE-BARRA + mini-squadre A/B/C/D) → Semplici A/B/C/D →
-  Varianti → RIC/ASTER → «Senza squadra» (senza account nei turni teorici). Stessa struttura
+  Maternità (ex Varianti) → RIC/ASTER → «Senza squadra» (senza account nei turni teorici). Stessa struttura
   nell'editor di massa. Il match utente↔membro usa la STESSA regola dei PDF (cognome, o
   «COGNOME Iniz.» per gli omonimi) in `lib/compare-groups.ts` (`buildCompareGroups`).
   (3) Migration 027: squadre scorte semplici rinominate «Squadra fase +N» → **«Semplici A/B/C/D»**

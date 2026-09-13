@@ -86,11 +86,11 @@ export function buildCompareGroups(
       if (isTerza) rank = 0 * 1000 + team.sort_order
       else if (isSeconda) rank = 1 * 1000 + team.sort_order
       else if (isScorte) {
-        // scorte: rilievo (capisquadra + mini-squadre) < semplici (A-D) < varianti
+        // scorte: rilievo (capisquadra + mini-squadre) < semplici (A-D) < maternità
         let tier = 2
         if (/rilievo/i.test(team.name)) tier = 2
         else if (/semplici/i.test(team.name)) tier = 3
-        else if (/varianti/i.test(team.name)) tier = 4
+        else if (/varianti|maternit/i.test(team.name)) tier = 4
         rank = 2 * 1000 + tier * 100 + team.sort_order
       } else {
         // altre squadre attive (RIC/ASTER): dopo tutte le scorte
