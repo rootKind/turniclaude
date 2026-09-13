@@ -626,19 +626,36 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const goPrev = () => setMonth(m => addMonths(m, -1))
   const goNext = () => setMonth(m => addMonths(m, 1))
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-  }
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const start = touchStart.current
-    touchStart.current = null
-    if (!start) return
-    const dx = e.changedTouches[0].clientX - start.x
-    const dy = e.changedTouches[0].clientY - start.y
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
-    if (dx < 0) goNext()
-    else goPrev()
-  }
+  // Swipe ORIZZONTALE su TUTTA la pagina (richiesta 13/09/2026): prima era solo
+  // sulla griglia dei giorni; ora, come in turnisala, ascolta il documento così
+  // funziona anche in modalità CONFRONTO e su tutta l'area pagina. Va ignorato
+  // se il gesto parte dal selettore mese/anno (.month-pop ha le sue colonne
+  // scorrevoli) o dentro un dialog (radix li renderizza in portale fuori da
+  // main), e se il gesto è verticale (scroll) o troppo corto.
+  useEffect(() => {
+    const skip = (t: EventTarget | null) =>
+      t instanceof Element &&
+      !!t.closest('.month-pop, [role="dialog"], [data-radix-popper-content-wrapper]')
+    const onTouchStart = (e: TouchEvent) => {
+      if (skip(e.target)) { touchStart.current = null; return }
+      touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    }
+    const onTouchEnd = (e: TouchEvent) => {
+      const start = touchStart.current
+      touchStart.current = null
+      if (!start || skip(e.target)) return
+      const dx = e.changedTouches[0].clientX - start.x
+      const dy = e.changedTouches[0].clientY - start.y
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
+      setMonth(m => addMonths(m, dx < 0 ? 1 : -1))
+    }
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart)
+      document.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
 
   const filteredUsers = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -753,11 +770,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           </div>
 
           {/* Giorni — swipe orizzontale per cambiare mese */}
-          <div
-            className="grid grid-cols-7 gap-1.5 select-none"
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-          >
+          <div className="grid grid-cols-7 gap-1.5 select-none">
             {loadingReal ? (
               // Il PDF del mese sta arrivando: celle skeleton SOLO per i giorni reali.
               // I sostegni dell'offset sono prima, così i skeleton cadono sulle colonne giuste.

@@ -453,7 +453,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (server) carica profilo, elenco utenti, mesi caricati e l'albero delle squadre, poi li passa a
   `tuoturno-client.tsx`: intestazione «Il tuo turno» + nome della persona (tap → dialog con ricerca per
   scegliere QUALSIASI dipendente, default = utente loggato), calendario mensile con swipe orizzontale
-  (touch, soglia 50px; le frecce ‹ › fanno lo stesso) e legenda. Celle «variante E» (min-h 76px): la card
+  (touch, soglia 50px; le frecce ‹ › fanno lo stesso) e legenda. Dal 13/09/2026 lo swipe è su
+  TUTTA la pagina (listener su document, come turnisala): funziona anche in modalità confronto;
+  ignorato se il gesto parte da `.month-pop`, da un dialog `[role="dialog"]` o dal wrapper radix,
+  o se è verticale/di meno di 50px. Celle «variante E» (min-h 76px): la card
   è INTERAMENTE tinta — numero del giorno compreso — blu Mattina, ambra Pomeriggio,
   lilla Notte (tinte = pill della dashboard), grigio riposi, rosso assenze, verde attività senza sezione
   (`.cell-day` + `.cell-tint-*` in `app/globals.css`; dal 12/09/2026 le tinte M/P/N puntano alle
