@@ -62,7 +62,7 @@ for (const r of treeRows ?? []) {
   if (r.shift_teams?.shift_types?.name === 'Scorte') teamOf.set(r.full_name, r.shift_teams.name)
 }
 
-const teams = ['Squadra fase +0', 'Squadra fase +7', 'Squadra fase +14', 'Squadra fase +21', 'Squadra varianti']
+const teams = ['Semplici A', 'Semplici B', 'Semplici C', 'Semplici D', 'Squadra varianti']
 for (const team of teams) {
   const names = [...teamOf.entries()].filter(([, t]) => t === team).map(([n]) => n)
   const perPos = Array.from({ length: 28 }, () => new Map())

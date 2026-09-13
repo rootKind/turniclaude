@@ -669,16 +669,21 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   }, [users, query])
 
   // Elenco del CONFRONTO: solo chi l'admin ha reso visibile (show_in_compare),
-  // diviso nei due gruppi «Noni» / «DCO, RIC, ASTER, IAP» e ordinato per squadre
-  // (terza → seconda → scorte rilievo → scorte semplici → resto), poi per cognome.
+  // diviso nei gruppi «Noni» / «DCO» con una sezione per squadra dei turni
+  // teorici (in terza → in seconda → rilievo → semplici A-D → varianti → altre).
   const compareGroups = useMemo(() => buildCompareGroups(users, tree), [users, tree])
-  // filtro di ricerca dentro i gruppi
+  // filtro di ricerca dentro gruppi e sezioni
   const compareVisibleGroups = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return compareGroups
     return compareGroups
-      .map(g => ({ ...g, users: g.users.filter(u => `${u.cognome ?? ''} ${u.nome ?? ''}`.toLowerCase().includes(q)) }))
-      .filter(g => g.users.length > 0)
+      .map(g => ({
+        ...g,
+        sections: g.sections
+          .map(s => ({ ...s, users: s.users.filter(u => `${u.cognome ?? ''} ${u.nome ?? ''}`.toLowerCase().includes(q)) }))
+          .filter(s => s.users.length > 0),
+      }))
+      .filter(g => g.sections.length > 0)
   }, [compareGroups, query])
 
   const toggleCompare = (id: string) => {
@@ -1024,39 +1029,44 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             ) : (
               compareVisibleGroups.map(group => (
                 <div key={group.key} className="mb-2">
-                  <p className="px-1 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sticky top-0 bg-background/95 backdrop-blur-sm">
-                    {group.label} · {group.users.length}
-                  </p>
-                  {group.users.map(u => {
-                    const on = compareDraft.includes(u.id)
-                    return (
-                      <button
-                        key={u.id}
-                        onClick={() => toggleCompare(u.id)}
-                        aria-pressed={on}
-                        className={cn(
-                          'w-full text-left px-2 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors',
-                          on ? 'bg-primary/10 font-medium' : 'hover:bg-muted',
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'w-4 h-4 shrink-0 rounded border flex items-center justify-center',
-                            on ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
-                          )}
-                        >
-                          {on && <Check size={11} strokeWidth={3} />}
-                        </span>
-                        <span className="flex-1 min-w-0 truncate">
-                          {[u.cognome, u.nome].filter(Boolean).join(' ')}
-                          {u.teamLabel && <span className="text-[10px] text-muted-foreground"> · {u.teamLabel}</span>}
-                        </span>
-                        {u.id === currentUserId && (
-                          <span className="text-[10px] text-muted-foreground shrink-0">tu</span>
-                        )}
-                      </button>
-                    )
-                  })}
+                  {group.sections.map(sec => (
+                    <div key={sec.key || group.key}>
+                      {sec.label && (
+                        <p className="px-1 pt-2 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/90">
+                          {sec.label} · {sec.users.length}
+                        </p>
+                      )}
+                      {sec.users.map(u => {
+                        const on = compareDraft.includes(u.id)
+                        return (
+                          <button
+                            key={u.id}
+                            onClick={() => toggleCompare(u.id)}
+                            aria-pressed={on}
+                            className={cn(
+                              'w-full text-left px-2 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors',
+                              on ? 'bg-primary/10 font-medium' : 'hover:bg-muted',
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'w-4 h-4 shrink-0 rounded border flex items-center justify-center',
+                                on ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
+                              )}
+                            >
+                              {on && <Check size={11} strokeWidth={3} />}
+                            </span>
+                            <span className="flex-1 min-w-0 truncate">
+                              {[u.cognome, u.nome].filter(Boolean).join(' ')}
+                            </span>
+                            {u.id === currentUserId && (
+                              <span className="text-[10px] text-muted-foreground shrink-0">tu</span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ))}
                 </div>
               ))
             )}
