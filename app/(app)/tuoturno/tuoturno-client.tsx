@@ -1115,10 +1115,6 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
       <Dialog open={compareOpen} onOpenChange={v => !v && setCompareOpen(false)}>
         <DialogContent className="max-w-sm max-h-[80vh] flex flex-col overflow-hidden">
           <DialogHeader><DialogTitle>Confronta i turni</DialogTitle></DialogHeader>
-          <p className="text-xs leading-snug text-muted-foreground">
-            Scegli da 2 a {CMP_MAX_PEOPLE} dipendenti: i loro turni reali finiscono in una tabella,
-            una riga a testa, giorno per giorno. Per i mesi senza PDF si confrontano i turni teorici.
-          </p>
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
