@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { userId, nome, cognome, password, isSecondary, isManager, isDcoPlus, showInCompare } = body as Record<string, unknown>
+  const { userId, nome, cognome, password, isSecondary, isManager, isDcoPlus, showInCompare, basePeriod } = body as Record<string, unknown>
   if (typeof userId !== 'string' || !userId) {
     return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
   }
@@ -59,6 +59,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Password troppo corta (min 6 caratteri)' }, { status: 400 })
     }
     const { error } = await adminSupabase.auth.admin.updateUserById(userId, { password })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Upsert ferie base lato server (service role): la tabella vacation_assignments
+  // è in sola lettura per i client dalla migration 011, quindi l'upsert fatto dal
+  // dialog via client anonimo veniva sempre rifiutato da RLS.
+  if (typeof basePeriod === 'number' && basePeriod >= 1 && basePeriod <= 6) {
+    const { error } = await adminSupabase
+      .from('vacation_assignments')
+      .upsert({ user_id: userId, base_period: basePeriod }, { onConflict: 'user_id' })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

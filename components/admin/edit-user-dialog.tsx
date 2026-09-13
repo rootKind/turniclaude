@@ -94,24 +94,20 @@ export function EditUserDialog({ open, onClose }: Props) {
           // DCO+ solo per DCO puri: mai per Noni o manager
           isDcoPlus: isManagerState || isSecondary ? false : isDcoPlus,
           showInCompare,
+          // l'upsert ferie avviene LATO SERVER (service role): vacation_assignments
+          // è in sola lettura per i client dalla 011 e l'upsert client-side veniva
+          // sempre rifiutato da RLS → «Errore aggiornamento utente» spurio
+          ...(basePeriod !== null ? { basePeriod } : {}),
           ...(values.password ? { password: values.password } : {}),
         }),
       })
-      if (!res.ok) throw new Error()
-
-      // Upsert vacation_assignment se un periodo è selezionato
-      if (basePeriod !== null) {
-        const supabase = createClient()
-        const { error } = await supabase
-          .from('vacation_assignments')
-          .upsert({ user_id: values.userId, base_period: basePeriod }, { onConflict: 'user_id' })
-        if (error) throw error
-      }
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((body as { error?: string }).error || 'Errore')
 
       toast.success('Utente aggiornato')
       onClose()
-    } catch {
-      toast.error('Errore aggiornamento utente')
+    } catch (err) {
+      toast.error((err as Error).message || 'Errore aggiornamento utente')
     } finally {
       setIsLoading(false)
     }

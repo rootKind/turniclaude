@@ -71,6 +71,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   turni includono `isDcoPlus` (`shifts-{isSecondary}-{isDcoPlus}`).
 - **`ADMIN_ID`** hardcoded `fdd6c008-7a22-42d5-a75b-c44d9edfef12` in `types/database.ts` — NON spostarlo in env.
 - **Flag categoria indipendenti:** in `app/api/admin/update-user/route.ts` e nel dialog admin, `is_secondary` e `is_manager` sono indipendenti; `isManager === true` forza `is_secondary = false` (un manager non può essere DCO/Noni). Non reintrodurre l'accoppiamento dei due flag.
+- **vacation_assignments è WRITE-only-via-service-role (migration 011):** il dialog «Modifica utente» faceva l'upsert del periodo ferie base dal CLIENT → RLS lo rifiutava sempre e il catch generico mostrava «Errore aggiornamento utente» anche se i flag erano stati salvati. Fix (14/09/2026): l'upsert è passato a `POST /api/admin/update-user` (service role, campo `basePeriod`); nel dialog non fare MAI write diretti su tabelle protette da RLS — passa dalla route admin.
 - **PostgREST:** nelle query embedded usare SEMPRE la FK esplicita
   (`user:users!shifts_user_id_fkey(...)`), altrimenti falliscono silenziosamente.
 - **Cache user-scoped:** `lib/cache.ts` → chiavi `cache:{userId}:{suffix}` + `LAST_USER_KEY`;
