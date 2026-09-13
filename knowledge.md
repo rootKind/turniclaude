@@ -271,6 +271,13 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   data (min ~185px) + N/M/P (~79px) richiede ~292px, quindi sta comodo; `flex-wrap`
   garantisce che sotto quella soglia vada su 2 righe. Nessuna pagina genera scroll orizzontale
   (bodyOverflowX false) a viewport 651 (landscape). Le card sala sono `grid-cols-3` (design previsto).
+- **ALTEZZA pagina = min-height, MAI height fissa (fix 15/09/2026):** /turniferie aveva
+  `height: calc(100dvh - 4rem)` sul main: su schermi bassi (o elenchi ricchi) i figli flex si
+  COMPRAIMEVANO nel riquadro e il resto restava sotto la bottom nav SENZA scroll (la pagina
+  non cresceva oltre il viewport). Ora `minHeight` — la pagina si allunga col contenuto e lo
+  scroll verticale torna naturale; a viewport alti il risultato è identico. NON reintrodurre
+  height fissi sulle pagine (l'unico modo legittimo di vincolare l'altezza è su un contenitore
+  con `overflow-y: auto` INTERNO esplicito). Test: `tests/pages.spec.ts` (scroll a viewport 300px).
 
 - **Pannello Admin (12/09/2026):** l'header di `components/admin/admin-panel.tsx` ha un bottone X
   (`router.back()`): da PC/preview la pagina admin è fuori dal gruppo `(app)` quindi SENZA bottom
@@ -520,10 +527,16 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `border-width: 0` e si affidano alle metà per il contorno): ridisegnava un bordo doppio
   (card + metà) E riaccendeva la MEZZERIA (il `border-width: 0` della card è ciò che azzera la
   linea di taglio fra le due metà) — bordo tratteggiato doppio con riga in mezzo, visto su
-  /tuoturno. Fix: la regola dashed vale solo su `.cell-day.is-pend:not(.cell-split)`; le metà
-  prendono SOLO `border-style: dashed` (spessore/bordi azzerati restano quelli di is-pend:
-  1.5px, taglio a 0) e la card split spegne anche il box-shadow solido (si vedeva nelle crepe
+  /tuoturno.  Fix: la regola dashed vale solo su `.cell-day.is-pend:not(.cell-split)`; le metà
+  prendono `border-style: dashed` e la card split spegne anche il box-shadow solido (si vedeva nelle crepe
   del dashed). Mockup: `mockups/confronta-dashed-e-due-righe.html`.
+  **SPESSORE tratteggio UNIFORME (15/09/2026):** le metà erano rimaste a 1.5px (l'ereditata
+  dalla regola is-pend solida) mentre le card intere passano a 2px → tratteggio più gracile
+  sulla variante divisa (richiesta utente). Ora anche le metà prendono `border-width: 2px`
+  nella regola dashed, e i TAGLI tornano a 0 con regole di specificità PARI messe DOPO
+  (`.cell-half-theo { border-bottom-width: 0 }` e `.cell-half:last-child { border-top-width: 0 }`):
+  dare 2px a tutti e 4 i lati con specificità più alta delle regole di azzero riaccendeva la
+  mezzeria. Test: `tests/pages.spec.ts` (verifica computed style 2px + taglio 0px sul vivo).
   **Selettore MESE/ANNO (12/09/2026):** l'etichetta «Settembre 2026» tra le frecce è un bottone:
   apre un pannello a due colonne (Mese | Anno) con scroll, il mese corrente in evidenza, un
   pallino sui mesi con PDF caricato e gli anni presi da quelli caricati + anno corrente.

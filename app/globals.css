@@ -563,9 +563,12 @@
     border-width: 2px;
     box-shadow: none;
   }
-  /* Card SPLIT: le metà prendono SOLO lo stile dashed — spessore e bordi azzerati
-     restano quelli delle regole is-pend qui sotto (1.5px, taglio a 0): toccare la
-     width qui (specificità più alta) riaccendeva la linea di taglio in mezzo.
+  /* Card SPLIT: le metà prendono il TRATTEGGIO con lo STESSO SPESSORE delle card
+     intere (2px: prima restavano a 1.5px — l'ereditata dalla regola is-pend solida —
+     e il tratteggio risultava più gracile sulla variante divisa, richiesta 15/09/2026).
+     I TAGLI fra le metà tornano a 0 con regole IDENTICHE per specificità messe DOPO:
+     dare 2px a tutti e 4 i lati di .cell-half (specificità più alta di quelle qui
+     sotto) riaccendeva la linea di taglio in mezzo alla card.
      L'anello SOLIDO (box-shadow) va spento anche qui: nelle crepe del dashed
      si vedrebbe la linea continua sotto. */
   [data-pending-ring$='-dashed'] .cell-day.cell-split.is-pend {
@@ -573,6 +576,13 @@
   }
   [data-pending-ring$='-dashed'] .cell-day.cell-split.is-pend > .cell-half {
     border-style: dashed;
+    border-width: 2px;
+  }
+  [data-pending-ring$='-dashed'] .cell-day.cell-split.is-pend > .cell-half-theo {
+    border-bottom-width: 0;
+  }
+  [data-pending-ring$='-dashed'] .cell-day.cell-split.is-pend > .cell-half:last-child {
+    border-top-width: 0;
   }
   /* Data in BADGE nell'angolo alto-sinistra (scelta D, mockup celle-data-turno.html):
      il numero del giorno stacca su OGNI tinta — incluse quelle personalizzate dal pannello

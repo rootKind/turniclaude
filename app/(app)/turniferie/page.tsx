@@ -228,10 +228,16 @@ export default function TurniFeriePage() {
 
   if (minYear === null) return <YearGateSkeleton variant="turniferie" />
 
+  // ALTEZZA MINIMA, non fissa (fix 15/09/2026): con height fissa calc(100dvh - 4rem)
+  // su schermi piccoli (o elenchi ricchi) i figli flex si COMPRAIMEVANO nel riquadro
+  // e il resto restava sotto la bottom nav, senza possibilità di scroll — la pagina
+  // non cresceva mai oltre il viewport. Con min-height la pagina si allunga col
+  // contenuto e lo scroll verticale torna naturale; sugli schermi alti il risultato
+  // visivo è identico (il contenuto entra e il min non supera il viewport).
   return (
     <main
       className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
-      style={{ height: 'calc(100dvh - 4rem)' }}
+      style={{ minHeight: 'calc(100dvh - 4rem)' }}
     >
       <div className="flex items-center flex-wrap gap-2 mb-3 bg-card border border-border rounded-xl pl-3 pr-3 py-2 mr-14">
         <h1 className="text-lg font-bold flex-1 min-w-[120px]">Turni Ferie</h1>
