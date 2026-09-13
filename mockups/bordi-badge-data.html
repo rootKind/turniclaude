@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bordo del badge data · «Il tuo turno» — 4 varianti</title>
+<style>
+  :root {
+    --bg: #f2f6f8; --panel: #fbfdfe; --line: #d7dde2; --ink: #1e2329; --ink2: #5b6472; --ink3: #8b939e;
+    --rest-t: #e4e6e9; --rest-d: #4a5057;
+    --duty-t: #d6f0dd; --duty-d: #1f5a34;
+    --avail-t: #d6ecf5; --avail-d: #1d5568;
+    --abs-t: #fbd9d6; --abs-d: #8c2a24;
+    --pend: #d9a53a;
+    --r: 14px;
+    /* Colori reali dei picker / nav dell'app (12/09/2026) */
+    --sel-bg: #dfe8f2; --sel-border: #b8c8dc; --sel-text: #1e293b;
+    --nav-border: #ccd6de; /* --border/60 del chiaro */
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.45; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 36px 22px 70px; }
+
+  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 24px; }
+  .eyebrow { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); }
+  h1 { font-size: 26px; margin: 8px 0 6px; letter-spacing: -.01em; }
+  h1 span { color: var(--ink3); font-weight: 400; }
+  header p { margin: 0; max-width: 84ch; color: var(--ink2); font-size: 13.5px; }
+  h2 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink3); margin: 34px 0 14px; font-weight: 700; }
+
+  /* ── riferimento: i controlli reali della nav ─────────────────────────── */
+  .ref { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px; margin-bottom: 30px; }
+  .ref .lbl { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); font-weight: 700; margin-right: 4px; }
+  .navbtn { display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 12px; border: 1px solid var(--nav-border);
+    background: var(--panel); color: var(--ink); font-size: 15px; }
+  .navpill { display: inline-flex; align-items: center; border-radius: 12px; border: 1px solid var(--nav-border);
+    background: var(--panel); padding: 6px 12px; font-weight: 600; font-size: 15px; }
+  .selchip { display: inline-flex; align-items: center; border-radius: 10px; padding: 5px 10px;
+    font-weight: 600; font-size: 12.5px; background: var(--sel-bg); border: 1px solid var(--sel-border); color: var(--sel-text); }
+
+  /* ── griglia e card: metriche reali dell'app ──────────────────────────── */
+  .dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 7px; }
+  .dow span { text-align: center; font-size: 10.5px; letter-spacing: .08em; color: var(--ink3); font-weight: 700; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .day { border-radius: var(--r); min-height: 76px; border: 1px solid transparent;
+         display: flex; flex-direction: column; align-items: center; justify-content: center;
+         gap: 2px; position: relative; text-align: center; overflow: hidden; }
+  .day .code{ font-size: 11px; font-weight: 700; line-height: 1.15; }
+  .day.empty { border: 1px dashed var(--line); background: transparent; }
+
+  .t-m { background: #dbeafe; color: #5c729a; }
+  .t-p { background: #fef3c7; color: #a14a06; }
+  .t-n { background: #ede9fe; color: #8f7dd0; }
+  .t-rest { background: var(--rest-t); color: var(--rest-d); }
+  .t-duty { background: var(--duty-t); color: var(--duty-d); }
+  .t-avail{ background: var(--avail-t); color: var(--avail-d); }
+  .t-abs  { background: var(--abs-t); color: var(--abs-d); }
+
+  /* «da confermare»: contorno ambra */
+  .pend { border-color: var(--pend); box-shadow: 0 0 0 1px var(--pend); }
+
+  /* card SPLIT (reale ≠ teorico): due metà, sbarrata sul teorico */
+  .day.split { flex-direction: row; padding: 0; border-width: 0; }
+  .day.split.pend { border-width: 2px; }
+  .half { flex: 1 1 0; display: flex; align-items: center; justify-content: center; position: relative; }
+  .half.theo { text-decoration: line-through; opacity: .72; }
+  .half .bar { position: absolute; left: -4%; right: -4%; top: 50%; height: 1.5px;
+    background: rgba(0,0,0,.4); transform: rotate(-14deg); pointer-events: none; }
+  .half.theo.t-rest .bar, .half.theo.t-abs .bar { display: none; }
+
+  /* ── IL BADGE DATA: le 4 varianti ─────────────────────────────────────── */
+  .day .n { position: absolute; top: 5px; left: 5px; z-index: 2;
+    font-size: 10.5px; font-weight: 800; line-height: 1; letter-spacing: -.02em;
+    border-radius: 6px; padding: 2px 6px; }
+
+  /* A — PRIMA: bianco translucido, nessun bordo */
+  .v-a .n { color: #111; background: rgba(255,255,255,.78); box-shadow: 0 1px 0 rgba(0,0,0,.06); }
+
+  /* B — ADESSO (in produzione): bordo netto — nero nel chiaro, bianco + fill scuro nello scuro */
+  .v-b .n { color: #111; background: rgba(255,255,255,.78); border: 1px solid #111; box-shadow: 0 1px 0 rgba(0,0,0,.06); }
+
+  /* C — COME MESE/ANNO: le tinte di selezione #dfe8f2 / #454545 */
+  .v-c .n { color: var(--sel-text); background: var(--sel-bg); border: 1px solid var(--sel-border); box-shadow: none; }
+
+  /* D — COME LE FRECCE: stile bottone neutro della nav (bianco + bordo pagina) */
+  .v-d .n { color: var(--ink); background: var(--panel); border: 1px solid var(--nav-border); box-shadow: none; }
+
+  /* zoom */
+  .zoom { display: flex; gap: 14px; margin-top: 14px; flex-wrap: wrap; align-items: flex-end; }
+  .zoom .cellz { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+  .zoom .day { min-height: 112px; width: 96px; gap: 3px; }
+  .zoom .day .code { font-size: 15px; }
+  .zoom .day .n { font-size: 12.5px; top: 8px; left: 8px; padding: 2px 7px; }
+  .zoom .cap { font-size: 10.5px; color: var(--ink2); text-align: center; line-height: 1.3; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 16px; }
+  .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .tag { font-size: 11px; font-weight: 800; letter-spacing: .1em; color: var(--ink3); }
+  .now { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: #1f5a34; background: #d6f0dd;
+    border-radius: 999px; padding: 2px 8px; text-transform: uppercase; }
+  .card h3 { margin: 0; font-size: 16.5px; }
+  .why { color: var(--ink2); font-size: 13px; margin: 7px 0 16px; max-width: 86ch; }
+  .pros { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 14px; font-size: 12.5px; }
+  .pros div { flex: 1 1 250px; }
+  .pros .k { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); display: block; margin-bottom: 4px; }
+  .pros ul { margin: 0; padding-left: 16px; color: var(--ink2); }
+  .stack { display: grid; gap: 34px; }
+  .note { color: var(--ink3); font-size: 12px; margin-top: 12px; }
+
+  /* ── tema scuro ─────────────────────────────────────────────────────────── */
+  .dark { background: #121417; border-radius: 16px; padding: 18px; color: #e8eaed;
+    --panel: #1b1f24; --line: #2c323a; --ink: #e8eaed; --ink2: #aeb5bd; --ink3: #7b848f;
+    --sel-bg: #454545; --sel-border: #5a5a5a; --sel-text: #ffffff;
+    --nav-border: rgba(255,255,255,.16); }
+  .dark .dow span { color: #7b848f; }
+  .dark .t-m { background: #1e3a5f; color: #9db8dd; }
+  .dark .t-p { background: #3b2300; color: #d9a86c; }
+  .dark .t-n { background: #2d1b69; color: #c3b4ef; }
+  .dark .t-rest { background: #24282e; color: #aeb5bd; }
+  .dark .t-duty { background: #16301f; color: #9fd9b4; }
+  .dark .t-avail { background: #12303c; color: #a8d8ea; }
+  .dark .t-abs { background: #3d1c1a; color: #fbd9d6; }
+  .dark .day.empty { border-color: #2c323a; }
+  .dark .half .bar { background: rgba(255,255,255,.4); }
+
+  /* varianti badge nello scuro */
+  .dark .v-a .n { color: #fff; background: rgba(255,255,255,.16); box-shadow: none; }
+  .dark .v-b .n { color: #fff; background: #171717; border: 1px solid #fff; box-shadow: none; }
+  .dark .v-c .n { color: #fff; background: #454545; border: 1px solid #5a5a5a; box-shadow: none; }
+  .dark .v-d .n { color: #e8eaed; background: #1b1f24; border: 1px solid rgba(255,255,255,.16); box-shadow: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Sala C.C.C. · «Il tuo turno» · bordo del badge data</div>
+    <h1>Il bordo del numero della data <span>— quattro varianti a confronto</span></h1>
+    <p>
+      Il badge dell'angolo è sempre lo stesso (stessa posizione, stessa misura, cifra sempre scura
+      nel chiaro e chiara nello scuro): cambia <b>solo il bordo e il riempimento</b>. Dati reali:
+      <b>MININO</b>, luglio 2026, con i casi veri — split <span class="mono">RC→P6T</span>,
+      <span class="mono">RC→M10S</span>, «da confermare» il 14. Le metriche sono quelle dell'app
+      (min-h 76px, radius 14px).
+    </p>
+  </header>
+
+  <div class="ref">
+    <span class="lbl">Riferimenti dalla nav</span>
+    <span class="navbtn">←</span>
+    <span class="navbtn">→</span>
+    <span class="navpill">Luglio 2026</span>
+    <span class="selchip">Mese</span>
+    <span class="selchip">2026</span>
+    <span style="color:var(--ink3);font-size:12.5px;">← così appaiono freccette, etichetta mese/anno e selezione del picker</span>
+  </div>
+
+  <div class="stack">
+
+    <div class="card v-a">
+      <div class="head"><span class="tag">A</span><h3>Prima — bianco translucido, nessun bordo</h3></div>
+      <p class="why">Lo stato originale: targhetta bianca al 78% con la sola ombretta sotto, numero nero.
+        Il contrasto con la tinta c'è, ma il bordo della card e quello del badge si mescolano: sull'angolo
+        non c'è un segnale netto che «chiude» la targhetta.</p>
+      <div id="g-a"></div>
+      <div id="z-a" class="zoom"></div>
+      <div class="pros">
+        <div><span class="k">A favore</span><ul><li>Il più discreto: nessun tratto aggiuntivo su 31 card.</li><li>Il bianco translucido lascia intuire la tinta sotto.</li></ul></div>
+        <div><span class="k">Contro</span><ul><li>Sui riempimenti chiari (riposi, «in bianco») il badge si perde un po'.</li><li>Nello scuro resta la variante più debole: bianco al 16% senza contorno.</li></ul></div>
+      </div>
+    </div>
+
+    <div class="card v-b">
+      <div class="head"><span class="tag">B</span><h3>Adesso <span class="now">in produzione</span> — bordo netto nero / bianco</h3></div>
+      <p class="why">Lo stato attuale, messo qui per confronto: nel chiaro un <b>bordo nero sottile</b> come la
+        cifra; nello scuro bordo <b>bianco</b> e riempimento <b>scuro solido #171717</b>, così il badge è
+        omogeneo e contrastato come quello chiaro. È la variante più «decisa»: il badge sembra un timbro.</p>
+      <div id="g-b"></div>
+      <div id="z-b" class="zoom"></div>
+      <div class="pros">
+        <div><span class="k">A favore</span><ul><li>Massima leggibilità su qualsiasi tinta, anche personalizzata.</li><li>Coerente col testo del badge (nero su nero, bianco su bianco).</li></ul></div>
+        <div><span class="k">Contro</span><ul><li>Il nero pieno pesa: su card chiarissime il bordo «brucia» l'angolo.</li><li>Nello scuro il contorno bianco attira l'occhio più della data stessa.</li></ul></div>
+      </div>
+    </div>
+
+    <div class="card v-c">
+      <div class="head"><span class="tag">C</span><h3>Come mese/anno — tinte di selezione #dfe8f2 / #454545</h3></div>
+      <p class="why">Il badge veste gli stessi colori degli elementi <b>selezionati</b> del picker mese/anno
+        (chiaro <span class="mono">#dfe8f2</span>, scuro <span class="mono">#454545</span>): la data sembra
+        «selezionata» ogni giorno, con un linguaggio già usato nell'app. Riempimento pieno, bordo leggermente
+        più scuro del fondo.</p>
+      <div id="g-c"></div>
+      <div id="z-c" class="zoom"></div>
+      <div class="pros">
+        <div><span class="k">A favore</span><ul><li>Coerenza con il picker: un solo colore per «la data» in tutta la pagina.</li><li>Fill pieno → cifra sempre leggibile, tema chiaro e scuro.</li></ul></div>
+        <div><span class="k">Contro</span><ul><li>La data sembra interattiva/cliccabile su ogni card (è solo informativa).</li><li>Su tinte fredde (P blu, N viola) il grigio-azzurro neutro stona un filo.</li></ul></div>
+      </div>
+    </div>
+
+    <div class="card v-d">
+      <div class="head"><span class="tag">D</span><h3>Come le frecce — bottone neutro della nav</h3></div>
+      <p class="why">Il badge imita le <b>freccette di navigazione</b>: sfondo bianco della pagina con bordo
+        grigio nel chiaro; nello scuro si alza di livello (superficie rialzata + bordo bianco al 16%), esattamente
+        come i bottoni. Risultato: la data sembra un piccolo elemento d'interfaccia posato sulla card, non una
+        parte del turno.</p>
+      <div id="g-d"></div>
+      <div id="z-d" class="zoom"></div>
+      <div class="pros">
+        <div><span class="k">A favore</span><ul><li>Coerenza con la nav: freccette, etichetta e data parlano la stessa lingua.</li><li>Più morbido del bordo nero: definisce senza dominare.</li></ul></div>
+        <div><span class="k">Contro</span><ul><li>Nel chiaro su tinte molto chiare il contrasto è più basso di B e C.</li><li>Nello scuro il badge scuro può fondersi con le tinte scure dei turni notturni.</li></ul></div>
+      </div>
+    </div>
+
+  </div>
+
+  <h2>Le quattro varianti in tema scuro</h2>
+  <div class="stack">
+    <div class="dark"><div class="v-a"><div id="g-a-dark"></div></div></div>
+    <div class="dark"><div class="v-b"><div id="g-b-dark"></div></div></div>
+    <div class="dark"><div class="v-c"><div id="g-c-dark"></div></div></div>
+    <div class="dark"><div class="v-d"><div id="g-d-dark"></div></div></div>
+  </div>
+  <p class="note">
+    Nello scuro: A = bianco al 16% (com'era prima), B = fill #171717 + bordo bianco (stato attuale),
+    C = #454545 + bordo #5a5a5a (selezione picker), D = superficie rialzata + bordo bianco al 16% (bottone nav).
+  </p>
+
+</div>
+
+<script>
+// ─── dati reali: MININO, luglio 2026 (dal PDF caricato) ───────────────────────
+const days   = ["P8","P8","M8","N6S","P6T","P9","M9","N7S","RM","RC","RI","P10S","M10S","N10T","RC","RI","P11","M11","N10S","M10S","VS","M4S","N4","RI","P8","M5T","N5T","RI","A","P5S","M5S"];
+const teorico= ["P8","P8","M8","N6S","RC","P9","M9","N7S","RM","RC","RI","P10S","M10S","N10T","RC","RI","P11","M11","N10S","RC","P4S","M4S","N4","RI","P5T","M5T","N5T","RI","P5S","P5S","M5S"];
+const yellow = [14];
+const DOW = ["LUN","MAR","MER","GIO","VEN","SAB","DOM"];
+const OFFSET = 2; // il 1° luglio 2026 è mercoledì
+
+function kind(code) {
+  if (!code) return "empty";
+  if (["RM","RC","RI"].includes(code)) return "rest";
+  if (code === "D") return "avail";
+  if (["A","F.E.","F","AG","VS","Trasf"].includes(code)) return "abs";
+  if (/^[MNP][0-9]/.test(code)) return code[0] === "P" ? "p" : code[0] === "M" ? "m" : "n";
+  return "duty";
+}
+const shiftOf = c => /^[MNP]/.test(c) ? c[0] : null;
+
+/** Card completa: split (due metà) quando reale ≠ teorico, intera altrimenti. */
+function cell(i, extra) {
+  const d = i + 1, real = days[i] ?? "", theo = teorico[i] ?? "";
+  if (!real) return `<div class="day empty"></div>`;
+  const isPend = yellow.includes(d);
+  const differs = theo && real !== theo;
+  const cls = ["day", ...extra];
+  if (isPend) cls.push("pend");
+
+  const n = `<span class="n">${d}</span>`;
+
+  if (!differs) {
+    cls.push("t-" + kind(real));
+    return `<div class="${cls.join(" ")}">${n}<span class="code">${real}</span></div>`;
+  }
+
+  // split: teorico sopra (s barrata + barra), reale sotto.
+  const sameType = shiftOf(real) && shiftOf(theo) && shiftOf(real) === shiftOf(theo);
+  const theoTint = sameType ? "t-" + kind(real) : "t-" + kind(theo);
+  const halves =
+    `<span class="half theo ${theoTint}"><span class="bar"></span><span class="code">${theo}</span></span>` +
+    `<span class="half t-${kind(real)}"><span class="code">${real}</span></span>`;
+  return `<div class="${cls.join(" ")} split">${n}${halves}</div>`;
+}
+
+function month(extra) {
+  const cells = [];
+  for (let i = 0; i < OFFSET; i++) cells.push(`<div class="day empty"></div>`);
+  for (let i = 0; i < days.length; i++) cells.push(cell(i, extra));
+  return `<div class="dow">${DOW.map(d => `<span>${d}</span>`).join("")}</div><div class="grid">${cells.join("")}</div>`;
+}
+
+function zoom(extra) {
+  const picks = [
+    { i: 0,  cap: "normale" },
+    { i: 4,  cap: "split RC→P6T" },
+    { i: 19, cap: "split RC→M10S" },
+    { i: 13, cap: "da confermare" },
+  ];
+  return picks.map(p => {
+    const d = p.i + 1, real = days[p.i], theo = teorico[p.i];
+    const isPend = yellow.includes(d);
+    const differs = theo && real !== theo;
+    const cls = ["day", ...extra];
+    if (isPend) cls.push("pend");
+    const n = `<span class="n">${d}</span>`;
+    let body;
+    if (!differs) {
+      cls.push("t-" + kind(real));
+      body = `<span class="code">${real}</span>`;
+    } else {
+      const sameType = shiftOf(real) && shiftOf(theo) && shiftOf(real) === shiftOf(theo);
+      const theoTint = sameType ? "t-" + kind(real) : "t-" + kind(theo);
+      body =
+        `<span class="half theo ${theoTint}"><span class="bar"></span><span class="code">${theo}</span></span>` +
+        `<span class="half t-${kind(real)}"><span class="code">${real}</span></span>`;
+      cls.push("split");
+    }
+    return `<span class="cellz"><span class="${cls.join(" ")}" style="min-height:112px;width:96px;">${n}${body}</span><span class="cap">${p.cap}</span></span>`;
+  }).join("");
+}
+
+const variants = ["a", "b", "c", "d"].map(v => ["v-" + v]);
+document.getElementById("g-a").innerHTML = month(["v-a"]);
+document.getElementById("g-b").innerHTML = month(["v-b"]);
+document.getElementById("g-c").innerHTML = month(["v-c"]);
+document.getElementById("g-d").innerHTML = month(["v-d"]);
+document.getElementById("z-a").innerHTML = zoom(["v-a"]);
+document.getElementById("z-b").innerHTML = zoom(["v-b"]);
+document.getElementById("z-c").innerHTML = zoom(["v-c"]);
+document.getElementById("z-d").innerHTML = zoom(["v-d"]);
+document.getElementById("g-a-dark").innerHTML = month(["v-a"]);
+document.getElementById("g-b-dark").innerHTML = month(["v-b"]);
+document.getElementById("g-c-dark").innerHTML = month(["v-c"]);
+document.getElementById("g-d-dark").innerHTML = month(["v-d"]);
+</script>
+</body>
+</html>

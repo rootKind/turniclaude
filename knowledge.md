@@ -606,6 +606,21 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   + MINICOZZI+MAROTTA fasi = 4 persone); DOPO **0**. ATTENZIONE: `scripts/generate-seed.mjs` +
   migration 020 generano ancora la vecchia struttura (2 tipologie scorte, nessun is_lead, fasi con
   turni M/P/N): se il seed viene rigenerato va riallineato (021+022 sono idempotenti e lavorano per NOME).
+- **Mini-squadre scorte + pattern di consenso (13/09/2026, migration 024 su dev):** verificando i
+  cicli dai PDF (anchoring 28gg su pattern_start 2026-03-01) emerso che: (1) il Rilievo è diviso in
+  MINI-SQUADRE con riposi sfalzati — ora la gestione squadre li separa in Rilievo A/B/C/D
+  (phase_offset_days 0/7/14/21, sort_order 10–13): A=BOCCHETTI+COCOZZA+DE GIOVANNI, B=CENTOMANI+CORBI,
+  C=GRECO+MUCCI, D=LONI A.+NEVANO; SENATORE e BARRA (capisquadra, cicli GENUINAMENTE diversi tra loro)
+  restano in «Squadra rilievo». (2) I pattern delle FASI in DB erano SCAMBIATI tra membri (BORRELLI
+  aveva il pattern di PRINCIPE ecc.): ricalcolati col CONSENSO dei PDF per posizione del ciclo 28gg
+  (riposo se >=50% e >=4 occorrenze, altrimenti 'D') — ora tutti i membri di ogni fase condividono
+  lo stesso pattern e il teorico di ottobre è coerente DENTRO ogni mini-squadra (verificato:
+  script `scripts/verify-scorte-fix.mjs` backtesta i riposi teorici vs reali per ogni mese PDF e
+  controlla la coerenza intra-squadra; `scripts/scorte-member-agreement.mjs` mostra il ciclo
+  individuale per membro — residui di 1-3 gg per mese sono scambi/disponibilità reali, non errori
+  di ciclo). Il generatore (`tokenForMember` in `lib/turni-teorici.ts`) indicizza il pattern del
+  MEMBRO sulla sua lunghezza da pattern_start+adjustments: `phase_offset_days` delle squadre NON è
+  usato alla generazione (solo informativo/gestione) — l'allineamento passa dall'identità dei pattern.
 - **Release 26/08/2026 — APPLICATA a dev E produzione:** migrations **014** (drop color_overrides),
   **015** (DCO+), **016** (changelog) e **017** (unifica changelog) applicate al DB di produzione/main
   (`zrbbzfingrdpdflkndgl`) via Management API il 26/08/2026 (su dev erano già applicate). Changelog
