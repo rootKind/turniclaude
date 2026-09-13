@@ -607,6 +607,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   + MINICOZZI+MAROTTA fasi = 4 persone); DOPO **0**. ATTENZIONE: `scripts/generate-seed.mjs` +
   migration 020 generano ancora la vecchia struttura (2 tipologie scorte, nessun is_lead, fasi con
   turni M/P/N): se il seed viene rigenerato va riallineato (021+022 sono idempotenti e lavorano per NOME).
+- **Confronta (14/09/2026):** nomi su DUE righe (cognome+nome, colonna sticky 76px `bg-background` con `pl-3` DENTRO la cella — il contenitore `.cmp-table` NON ha padding sinistro, solo `pr-3`, così le celle in scorrimento non sfilano a vista a sinistra dei nomi). Larghezza minima UNIFORME celle = `compareCellWidth` (dal codice più lungo del mese, ~7.4px/char): le card non si comprimono mai sotto (`minWidth` inline, anche su `ShiftDayCard` via prop `style`); i blocchi (`compareChunks.maxByWidth`) tengono conto della larghezza reale. Equità: la larghezza è la stessa per TUTTE le righe.
 - **Confronta: gruppi per squadra, Semplici A-D, IAP rimosso (13/09/2026, migrations 026+027 su dev):**
   il selettore «Confronta» di /tuoturno non elenca più tutti i nomi dei PDF in ordine alfabetico:
   (1) `users.show_in_compare` (bool, default true) — l'admin nasconde chi non ha l'account con lo

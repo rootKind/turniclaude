@@ -154,6 +154,7 @@ function ShiftDayCard({
   palette,
   mismatchStyle,
   className,
+  style,
 }: {
   day: number
   /** Reale del PDF; null = mese teorico (mostra solo il teorico). */
@@ -168,6 +169,8 @@ function ShiftDayCard({
   palette: CardPalette
   mismatchStyle: MismatchStyle
   className?: string
+  /** Es. minWidth uniforme del confronto: la card non si comprime mai sotto. */
+  style?: CSSProperties
 }) {
   // In evidenza c'è il reale del PDF; se manca, il teorico.
   const primaryKind: SalaCodeKind = real
@@ -196,7 +199,7 @@ function ShiftDayCard({
         isToday && 'is-today',
         className,
       )}
-      style={split ? undefined : cardOverride(primaryKind, primaryToken, palette)}
+      style={{ ...style, ...(split ? undefined : cardOverride(primaryKind, primaryToken, palette)) }}
     >
       {size === 'lg' ? (
         <span className="day-badge tabular-nums">{day}</span>
@@ -271,7 +274,27 @@ interface CompareDay {
 interface CompareRow {
   id: string
   name: string
+  /** Cognome e nome SEPARATI (richiesta 14/09/2026): nella colonna sticky del
+      confronto vanno su due righe — due righe ≈ l'altezza di una cella (44px). */
+  cognome: string
+  nome: string
   cells: CompareDay[]
+}
+
+/** Larghezza minima UNIFORME delle celle del confronto (px). Le card crescono
+    oltre (flex) se il blocco ha spazio, ma MAI sotto: i codici lunghi (MDCIF,
+    SPCA, M10S…) devono restare leggibili per esteso. Misurata sul codice più
+    lungo del MESE e applicata a TUTTE le righe: coerenza ed equità fra le righe
+    (richiesta 14/09/2026). */
+const CMP_BASE_CELL_W = 34
+function compareCellWidth(tokens: string[]): number {
+  let longest = 2
+  for (const t of tokens) {
+    const label = displayToken(t)
+    if (label.length > longest) longest = label.length
+  }
+  // ~7.4px per carattere a 11px bold + padding orizzontale della card (4px).
+  return Math.max(CMP_BASE_CELL_W, Math.ceil(longest * 7.4) + 4)
 }
 
 /** Cella di confronto di UNA persona in UN giorno: SOLO il turno reale (richiesta
@@ -296,27 +319,38 @@ function buildCompareDay(real: PersonDayShift | null, theo: string, hasTheoretic
  * così si evita di scorrere: con 2 soli dipendenti e uno schermo alto l'intero
  * mese sta in 3-4 blocchi senza scroll.
  */
-function CompareTable({ rows, chunks, month, todayISO, palette }: {
+function CompareTable({ rows, chunks, month, todayISO, palette, cellW }: {
   rows: CompareRow[]
   chunks: number[][]
   month: string
   todayISO: string
   palette: CardPalette
+  /** Larghezza minima UNIFORME delle celle (px): mai sotto, le card crescono col flex. */
+  cellW: number
 }) {
+  // Nome su DUE righe (cognome sopra, nome sotto — richiesta 14/09/2026): due
+  // righe compatte ≈ l'altezza di una cella 44px, così la colonna non si allarga
+  // disastroosamente e resta in linea con le card. width fissa per NON far
+  // dipendere la larghezza della colonna dai nomi più lunghi (min-w-0 + truncate).
+  // Il contenitore NON ha padding sinistro (solo pr-3): lo sfondo opaco della
+  // colonna sticky copre dal bordo dello scrollport — senza gutter in cui le
+  // celle in scorrimento sfilano a vista a sinistra dei nomi. Il rientro visivo
+  // (pl-3) sta DENTRO la cella sticky, sotto lo sfondo.
+  const nameCol = 'sticky left-0 z-10 shrink-0 bg-background'
   return (
-    <div className="cmp-table overflow-x-auto -mx-3 px-3 pb-1">
+    <div className="cmp-table overflow-x-auto -mx-3 pr-3 pb-1">
       <div className="min-w-max">
         {chunks.map((days, ci) => (
           <div key={ci} className={cn(ci > 0 && 'mt-3')}>
             <div className="flex items-end">
-              <div className="sticky left-0 z-20 w-[64px] shrink-0 bg-background" />
+              <div className={cn(nameCol, 'z-20 w-[76px]')} />
               {days.map(d => {
                 const dateISO = `${month}-${String(d).padStart(2, '0')}`
                 const wd = WEEKDAYS[(firstWeekdayOffset(month) + d - 1) % 7]
                 const isToday = dateISO === todayISO
                 // Le teste di colonna crescono con le celle (flex-1 come w-full)
                 return (
-                  <div key={d} className={cn('pb-1 text-center leading-none', CMP_CELL_FLEX)}>
+                  <div key={d} className={cn('pb-1 text-center leading-none', CMP_CELL_FLEX)} style={{ minWidth: cellW }}>
                     <span className={cn('block text-[9px] font-semibold text-muted-foreground', isToday && 'text-primary')}>
                       {wd.slice(0, 3)}
                     </span>
@@ -328,12 +362,13 @@ function CompareTable({ rows, chunks, month, todayISO, palette }: {
 
             {rows.map(r => (
               <div key={r.id} className="flex items-center py-[1px]">
-                <div className="sticky left-0 z-10 w-[64px] shrink-0 bg-background pr-1" title={r.name}>
-                  <span className="block truncate text-[11px] font-semibold leading-tight">{r.name}</span>
+                <div className={cn(nameCol, 'w-[76px] pl-3 pr-1')} title={r.name}>
+                  <span className="block truncate text-[11px] font-semibold leading-[1.15]">{r.cognome || '—'}</span>
+                  {r.nome && <span className="block truncate text-[11px] font-semibold leading-[1.15] text-muted-foreground">{r.nome}</span>}
                 </div>
                 {days.map(d => {
                   const c = r.cells[d - 1]
-                  if (!c) return <div key={d} className={cn(CMP_COL, CMP_CELL_FLEX)} />
+                  if (!c) return <div key={d} className={cn(CMP_COL, CMP_CELL_FLEX)} style={{ minWidth: cellW }} />
                   const dateISO = `${month}-${String(d).padStart(2, '0')}`
                   const empty = c.kind === 'empty' && !c.token
                   const title = `${r.name} · ${dateISO} — ${empty ? 'nessun turno' : c.label}`
@@ -353,6 +388,7 @@ function CompareTable({ rows, chunks, month, todayISO, palette }: {
                       palette={palette}
                       mismatchStyle="split"
                       className={CMP_CELL_FLEX}
+                      style={{ minWidth: cellW }}
                     />
                   )
                 })}
@@ -598,12 +634,20 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           || theoreticalTokenFor(tree, u, dateISO, duplicateCognomi)
         return buildCompareDay(real, theo, hasTheo)
       })
-      return { id: u.id, name: [u.cognome, u.nome].filter(Boolean).join(' '), cells }
+      return { id: u.id, name: [u.cognome, u.nome].filter(Boolean).join(' '), cognome: u.cognome ?? '', nome: u.nome ?? '', cells }
     })
   }, [comparing, comparePeople, realPeople, tree, duplicateCognomi, totalDays, month, isRealMonth, realSchedule, personTheoretical])
 
+  // Larghezza minima uniforme delle celle: dal codice PIÙ LUNGO del mese
+  // (tutte le righe, tutte le celle — equità fra le righe, richiesta 14/09/2026).
+  const compareCellW = useMemo(() => {
+    const tokens: string[] = []
+    for (const row of compareRows) for (const c of row.cells) if (c.token) tokens.push(c.token)
+    return compareCellWidth(tokens)
+  }, [compareRows])
+
   // Quanti blocchi di giorni per riga: SI ADATTA ANCHE ALLA LARGHEZZA — in ogni
-  // blocco devono stare le colonne del blocco + la colonna nome (64px) entro la
+  // blocco devono stare le colonne del blocco + la colonna nome (76px) entro la
   // larghezza disponibile: altrimenti si spezza di più (con 2 righe di 44px resta
   // tutto leggibile e il mese riempie tutta la pagina invece di accatastarsi).
   const compareChunks = useMemo(() => {
@@ -616,16 +660,16 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     // lunghi il mese si SPANDE in vertica (più blocchi, zero scroll) invece di
     // lasciare metà pagina vuota.
     const maxByHeight = Math.max(1, Math.floor(available / perBlock))
-    // IN LARGHEZZA: la main è max-w-lg (512px); min 5 giorni per colonna —
-    // sotto, i codici tipo MDCIF non ci stanno più anche comprimendo.
-    const availW = Math.max(280, Math.min(viewportWidth, 512) - 24)
-    const maxByWidth = Math.max(5, Math.floor((availW - 64) / CMP_COL_W))
+  // IN LARGHEZZA: la main è max-w-lg (512px); min 5 giorni per colonna —
+  // sotto, i codici tipo MDCIF non ci stanno più anche comprimendo.
+  const availW = Math.max(280, Math.min(viewportWidth, 512) - 24)
+  const maxByWidth = Math.max(5, Math.floor((availW - 76) / Math.max(CMP_COL_W, compareCellW)))
     // Blocchi MINIMI per la larghezza, ma MAI più del necessario: si preferiscono
     // blocchi larghi (colonna nome ripetuta meno volte, celle più respirate).
     const minChunks = Math.ceil(totalDays / maxByWidth)
     const chunkCount = Math.max(minChunks, Math.min(maxByHeight, Math.ceil(totalDays / 7)))
     return splitDays(totalDays, Math.min(chunkCount, totalDays))
-  }, [comparing, compareRows.length, viewportHeight, viewportWidth, totalDays, chromePx])
+  }, [comparing, compareRows.length, viewportHeight, viewportWidth, totalDays, chromePx, compareCellW])
 
   const goPrev = () => setMonth(m => addMonths(m, -1))
   const goNext = () => setMonth(m => addMonths(m, 1))
@@ -780,7 +824,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             ))}
           </div>
         ) : (
-          <CompareTable rows={compareRows} chunks={compareChunks} month={month} todayISO={today} palette={palette} />
+          <CompareTable rows={compareRows} chunks={compareChunks} month={month} todayISO={today} palette={palette} cellW={compareCellW} />
         )
       ) : (
         <>
