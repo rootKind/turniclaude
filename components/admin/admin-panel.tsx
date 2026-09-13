@@ -283,7 +283,7 @@ function PanelButton({ icon, label, description, badge, onClick }: {
       </span>
       <span className="text-[11px] font-medium leading-tight">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="absolute top-1 right-1 min-w-[17px] h-[17px] bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+        <span className="absolute top-1 right-1 min-w-[17px] h-[17px] border border-destructive/40 bg-destructive/10 dark:bg-destructive/20 text-destructive text-[10px] font-bold rounded-full flex items-center justify-center px-1">
           {badge > 99 ? '99+' : badge}
         </span>
       )}

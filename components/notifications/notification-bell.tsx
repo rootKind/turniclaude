@@ -19,7 +19,7 @@ export function NotificationBell() {
       <div className="relative">
         <Bell size={20} strokeWidth={1.5} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+          <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 border border-destructive/40 bg-destructive/10 dark:bg-destructive/20 text-destructive text-[10px] font-bold rounded-full flex items-center justify-center px-1">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
