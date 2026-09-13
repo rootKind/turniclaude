@@ -313,9 +313,12 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
     (2) **"Il tuo turno"** (icona
     `Calendar` singola) → pagina `/tuoturno` (rotte nuova, SEGNAPOSTO: piantina personale da
     definire); (3) **FAB centrale** (`+`) che crea nella pagina corrente (Nuovo turno su
-    /dashboard, Nuova richiesta ferie su /vacanze); (4) **"Turni"** (doppia icona
+    /dashboard, Nuova richiesta ferie su /vacanze); (4) **"Turni Sala e Ferie"** (dal 14/09/2026,
+    prima solo "Turni"; doppia icona
     `Calendar`+`Palmtree`) che alterna /turnisala↔/turniferie; (5) **Impostazioni**. Le icone
-    sono volutamente DISTINTE: Cambi=frecce, Il tuo turno=calendario singolo, Turni=calendario+palm.
+    sono volutamente DISTINTE: Cambi=frecce, Il tuo turno=calendario singolo, Turni Sala e
+    Ferie=calendario+palm. L'etichetta più lunga della barra resta dentro lo slot a 320px
+    (verifica in `tests/pages.spec.ts`, nessun overflow né scroll del nav).
     Rimossi `CalendarSwitchIcon`/`PalmSwitchIcon` (ex-icone dei due bottoni separati) e le vecchie
     voci "Cambi turno"/"Cambi ferie".
 - **Anno minimo (gate + skeleton condiviso):** `min_year_turniferie` / `min_year_vacanze`

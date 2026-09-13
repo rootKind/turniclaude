@@ -532,7 +532,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
                   className={pathname === '/turniferie' ? 'text-foreground' : 'text-muted-foreground'}
                 />
               </div>
-              <span className={cn('text-[10px]', isTurni ? 'text-foreground' : 'text-muted-foreground')}>Turni</span>
+              <span className={cn('text-[10px] whitespace-nowrap', isTurni ? 'text-foreground' : 'text-muted-foreground')}>Turni Sala e Ferie</span>
             </button>
 
             {rightLinks.map(({ href, icon: Icon, label, badge }) => (

@@ -69,3 +69,4 @@ iphone.jpg
 
 .vercel
 .env*
+.env.e2e

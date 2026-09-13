@@ -8,7 +8,10 @@ import { expect, test, type Page } from '@playwright/test'
  *     (2px) su card intere e sulle metà delle card SPLIT — e la linea di taglio
  *     fra le metà resta nascosta (la regola a 2px ha specificità più alta delle
  *     regole che azzerano il taglio: l'ordine/parità di specificità è partecipe
- *     del fix, non toccarla senza riverificare).
+ *     del fix, non toccarla senza riverificare);
+ *  3. bottom-nav: l'etichetta «Turni Sala e Ferie» (la più lunga della barra)
+ *     non deve straripare né il nav non deve diventare scrollabile, nemmeno
+ *     a 320px.
  * Senza sessione valida i test si AUTOSALTANO (skip, non fallimento).
  */
 
@@ -65,8 +68,38 @@ test.describe('Pagine: turniferie scorrevole + tratteggio uniforme', () => {
         expect(r.splitTheoBottom, 'linea di taglio fra le metà').toBe('0px')
       }
       if (r.whole !== null) expect(r.whole, 'card intera').toBe('2px')
-      // Almeno UNA delle due forme deve esistere (c\'è ≥1 pending, verificato sopra).
+      // Almeno UNA delle due forme deve esistere (c'è ≥1 pending, verificato sopra).
       expect(r.split ?? r.whole, 'nessuna card pendente trovata nel DOM').not.toBeNull()
+    })
+
+    test(`bottom-nav: «Turni Sala e Ferie» senza overflow @ ${width}px`, async ({ page }) => {
+      test.setTimeout(45_000)
+      await page.setViewportSize({ width, height: 640 })
+      await requirePage(page, '/tuoturno', /Il tuo turno/)
+      const r = await page.evaluate(() => {
+        const nav = document.querySelector('nav.fixed')
+        if (!nav) return null
+        const label = [...nav.querySelectorAll('button span')].find(s =>
+          s.textContent?.includes('Sala e Ferie'),
+        )
+        if (!label) return { missing: true }
+        const lr = label.getBoundingClientRect()
+        const parent = label.parentElement!.getBoundingClientRect()
+        const navr = nav.getBoundingClientRect()
+        return {
+          missing: false as const,
+          text: label.textContent,
+          fitsParent: lr.right <= parent.right + 0.5,
+          fitsNav: navr.right >= lr.right - 0.5 && lr.left >= navr.left - 0.5,
+          navScrollable: nav.scrollWidth > nav.clientWidth,
+        }
+      })
+      expect(r, 'bottom-nav presente').not.toBeNull()
+      if ((r as { missing?: boolean }).missing) test.skip(true, 'voce «Turni Sala e Ferie» non trovata nel nav')
+      const g = r as { fitsParent: boolean; fitsNav: boolean; navScrollable: boolean }
+      expect(g.fitsParent, 'etichetta dentro il suo bottone').toBeTruthy()
+      expect(g.fitsNav, 'bottone dentro il nav').toBeTruthy()
+      expect(g.navScrollable, 'nav senza scroll orizzontale').toBeFalsy()
     })
   }
 })
