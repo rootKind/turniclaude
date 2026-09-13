@@ -533,8 +533,13 @@
      bordo ricolorato + box-shadow 0 0 0 1px dello stesso colore. NON usare anelli inset
      (es. inset 0 0 0 3px): partono DENTRO il bordo e l'evidenziazione non coincide con
      il perimetro della card (bug visto anche in turnisala/turniferie). È l'UNICO
-     marcatore di stato sulle card. */
+     marcatore di stato sulle card. La card è SOLLEVATA (z-index 1): nella tabella di
+     confronto le celle si toccano e la card successiva dipingeva lo sfondo SOPRA il lato
+     destro della cornice (richiesta 14/09/2026) — con z-index la cornice vince sempre
+     (resta comunque SOTTO la colonna nomi sticky, z-10, e le teste sticky z-20). */
   .cell-day.is-pend {
+    position: relative;
+    z-index: 1;
     border-color: var(--cell-pend-ring);
     box-shadow: 0 0 0 1px var(--cell-pend-ring);
   }
@@ -546,14 +551,19 @@
   [data-pending-ring='red-solid'] { --cell-pend-ring: #dc2626; }
   [data-pending-ring='yellow-dashed'] { --cell-pend-ring: #d9a53a; }
   [data-pending-ring='red-dashed'] { --cell-pend-ring: #dc2626; }
+  /* Tratteggio VERO (richiesta 14/09/2026): niente anello solido esterno (il box-shadow
+     0 0 0 1px restava SOLIDO sotto il dashed e il tratteggio sembrava un bordo interno):
+     il tratteggio È la cornice — bordo dashed più spesso (2px), box-shadow rimossa. */
   [data-pending-ring$='-dashed'] .cell-day.is-pend {
     border-style: dashed;
-    box-shadow: 0 0 0 1px var(--cell-pend-ring);
+    border-width: 2px;
+    box-shadow: none;
   }
   /* Card SPLIT: il contorno lo disegnano le METÀ (la card è border-width 0),
-     quindi il tratteggio deve arrivare anche lì. */
+     quindi il tratteggio deve arrivare anche lì — stesso spessore 2px, senza anelli. */
   [data-pending-ring$='-dashed'] .cell-day.cell-split.is-pend > .cell-half {
     border-style: dashed;
+    border-width: 2px;
   }
   /* Data in BADGE nell'angolo alto-sinistra (scelta D, mockup celle-data-turno.html):
      il numero del giorno stacca su OGNI tinta — incluse quelle personalizzate dal pannello
