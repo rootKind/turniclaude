@@ -1,6 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { DaySchedule, SalaShiftType, ShiftType, UserProfile } from '@/types/database'
 import { buildDuplicateCognomi, matchesCognome } from '@/lib/utils'
+import { buildScheduleFromMonthData, isSalaMonthData } from '@/lib/sala-month'
+
+/**
+ * La colonna `sala_schedule.schedule` contiene il formato compatto v2
+ * ({v, days, rows, codes, names}): qui lo si espande nella mappa per giorno.
+ * BUG fix 13/09/2026: prima si riusava il raw così com'è, quindi
+ * `schedule[day]` era sempre undefined e la pulizia non trovava MAI candidati
+ * (funzionava solo nell'upload, dove la schedule arriva già espansa).
+ */
+function decodeScheduleRow(raw: unknown): Record<number, DaySchedule> {
+  return isSalaMonthData(raw) ? buildScheduleFromMonthData(raw) : ((raw ?? {}) as Record<number, DaySchedule>)
+}
 
 /**
  * Una richiesta di cambio turno che il calendario reale già mostra esaudita:
@@ -129,7 +141,7 @@ export async function computeShiftCleanup(
       .maybeSingle()
     if (error) throw error
     if (!row) return []
-    sched = (row.schedule ?? {}) as Record<number, DaySchedule>
+    sched = decodeScheduleRow(row.schedule)
   }
 
   const [shiftsRes, usersRes] = await Promise.all([
@@ -156,7 +168,7 @@ export interface ShiftLookupContext {
 
 interface ScheduleRow {
   month: string
-  schedule: Record<number, DaySchedule> | null
+  schedule: unknown
 }
 
 /** Carica utenti e calendari dei mesi indicati (per risolvere i turni reali). */
@@ -178,7 +190,7 @@ export async function loadShiftLookupContext(
   const users = (usersRes.data ?? []) as Pick<UserProfile, 'id' | 'nome' | 'cognome'>[]
   const schedules = new Map<string, Record<number, DaySchedule>>()
   for (const row of (schedRes.data ?? []) as ScheduleRow[]) {
-    schedules.set(row.month, row.schedule ?? {})
+    schedules.set(row.month, decodeScheduleRow(row.schedule))
   }
 
   return {

@@ -365,9 +365,15 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   pannello admin con la tile **Pulizia cambi turno** (selettore mese, anteprima via
   `GET /api/admin/shift-cleanup?month=YYYY-MM`, eliminazione via `POST {ids}`); la route è
   admin/manager e usa il client service-role perché la RLS permette di cancellare solo le proprie
-  richieste. Logica pura in `lib/queries/shift-cleanup.ts` (`findFulfilledShiftRequests`), che mappa
+  richieste.  Logica pura in `lib/queries/shift-cleanup.ts` (`findFulfilledShiftRequests`), che mappa
   i cognomi del PDF agli utenti con `matchesCognome` — estratto in `lib/utils.ts` e condiviso con
   `desk-board.tsx` (omonimi via `buildDuplicateCognomi`). Le richieste non esaudite non vengono toccate.
+  **BUG fix 13/09/2026:** `computeShiftCleanup` e `loadShiftLookupContext` leggevano la colonna
+  `sala_schedule.schedule` RAW (formato compatto v2 {v,days,rows,codes,names}) senza decodificarla,
+  quindi `schedule[day]` era sempre undefined e il bottone admin non trovava MAI candidati
+  (funzionava solo nell'upload, dove la schedule arriva già espansa dal parser). Fix: helper
+  `decodeScheduleRow` che passa da `isSalaMonthData`/`buildScheduleFromMonthData`. Test E2E su dev:
+  richiesta soddisfatta trovata da GET e cancellata da POST, richiesta non esaudita risparmiata.
   **All'eliminazione** (solo la `POST`, unico percorso di cancellazione) partono push `type: 'system'`:
   (1) al **richiedente** — «Cambio turno già registrato», «La richiesta di cambio del gg/mm (Offerto →
   Richiesto) è stata eliminata: nel turno caricato risulti già in <turno reale>.»; (2) a **chi aveva
