@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser, X } from 'lucide-react'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, EyeOff, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { getAppSettings, updateAppSettings } from '@/lib/queries/app-settings'
@@ -14,6 +14,7 @@ import { ChangelogManagerDialog } from './changelog-manager-dialog'
 import { SquadreDialog } from './squadre-dialog'
 import { ShiftDialog } from './shift-dialog'
 import { ShiftCleanupDialog } from './shift-cleanup-dialog'
+import { CompareVisibilityDialog } from './compare-visibility-dialog'
 
 export function AdminPanel() {
   const router = useRouter()
@@ -28,6 +29,7 @@ export function AdminPanel() {
   const [squadreOpen, setSquadreOpen] = useState(false)
   const [shiftOpen, setShiftOpen] = useState(false)
   const [cleanupOpen, setCleanupOpen] = useState(false)
+  const [compareVisOpen, setCompareVisOpen] = useState(false)
   const [minYearTurniferie, setMinYearTurniferie] = useState(2026)
   const [minYearVacanze, setMinYearVacanze] = useState(2026)
   const [savingYears, setSavingYears] = useState(false)
@@ -121,6 +123,12 @@ export function AdminPanel() {
           label="Squadre"
           description="Tipologie, squadre e membri con i turni teorici"
           onClick={() => setSquadreOpen(true)}
+        />
+        <PanelButton
+          icon={<EyeOff size={15} />}
+          label="Confronta"
+          description="Scegli chi compare nel selettore di confronto di «Il tuo turno»"
+          onClick={() => setCompareVisOpen(true)}
         />
         <PanelButton
           icon={<ArrowLeftRight size={15} />}
@@ -235,6 +243,7 @@ export function AdminPanel() {
       <SquadreDialog open={squadreOpen} onClose={() => setSquadreOpen(false)} />
       <ShiftDialog open={shiftOpen} onClose={() => setShiftOpen(false)} />
       <ShiftCleanupDialog open={cleanupOpen} onClose={() => setCleanupOpen(false)} />
+      <CompareVisibilityDialog open={compareVisOpen} onClose={() => setCompareVisOpen(false)} />
     </div>
   )
 }
