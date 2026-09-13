@@ -12,7 +12,7 @@ export async function GET() {
 
   const adminSupabase = createAdminSupabase()
 
-  const { data, error } = await adminSupabase.from('users').select('id, nome, cognome, is_secondary, is_manager, is_dco_plus').order('cognome')
+  const { data, error } = await adminSupabase.from('users').select('id, nome, cognome, is_secondary, is_manager, is_dco_plus, show_in_compare').order('cognome')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ users: data ?? [] })

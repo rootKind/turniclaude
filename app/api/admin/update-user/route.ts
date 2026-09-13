@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { userId, nome, cognome, password, isSecondary, isManager, isDcoPlus } = body as Record<string, unknown>
+  const { userId, nome, cognome, password, isSecondary, isManager, isDcoPlus, showInCompare } = body as Record<string, unknown>
   if (typeof userId !== 'string' || !userId) {
     return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
   }
@@ -41,6 +41,10 @@ export async function POST(req: Request) {
         updates.is_secondary = false
         updates.is_dco_plus = false
       }
+    }
+    // Visibilità nel selettore «Confronta» di /tuoturno (migration 026)
+    if (typeof showInCompare === 'boolean') {
+      updates.show_in_compare = showInCompare
     }
     // Garanzia finale: mai DCO+ se la categoria è Noni o se è manager
     if (updates.is_secondary === true || updates.is_manager === true) {

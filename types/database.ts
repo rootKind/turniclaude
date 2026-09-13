@@ -18,6 +18,7 @@ export interface UserProfile {
   notify_on_new_vacation: boolean | null
   notify_on_cross_shifts: boolean | null  // DCO+/Noni: notifiche dei turni dell'altro gruppo
   notify_shift_filter: boolean | null    // «nuovo turno pubblicato» solo se copribile col proprio turno
+  show_in_compare: boolean               // false = nascosto dal selettore «Confronta» (scelta admin, migration 026)
   created_at: string
   updated_at: string
 }

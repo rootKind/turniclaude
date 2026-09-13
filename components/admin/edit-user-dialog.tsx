@@ -28,7 +28,7 @@ const formSchema = z.object({
 })
 type FormData = z.infer<typeof formSchema>
 
-type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_manager: boolean; is_dco_plus: boolean }
+type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_manager: boolean; is_dco_plus: boolean; show_in_compare: boolean | null }
 
 interface Props {
   open: boolean
@@ -44,6 +44,7 @@ export function EditUserDialog({ open, onClose }: Props) {
   const [isSecondary, setIsSecondary] = useState(false)
   const [isManagerState, setIsManagerState] = useState(false)
   const [isDcoPlus, setIsDcoPlus] = useState(false)
+  const [showInCompare, setShowInCompare] = useState(true)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -51,9 +52,9 @@ export function EditUserDialog({ open, onClose }: Props) {
   })
 
   useEffect(() => {
-    if (!open) { setConfirmDelete(false); setBasePeriod(null); setIsSecondary(false); setIsManagerState(false); setIsDcoPlus(false); form.reset(); return }
+    if (!open) { setConfirmDelete(false); setBasePeriod(null); setIsSecondary(false); setIsManagerState(false); setIsDcoPlus(false); setShowInCompare(true); form.reset(); return }
     const supabase = createClient()
-    supabase.from('users').select('id, nome, cognome, is_secondary, is_manager, is_dco_plus').order('cognome').then(({ data }) => {
+    supabase.from('users').select('id, nome, cognome, is_secondary, is_manager, is_dco_plus, show_in_compare').order('cognome').then(({ data }) => {
       setUsers((data ?? []) as UserOption[])
     })
   }, [open, form])
@@ -66,6 +67,7 @@ export function EditUserDialog({ open, onClose }: Props) {
       setIsSecondary(u.is_secondary)
       setIsManagerState(u.is_manager)
       setIsDcoPlus(u.is_dco_plus)
+      setShowInCompare(u.show_in_compare !== false)
     }
     setBasePeriod(null)
     const supabase = createClient()
@@ -91,6 +93,7 @@ export function EditUserDialog({ open, onClose }: Props) {
           isManager: isManagerState,
           // DCO+ solo per DCO puri: mai per Noni o manager
           isDcoPlus: isManagerState || isSecondary ? false : isDcoPlus,
+          showInCompare,
           ...(values.password ? { password: values.password } : {}),
         }),
       })
@@ -235,6 +238,19 @@ export function EditUserDialog({ open, onClose }: Props) {
                   <p className="text-[11px] text-muted-foreground">DCO che vede e interagisce anche con i turni dei Noni</p>
                 </div>
                 <Switch checked={isDcoPlus} onCheckedChange={setIsDcoPlus} />
+              </div>
+            )}
+
+            {/* Visibilità nel Confronta — il PDF dei turni contiene tutti i dipendenti,
+                ma all'app accede solo una parte: l'admin sceglie chi comparire nel
+                selettore «Confronta» di /tuoturno */}
+            {form.watch('userId') && (
+              <div className="flex items-center justify-between py-1">
+                <div>
+                  <Label className="text-sm font-medium">Visibile nel Confronta</Label>
+                  <p className="text-[11px] text-muted-foreground">Compare nel selettore di confronto di «Il tuo turno»</p>
+                </div>
+                <Switch checked={showInCompare} onCheckedChange={setShowInCompare} />
               </div>
             )}
 

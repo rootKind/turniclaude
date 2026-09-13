@@ -25,7 +25,7 @@ export default async function TuoTurnoPage() {
     user
       ? supabase.from('users').select('id, nome, cognome').eq('id', user.id).maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase.from('users').select('id, nome, cognome').order('cognome'),
+    supabase.from('users').select('id, nome, cognome, is_secondary, is_manager, show_in_compare').order('cognome'),
     listScheduleMonths(supabase),
     fetchShiftTeamTree(supabase),
     supabase.from('sala_schedule').select('month, schedule'),

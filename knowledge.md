@@ -606,6 +606,18 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   + MINICOZZI+MAROTTA fasi = 4 persone); DOPO **0**. ATTENZIONE: `scripts/generate-seed.mjs` +
   migration 020 generano ancora la vecchia struttura (2 tipologie scorte, nessun is_lead, fasi con
   turni M/P/N): se il seed viene rigenerato va riallineato (021+022 sono idempotenti e lavorano per NOME).
+- **Confronta: gruppi, ordine per squadre e visibilità admin (13/09/2026, migration 026 su dev):**
+  il selettore «Confronta» di /tuoturno non elenca più tutti i nomi dei PDF in ordine alfabetico:
+  (1) `users.show_in_compare` (bool, default true) — l'admin nasconde chi non ha l'account con lo
+  switch «Visibile nel Confronta» nel Modifica utente (admin → Gestione utenti; API
+  `/api/admin/update-user` campo `showInCompare`). (2) La lista è divisa in DUE GRUPPI — «Noni»
+  (is_secondary) e «DCO, RIC, ASTER, IAP» (tutti gli altri) — e ordinata per squadre dei turni
+  teorici: in terza (D'ELIA-PASSANNANTI, DI MONDA-ROMANO N., ARMENANTE-DI MONACO, COPPETA-LONI G.,
+  ALBANO, DI MEO, LANGIONE) → in seconda → scorte rilievo (SENATORE-BARRA + mini-squadre
+  A/B/C/D) → scorte semplici (fasi + varianti) → resto alfabetico (senza squadra). Il match
+  utente↔membro usa la STESSA regola dei PDF (cognome, o «COGNOME Iniz.» per gli omonimi) in
+  `lib/compare-groups.ts` (`buildCompareGroups`); ogni voce mostra la squadra come sottotitolo e
+  l'intestazione di gruppo conta i visibili e resta sticky durante lo scroll.
 - **Catalogo cicli pronti (13/09/2026, migration 025 su dev):** tabella `shift_cycle_templates`
   (shift_type_id, team_id opzionale, name, description, pattern, cycle_days, pattern_start,
   is_builtin, unique(shift_type_id,name), RLS convenzione 019). Seed: 81 template GENERATI dai
