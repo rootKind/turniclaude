@@ -70,7 +70,6 @@
           <div class="headcell" style="min-width:32px"><span class="wd">MER</span><span class="dn">24</span></div>
           <div class="headcell" style="min-width:32px"><span class="wd">GIO</span><span class="dn">25</span></div>
           <div class="headcell" style="min-width:32px"><span class="wd">VEN</span><span class="dn">26</span></div>
-          <div class="headcell" style="min-width:32px"><span class="wd">SAB</span><span class="dn">27</span></div>
         </div>
         <div class="cmp-person">
           <div class="sticky namecell"><span>DELLACQUA</span><span class="nome">Marco</span></div>
@@ -78,7 +77,6 @@
           <div class="card cell-tint-p is-pend" style="min-width:32px"><span class="r1">P</span><span class="cmp-sec">8</span></div>
           <div class="card cell-tint-duty" style="min-width:32px"><span class="one">TUTOR</span></div>
           <div class="card cell-tint-n" style="min-width:32px"><span class="r1">N</span><span class="cmp-sec">11</span></div>
-          <div class="card cell-tint-duty" style="min-width:32px"><span class="one">SPCA</span></div>
           <div class="card cell-tint-abs" style="min-width:32px"><span class="one">F.E.</span></div>
         </div>
         <div class="cmp-person">
@@ -88,7 +86,6 @@
           <div class="card cell-tint-m" style="min-width:32px"><span class="r1">M</span><span class="cmp-sec">5</span></div>
           <div class="card cell-tint-rest" style="min-width:32px"><span class="one">RM</span></div>
           <div class="card cell-tint-p" style="min-width:32px"><span class="r1">P</span><span class="cmp-sec">6</span></div>
-          <div class="card cell-tint-duty" style="min-width:32px"><span class="one">RIC</span></div>
         </div>
       </div>
     </div>
@@ -115,7 +112,16 @@
     }
     return Math.max(34, Math.ceil(widest) + 7);
   })();
-  // Applica la larghezza minima calcolata a TUTTE le card e teste (come l'app).
+  // Cap colonne per blocco = STESSA formula dell'app (compareChunks.maxByWidth):
+  // 76px colonna nomi + colonne × cellW ≤ larghezza contenuto main (320-24).
+  // Il markup qui sopra ha GIÀ 5 colonne: se il cap dice 4, l'ultima viene tolta
+  // (l'app invece spezza il mese in un blocco in più).
+  const availW = Math.max(280, Math.min(320, 512) - 24);
+  const maxByWidth = Math.max(1, Math.floor((availW - 76) / Math.max(34, cellW)));
+  document.querySelectorAll('.cmp-head, .cmp-person').forEach(row => {
+    [...row.querySelectorAll('.headcell, .card')].slice(maxByWidth).forEach(el => el.remove());
+  });
+  // Applica la larghezza minima calcolata alle card/teste rimaste (come l'app).
   document.querySelectorAll('.card, .headcell').forEach(el => { el.style.minWidth = cellW + 'px'; });
 
   // Misura REALE: per ogni riga di testo nelle card, scrollWidth vs clientWidth.
@@ -129,9 +135,10 @@
     });
   });
   const table = document.querySelector('.cmp-table');
-  lines.push(`\ncellW calcolata (canvas): ${cellW}px`);
-  lines.push(`scroll: scrollWidth=${table.scrollWidth} clientWidth=${table.clientWidth}${table.scrollWidth > table.clientWidth ? '  (scroll orizzontale attivo)' : '  (tutto visibile)'}`);
-  lines.push(`\nRISULTATO: ${anyTruncated ? '❌ TRUNCAMENTO PRESENTE' : '✅ nessun truncate a 320px'}`);
+  const noOverflow = table.scrollWidth <= table.clientWidth;
+  lines.push(`\ncellW calcolata (canvas): ${cellW}px — colonne per blocco: ${maxByWidth}`);
+  lines.push(`overflow orizzontale: scrollWidth=${table.scrollWidth} clientWidth=${table.clientWidth} → ${noOverflow ? 'NO' : 'SÌ ⚠'}`);
+  lines.push(`\nRISULTATO: ${anyTruncated ? '❌ TRUNCAMENTO PRESENTE' : '✅ nessun truncate'} — ${noOverflow ? '✅ nessuno scroll orizzontale' : '❌ scroll orizzontale'}`);
   document.getElementById('out').textContent = lines.join('\n');
 </script>
 </body>

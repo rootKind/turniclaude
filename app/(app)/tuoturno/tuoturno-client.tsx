@@ -723,10 +723,15 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     // lunghi il mese si SPANDE in vertica (più blocchi, zero scroll) invece di
     // lasciare metà pagina vuota.
     const maxByHeight = Math.max(1, Math.floor(available / perBlock))
-  // IN LARGHEZZA: la main è max-w-lg (512px); min 5 giorni per colonna —
-  // sotto, i codici tipo MDCIF non ci stanno più anche comprimendo.
-  const availW = Math.max(280, Math.min(viewportWidth, 512) - 24)
-  const maxByWidth = Math.max(5, Math.floor((availW - 76) / Math.max(CMP_COL_W, compareCellW)))
+    // IN LARGHEZZA (richiesta 15/09/2026): quante colonne ci stanno DAVVERO nel
+    // blocco, dalla larghezza MISURATA delle celle — prima un clamp a «min 5»
+    // forzava 5 colonne anche quando ne stavano 4 (sezioni larghe, celle ≥55px)
+    // e il blocco sforava il viewport: barra di scorrimento orizzontale. Ora il
+    // numero di colonne per blocco è ESATTAMENTE quello che fit (min 1): le celle
+    // hanno minWidth compareCellW, quindi blocco = 76 + colonne × cellW ≤ availW
+    // e lo scroll orizzontale non può comparire.
+    const availW = Math.max(280, Math.min(viewportWidth, 512) - 24)
+    const maxByWidth = Math.max(1, Math.floor((availW - 76) / Math.max(CMP_COL_W, compareCellW)))
     // Blocchi MINIMI per la larghezza, ma MAI più del necessario: si preferiscono
     // blocchi larghi (colonna nome ripetuta meno volte, celle più respirate).
     const minChunks = Math.ceil(totalDays / maxByWidth)

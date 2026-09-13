@@ -13,6 +13,12 @@
 # testing
 /coverage
 
+# playwright (e2e)
+test-results/
+playwright-report/
+tests/.auth-state.json
+tests/.sb-session.json
+
 # next.js
 /.next/
 /out/

@@ -748,6 +748,22 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   route (es. `POST /api/admin/update-user`) → utenti di prova `e2e.*@example.com` creati con la
   service key dev e CANCELLATI a fine test (auth admin + riga `users`). Verifica su DB:
   `/rest/v1/users?id=eq.<id>&select=is_secondary,is_manager`.
+- **Smoke test Playwright (13/09/2026):** `npx playwright test` (`tests/confronto-no-clipping.spec.ts`,
+  config `playwright.config.ts`): NESSUN testo di card troncato e NESSUNA scroll orizzontale nel
+  Confronto di /tuoturno, a 320px e 390px. Tre bersagli: i due mockup (`mockups/confronta-320px.html`,
+  `confronta-dashed-e-due-righe.html` — statici via `file://`, la rete di regressione vera) e l'APP
+  REALE su localhost:3000 (dev server già attivo, vedi `.freebuff/run.md`). «Troncato» =
+  `scrollWidth > clientWidth` su una riga truncata. AUTH del test «app reale»: `tests/.auth-state.json`
+  (git-ignored) iniettato come storageState — si genera con credenziali E2E_EMAIL/E2E_PASSWORD
+  (progetto «auth», login dal form) oppure esportando la sessione dal browser e passando da
+  `scripts/make-auth-state.mjs`; il cookie va riscritto NEL FORMATO `@supabase/ssr`:
+  `sb-<ref>-auth-token` = `base64-` + base64url del JSON di sessione (nome sbagliato o JSON nudo →
+  il client Supabase lo ignora e il test salta). Serve ANCHE il bypass PWA: il test naviga a
+  `/tuoturno?dev=rootkind-dev-2026` (lo storageState lo pre-carica in localStorage). Senza sessione
+  valida il test «app reale» si AUTOSALTA: NON è un fallimento (le exp Supabase scendono ~1h).
+  ATTENZIONE ai locator nel dialog Confronta: i bottoni-persone si prendono con filtro
+  `\S+ \S+` (nome+cognome) — un filtro generico «bottone con testo» becca anche i footer
+  «Azzera»/«Scegli almeno 2» e la selezione non parte.
 
 ---
 

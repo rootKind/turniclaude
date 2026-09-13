@@ -113,7 +113,7 @@
   <div class="row">
     <!-- PRIMA (bug): split + dashed con il selettore vecchio (senza :not) -->
     <div class="prima">
-      <div class="card-lg cell-day cell-split cell-tint-duty is-pend">
+      <div id="mock-bug-split" class="card-lg cell-day cell-split cell-tint-duty is-pend">
         <span class="day-badge">23</span>
         <span class="cell-half cell-half-theo cell-barred cell-tint-p" style="--c-bg:var(--pill-pomeriggio-bg);--c-text:var(--pill-pomeriggio-text)"><span class="theo-lg">P8</span></span>
         <span class="cell-half cell-tint-duty"><span class="code-lg">SPCA</span></span>
@@ -122,7 +122,7 @@
     </div>
     <div>
       <!-- DOPO: split + dashed, regole corrette -->
-      <div class="card-lg cell-day cell-split cell-tint-duty is-pend">
+      <div id="mock-split-dashed" class="card-lg cell-day cell-split cell-tint-duty is-pend">
         <span class="day-badge">23</span>
         <span class="cell-half cell-half-theo cell-barred cell-tint-p" style="--c-bg:var(--pill-pomeriggio-bg);--c-text:var(--pill-pomeriggio-text)"><span class="theo-lg">P8</span></span>
         <span class="cell-half cell-tint-duty"><span class="code-lg">SPCA</span></span>
@@ -131,7 +131,7 @@
     </div>
     <div>
       <!-- DOPO: strike (non-split) + dashed: la :not() evita il doppio bordo -->
-      <div class="card-lg cell-day cell-tint-duty is-pend">
+      <div id="mock-strike-dashed" class="card-lg cell-day cell-tint-duty is-pend">
         <span class="day-badge">23</span>
         <span class="strike">P8</span>
         <span class="code-lg">SPCA</span>
@@ -140,7 +140,7 @@
     </div>
     <div>
       <!-- non-pend di riferimento -->
-      <div class="card-lg cell-day cell-tint-duty">
+      <div id="mock-no-ring" class="card-lg cell-day cell-tint-duty">
         <span class="day-badge">24</span>
         <span class="code-lg">SPCA</span>
       </div>
@@ -152,7 +152,7 @@
 <div class="theme">
   <h2>2 · Confronta — giorni nelle teste di colonna, card su DUE righe (niente chip)</h2>
   <p class="note">Sopra: P/M/N grandi; sotto: sezione (4/5/6/DCIF…) più piccola. Codici senza sezione (SPCA, riposo, ferie) centrati su una riga. La card guadagna lo spazio del chip rimosso.</p>
-  <div class="cmp-table">
+  <div class="cmp-table" id="mock-cmp-table">
     <div class="cmp-head">
       <div class="cmp-namecol"></div>
       <div class="cmp-headcell"><span class="wd">LUN</span><span class="dn">22</span></div>
