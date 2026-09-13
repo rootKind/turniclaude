@@ -630,9 +630,12 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (`components/ui/calendar.tsx`) accetta il prop opzionale `dayInfo?: (date) => { code, cssClass }`:
   se presente, sopra la cifra di ogni giorno compare una mini-pillola M/P/N (`shiftCodePill`
   in `lib/sala-month.ts`, classi `.pill-*` già esistenti → stesse tinte delle pillole sala).
-  Il dialog (`components/shifts/shift-dialog.tsx`) la alimenta a dialog aperto: riga REALE della
-  persona per i mesi PDF (`getSalaSchedule` + `findMonthPerson`), TEORICO dalle squadre DB per
-  i mesi senza PDF (`theoreticalTokenFor`, chiavi ISO sulla mappa `dayShiftCodes`). ATTENZIONE:
+  Le attività senza sezione (SPCA/RIC/TUTOR: presenti senza turno da 8 ore, non oggetto di
+  cambi) rendono la sigla «U» con `.pill-u` = tinta verde `--cell-duty-*` delle card duty
+  de «Il tuo turno». Il dialog (`components/shifts/shift-dialog.tsx`) la alimenta a dialog
+  aperto: riga REALE della persona per i mesi PDF (`getSalaSchedule` + `findMonthPerson`),
+  TEORICO dalle squadre DB per i mesi senza PDF (`theoreticalTokenFor`, chiavi ISO sulla
+  mappa `dayShiftCodes`). ATTENZIONE:
   il children JSX in `CalendarDayButton` SOSTITUISCE i children di react-day-picker (la cifra!) —
   vanno riusati esplicitamente (`{children}`); gli stili `.cal-day-shift`/`.cal-has-shift` stanno
   FUORI dai layer CSS perché la utilities `[&>span]:text-xs [&>span]:opacity-70` del bottone
