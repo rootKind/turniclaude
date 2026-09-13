@@ -188,6 +188,22 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **Sala:** `colored_persons` scritto via RPC atomico `set_person_color` (migration 013) —
   colori PER PERSONA dei desk (board /turnisala, admin o manager), diverso dall'ex-funzionalità
   colori tema. Upload PDF / cancellazione mese: admin O manager (route + RLS allineati).
+- **Vista admin «Teorico ≠ reale» in /turnisala (15/09/2026):** mini-Fab (long-press FAB,
+  icona `GitCompareArrows`, SOLO admin — il menu manager NON ce l'ha) che emette
+  `sala-admin-theodiff`; DeskBoard toggle `showTheoDiff`. MOTORE: `theoRealDiffsForDay`
+  in `lib/turni-teorici.ts` — per giorno/mese confronta i token SEZIONATI dell'albero
+  (`M4`…, via tokenForMember) con la posizione reale nel PDF (day schedule ricostruito):
+  diff se sezione/turno diversi, presente in altriPresenti (etichetta «presente») o assente
+  dal PDF («—»); teorici NON sezionati (riposi, M nudi) non producono diff. L'output è
+  raggruppato per SEZIONE PREVISTA (`"4|M"`) e la card collegata (sectionKey o titolo)
+  mostra la striscia `≠ Cognome M8→N6` SOTTO i nomi reali — la card può superare i nomi
+  abituali (è una verifica). ATTIVABILE SOLO su mesi caricati da PDF (source !==
+  'theoretical'). **ATTENZIONE RLS:** fetchShiftTeamTree dal CLIENT può tornare 0 righe
+  anche autenticati (policy «to authenticated» + sessione browser) — la pagina server
+  (`turnisala/page.tsx`) passa ora `initialShiftTree` a SalaPageClient (stato iniziale,
+  refetch client solo fallback). NON ripristinare il solo fetch client.
+  Il pattern «niente auto-spegnimento» della modalità: il ricalcolo è useMemo su
+  giorno/turno/mese; un reset sui cambi di contesto LA SPEGNEVA mentre l'admin navigava.
 - **Sala /turnisala — highlight card + separatori NMP (25/08/2026):** `.desk-card-highlight` =
   bordo card nel colore `--sala-highlight-border` (nero in chiaro / bianco in scuro) + anello
   `box-shadow: 0 0 0 1px` dello STESSO colore → contorno solido di 2px al bordo della card
@@ -464,7 +480,12 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (touch, soglia 50px; le frecce ‹ › fanno lo stesso) e legenda. Dal 13/09/2026 lo swipe è su
   TUTTA la pagina (listener su document, come turnisala): funziona anche in modalità confronto;
   ignorato se il gesto parte da `.month-pop`, da un dialog `[role="dialog"]` o dal wrapper radix,
-  o se è verticale/di meno di 50px. Celle «variante E» (min-h 76px): la card
+  o se è verticale/di meno di 50px. **SWIPE BACK dal CONFRONTO (15/09/2026):** swipe verso
+  destra con la tabella di confronto aperta ESCE dal confronto (setCompareIds([]), griglia
+  personale) invece di cambiare mese — il gesto «indietro» naturale; swipe a sinistra resta
+  «mese successivo» in ENTRAMBE le modalità. Lo stato «confronto aperto» passa al listener
+  tramite ref specchiata (comparingRef su compareIds): l'effect ha deps [] e NON va ri-iscritto
+  a ogni cambio (schema ref di desk-board). Celle «variante E» (min-h 76px): la card
   è INTERAMENTE tinta — numero del giorno compreso — blu Mattina, ambra Pomeriggio,
   lilla Notte (tinte = pill della dashboard), grigio riposi, rosso assenze, verde attività senza sezione
   (`.cell-day` + `.cell-tint-*` in `app/globals.css`; dal 12/09/2026 le tinte M/P/N puntano alle

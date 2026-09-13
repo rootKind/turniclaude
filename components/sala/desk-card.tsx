@@ -16,6 +16,9 @@ interface Props {
   isDragOverlay?: boolean
   canEditColors?: boolean
   onColorChange?: (name: string, color: string | null) => void
+  /** Vista admin «Teorico ≠ reale»: persone che il TEORICO mette in questa
+   *  sezione/turno ma il PDF reale no (altrove, presente senza sezione o assente). */
+  theoDiff?: Array<{ name: string; theo: string; real: string | null; missing: boolean }>
 }
 
 const toTitleCase = (s: string) =>
@@ -33,7 +36,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoDiff }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -290,6 +293,24 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
           </div>
         )}
       </div>
+
+      {/* Vista «Teorico ≠ reale» (solo admin): sotto i nomi REALI della sezione,
+          le persone che secondo il teorico dovevano esserci. Restano DISTINTE dai
+          nomi veri (riga a parte, rosso, con i codici teorico→reale): sono un
+          riscontro, non dati della piantina. */}
+      {!isEditing && theoDiff && theoDiff.length > 0 && (
+        <div className="border-t sala-card-title-sep shrink-0 bg-muted/30">
+          {theoDiff.map(d => (
+            <div key={d.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
+              <span className="text-destructive font-bold select-none">≠</span>
+              <span className="whitespace-nowrap font-medium">{toTitleCase(d.name.split(/\s+/)[0])}</span>
+              <span className="tabular-nums text-muted-foreground whitespace-nowrap">
+                {d.theo}→{d.missing ? '—' : d.real}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Tirocinante bottom extension */}
       {tirCount > 0 && (

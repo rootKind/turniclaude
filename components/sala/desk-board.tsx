@@ -5,12 +5,13 @@ import { it } from 'date-fns/locale'
 import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { toast } from 'sonner'
-import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType } from '@/types/database'
+import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType, ShiftTeamTree } from '@/types/database'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { matchesCognome } from '@/lib/utils'
+import { theoRealDiffsForDay, type TheoRealDiff } from '@/lib/turni-teorici'
 import { useAllDuplicateCognomi } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
@@ -122,6 +123,8 @@ interface Props {
   currentMonth: string
   availableMonths: string[]
   theoreticalMonths: string[]
+  /** Albero squadre: serve alla vista «Teorico ≠ reale» (solo admin). */
+  shiftTree?: ShiftTeamTree | null
   onMonthChange: (month: string) => Promise<void>
   onUpload: (file: File, month: string) => Promise<void>
   onDeleteMonth: (month: string) => Promise<void>
@@ -139,6 +142,7 @@ export function DeskBoard({
   currentMonth,
   availableMonths,
   theoreticalMonths,
+  shiftTree,
   onMonthChange,
   onUpload,
   onDeleteMonth,
@@ -412,6 +416,24 @@ export function DeskBoard({
     return () => { document.removeEventListener('sala-admin-edit', onEdit) }
   }, [isAdmin])
 
+  /* Vista «Teorico ≠ reale» (solo admin, 15/09/2026): arricchisce le card della
+     sezione con le persone che secondo il TEORICO dovevano stare lì quel
+     giorno/turno ma nel PDF reale risultano in un'altra sezione, in un altro
+     turno o mancanti. Toggle via mini-Fab (evento sala-admin-theodiff): si
+     SPEGNE da solo cambiando giorno/turno/mese o uscendo dalla modalità. */
+  const [showTheoDiff, setShowTheoDiff] = useState(false)
+  useEffect(() => {
+    if (!isAdmin) return
+    const onTheoDiff = () => setShowTheoDiff(v => !v)
+    document.addEventListener('sala-admin-theodiff', onTheoDiff)
+    return () => { document.removeEventListener('sala-admin-theodiff', onTheoDiff) }
+  }, [isAdmin])
+  // NOTA: niente auto-spegnimento al cambio giorno/turno/mese — il ricalcolo è
+  // automatico (useMemo su giorno/turno/mese) e nei mesi TEORICI la vista resta
+  // comunque inerte (theoDiffEnabled richiede un mese caricato da PDF).
+  // Un reset sui cambi di contesto, invece, LA SPEGNEVA mentre l'admin navigava
+  // (es. toccata la chip M dopo l'attivazione) — controsenso: è una modalità.
+
   const handleDeleteMonth = async (month: string) => {
     setDeletingMonth(month)
     try {
@@ -423,6 +445,42 @@ export function DeskBoard({
       setDeletingMonth(null)
     }
   }
+
+  /* Vista «Teorico ≠ reale» (solo admin): attiva SOLO su mesi caricati da PDF
+     (il confronto è teorico vs reale) con l'albero squadre disponibile. Le
+     persone che secondo il teorico dovevano stare in una sezione/turno e nel
+     PDF non ci sono (spostate, in altriPresenti o assenti) vengono AGGIUNTE
+     alla card della sezione prevista, in una striscia separata — anche se la
+     card supera il numero abituale di nomi (è una verifica, non la piantina). */
+  const theoDiffEnabled = !!(isAdmin && showTheoDiff && shiftTree && schedule && schedule.source !== 'theoretical')
+  const theoDiffsBySection = useMemo(() => {
+    if (!theoDiffEnabled || !shiftTree || !schedule) return new Map<string, TheoRealDiff[]>()
+    const day = schedule.schedule[selectedDay]
+    const diffs = theoRealDiffsForDay(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day)
+    // Raggruppa per la sezione PREVISTA dal teorico (es. «M4» → sezione "4"):
+    // è lì che la persona doveva stare e lì che la striscia deve comparire.
+    const map = new Map<string, TheoRealDiff[]>()
+    for (const d of diffs) {
+      const m = /^(M|P|N)\s*(\d+)$/.exec(d.theo)
+      if (!m) continue
+      const key = `${m[2]}|${m[1]}` // "4|M"
+      const list = map.get(key)
+      if (list) list.push(d)
+      else map.set(key, [d])
+    }
+    return map
+  }, [theoDiffEnabled, shiftTree, schedule, selectedDay, currentMonth])
+  // Diffs per CARD: la card guarda la sua sezione collegata (sectionKey o titolo).
+  const theoDiffByCardId = useMemo(() => {
+    const map = new Map<string, TheoRealDiff[]>()
+    if (!theoDiffEnabled) return map
+    for (const card of cards) {
+      const key = `${card.sectionKey ?? card.title}|${selectedShift}`
+      const diffs = theoDiffsBySection.get(key)
+      if (diffs?.length) map.set(card.id, diffs)
+    }
+    return map
+  }, [theoDiffEnabled, cards, theoDiffsBySection, selectedShift])
 
   const scheduleSections: string[] = schedule
     ? [...new Set([
@@ -639,6 +697,7 @@ export function DeskBoard({
                         onColorChange={canUpload && onColorChange
                           ? (name, color) => onColorChange(currentMonth, selectedDay, name, color)
                           : undefined}
+                        theoDiff={theoDiffByCardId.get(card.id)}
                       />
                     ))}
                   </DroppableCell>

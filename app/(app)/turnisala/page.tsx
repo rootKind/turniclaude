@@ -50,6 +50,7 @@ export default async function TurniSalaPage() {
       initialMonth={initialMonth}
       scheduleMonths={scheduleMonths}
       theoreticalMonths={theoreticalMonths}
+      initialShiftTree={shiftTree}
     />
   )
 }

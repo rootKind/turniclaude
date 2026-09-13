@@ -565,6 +565,11 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   // Contorno dei giorni «da confermare»: giallo/rosso, continuo/tratteggiato.
   const pendingRing = useSyncExternalStore(pendingRingStore.subscribe, pendingRingStore.get, () => 'yellow-solid' as PendingRing)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
+  // Il gesto swipe-back deve sapere se il CONFRONTO è aperto senza ri-iscrivere
+  // i listener del documento a ogni cambio stato: ref specchiata (schema già
+  // usato in desk-board per isEditing/selectedDay).
+  const comparingRef = useRef(false)
+  useEffect(() => { comparingRef.current = compareIds.length >= 2 }, [compareIds])
 
   const duplicateCognomi = useMemo(() => buildDuplicateCognomi(users), [users])
   const uploaded = useMemo(() => new Set(uploadedMonths), [uploadedMonths])
@@ -748,6 +753,10 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   // se il gesto parte dal selettore mese/anno (.month-pop ha le sue colonne
   // scorrevoli) o dentro un dialog (radix li renderizza in portale fuori da
   // main), e se il gesto è verticale (scroll) o troppo corto.
+  // SWIPE BACK dal CONFRONTO (richiesta 15/09/2026): swipe verso destra mentre
+  // la tabella di confronto è aperta = USCIRE dal confronto e tornare alla
+  // griglia personale (il gesto «indietro» naturale), NON cambiare mese.
+  // Swipe verso sinistra resta «mese successivo» in entrambe le modalità.
   useEffect(() => {
     const skip = (t: EventTarget | null) =>
       t instanceof Element &&
@@ -763,7 +772,13 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
       const dx = e.changedTouches[0].clientX - start.x
       const dy = e.changedTouches[0].clientY - start.y
       if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
-      setMonth(m => addMonths(m, dx < 0 ? 1 : -1))
+      if (dx > 0) {
+        // «Indietro»: dal confronto si esce; nella griglia personale si torna mese.
+        if (comparingRef.current) { setCompareIds([]); return }
+        setMonth(m => addMonths(m, -1))
+      } else {
+        setMonth(m => addMonths(m, 1))
+      }
     }
     document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })

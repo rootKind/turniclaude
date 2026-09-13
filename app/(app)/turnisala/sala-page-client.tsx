@@ -31,6 +31,11 @@ interface Props {
   initialMonth: string
   scheduleMonths: string[]
   theoreticalMonths: string[]
+  /** Albero squadre precaricato dal SERVER (15/09/2026): il fetch client-side
+   *  (fetchShiftTeamTree con la sessione del browser) può tornare 0 righe anche
+   *  autenticato — il server lo vede invece sempre. Serve alla vista
+   *  «Teorico ≠ reale» e ai mesi teorici. */
+  initialShiftTree: ShiftTeamTree
 }
 
 export function SalaPageClient({
@@ -44,6 +49,7 @@ export function SalaPageClient({
   initialMonth,
   scheduleMonths: initialMonths,
   theoreticalMonths,
+  initialShiftTree,
 }: Props) {
   useLandscapeLock()
 
@@ -54,7 +60,11 @@ export function SalaPageClient({
   const [schedule, setSchedule] = useState<SalaSchedule | null>(initialSchedule)
   const [currentMonth, setCurrentMonth] = useState(initialMonth)
   const [availableMonths, setAvailableMonths] = useState(initialMonths)
-  const [shiftTree, setShiftTree] = useState<ShiftTeamTree | null>(null)
+  // L'albero arriva GIÀ dal server (initialShiftTree): il refetch client è solo
+  // un fallback/correzione. Prima del 15/09/2026 si partiva da null e il fetch
+  // client-side poteva tornare 0 righe (RLS «authenticated» con sessione del
+  // browser) lasciando la pagina senza teorico né vista «Teorico ≠ reale».
+  const [shiftTree, setShiftTree] = useState<ShiftTeamTree | null>(initialShiftTree)
   const [treeError, setTreeError] = useState(false)
   // Richieste di cambio già esaudite dal PDF appena caricato: popup di conferma.
   const [cleanup, setCleanup] = useState<{ month: string; candidates: ShiftCleanupCandidate[] } | null>(null)
@@ -198,6 +208,7 @@ export function SalaPageClient({
         currentMonth={currentMonth}
         availableMonths={availableMonths}
         theoreticalMonths={theoreticalMonths}
+        shiftTree={shiftTree}
         onMonthChange={handleMonthChange}
         onUpload={handleUpload}
         onDeleteMonth={handleDeleteMonth}
