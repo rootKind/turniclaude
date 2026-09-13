@@ -632,7 +632,13 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   in `lib/sala-month.ts`, classi `.pill-*` già esistenti → stesse tinte delle pillole sala).
   Le attività senza sezione (SPCA/RIC/TUTOR: presenti senza turno da 8 ore, non oggetto di
   cambi) rendono la sigla «U» con `.pill-u` = tinta verde `--cell-duty-*` delle card duty
-  de «Il tuo turno». Il dialog (`components/shifts/shift-dialog.tsx`) la alimenta a dialog
+  de «Il tuo turno». RIClassificazione (13/09/2026, su segnalazione dell'utente): M/N/P
+  «nudi» senza sezione (SPAGNULO), le varianti a maiuscole miste del PDF (Mric, Miap,
+  piaptir…) e AG7 NON sono più U — i primi due gruppi sono turni veri e propri (`isShiftWorkCode`
+  in `lib/shift-tokens.ts`, usato da `salaCodeInfo`, `isWorkToken` di person-shift/person-cycle
+  e dal path turnisala: presence senza sezione per i nudi, sezioni normalizzate uppercase
+  in `parseShiftCode` così MRIC/Mric si fondono), AG7 è assenza (ABSENCE_LABELS). «Na» e
+  NDis* restano turno N (comportamento preesistente), Sp*/ISp*/Dis*/G/TUTOR/12.14 restano U. Il dialog (`components/shifts/shift-dialog.tsx`) la alimenta a dialog
   aperto: riga REALE della persona per i mesi PDF (`getSalaSchedule` + `findMonthPerson`),
   TEORICO dalle squadre DB per i mesi senza PDF (`theoreticalTokenFor`, chiavi ISO sulla
   mappa `dayShiftCodes`). ATTENZIONE:

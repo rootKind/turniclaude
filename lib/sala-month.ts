@@ -1,5 +1,5 @@
 import type { DaySchedule, SalaMonthData } from '@/types/database'
-import { applyTokenToDay } from '@/lib/shift-tokens'
+import { applyTokenToDay, isShiftWorkCode } from '@/lib/shift-tokens'
 import { matchesCognome } from '@/lib/utils'
 import { personNameMatches, type PersonRef } from '@/lib/person-shift'
 
@@ -131,6 +131,8 @@ const ABSENCE_LABELS: Record<string, string> = {
   AG: 'Assenza',
   VS: 'Visita sanitaria',
   Trasf: 'Trasferta',
+  /** Assenza generica con ore (es. AG7): non è un'attività. */
+  AG7: 'Assenza',
 }
 
 /**
@@ -144,12 +146,12 @@ export function salaCodeInfo(token: string | null | undefined): SalaCodeInfo {
   if (REST_CODES.has(t)) return { kind: 'rest', label: 'Riposo', short: t }
   if (t === 'D') return { kind: 'availability', label: 'Disponibilità', short: t }
   if (ABSENCE_LABELS[t]) return { kind: 'absence', label: ABSENCE_LABELS[t], short: t }
-  if (/^[MNP][A-Z0-9]/.test(t)) {
-    const shift = t[0] === 'M' ? 'Mattina' : t[0] === 'P' ? 'Pomeriggio' : 'Notte'
+  if (isShiftWorkCode(t)) {
+    const shift = t[0].toUpperCase() === 'M' ? 'Mattina' : t[0].toUpperCase() === 'P' ? 'Pomeriggio' : 'Notte'
     return { kind: 'work', label: `Turno ${shift}`, short: t }
   }
-  // Tutto il resto (SpN, ISpN, SPW, DisNa, RIC/PRIC/MRIC, PIAP/MIAP/GIAP,
-  // TUTOR, G, orari…) è attività senza sezione: presente, ma non in sezione.
+  // Tutto il resto (SpN, ISpN, SPW, DisNa/DisCas, RIC/PRIC, GIAP, TUTOR, G,
+  // orari…) è attività senza sezione: presente, ma non in sezione.
   return { kind: 'duty', label: 'Attività senza sezione', short: t }
 }
 
@@ -170,7 +172,8 @@ export interface PersonDayShift extends SalaCodeInfo {
 export function shiftCodePill(token: string | null | undefined): { code: string; kind: SalaCodeKind; cssClass: string } | null {
   const info = salaCodeInfo(token)
   if (info.kind === 'work') {
-    return { code: info.short.charAt(0), kind: info.kind, cssClass: SHIFT_CODE_PILL_CLASS[info.short.charAt(0)] }
+    // toUpperCase: il PDF scrive anche «piaptir»/«Miap» → la pillola è comunque P/M.
+    return { code: info.short.charAt(0).toUpperCase(), kind: info.kind, cssClass: SHIFT_CODE_PILL_CLASS[info.short.charAt(0).toUpperCase()] }
   }
   if (info.kind === 'duty') return { code: 'U', kind: info.kind, cssClass: 'pill-u' }
   return null

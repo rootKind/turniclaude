@@ -16,11 +16,11 @@ import { buildDuplicateCognomi } from '@/lib/utils'
  * Un giorno di riposo/assenza non copre nessun turno.
  */
 
-/** 'M' | 'P' | 'N' da un token sala (M7S → M, P10 → P, N5TIR → N). */
+/** 'M' | 'P' | 'N' da un token sala (M7S → M, P10 → P, N5TIR → N, piaptir → P). */
 export function salaTokenToShiftType(token: string | null | undefined): ShiftType | null {
   const kind = salaCodeInfo(token).kind
   if (kind !== 'work') return null
-  const c = (token ?? '').trim()[0]
+  const c = (token ?? '').trim().charAt(0).toUpperCase()
   return c === 'M' ? 'Mattina' : c === 'P' ? 'Pomeriggio' : 'Notte'
 }
 

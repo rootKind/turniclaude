@@ -15,13 +15,32 @@ export function isShiftCode(token: string): boolean {
   return /^[MNP][A-Z0-9]+$/.test(token)
 }
 
+/**
+ * Turno di lavoro M/P/N in qualsiasi forma: con sezione (M7S), «nudo» senza
+ * sezione (M, N, P: es. SPAGNULO) o variante a maiuscole miste del PDF
+ * (Mric, Miap, piaptir…). «Na»/«na» (disponibilità nave) inizia con N ma NON è
+ * un turno; «NDisNa» neanche (seconda lettera maiuscola). Richiesta
+ * 13/09/2026: questi codici non finiscono nella categoria U.
+ */
+export function isShiftWorkCode(token: string): boolean {
+  const t = (token ?? '').trim()
+  return (
+    /^[MNP][A-Z0-9]/.test(t) ||
+    /^[MNP]$/.test(t) ||
+    (/^[MNPmnp][a-z]/.test(t) && !/^na$/i.test(t))
+  )
+}
+
 export function parseShiftCode(token: string): ParsedShift {
-  const shift = token[0] as SalaShiftType
-  const isTir = token.endsWith('TIR')
-  const raw = token.slice(1).replace(/TIR$/, '')
+  const shift = token[0].toUpperCase() as SalaShiftType
+  const isTir = /TIR$/i.test(token)
+  const raw = token.slice(1).replace(/TIR$/i, '')
   const m = raw.match(/^(\d+)([ST])?$/)
   if (m) return { shift, section: m[1], slot: (m[2] as 'T' | 'S') ?? null, isTir }
-  return { shift, section: raw, slot: null, isTir }
+  // Sezione alfabetica: il PDF mescola maiuscole/minuscole (MRIC/Mric, MIAP/Miap,
+  // IAP/iap…) — normalizzo così le colonne della giornata si fondono.
+  const section = /^[A-Za-z]+$/.test(raw) ? raw.toUpperCase() : raw
+  return { shift, section, slot: null, isTir }
 }
 
 export const ABSENT_CODES = new Set([
@@ -32,11 +51,11 @@ export const NON_SECTION_DUTIES = new Set(['TUTOR'])
 
 export function isPresentNoSection(token: string): boolean {
   if (ABSENT_CODES.has(token)) return false
-  if (/^Sp[A-Za-z@]/.test(token)) return true
-  if (/^ISp[A-Za-z]/.test(token)) return true
-  if (token === 'SPW') return true
-  if (token === 'SpNw') return true
-  if (/^Dis[A-Z]/.test(token)) return true
+  // Famiglie case-insensitive: il PDF mescola maiuscole (SpN/SPN/spn, SPCA,
+  // SPW/ISPW, DisNa/DisCas…). Richiesta 13/09/2026.
+  if (/^Sp[A-Za-z@]/i.test(token)) return true
+  if (/^ISp[A-Za-z]/i.test(token)) return true
+  if (/^Dis[A-Za-z]/.test(token)) return true
   return false
 }
 
@@ -50,6 +69,13 @@ export function emptyShift(): SectionShiftData {
  */
 export function applyTokenToDay(day: DaySchedule, name: string, token: string): boolean {
   if (!token || ABSENT_CODES.has(token)) return false
+
+  // Turno «nudo» senza sezione (M, N, P: es. SPAGNULO): presente, ma la sezione
+  // non è indicata nel PDF — finisce tra le altre presenze, non in una colonna.
+  if (/^[MNP]$/.test(token)) {
+    day.altriPresenti.push(name)
+    return true
+  }
 
   if (isPresentNoSection(token)) {
     day.altriPresenti.push(name)

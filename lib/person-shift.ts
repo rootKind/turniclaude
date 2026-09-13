@@ -9,6 +9,7 @@ import type {
 } from '@/types/database'
 import { matchesCognome } from '@/lib/utils'
 import { tokenForMember } from '@/lib/turni-teorici'
+import { isShiftWorkCode } from '@/lib/shift-tokens'
 
 /** Anagrafica minima di una persona (utente o membro squadra). */
 export interface PersonRef {
@@ -146,9 +147,12 @@ export function realShiftFor(
   return NO_REAL_SHIFT
 }
 
-/** True se il token è un turno di lavoro (M/P/N con sezione). */
+/**
+ * True se il token è un turno di lavoro (M/P/N in qualsiasi forma: con sezione,
+ * «nudo» M/N/P, variante a maiuscole miste tipo Mric — richiesta 13/09/2026).
+ */
 export function isWorkToken(token: string): boolean {
-  return /^[MNP][A-Z0-9]/.test(token)
+  return isShiftWorkCode(token)
 }
 
 /** Testo compatto del token: «M7S» → «M7» (lo slot non serve nella vista personale). */

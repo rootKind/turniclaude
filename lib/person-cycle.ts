@@ -1,5 +1,6 @@
 import type { SalaMonthData } from '@/types/database'
 import { personNameMatches, type PersonRef } from '@/lib/person-shift'
+import { isShiftWorkCode } from '@/lib/shift-tokens'
 
 /**
  * Teorico per persona: nei mesi con PDF è la riga base del PDF (colonna `t` del
@@ -48,9 +49,13 @@ export function daysInMonthOf(month: string): number {
   return new Date(Date.UTC(y, m, 0)).getUTCDate()
 }
 
-/** Turni di lavoro: M/P/N con sezione e i token generici dei caposquadra (DC…). */
+/**
+ * Turni di lavoro: M/P/N con sezione, «nudi» senza sezione (M/N/P) e i token
+ * generici dei caposquadra (DC…). Serve a valutare se un mese di PDF può
+ * confermare/spostare l'ancora dei cicli.
+ */
 function isWorkToken(token: string): boolean {
-  return /^[MNP][A-Z0-9]/.test(token) || /^DC/.test(token)
+  return isShiftWorkCode(token) || /^DC/.test(token)
 }
 
 /**
@@ -63,7 +68,10 @@ function isWorkToken(token: string): boolean {
 export function cycleKey(token: string): string {
   const t = (token ?? '').trim()
   if (!t) return ''
-  if (/^[MNP][A-Z0-9]/.test(t)) return t.replace(/(TIR|[ST])$/, '')
+  if (isShiftWorkCode(t)) {
+    const bare = /^[MNP]$/.test(t)
+    return bare ? t : t.replace(/(TIR|[ST])$/, '')
+  }
   if (/^DC/.test(t)) return t
   if (/^(RM|RC|RI)$/.test(t)) return 'R'
   return ''
