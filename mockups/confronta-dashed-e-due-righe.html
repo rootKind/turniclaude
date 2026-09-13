@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confronta: tratteggio fix + card su due righe (15/09/2026)</title>
+<style>
+  /* ── Variabili (copiate da app/globals.css, tema chiaro + .dark) ── */
+  :root {
+    --background: #ffffff; --foreground: #171717; --card: #ffffff; --border: #e5e5e5;
+    --primary: #2563eb;
+    --pill-mattina-bg: #dbeafe;    --pill-mattina-text: #5c729a;
+    --pill-pomeriggio-bg: #fef3c7; --pill-pomeriggio-text: #a14a06;
+    --pill-notte-bg: #ede9fe;      --pill-notte-text: #8f7dd0;
+    --cell-m-bg: var(--pill-mattina-bg);    --cell-m-text: #5c729a;
+    --cell-p-bg: var(--pill-pomeriggio-bg); --cell-p-text: var(--pill-pomeriggio-text);
+    --cell-n-bg: var(--pill-notte-bg);      --cell-n-text: #8f7dd0;
+    --cell-rest-bg: #e4e6e9;  --cell-rest-text: #4a5057;
+    --cell-duty-bg: #d6f0dd;  --cell-duty-text: #1f5a34;
+    --cell-empty-bg: #eef0f2; --cell-empty-text: #8b939e;
+    --cell-pend-ring: #d9a53a;
+    --muted-fg: #737373;
+  }
+  .dark {
+    --background: #0a0a0a; --foreground: #fafafa; --card: #161616; --border: #262626;
+    --pill-mattina-bg: #1e3a5f;    --pill-mattina-text: #9db8dd;
+    --pill-pomeriggio-bg: #3b2300; --pill-pomeriggio-text: #d9a86c;
+    --pill-notte-bg: #2d1b69;      --pill-notte-text: #c3b4ef;
+    --cell-m-bg: var(--pill-mattina-bg);    --cell-m-text: #9db8dd;
+    --cell-p-bg: var(--pill-pomeriggio-bg); --cell-p-text: #d9a86c;
+    --cell-n-bg: var(--pill-notte-bg);      --cell-n-text: #c3b4ef;
+    --cell-rest-bg: #24282e;  --cell-rest-text: #aeb5bd;
+    --cell-duty-bg: #16301f;  --cell-duty-text: #9fd9b4;
+    --cell-empty-bg: #1b1f24; --cell-empty-text: #8b939e;
+    --muted-fg: #a3a3a3;
+  }
+  body { margin: 0; padding: 16px; font-family: system-ui, -apple-system, sans-serif; background: var(--background); color: var(--foreground); }
+  h2 { font-size: 14px; margin: 18px 0 8px; }
+  p.note { font-size: 12px; color: var(--muted-fg); margin: 4px 0 10px; }
+  .theme { padding: 12px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; }
+  .row { display: flex; gap: 6px; align-items: flex-start; }
+
+  /* ── Card (identiche a app/globals.css) ── */
+  .cell-day { border: 1.5px solid transparent; background: var(--cell-empty-bg); color: var(--cell-empty-text); }
+  .cell-tint-p     { background: var(--cell-p-bg);     color: var(--cell-p-text);     border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-m     { background: var(--cell-m-bg);     color: var(--cell-m-text);     border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-n     { background: var(--cell-n-bg);     color: var(--cell-n-text);     border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-duty  { background: var(--cell-duty-bg);  color: var(--cell-duty-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-day.is-pend { position: relative; z-index: 1; border-color: var(--cell-pend-ring); box-shadow: 0 0 0 1px var(--cell-pend-ring); }
+  [data-pending-ring='yellow-dashed'] { --cell-pend-ring: #d9a53a; }
+  /* FIX: la regola dashed NON tocca più le card split */
+  [data-pending-ring$='-dashed'] .cell-day.is-pend:not(.cell-split) {
+    border-style: dashed; border-width: 2px; box-shadow: none;
+  }
+  [data-pending-ring$='-dashed'] .cell-day.cell-split.is-pend { box-shadow: none; }
+  [data-pending-ring$='-dashed'] .cell-day.cell-split.is-pend > .cell-half { border-style: dashed; }
+  .cell-day.cell-split { flex-direction: column; overflow: hidden; border-width: 0; }
+  .cell-day.cell-split > .cell-half {
+    flex: 1 1 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; position: relative; text-align: center;
+    border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  }
+  .cell-day.cell-split > .cell-half-theo { justify-content: flex-end; padding-bottom: 4px; border-bottom: 0; border-radius: 14px 14px 0 0; }
+  .cell-day.cell-split > .cell-half:last-child { border-top: 0; border-radius: 0 0 14px 14px; }
+  .cell-day.cell-split.is-pend > .cell-half { border-color: var(--cell-pend-ring); border-width: 1.5px; }
+  .cell-day.cell-split.is-pend > .cell-half-theo { border-bottom-width: 0; }
+  .cell-day.cell-split.is-pend > .cell-half:last-child { border-top-width: 0; }
+  .cell-day .cell-half-theo.cell-barred::after {
+    content: ''; position: absolute; left: 6%; right: 6%; bottom: 9px; height: 2px;
+    border-radius: 1px; background: currentColor; opacity: .4; transform: rotate(-6deg);
+  }
+
+  /* Card lg (griglia personale) */
+  .card-lg { width: 74px; min-height: 76px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 12px 2px 6px; position: relative; text-align: center; box-sizing: border-box; }
+  .card-lg.split { padding: 0; }
+  .day-badge {
+    position: absolute; top: 5px; left: 5px; z-index: 1;
+    font-size: 10.5px; font-weight: 800; line-height: 1; letter-spacing: -.02em;
+    color: var(--foreground); background: var(--background); border-radius: 6px; padding: 2px 4px;
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  }
+  .strike { font-size: 12px; font-weight: 600; line-height: 1; text-decoration: line-through; opacity: .6; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .code-lg { font-size: 14px; font-weight: 800; line-height: 1.25; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .theo-lg { font-size: 11px; font-weight: 700; line-height: 1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── Tabella di confronto (nuova struttura) ── */
+  .cmp-table { overflow-x: auto; }
+  .cmp-head { display: flex; align-items: flex-end; }
+  .cmp-namecol { width: 76px; flex-shrink: 0; }
+  .cmp-headcell { flex: 1 1 0; min-width: 44px; text-align: center; padding-bottom: 4px; line-height: 1; }
+  .cmp-headcell .wd { display: block; font-size: 9px; font-weight: 600; color: var(--muted-fg); }
+  .cmp-headcell .dn { display: block; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cmp-headcell.today .wd, .cmp-headcell.today .dn { color: var(--primary); }
+  .cmp-person { display: flex; align-items: center; padding: 1px 0; }
+  .cmp-name { width: 76px; flex-shrink: 0; padding-left: 12px; padding-right: 4px; background: var(--background); }
+  .cmp-name span { display: block; font-size: 11px; font-weight: 600; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmp-name span.nome { color: var(--muted-fg); }
+  /* Card sm: DUE righe turno+sezione, niente chip data */
+  .card-sm { flex: 1 1 0; min-width: 44px; height: 44px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 2px; position: relative; text-align: center; box-sizing: border-box; }
+  .card-sm .r1 { font-size: 13px; font-weight: 800; line-height: 1.02; letter-spacing: -.01em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmp-sec { display: block; max-width: 100%; font-size: 8.5px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; opacity: .82; }
+  .card-sm .one { font-size: 11px; font-weight: 700; line-height: 1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Riproduzione del BUG (selettore VECCHIO, senza :not(.cell-split)): solo dentro .prima */
+  .prima .cell-day.is-pend { border-style: dashed; border-width: 2px; box-shadow: none; }
+</style>
+</head>
+<body data-pending-ring="yellow-dashed">
+
+<div class="theme">
+  <h2>1 · Griglia personale — cornice «da confermare» (il caso della foto: 23, P8→SPCA)</h2>
+  <p class="note">Prima: bordo dashed DOPPIO (card + metà) e riga di taglio in mezzo. Dopo: un'unica cornice dashed; sulla split il taglio resta invisibile.</p>
+  <div class="row">
+    <!-- PRIMA (bug): split + dashed con il selettore vecchio (senza :not) -->
+    <div class="prima">
+      <div class="card-lg cell-day cell-split cell-tint-duty is-pend">
+        <span class="day-badge">23</span>
+        <span class="cell-half cell-half-theo cell-barred cell-tint-p" style="--c-bg:var(--pill-pomeriggio-bg);--c-text:var(--pill-pomeriggio-text)"><span class="theo-lg">P8</span></span>
+        <span class="cell-half cell-tint-duty"><span class="code-lg">SPCA</span></span>
+      </div>
+      <p class="note">PRIMA (bug)</p>
+    </div>
+    <div>
+      <!-- DOPO: split + dashed, regole corrette -->
+      <div class="card-lg cell-day cell-split cell-tint-duty is-pend">
+        <span class="day-badge">23</span>
+        <span class="cell-half cell-half-theo cell-barred cell-tint-p" style="--c-bg:var(--pill-pomeriggio-bg);--c-text:var(--pill-pomeriggio-text)"><span class="theo-lg">P8</span></span>
+        <span class="cell-half cell-tint-duty"><span class="code-lg">SPCA</span></span>
+      </div>
+      <p class="note">DOPO: split + dashed</p>
+    </div>
+    <div>
+      <!-- DOPO: strike (non-split) + dashed: la :not() evita il doppio bordo -->
+      <div class="card-lg cell-day cell-tint-duty is-pend">
+        <span class="day-badge">23</span>
+        <span class="strike">P8</span>
+        <span class="code-lg">SPCA</span>
+      </div>
+      <p class="note">DOPO: strike + dashed</p>
+    </div>
+    <div>
+      <!-- non-pend di riferimento -->
+      <div class="card-lg cell-day cell-tint-duty">
+        <span class="day-badge">24</span>
+        <span class="code-lg">SPCA</span>
+      </div>
+      <p class="note">Senza cornice</p>
+    </div>
+  </div>
+</div>
+
+<div class="theme">
+  <h2>2 · Confronta — giorni nelle teste di colonna, card su DUE righe (niente chip)</h2>
+  <p class="note">Sopra: P/M/N grandi; sotto: sezione (4/5/6/DCIF…) più piccola. Codici senza sezione (SPCA, riposo, ferie) centrati su una riga. La card guadagna lo spazio del chip rimosso.</p>
+  <div class="cmp-table">
+    <div class="cmp-head">
+      <div class="cmp-namecol"></div>
+      <div class="cmp-headcell"><span class="wd">LUN</span><span class="dn">22</span></div>
+      <div class="cmp-headcell today"><span class="wd">MAR</span><span class="dn">23</span></div>
+      <div class="cmp-headcell"><span class="wd">MER</span><span class="dn">24</span></div>
+      <div class="cmp-headcell"><span class="wd">GIO</span><span class="dn">25</span></div>
+      <div class="cmp-headcell"><span class="wd">VEN</span><span class="dn">26</span></div>
+    </div>
+    <div class="cmp-person">
+      <div class="cmp-name"><span>ROSSI</span><span class="nome">Mario</span></div>
+      <div class="card-sm cell-day cell-tint-m"><span class="r1">M</span><span class="cmp-sec">DCIF</span></div>
+      <div class="card-sm cell-day cell-tint-p is-pend"><span class="r1">P</span><span class="cmp-sec">8</span></div>
+      <div class="card-sm cell-day cell-tint-duty"><span class="one">SPCA</span></div>
+      <div class="card-sm cell-day cell-tint-n"><span class="r1">N</span><span class="cmp-sec">10</span></div>
+      <div class="card-sm cell-day cell-tint-rest"><span class="one">RC</span></div>
+    </div>
+    <div class="cmp-person">
+      <div class="cmp-name"><span>BIANCHI</span><span class="nome">Anna</span></div>
+      <div class="card-sm cell-day cell-tint-rest"><span class="one">RM</span></div>
+      <div class="card-sm cell-day cell-tint-m"><span class="r1">M</span><span class="cmp-sec">5</span></div>
+      <div class="card-sm cell-day cell-tint-m"><span class="r1">M</span><span class="cmp-sec">5</span></div>
+      <div class="card-sm cell-day cell-tint-abs"><span class="one">F</span></div>
+      <div class="card-sm cell-day cell-tint-p"><span class="r1">P</span><span class="cmp-sec">6</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="theme dark">
+  <h2>3 · Tema scuro (stessi casi)</h2>
+  <div class="row" style="margin-bottom:10px">
+    <div class="card-lg cell-day cell-split cell-tint-duty is-pend">
+      <span class="day-badge">23</span>
+      <span class="cell-half cell-half-theo cell-barred cell-tint-p" style="--c-bg:var(--pill-pomeriggio-bg);--c-text:var(--pill-pomeriggio-text)"><span class="theo-lg">P8</span></span>
+      <span class="cell-half cell-tint-duty"><span class="code-lg">SPCA</span></span>
+    </div>
+    <div class="card-lg cell-day cell-tint-duty is-pend">
+      <span class="day-badge">23</span>
+      <span class="strike">P8</span>
+      <span class="code-lg">SPCA</span>
+    </div>
+  </div>
+  <div class="cmp-person">
+    <div class="cmp-name"><span>ROSSI</span><span class="nome">Mario</span></div>
+    <div class="card-sm cell-day cell-tint-m"><span class="r1">M</span><span class="cmp-sec">DCIF</span></div>
+    <div class="card-sm cell-day cell-tint-p is-pend"><span class="r1">P</span><span class="cmp-sec">8</span></div>
+    <div class="card-sm cell-day cell-tint-duty"><span class="one">SPCA</span></div>
+    <div class="card-sm cell-day cell-tint-n"><span class="r1">N</span><span class="cmp-sec">10</span></div>
+    <div class="card-sm cell-day cell-tint-rest"><span class="one">RC</span></div>
+  </div>
+</div>
+
+</body>
+</html>

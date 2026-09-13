@@ -134,6 +134,23 @@ function cardOverride(kind: SalaCodeKind, token: string, palette: CardPalette): 
   return k ? inlineColors(palette[k]) : undefined
 }
 
+/** Mezzi codici di un turno per il CONFRONTO (15/09/2026): la data vive nelle
+ * teste di colonna della tabella, la card guadagna lo spazio orizzontale del chip
+ * e riempie su DUE righe — sopra il TURNO (P/M/N), sotto la SEZIONE (4/5/6/DCIF…).
+ * Solo i turni di lavoro hanno la sezione: riposi, assenze e attività restano un
+ * codice unico centrato (le due righe non avrebbero senso). */
+function shiftRowParts(token: string): { row1: string; row2: string | null } {
+  if (!isWorkToken(token)) return { row1: token, row2: null }
+  const label = tokenLabel(token)
+  const m = /^([MNP])(.*)$/.exec(label)
+  if (!m) return { row1: label, row2: null }
+  const section = m[2]
+  if (!section) return { row1: label, row2: null }
+  // Il PDF mescola le maiuscole sulle sezioni alfabetiche (Miap/Mric): come in
+  // parseShiftCode, normalizzo in maiuscolo così le colonne coincidono a vista.
+  return { row1: m[1], row2: /^[A-Za-z]+$/.test(section) ? section.toUpperCase() : section }
+}
+
 /** Codice compatto: «M7S» → «M7» (lo slot non serve nella vista personale). */
 function displayToken(token: string): string {
   return isWorkToken(token) ? tokenLabel(token) : token
@@ -161,7 +178,8 @@ function ShiftDayCard({
   real: { kind: SalaCodeKind; short: string; label: string; pending?: boolean } | null
   theo: string
   isToday?: boolean
-  /** 'lg' = griglia personale (card 76px, badge assoluto); 'sm' = confronto (44px, data in chip inline). */
+  /** 'lg' = griglia personale (card 76px, badge data assoluto); 'sm' = confronto
+      (44px, turni su DUE righe P/M+N sezione — la data è nelle teste di colonna). */
   size: 'lg' | 'sm'
   title?: string
   /** Palette e stile mismatch arrivano dal chiamante: la pagina è già sottoscritta
@@ -186,6 +204,10 @@ function ShiftDayCard({
   // (SPCA…) escono dalla card; sotto ~375px l'ellipsis subentra solo lì.
   const codeSize = size === 'lg' ? 'text-[14px] font-extrabold leading-tight max-w-full truncate' : 'text-[11px] font-bold leading-none max-w-full truncate'
   const theoSize = size === 'lg' ? 'text-[11px] font-bold leading-none max-w-full truncate' : 'text-[9px] font-bold leading-none max-w-full truncate'
+  // CONFRONTO (15/09/2026): turno sopra (P/M/N) e sezione sotto (4/5/6/DCIF…).
+  // Il chip della data è STATO RIMOSSO: i giorni vivono nelle teste di colonna
+  // della tabella, la card guadagna il loro spazio orizzontale.
+  const cmpParts = size === 'sm' ? shiftRowParts(primaryToken) : null
   return (
     <div
       title={title}
@@ -193,7 +215,7 @@ function ShiftDayCard({
         'cell-day relative text-center flex',
         size === 'lg'
           ? cn('rounded-xl min-h-[76px]', split ? 'cell-split px-0 py-0' : 'px-0.5 pt-3 pb-1.5 flex-col items-center justify-center gap-1')
-          : cn('rounded-lg h-[44px]', split ? 'cell-split px-0 py-0' : 'px-0.5 pt-[3px] pb-0.5 flex-col items-center justify-center gap-0.5'),
+          : cn('rounded-lg h-[44px]', split ? 'cell-split px-0 py-0' : 'px-0.5 pt-0.5 pb-0.5 flex-col items-center justify-center gap-0'),
         cellTintClass(primaryKind, primaryToken),
         showPending && 'is-pend',
         isToday && 'is-today',
@@ -201,11 +223,7 @@ function ShiftDayCard({
       )}
       style={{ ...style, ...(split ? undefined : cardOverride(primaryKind, primaryToken, palette)) }}
     >
-      {size === 'lg' ? (
-        <span className="day-badge tabular-nums">{day}</span>
-      ) : (
-        <span className="cmp-day tabular-nums">{day}</span>
-      )}
+      {size === 'lg' && <span className="day-badge tabular-nums">{day}</span>}
       {split ? (
         <>
           <span
@@ -220,6 +238,22 @@ function ShiftDayCard({
           >
             <span className={codeSize}>{primaryLabel}</span>
           </span>
+        </>
+      ) : cmpParts ? (
+        <>
+          {mismatch && theo && (
+            <span className="font-semibold leading-none line-through opacity-60 max-w-full truncate text-[8px]">
+              {displayToken(theo)}
+            </span>
+          )}
+          {cmpParts.row2 ? (
+            <>
+              <span className="text-[13px] font-extrabold leading-[1.02] tracking-tight max-w-full truncate">{cmpParts.row1}</span>
+              <span className="cmp-sec max-w-full truncate">{cmpParts.row2}</span>
+            </>
+          ) : (
+            <span className={codeSize}>{primaryLabel}</span>
+          )}
         </>
       ) : (
         <>
@@ -238,8 +272,8 @@ function ShiftDayCard({
 // ─── confronto fra più dipendenti ────────────────────────────────────────────
 
 /** Cella del confronto: 44px di ALTEZZA — la larghezza si adatta al blocco
-    (w-full): il confronto usa tutta la pagina. Il badge data NON è assoluto
-    (sovrapponeva il codice: illeggibile) ma inline in testa. */
+    (w-full): il confronto usa tutta la pagina. La DATA NON è sulla card:
+    sta nelle teste di colonna, la card riempie su due righe turno+sezione. */
 const CMP_COL = 'h-[44px] w-[34px]'
 const CMP_CELL_FLEX = 'flex-1 basis-[34px] min-w-0'
 const CMP_ROW_H = 46       // cella + gap fra le righe
@@ -282,19 +316,48 @@ interface CompareRow {
 }
 
 /** Larghezza minima UNIFORME delle celle del confronto (px). Le card crescono
-    oltre (flex) se il blocco ha spazio, ma MAI sotto: i codici lunghi (MDCIF,
-    SPCA, M10S…) devono restare leggibili per esteso. Misurata sul codice più
-    lungo del MESE e applicata a TUTTE le righe: coerenza ed equità fra le righe
-    (richiesta 14/09/2026). */
+    oltre (flex) se il blocco ha spazio, ma MAI sotto: i codici lunghi (DCIF,
+    SPCA, TUTOR…) devono restare leggibili per esteso. Misurata sulla riga più
+    larga del mese (turno e sezione ora stanno su due righe separate) e applicata
+    a TUTTE le righe: coerenza ed equità fra le righe (richiesta 14/09/2026;
+    due righe + niente chip data = celle più strette, richiesta 15/09/2026).
+
+    MISURA CANVAS, non stima per carattere (15/09/2026): i codici NON sono tutti
+    uguali — «TUTOR» a 11px bold misura ~36px (7.2px/char) mentre «DCIF» a 8.5px
+    ne misura ~19 (4.7px/char): una media unica tronca il primo o gonfia la
+    seconda. getContext('2d').measureText con i font reali delle due righe è
+    esatto su ogni dispositivo (niente SSR: gira solo nel client useMemo). */
 const CMP_BASE_CELL_W = 34
-function compareCellWidth(tokens: string[]): number {
-  let longest = 2
-  for (const t of tokens) {
-    const label = displayToken(t)
-    if (label.length > longest) longest = label.length
+let cmpTextCtx: CanvasRenderingContext2D | null | undefined
+function cmpTextWidth(text: string, sizePx: number, weight: number): number {
+  if (cmpTextCtx === undefined) {
+    cmpTextCtx = typeof document !== 'undefined'
+      ? document.createElement('canvas').getContext('2d')
+      : null
   }
-  // ~7.4px per carattere a 11px bold + padding orizzontale della card (4px).
-  return Math.max(CMP_BASE_CELL_W, Math.ceil(longest * 7.4) + 4)
+  if (!cmpTextCtx) {
+    // Fallback server/prerender: stima conservativa (7.5px/char). Al primo
+    // render client la misura canvas corregge eventuali scarti.
+    return text.length * 7.5
+  }
+  cmpTextCtx.font = `${weight} ${sizePx} system-ui, -apple-system, sans-serif`
+  return cmpTextCtx.measureText(text).width
+}
+function compareCellWidth(tokens: string[]): number {
+  let widest = 0
+  for (const t of tokens) {
+    const { row1, row2 } = shiftRowParts(displayToken(t))
+    if (row2) {
+      // Due righe: la più larga fra turno (13px extrabold) e sezione (8.5px bold).
+      widest = Math.max(widest, cmpTextWidth(row1, 13, 800), cmpTextWidth(row2, 8.5, 700))
+    } else {
+      // Una riga: il codice intero a 11px bold.
+      widest = Math.max(widest, cmpTextWidth(t, 11, 700))
+    }
+  }
+  // Chrome orizzontale della card: padding px-0.5 (2px × 2) + bordo 1px × 2 +
+  // 1px di sicurezza per il sub-pixel dell'ultima lettera.
+  return Math.max(CMP_BASE_CELL_W, Math.ceil(widest) + 7)
 }
 
 /** Cella di confronto di UNA persona in UN giorno: SOLO il turno reale (richiesta

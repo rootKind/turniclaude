@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confronta @320px — verifica truncate sezioni (15/09/2026)</title>
+<style>
+  /* Tema chiaro, variabili identiche all'app */
+  :root {
+    --background: #ffffff; --foreground: #171717; --border: #e5e5e5; --primary: #2563eb;
+    --cell-m-bg: #dbeafe;    --cell-m-text: #5c729a;
+    --cell-p-bg: #fef3c7;    --cell-p-text: #a14a06;
+    --cell-n-bg: #ede9fe;    --cell-n-text: #8f7dd0;
+    --cell-rest-bg: #e4e6e9; --cell-rest-text: #4a5057;
+    --cell-duty-bg: #d6f0dd; --cell-duty-text: #1f5a34;
+    --cell-abs-bg: #fbd9d6;  --cell-abs-text: #8c2a24;
+    --cell-empty-bg: #eef0f2;--cell-empty-text: #8b939e;
+    --cell-pend-ring: #d9a53a;
+    --muted-fg: #737373;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 0; font-family: system-ui, -apple-system, sans-serif; background: #f1f1f1; color: var(--foreground); }
+  .device { width: 320px; margin: 0 auto; background: var(--background); border: 1px solid #ccc; border-radius: 14px; padding: 24px 0 90px; overflow: hidden; }
+  .device-label { text-align: center; font-size: 11px; color: var(--muted-fg); margin-bottom: 6px; }
+  main { max-width: 512px; margin: 0 auto; padding: 24px 12px 16px; }
+
+  /* ── Card: STESSA ricetta di app/globals.css ── */
+  .cell-day { border: 1.5px solid transparent; background: var(--cell-empty-bg); color: var(--cell-empty-text); }
+  .cell-tint-p     { background: var(--cell-p-bg);     color: var(--cell-p-text);     border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-m     { background: var(--cell-m-bg);     color: var(--cell-m-text);     border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-n     { background: var(--cell-n-bg);     color: var(--cell-n-text);     border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-rest  { background: var(--cell-rest-bg);  color: var(--cell-rest-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-duty  { background: var(--cell-duty-bg);  color: var(--cell-duty-text);  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-tint-abs   { background: var(--cell-abs-bg);   color: var(--cell-abs-text);   border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .cell-day.is-pend { position: relative; z-index: 1; border-color: var(--cell-pend-ring); box-shadow: 0 0 0 1px var(--cell-pend-ring); }
+  [data-pending-ring$='-dashed'] .cell-day.is-pend:not(.cell-split) { border-style: dashed; border-width: 2px; box-shadow: none; }
+
+  /* ── Tabella confronto: STESSA struttura di tuoturno-client.tsx ── */
+  .cmp-table { overflow-x: auto; margin: 0 -12px; padding-right: 12px; padding-bottom: 4px; }
+  .min-w-max { min-width: max-content; }
+  .cmp-head { display: flex; align-items: flex-end; }
+  .sticky { position: sticky; left: 0; z-index: 10; flex-shrink: 0; background: var(--background); }
+  .namecol-head { width: 76px; z-index: 20; }
+  .headcell { flex: 1 1 0; min-width: 0; padding-bottom: 4px; text-align: center; line-height: 1; }
+  .headcell .wd { display: block; font-size: 9px; font-weight: 600; color: var(--muted-fg); }
+  .headcell .dn { display: block; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .headcell.today .wd, .headcell.today .dn { color: var(--primary); }
+  .cmp-person { display: flex; align-items: center; padding: 1px 0; }
+  .namecell { width: 76px; padding-left: 12px; padding-right: 4px; }
+  .namecell span { display: block; font-size: 11px; font-weight: 600; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .namecell span.nome { color: var(--muted-fg); }
+  .card { flex: 1 1 34px; min-width: 0; height: 44px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 2px; position: relative; text-align: center; }
+  .card, .headcell { min-width: 34px; }
+  .r1 { font-size: 13px; font-weight: 800; line-height: 1.02; letter-spacing: -0.01em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmp-sec { display: block; max-width: 100%; font-size: 8.5px; font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; opacity: .82; }
+  .one { font-size: 11px; font-weight: 700; line-height: 1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .out { font: 11px/1 system-ui; color: #666; margin: 14px 12px 0; white-space: pre-wrap; }
+</style>
+</head>
+<body data-pending-ring="yellow-dashed">
+<div class="device">
+  <div class="device-label">320px — peggior caso: DCIF, TUTOR, F.E., Trasf, SPCA, M10, M11</div>
+  <main>
+    <div class="cmp-table">
+      <div class="min-w-max">
+        <div class="cmp-head">
+          <div class="sticky namecol-head z20"></div>
+          <div class="headcell" style="min-width:32px"><span class="wd">LUN</span><span class="dn">22</span></div>
+          <div class="headcell today" style="min-width:32px"><span class="wd">MAR</span><span class="dn">23</span></div>
+          <div class="headcell" style="min-width:32px"><span class="wd">MER</span><span class="dn">24</span></div>
+          <div class="headcell" style="min-width:32px"><span class="wd">GIO</span><span class="dn">25</span></div>
+          <div class="headcell" style="min-width:32px"><span class="wd">VEN</span><span class="dn">26</span></div>
+          <div class="headcell" style="min-width:32px"><span class="wd">SAB</span><span class="dn">27</span></div>
+        </div>
+        <div class="cmp-person">
+          <div class="sticky namecell"><span>DELLACQUA</span><span class="nome">Marco</span></div>
+          <div class="card cell-tint-m" style="min-width:32px"><span class="r1">M</span><span class="cmp-sec">DCIF</span></div>
+          <div class="card cell-tint-p is-pend" style="min-width:32px"><span class="r1">P</span><span class="cmp-sec">8</span></div>
+          <div class="card cell-tint-duty" style="min-width:32px"><span class="one">TUTOR</span></div>
+          <div class="card cell-tint-n" style="min-width:32px"><span class="r1">N</span><span class="cmp-sec">11</span></div>
+          <div class="card cell-tint-duty" style="min-width:32px"><span class="one">SPCA</span></div>
+          <div class="card cell-tint-abs" style="min-width:32px"><span class="one">F.E.</span></div>
+        </div>
+        <div class="cmp-person">
+          <div class="sticky namecell"><span>BONGIOVANNI</span><span class="nome">Carmela</span></div>
+          <div class="card cell-tint-abs" style="min-width:32px"><span class="one">Trasf</span></div>
+          <div class="card cell-tint-m" style="min-width:32px"><span class="r1">M</span><span class="cmp-sec">10</span></div>
+          <div class="card cell-tint-m" style="min-width:32px"><span class="r1">M</span><span class="cmp-sec">5</span></div>
+          <div class="card cell-tint-rest" style="min-width:32px"><span class="one">RM</span></div>
+          <div class="card cell-tint-p" style="min-width:32px"><span class="r1">P</span><span class="cmp-sec">6</span></div>
+          <div class="card cell-tint-duty" style="min-width:32px"><span class="one">RIC</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<pre class="out" id="out">misura in corso…</pre>
+<script>
+  // STESSA logica di compareCellWidth (tuoturno-client.tsx): misura canvas.
+  const ctx = document.createElement('canvas').getContext('2d');
+  const tw = (text, size, weight) => { ctx.font = `${weight} ${size} system-ui, -apple-system, sans-serif`; return ctx.measureText(text).width; };
+  const cellW = (() => {
+    const tokens = ['MDCIF', 'P8', 'TUTOR', 'N11', 'SPCA', 'F.E.', 'Trasf', 'M10', 'M5', 'RM', 'P6', 'RIC'];
+    let widest = 0;
+    for (const t of tokens) {
+      const isWork = /^[MNP][A-Z0-9]/.test(t) || /^[MNP]$/.test(t);
+      if (isWork) {
+        const label = t.replace(/^([MNP].*\d)[ST]$/, '$1');
+        const m = /^([MNP])(.*)$/.exec(label);
+        if (m && m[2]) widest = Math.max(widest, tw(m[1], 13, 800), tw(m[2], 8.5, 700));
+        else widest = Math.max(widest, tw(label, 11, 700));
+      } else {
+        widest = Math.max(widest, tw(t, 11, 700));
+      }
+    }
+    return Math.max(34, Math.ceil(widest) + 7);
+  })();
+  // Applica la larghezza minima calcolata a TUTTE le card e teste (come l'app).
+  document.querySelectorAll('.card, .headcell').forEach(el => { el.style.minWidth = cellW + 'px'; });
+
+  // Misura REALE: per ogni riga di testo nelle card, scrollWidth vs clientWidth.
+  const lines = [];
+  let anyTruncated = false;
+  document.querySelectorAll('.card').forEach((card, i) => {
+    card.querySelectorAll('.r1,.cmp-sec,.one').forEach(sp => {
+      const trunc = sp.scrollWidth > sp.clientWidth;
+      if (trunc) anyTruncated = true;
+      lines.push(`card ${i} .${sp.className}: text=${sp.textContent} need=${sp.scrollWidth}px have=${sp.clientWidth}px${trunc ? '  ← TRONCATO' : ''}`);
+    });
+  });
+  const table = document.querySelector('.cmp-table');
+  lines.push(`\ncellW calcolata (canvas): ${cellW}px`);
+  lines.push(`scroll: scrollWidth=${table.scrollWidth} clientWidth=${table.clientWidth}${table.scrollWidth > table.clientWidth ? '  (scroll orizzontale attivo)' : '  (tutto visibile)'}`);
+  lines.push(`\nRISULTATO: ${anyTruncated ? '❌ TRUNCAMENTO PRESENTE' : '✅ nessun truncate a 320px'}`);
+  document.getElementById('out').textContent = lines.join('\n');
+</script>
+</body>
+</html>

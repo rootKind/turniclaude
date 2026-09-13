@@ -553,17 +553,26 @@
   [data-pending-ring='red-dashed'] { --cell-pend-ring: #dc2626; }
   /* Tratteggio VERO (richiesta 14/09/2026): niente anello solido esterno (il box-shadow
      0 0 0 1px restava SOLIDO sotto il dashed e il tratteggio sembrava un bordo interno):
-     il tratteggio È la cornice — bordo dashed più spesso (2px), box-shadow rimossa. */
-  [data-pending-ring$='-dashed'] .cell-day.is-pend {
+     il tratteggio È la cornice — bordo dashed più spesso (2px), box-shadow rimossa.
+     FIX card DOPPIE (15/09/2026): su card SPLIT la regola NON deve toccare la card —
+     lì il contorno lo disegnano le METÀ (card border-width 0, e il bordo-width 0 è
+     anche ciò che AZZERA la linea di taglio fra le due metà): ridare 2px alla card
+     ridisegnava un bordo doppio (card + metà) E la riga dashed in mezzo alle card. */
+  [data-pending-ring$='-dashed'] .cell-day.is-pend:not(.cell-split) {
     border-style: dashed;
     border-width: 2px;
     box-shadow: none;
   }
-  /* Card SPLIT: il contorno lo disegnano le METÀ (la card è border-width 0),
-     quindi il tratteggio deve arrivare anche lì — stesso spessore 2px, senza anelli. */
+  /* Card SPLIT: le metà prendono SOLO lo stile dashed — spessore e bordi azzerati
+     restano quelli delle regole is-pend qui sotto (1.5px, taglio a 0): toccare la
+     width qui (specificità più alta) riaccendeva la linea di taglio in mezzo.
+     L'anello SOLIDO (box-shadow) va spento anche qui: nelle crepe del dashed
+     si vedrebbe la linea continua sotto. */
+  [data-pending-ring$='-dashed'] .cell-day.cell-split.is-pend {
+    box-shadow: none;
+  }
   [data-pending-ring$='-dashed'] .cell-day.cell-split.is-pend > .cell-half {
     border-style: dashed;
-    border-width: 2px;
   }
   /* Data in BADGE nell'angolo alto-sinistra (scelta D, mockup celle-data-turno.html):
      il numero del giorno stacca su OGNI tinta — incluse quelle personalizzate dal pannello
@@ -584,21 +593,16 @@
     border-color: rgb(255 255 255 / 16%); /* bordo bianco 16% come i bottoni */
     box-shadow: none;
   }
-  /* Celle del CONFRONTO (44px): la data NON è il badge assoluto delle card 76px
-     (sovrapponeva il codice → illeggibile) ma una riga inline in testa, stessa
-     ricetta colori del badge (superficie tema, bordo --border/60). Selettore
-     .cmp-day DA SOLO (non .cmp-cell .cmp-day): il chip deve essere identificabile
-     anche fuori da quella classe. */
+  /* Celle del CONFRONTO (44px): la DATA vive nelle teste di colonna della tabella
+     (richiesta 15/09/2026) e il chip della data è STATO RIMOSSO — la card riempie
+     su DUE righe: sopra il TURNO (P/M/N), sotto la SEZIONE (4/5/6/DCIF…). La riga
+     sezione (.cmp-sec) è più piccola e smorzata ma resta dentro il colore della
+     tinta (currentColor): leggibile su ogni tinta, anche personalizzata. */
   .cmp-cell { padding-top: 3px; }
-  .cmp-day {
-    font-size: 9.5px; font-weight: 800; line-height: 1; letter-spacing: -.02em;
-    color: var(--foreground);
-    background: var(--background); border-radius: 5px; padding: 1px 4px;
-    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  }
-  .dark .cmp-day {
-    color: var(--foreground); background: var(--card);
-    border-color: rgb(255 255 255 / 16%);
+  .cmp-sec {
+    display: block; max-width: 100%;
+    font-size: 8.5px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em;
+    opacity: .82;
   }
   /* Card SPLIT (mockup celle-split-teorico-reale.html, scelta 12/09/2026): divisa in
      due metà SOLO quando il reale differisce dal teorico; altrimenti card intera come
