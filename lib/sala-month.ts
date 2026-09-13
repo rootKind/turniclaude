@@ -158,6 +158,25 @@ export interface PersonDayShift extends SalaCodeInfo {
   pending: boolean
 }
 
+/**
+ * Sigla pillola per il datepicker di inserimento richiesta cambio (richiesta
+ * 13/09/2026): il codice del PDF ridotto al solo TIPO di turno (M7T → M), così
+ * l'utente vede sopra ogni cifra del calendario se quel giorno ha M/P/N — con
+ * lo stesso colore delle pillole P/M/N già usato in tutta l'app. Rest/assenze/
+ * attività senza sezione non rendono nulla: per un cambio contano solo i turni.
+ */
+export function shiftCodePill(token: string | null | undefined): { code: string; kind: SalaCodeKind; cssClass: string } | null {
+  const info = salaCodeInfo(token)
+  if (info.kind !== 'work') return null
+  return { code: info.short.charAt(0), kind: info.kind, cssClass: SHIFT_CODE_PILL_CLASS[info.short.charAt(0)] }
+}
+
+const SHIFT_CODE_PILL_CLASS: Record<string, string> = {
+  M: 'pill-mattina',
+  P: 'pill-pomeriggio',
+  N: 'pill-notte',
+}
+
 /** Turno reale di una persona in un giorno (con il flag «da confermare»). */
 export function personDayShift(
   person: MonthPersonShifts | null | undefined,

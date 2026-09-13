@@ -7,6 +7,11 @@ import { Calendar } from '@/components/ui/calendar'
 import { cn, todayRome, formatDisplayName, formatRelativeTime, SHIFT_PILL_CLASSES } from '@/lib/utils'
 import { useDuplicateCognomi } from '@/hooks/use-users'
 import { createShift, findCompatibleShifts, toggleInterest } from '@/lib/queries/shifts'
+import { getSalaSchedule, listScheduleMonths } from '@/lib/queries/sala-schedule'
+import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
+import { decodeSalaMonth, findMonthPerson, personDayShift, shiftCodePill, isSalaMonthData } from '@/lib/sala-month'
+import { theoreticalTokenFor } from '@/lib/person-shift'
+import { createClient } from '@/lib/supabase/client'
 import { SHIFTS_QUERY_KEY, useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useAppSettings } from '@/hooks/use-app-settings'
@@ -49,6 +54,11 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
   // è destinata a restare senza match.
   const [compatCheck, setCompatCheck] = useState<{ myShift: ShiftType | null; source: 'real' | 'theoretical' | 'none' } | null>(null)
   const [compatLoading, setCompatLoading] = useState(false)
+  // Sigla del turno reale sopra ogni cifra del datepicker (richiesta 13/09/2026):
+  // chiave ISO «YYYY-MM-DD» → pillola M/P/N. Per i mesi PDF la riga REALE della
+  // persona; per i mesi senza PDF il TEORICO dalla rotazione delle squadre.
+  const [dayShiftCodes, setDayShiftCodes] = useState<Map<string, ReturnType<typeof shiftCodePill>>>(new Map())
+  const [codesLoaded, setCodesLoaded] = useState(false)
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
   const { data: shifts = [] } = useShifts(isSecondary, isDcoPlus)
@@ -60,8 +70,74 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
   useEffect(() => {
     if (open) {
       queryClient.invalidateQueries({ queryKey: SHIFTS_QUERY_KEY(isSecondary, isDcoPlus) })
+    } else {
+      setCodesLoaded(false)
     }
   }, [open, isSecondary, isDcoPlus, queryClient])
+
+  // ── Turni del giorno per il datepicker ────────────────────────────────────
+  // Una sola fetch all'apertura: mesi PDF disponibili + albero squadre. Per ogni
+  // mese caricato si legge la riga reale della persona; per gli altri (fino a +3
+  // mesi, come la navigazione del datepicker) si usa il teorico delle squadre.
+  useEffect(() => {
+    if (!open || !effectiveUserId || codesLoaded) return
+    let cancelled = false
+    const today = parseISO(todayRome())
+    const candidates: string[] = []
+    for (let i = 0; i <= 3; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() + i, 1)
+      candidates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+    }
+    ;(async () => {
+      try {
+        const db = createClient()
+        const [monthsRes, treeRes] = await Promise.all([
+          listScheduleMonths(db),
+          fetchShiftTeamTree(db),
+        ])
+        if (cancelled) return
+        const pdfMonths = new Set(monthsRes ?? [])
+        const map = new Map<string, ReturnType<typeof shiftCodePill>>()
+        // 1. Mesi PDF: la riga REALE della persona (la verità, come in /tuoturno).
+        const current = candidates.find(m => pdfMonths.has(m)) ?? null
+        if (current) {
+          const schedule = await getSalaSchedule(db, current)
+          if (cancelled) return
+          if (schedule && isSalaMonthData(schedule.data)) {
+            const people = decodeSalaMonth(schedule.data)
+            const person = findMonthPerson(people, profile, duplicateCognomi)
+            if (person) {
+              for (let d = 1; d <= person.days.length; d++) {
+                const info = personDayShift(person, d)
+                const pill = info ? shiftCodePill(info.short) : null
+                if (pill) map.set(`${current}-${String(d).padStart(2, '0')}`, pill)
+              }
+            }
+          }
+        }
+        // 2. Mesi senza PDF: teorico dalla rotazione delle squadre del DB.
+        if (treeRes) {
+          for (const m of candidates) {
+            if (pdfMonths.has(m)) continue
+            const [y, mm] = m.split('-').map(Number)
+            const dim = new Date(y, mm, 0).getDate()
+            for (let d = 1; d <= dim; d++) {
+              const iso = `${m}-${String(d).padStart(2, '0')}`
+              const pill = shiftCodePill(theoreticalTokenFor(treeRes, profile, iso, duplicateCognomi))
+              if (pill) map.set(iso, pill)
+            }
+          }
+        }
+        if (!cancelled) { setDayShiftCodes(map); setCodesLoaded(true) }
+      } catch {
+        /* dati non disponibili: il datepicker resta senza sigle */
+        if (!cancelled) setCodesLoaded(true)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [open, effectiveUserId, codesLoaded, profile, duplicateCognomi])
+
+  const dayInfoFor = (date: Date) => dayShiftCodes.get(format(date, 'yyyy-MM-dd')) ?? null
 
   const occupiedDates = new Set(
     shifts
@@ -283,6 +359,7 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
                     selected={selectedDate}
                     onSelect={setSelectedDate}
                     locale={it}
+                    dayInfo={dayInfoFor}
                     disabled={(date) => {
                       const str = format(date, 'yyyy-MM-dd')
                       if (str <= todayRome() || occupiedDates.has(str)) return true

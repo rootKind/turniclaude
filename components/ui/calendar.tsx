@@ -12,6 +12,14 @@ import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 
+/** Sigla del turno reale sopra la cifra di un giorno (richiesta 13/09/2026). */
+export interface CalendarDayInfo {
+  /** Codice di un carattere: M / P / N. */
+  code: string
+  /** Classe pill per il colore (pill-mattina / pill-pomeriggio / pill-notte). */
+  cssClass: string
+}
+
 function Calendar({
   className,
   classNames,
@@ -21,9 +29,15 @@ function Calendar({
   locale,
   formatters,
   components,
+  dayInfo,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
+  /**
+   * Turno reale per giorno (opzionale): se presente, sopra ogni cifra compare
+   * una mini-pillola con la sigla M/P/N nei colori già usati in tutta l'app.
+   */
+  dayInfo?: (date: Date) => CalendarDayInfo | null
 }) {
   const defaultClassNames = getDefaultClassNames()
 
@@ -162,7 +176,7 @@ function Calendar({
           )
         },
         DayButton: ({ ...props }) => (
-          <CalendarDayButton locale={locale} {...props} />
+          <CalendarDayButton locale={locale} dayInfo={dayInfo} {...props} />
         ),
         WeekNumber: ({ children, ...props }) => {
           return (
@@ -185,14 +199,24 @@ function CalendarDayButton({
   day,
   modifiers,
   locale,
+  dayInfo,
+  children,
   ...props
-}: React.ComponentProps<typeof DayButton> & { locale?: Partial<Locale> }) {
+}: React.ComponentProps<typeof DayButton> & {
+  locale?: Partial<Locale>
+  dayInfo?: (date: Date) => CalendarDayInfo | null
+}) {
   const defaultClassNames = getDefaultClassNames()
 
   const ref = React.useRef<HTMLButtonElement>(null)
   React.useEffect(() => {
     if (modifiers.focused) ref.current?.focus()
   }, [modifiers.focused])
+
+  // Sigla del turno reale sopra la cifra (solo se il giorno ha un turno M/P/N):
+  // gli stili vivono fuori dai layer CSS («.cal-day-shift») perché la regola
+  // utilities [&>span]:text-xs [&>span]:opacity-70 del bottone batterebbe.
+  const shift = dayInfo?.(day.date) ?? null
 
   return (
     <Button
@@ -210,11 +234,27 @@ function CalendarDayButton({
       data-range-middle={modifiers.range_middle}
       className={cn(
         "relative isolate z-10 flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 border-0 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50 data-[range-end=true]:rounded-(--cell-radius) data-[range-end=true]:rounded-r-(--cell-radius) data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-muted data-[range-middle=true]:text-foreground data-[range-start=true]:rounded-(--cell-radius) data-[range-start=true]:rounded-l-(--cell-radius) data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground dark:hover:text-foreground [&>span]:text-xs [&>span]:opacity-70",
+        shift && 'cal-has-shift',
         defaultClassNames.day,
         className
       )}
       {...props}
-    />
+    >
+      {shift && (
+        <span
+          aria-hidden
+          className={cn(
+            'cal-day-shift absolute top-[3px] left-1/2 -translate-x-1/2 select-none leading-none',
+            shift.cssClass,
+          )}
+        >
+          {shift.code}
+        </span>
+      )}
+      {/* la cifra del giorno arriva come children da react-day-picker: i JSX
+          children sopra la SOSTITUIREBBERO se non la riusassiamo qui. */}
+      {children}
+    </Button>
   )
 }
 

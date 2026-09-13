@@ -626,6 +626,17 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   trovato e la sua fonte) con «Ho capito, correggo» / «Pubblica comunque». La verifica gira SOLO
   per pubblicazioni normali (non impersonate). Su PRODUCTION la 023 va ancora applicata (SQL
   editor/Management API, come da nota release).
+- **Sigle turno nel datepicker della nuova richiesta cambio (13/09/2026):** il `Calendar`
+  (`components/ui/calendar.tsx`) accetta il prop opzionale `dayInfo?: (date) => { code, cssClass }`:
+  se presente, sopra la cifra di ogni giorno compare una mini-pillola M/P/N (`shiftCodePill`
+  in `lib/sala-month.ts`, classi `.pill-*` già esistenti → stesse tinte delle pillole sala).
+  Il dialog (`components/shifts/shift-dialog.tsx`) la alimenta a dialog aperto: riga REALE della
+  persona per i mesi PDF (`getSalaSchedule` + `findMonthPerson`), TEORICO dalle squadre DB per
+  i mesi senza PDF (`theoreticalTokenFor`, chiavi ISO sulla mappa `dayShiftCodes`). ATTENZIONE:
+  il children JSX in `CalendarDayButton` SOSTITUISCE i children di react-day-picker (la cifra!) —
+  vanno riusati esplicitamente (`{children}`); gli stili `.cal-day-shift`/`.cal-has-shift` stanno
+  FUORI dai layer CSS perché la utilities `[&>span]:text-xs [&>span]:opacity-70` del bottone
+  batterebbe. Desk-board (turnisala) non passa `dayInfo` → picker invariato.
 - **Lint noti, non bloccanti:** `react-hooks/purity` (Math.random, accettato),
   `react-hooks/refs` in `shift-list.tsx:241,244`, `no-explicit-any` in `lib/pdf-parser.ts:275,279`,
   `lib/queries/sala-layout.ts:13`, `lib/queries/vacations.ts:125–127,136`.

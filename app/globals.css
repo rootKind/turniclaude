@@ -902,3 +902,23 @@
    regole qui sopra): la classe Tailwind «flex» sulla caption vive nel layer
    utilities e batterebbe comunque una regola dentro @layer components. */
 .cal-panel .rdp-month_caption { display: none !important; }
+
+/* Sigla del turno reale sopra la cifra dei giorni del datepicker usato per
+   inserire una richiesta cambio turno (richiesta 13/09/2026): mini-pillola M/P/N
+   negli stessi colori delle pillole di sala, così l'utente vede il SUO turno
+   mentre sceglie il giorno. Fuori dai layer: la regola utilities
+   [&>span]:text-xs [&>span]:opacity-70 del bottone-giorno batterebbe altrimenti
+   su questo span (dimensione e opacità stilate per l'eventuale secondo numero). */
+.cal-day-shift {
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1px 2px;
+  border-radius: 4px;
+  line-height: 1;
+  opacity: 1;
+  /* Colore e sfondo li dà la classe .pill-* (mattina/pomeriggio/notte): qui solo
+     geometria e opacità piena contro [&>span]:opacity-70 del bottone-giorno. */
+}
+/* Il bottone-giorno è flex-col centrato: con la pillola in alto la cifra verrebbe
+   a toccarla (gap −2px misurato). Si abbassa la cifra di 6px per lasciare aria. */
+.cal-has-shift { padding-top: 6px; }
