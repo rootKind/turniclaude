@@ -450,8 +450,9 @@ export function DeskBoard({
   /* Vista «Teorico ≠ reale» (solo admin): attiva SOLO su mesi caricati da PDF
      (il confronto è teorico vs reale) con l'albero squadre disponibile.
      CONFRONTO COMPATTO (17/09/2026): per ogni sezione del teorico, le righe
-     «nome + teorico + stato reale» (assenze col CODICE PDF: A/AG/F.E.…) e le
-     «Nuovi» (reali di provenienza diversa: altro turno, riposo, non in scheda).
+     «nome + stato reale» (il teorico NON si riscrive: lo mostra già la card —
+     assenze col CODICE PDF: A/AG/F.E.…) e le «Nuovi» (reali di provenienza
+     diversa: altro turno, riposo, non in scheda).
      Niente più strisce «≠»/«←»: tropo largo su schermo stretto. */
   const theoDiffEnabled = !!(isAdmin && showTheoDiff && shiftTree && schedule && schedule.source !== 'theoretical')
   const theoCompareBySection = useMemo(() => {

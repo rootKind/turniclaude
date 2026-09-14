@@ -307,9 +307,10 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       </div>
 
       {/* Vista «Teorico ≠ reale» COMPATTA (solo admin): sotto i nomi reali della
-          sezione. Righe teoriche NON confermate: «Cognome M6S A» (rosso = non al
-          suo posto; il codice reale è quello del PDF: altro turno, A/AG/F.E.,
-          «presente» senza sezione, «assente» solo se la cella PDF è vuota).
+          sezione. Righe teoriche NON confermate: «Cognome N6» — SOLO lo stato
+          reale, in rosso (altro turno, sigla A/AG/F.E., «presente», «assente»
+          solo con cella PDF vuota): la card in cui la riga sta mostra GIÀ il
+          teorico atteso (sezione+turno nell'intestazione, 18/09/2026).
           Poi i «Nuovi»: reali che il teorico non prevedeva qui, con la
           provenienza (teorico di origine). */}
       {!isEditing && theoCompare && (theoCompare.rows.length > 0 || theoCompare.extras.length > 0) && (
@@ -317,10 +318,12 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
           {theoCompare.rows.map(r => (
             <div key={r.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
               <span className="whitespace-nowrap font-medium">{cognomeOf(r.name)}</span>
-              <span className="tabular-nums text-muted-foreground whitespace-nowrap">{r.theo}</span>
+              {/* Il teorico NON si riscrive: la card in cui la riga sta parla
+                  già di sezione+turno previsti (es. M 14/9). Solo il REALE —
+                  spostamento, sigla di assenza, «presente»/«assente» — in rosso. */}
               <span className="tabular-nums whitespace-nowrap text-destructive font-semibold">{r.real}</span>
             </div>
-          ))}
+ ))}
           {theoCompare.extras.map(e => (
             <div key={e.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
               <span className="whitespace-nowrap font-medium">{cognomeOf(e.name)}</span>

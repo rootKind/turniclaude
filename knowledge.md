@@ -201,7 +201,9 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   le due API precedenti (`theoRealDiffsForDay` + `theoRealAnnotationsForDay`, strisce «≠»/«←»)
   sono state RIMOSE — troppo larghe per lo schermo stretto, criterio frecce/uguale poco chiaro.
   UNA funzione per giorno ritorna `Map<section|shift, {rows, extras, theoreticalOnly}>`:
-  **rows** = una per membro teorico NON confermato → «Cognome <teorico> <reale>» dove
+  **rows** = una per membro teorico NON confermato → «Cognome <reale>» SOLO (dal
+  18/09/2026 il teorico NON si riscrive: la card che contiene la riga mostra già
+  sezione+turno previsti) dove
   <reale> è il codice PDF COM'È (assenza/riposo: A, AG7, F.E., D…), «assente» se senza
   traccia, «presente» se senza sezione, oppure turno+sezione alternativi (es. «N6»);
   teorico CONFERMATO (stesso turno+sezione, slot irrilevante) = NESSUNA riga (già nelle card).
