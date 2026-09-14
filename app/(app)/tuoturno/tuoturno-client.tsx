@@ -555,6 +555,13 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   // quella che si sta compilando nel popup.
   const [compareOpen, setCompareOpen] = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
+  // Stato confronto → bottom-nav (per la voce mini-Fab «Tuo turno»): l'evento
+  // dice alla navbar di rileggere lo stato condiviso (detail é compatibilità).
+  useEffect(() => {
+    const w = window as unknown as { __tuoturnoCompareActive?: boolean }
+    w.__tuoturnoCompareActive = compareIds.length >= 2
+    document.dispatchEvent(new CustomEvent('tuoturno-compare-state', { detail: { active: compareIds.length >= 2 } }))
+  }, [compareIds])
   const [compareDraft, setCompareDraft] = useState<string[]>([])
   // Pannello «Personalizza» + palette e stile delle modifiche (persistiti in locale).
   const [colorsOpen, setColorsOpen] = useState(false)
@@ -568,8 +575,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   // Il gesto swipe-back deve sapere se il CONFRONTO è aperto senza ri-iscrivere
   // i listener del documento a ogni cambio stato: ref specchiata (schema già
   // usato in desk-board per isEditing/selectedDay).
-  const comparingRef = useRef(false)
-  useEffect(() => { comparingRef.current = compareIds.length >= 2 }, [compareIds])
+
 
   const duplicateCognomi = useMemo(() => buildDuplicateCognomi(users), [users])
   const uploaded = useMemo(() => new Set(uploadedMonths), [uploadedMonths])
@@ -601,15 +607,20 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 
   // ── Azioni del FAB nella barra di navigazione ────────────────────────────
   // La bottom-nav emette CustomEvent (stesso schema di turnisala/turniferie);
-  // qui li ascoltiamo e apriamo i rispettivi dialog.
+  // qui li ascoltiamo e apriamo i rispettivi dialog. «tuoturno-exit-compare»
+  // (17/09/2026) esce dalla vista confronto: è la voce «Tuo turno» che la
+  // bottom-nav mostra AL POSTO di «Confronta» quando si sta già confrontando.
   useEffect(() => {
     const openPersonalizza = () => setColorsOpen(true)
     const openConfronta = () => { setCompareDraft(compareIds); setQuery(''); setCompareOpen(true) }
+    const exitCompare = () => setCompareIds([])
     document.addEventListener('tuoturno-open-personalizza', openPersonalizza)
     document.addEventListener('tuoturno-open-confronta', openConfronta)
+    document.addEventListener('tuoturno-exit-compare', exitCompare)
     return () => {
       document.removeEventListener('tuoturno-open-personalizza', openPersonalizza)
       document.removeEventListener('tuoturno-open-confronta', openConfronta)
+      document.removeEventListener('tuoturno-exit-compare', exitCompare)
     }
   }, [compareIds])
 
@@ -753,10 +764,9 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   // se il gesto parte dal selettore mese/anno (.month-pop ha le sue colonne
   // scorrevoli) o dentro un dialog (radix li renderizza in portale fuori da
   // main), e se il gesto è verticale (scroll) o troppo corto.
-  // SWIPE BACK dal CONFRONTO (richiesta 15/09/2026): swipe verso destra mentre
-  // la tabella di confronto è aperta = USCIRE dal confronto e tornare alla
-  // griglia personale (il gesto «indietro» naturale), NON cambiare mese.
-  // Swipe verso sinistra resta «mese successivo» in entrambe le modalità.
+  // Il confronto NON ha più lo swipe-back (rimosso 17/09/2026): si esce dalla
+  // vista confronto toccando «Il tuo turno» nella navbar o riaprendo i mini-Fab
+  // (la voce «Confronta» diventa «Tuo turno») — vedasi dispatchTuoturnoExit.
   useEffect(() => {
     const skip = (t: EventTarget | null) =>
       t instanceof Element &&
@@ -773,8 +783,6 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
       const dy = e.changedTouches[0].clientY - start.y
       if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
       if (dx > 0) {
-        // «Indietro»: dal confronto si esce; nella griglia personale si torna mese.
-        if (comparingRef.current) { setCompareIds([]); return }
         setMonth(m => addMonths(m, -1))
       } else {
         setMonth(m => addMonths(m, 1))

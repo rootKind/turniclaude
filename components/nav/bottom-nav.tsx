@@ -26,6 +26,19 @@ function subscribeNavLast(cb: () => void) {
 const readNavLast = (key: string, fallback: string) => () =>
   localStorage.getItem(key) ?? fallback
 
+/* Vista confronto de «Il tuo turno» attiva? La pagina emette
+   'tuoturno-compare-state' { active } ad ogni cambio: snapshot PRIMITIVO
+   (booleano), confrontato per valore — stesso schema di nav-lastpage. */
+const COMPARE_STATE_EVENT = 'tuoturno-compare-state'
+function subscribeCompareState(cb: () => void) {
+  document.addEventListener(COMPARE_STATE_EVENT, cb)
+  return () => document.removeEventListener(COMPARE_STATE_EVENT, cb)
+}
+/* La pagina scrive il flag su window prima di emettere l'evento (un semplice
+   booleano esterno: snapshot primitivo, niente «getSnapshot should be cached»). */
+const readCompareState = () =>
+  (typeof window !== 'undefined' && (window as { __tuoturnoCompareActive?: boolean }).__tuoturnoCompareActive) || false
+
 interface Props {
   feedbackUnread?: number
   isAdmin?: boolean
@@ -44,8 +57,10 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
   const isTuoTurno = pathname === '/tuoturno'
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [notifFabOpen, setNotifFabOpen] = useState(false)
-  // Fab azioni de «Il tuo turno»: Personalizza + Confronta (mini-Fab che spuntano).
+  // Fab azioni de «Il tuo turno»: Personalizza + Confronta/Tuo turno (mini-Fab).
   const [tuoTurnoFabOpen, setTuoTurnoFabOpen] = useState(false)
+  // In vista confronto la voce «Confronta» diventa «Tuo turno» (vedi sotto).
+  const tuoTurnoComparing = useSyncExternalStore(subscribeCompareState, readCompareState, () => false)
   const [adminFabOpen, setAdminFabOpen] = useState(false)
   const [ferieAdminFabOpen, setFerieAdminFabOpen] = useState(false)
   // Ultima pagina dei gruppi Turni/Cambi: store esterno (vedi nota in testa al file).
@@ -289,15 +304,22 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
         <div className="fixed inset-0 z-40" onClick={() => setTuoTurnoFabOpen(false)}>
           <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
             <div className="fab-mini-pop flex items-center gap-2 pointer-events-auto">
+              {/* In vista CONFRONTO la voce diventa «Tuo turno»: apre di nuovo il
+                  picker sarebbe fuorviante mentre si sta già confrontando; il tap
+                  riporta alla griglia personale (17/09/2026, niente swipe-back). */}
               <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Confronta
+                {tuoTurnoComparing ? 'Tuo turno' : 'Confronta'}
               </span>
               <button
-                onClick={e => { e.stopPropagation(); setTuoTurnoFabOpen(false); document.dispatchEvent(new CustomEvent('tuoturno-open-confronta')) }}
+                onClick={e => {
+                  e.stopPropagation()
+                  setTuoTurnoFabOpen(false)
+                  document.dispatchEvent(new CustomEvent(tuoTurnoComparing ? 'tuoturno-exit-compare' : 'tuoturno-open-confronta'))
+                }}
                 className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
-                aria-label="Confronta i turni di più dipendenti"
+                aria-label={tuoTurnoComparing ? 'Torna al tuo turno dalla vista confronto' : 'Confronta i turni di più dipendenti'}
               >
-                <Users size={18} />
+                {tuoTurnoComparing ? <Calendar size={18} /> : <Users size={18} />}
               </button>
             </div>
             <div className="fab-mini-pop flex items-center gap-2 pointer-events-auto" style={{ animationDelay: '.05s' }}>

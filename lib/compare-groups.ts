@@ -150,7 +150,9 @@ export function buildCompareGroups(
 
   const groups: CompareGroup[] = []
   if (noni.length) {
-    groups.push({ key: 'noni', label: 'Noni', sections: [{ key: 'noni-all', label: '', users: noni.map(toUser) }] })
+    // Etichetta di sezione «Noni» = intestazione del gruppo (ripristinata
+    // 17/09/2026: con le sezioni per squadra la lista era rimasta senza titolo).
+    groups.push({ key: 'noni', label: 'Noni', sections: [{ key: 'noni-all', label: 'Noni', users: noni.map(toUser) }] })
   }
   if (dco.length) {
     groups.push({ key: 'dco', label: 'DCO', sections })

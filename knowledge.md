@@ -510,12 +510,16 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (touch, soglia 50px; le frecce ‹ › fanno lo stesso) e legenda. Dal 13/09/2026 lo swipe è su
   TUTTA la pagina (listener su document, come turnisala): funziona anche in modalità confronto;
   ignorato se il gesto parte da `.month-pop`, da un dialog `[role="dialog"]` o dal wrapper radix,
-  o se è verticale/di meno di 50px. **SWIPE BACK dal CONFRONTO (15/09/2026):** swipe verso
-  destra con la tabella di confronto aperta ESCE dal confronto (setCompareIds([]), griglia
-  personale) invece di cambiare mese — il gesto «indietro» naturale; swipe a sinistra resta
-  «mese successivo» in ENTRAMBE le modalità. Lo stato «confronto aperto» passa al listener
-  tramite ref specchiata (comparingRef su compareIds): l'effect ha deps [] e NON va ri-iscritto
-  a ogni cambio (schema ref di desk-board). Celle «variante E» (min-h 76px): la card
+  o se è verticale/di meno di 50px. **NIENTE swipe-back dal confronto (17/09/2026, rimozione del
+  15/09):** swipe destra in confronto cambia mese come ovunque; per USCIRE dal confronto si usa
+  la NAVBAR: 1) tap su «Il tuo turno» (già così), 2) mini-Fab Azioni turno dove la voce
+  «Confronta» diventa «Tuo turno» (icona calendario) mentre il confronto è attivo → evento
+  `tuoturno-exit-compare` → setCompareIds([]). Lo stato compareId→navbar passa via evento
+  `tuoturno-compare-state` + flag `window.__tuoturnoCompareActive` (snapshot primitivo letto con
+  useSyncExternalStore in bottom-nav — stessa ricetta di nav-lastpage). **Headerr di gruppo
+  «Noni» nel picker Confronta (17/09/2026):** la sezione noni di `buildCompareGroups` (compare-groups.ts)
+  deve avere label='Noni' (con le sezioni per squadra era '' e la lista restava senza titolo).
+  Celle «variante E» (min-h 76px): la card
   è INTERAMENTE tinta — numero del giorno compreso — blu Mattina, ambra Pomeriggio,
   lilla Notte (tinte = pill della dashboard), grigio riposi, rosso assenze, verde attività senza sezione
   (`.cell-day` + `.cell-tint-*` in `app/globals.css`; dal 12/09/2026 le tinte M/P/N puntano alle
