@@ -3,6 +3,7 @@
 // so that on shared devices user B never sees user A's cached data. All caches
 // are also wiped on logout / account switch (see AuthCacheGuard + handleLogout).
 import { useUserStore } from '@/stores/user-store'
+import { wipeSalaScheduleCache } from '@/lib/sala-schedule-cache'
 
 const CACHE_PREFIX = 'cache:'
 
@@ -49,6 +50,10 @@ export function clearAllLocalData(): void {
   if (typeof window === 'undefined') return
   try { localStorage.clear() } catch { /* ignore */ }
   try { sessionStorage.clear() } catch { /* ignore */ }
+  // Cache mesi /turnisala (IndexedDB): mai lasciare i turni di un utente
+  // leggibili dal successivo sullo stesso dispositivo. Fire-and-forget:
+  // l'operazione IDB completa in pochi ms dopo il signOut già avvenuto.
+  try { void wipeSalaScheduleCache() } catch { /* ignore */ }
   try {
     // Cache Storage del service worker (asset statici)
     if ('caches' in window) {

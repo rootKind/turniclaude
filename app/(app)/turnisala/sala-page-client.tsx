@@ -10,8 +10,15 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { upsertSalaLayout } from '@/lib/queries/sala-layout'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
+import {
+  deleteCachedSchedule,
+  pruneSalaScheduleCache,
+  readCachedSchedule,
+  writeCachedSchedule,
+} from '@/lib/sala-schedule-cache'
 import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { generateTheoreticalMonth } from '@/lib/turni-teorici'
+import { buildScheduleFromMonthData, isSalaMonthData } from '@/lib/sala-month'
 import { DeskBoard, MONTHS_IT } from '@/components/sala/desk-board'
 import { ShiftCleanupDialog } from '@/components/admin/shift-cleanup-dialog'
 import type { ShiftCleanupCandidate } from '@/lib/queries/shift-cleanup'
@@ -67,6 +74,9 @@ export function SalaPageClient({
   const [schedule, setSchedule] = useState<SalaSchedule | null>(initialSchedule)
   const [currentMonth, setCurrentMonth] = useState(initialMonth)
   const [availableMonths, setAvailableMonths] = useState(initialMonths)
+  // Cache-first (20/09/2026): il server renderizza il primo mese e IDB copre
+  // TUTTI i cambi mese successivi. I mesi teorici restano fuori dalla cache:
+  // si generano al volo dal tree (zero rete, già così).
   // L'albero arriva GIÀ dal server (initialShiftTree): il refetch client è solo
   // un fallback/correzione. Prima del 15/09/2026 si partiva da null e il fetch
   // client-side poteva tornare 0 righe (RLS «authenticated» con sessione del
@@ -85,6 +95,21 @@ export function SalaPageClient({
   const scheduleRef = useRef(schedule)
   currentMonthRef.current = currentMonth
   scheduleRef.current = schedule
+  // Mirror per i callback realtime (sottoscrizione montata una volta sola).
+  const shiftTreeRef = useRef(shiftTree)
+  shiftTreeRef.current = shiftTree
+  // Cache-first: se il primo mese arriva già dalla rete SSR, la sua copia in
+  // IDB va aggiornata una volta, qui al mount (evita un refetch inutile).
+  // SOLO se è un mese caricato: i mesi teorici non vanno in cache (si
+  // rigenerano dal tree, zero rete) — inizialeSchedule teorico = skip.
+  useEffect(() => {
+    if (initialSchedule && userId && initialSchedule.data) {
+      writeCachedSchedule(userId, initialSchedule)
+    }
+    // Cleanup di mesi rimasti in cache oltre la finestra di mantenimento.
+    if (userId) pruneSalaScheduleCache(userId, initialMonths)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // I dati dei turni teorici sono leggibili da tutti gli utenti autenticati:
   // la generazione dei mesi teorici avviene client-side.
@@ -117,18 +142,83 @@ export function SalaPageClient({
 
   const handleMonthChange = async (month: string) => {
     setCurrentMonth(month)
-    setSchedule(null)
     if (!isUploaded(month)) {
       // Mese teorico: si genera al volo. Se l'albero squadre non è ancora
       // arrivato, l'effetto di caricamento iniziale rigenera appena arriva.
-      if (shiftTree) setSchedule(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments))
+      setSchedule(shiftTree ? generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments) : null)
       return
     }
-    // Mese caricato: leggi il PDF dal DB (fallback teorico se assente).
+    // Cache-first: disegna SUBITO il mese da IndexedDB, poi riconvalida in
+    // background. A caldo zero attese; se la cache non c'è la rete decide.
+    let cached: SalaSchedule | null = null
+    if (userId) cached = await readCachedSchedule(userId, month)
+    if (cached) setSchedule(cached)
+    else setSchedule(null)
+
     const supabase = createClient()
-    const data = await getSalaSchedule(supabase, month)
-    setSchedule(data ?? (shiftTree ? generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments) : null))
+    try {
+      const data = await getSalaSchedule(supabase, month)
+      // L'utente può essere già passato a un altro mese mentre il fetch era
+      // in volo: non sovrascrivere il mese attualmente a schermo.
+      if (currentMonthRef.current !== month) return
+      if (data) {
+        setSchedule(data)
+        if (userId) writeCachedSchedule(userId, data)
+      } else if (!cached && shiftTree) {
+        // Mese rimosso dal DB ma non più in cache: fallback teorico.
+        setSchedule(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments))
+      }
+    } catch {
+      // Rete giù: la copia cache (se c'era) resta a schermo.
+    }
   }
+
+  // Realtime (20/09/2026): quando un admin pubblica/elimina un PDF, CHI è
+  // già sulla pagina vede il mese aggiornarsi senza ricaricare (push, non
+  // polling). Il payload `schedule` è il jsonb GREZZO della tabella — per gli
+  // upload v2 è la forma COMPATTA (SalaMonthData), quindi va espanso come fa
+  // getSalaSchedule. DELETE = il mese torna teorico ( replica identity di
+  // default: `old` contiene la PK `month`, che basta e avanza).
+  useEffect(() => {
+    if (!userId) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`sala-schedule-realtime-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sala_schedule' }, payload => {
+        const eventType = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE'
+        if (eventType === 'DELETE') {
+          const month = (payload.old as { month?: string }).month
+          if (!month) return
+          setAvailableMonths(prev => prev.filter(m => m !== month))
+          if (userId) deleteCachedSchedule(userId, month)
+          if (currentMonthRef.current === month) {
+            const tree = shiftTreeRef.current
+            setSchedule(tree ? generateTheoreticalMonth(month, tree, tree.adjustments) : null)
+          }
+          return
+        }
+        const row = payload.new as { month?: string; schedule?: unknown; uploaded_at?: string; colored_persons?: SalaSchedule['coloredPersons'] } | null
+        if (!row?.month || !row.schedule) return
+        setAvailableMonths(prev => (prev.includes(row.month!) ? prev : [...prev, row.month!].sort((a, b) => b.localeCompare(a))))
+
+        // Normalizzazione identica a getSalaSchedule (v2 compatta → espansa).
+        const raw = row.schedule as unknown
+        const expanded = (isSalaMonthData(raw)
+          ? buildScheduleFromMonthData(raw)
+          : raw) as SalaSchedule['schedule']
+        const incoming: SalaSchedule = {
+          month: row.month,
+          schedule: expanded,
+          uploaded_at: row.uploaded_at ?? new Date().toISOString(),
+          ...(row.colored_persons ? { coloredPersons: row.colored_persons } : {}),
+        }
+        if (userId) writeCachedSchedule(userId, incoming)
+        if (currentMonthRef.current === row.month) setSchedule(incoming)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [userId])
 
   const uploadOne = async (file: File, month: string) => {
     const fd = new FormData()
@@ -174,6 +264,7 @@ export function SalaPageClient({
       )
       const first = months.sort((a, b) => a.localeCompare(b))[0]
       const data = await getSalaSchedule(supabase, first)
+      if (data && userId) await writeCachedSchedule(userId, data)
       setSchedule(data)
       setCurrentMonth(first)
       toast.success(`${months.length} mes${months.length === 1 ? 'e caricato' : 'i caricati'}: ${months.map(formatMonthShort).join(', ')}`)
@@ -222,6 +313,9 @@ export function SalaPageClient({
       const body = await res.text()
       throw new Error(body)
     }
+    // La copia locale non deve sopravvivere al mese eliminato (il realtime
+    // copre gli ALTRI dispositivi; questo qui è l'origine dell'azione).
+    if (userId) await deleteCachedSchedule(userId, month)
     setAvailableMonths(prev => {
       const next = prev.filter(m => m !== month)
       if (currentMonth === month) {

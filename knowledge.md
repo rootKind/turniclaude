@@ -936,3 +936,17 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   onUploadBatch (il singolo file è il caso N=1). Falsi positivi cognomi (MARZANO, MAGGIO)
   evitati con match a forma esatta + confini di parola e segnale debole senza anno.
   Test: scripts/check-pdf-month-detect.mjs.
+
+- **Cache-first /turnisala (20/09/2026)**: la board apre ogni mese caricato da IndexedDB
+  («turni-sala-cache», store months, chiave cache:{userId}:sala-{month} — scoping per utente
+  come lib/cache.ts) e riconvalida in background: a caldo ZERO download bloccanti, a freddo
+  una chiamata. lib/sala-schedule-cache.ts: read/write/delete/prune (eviction: tiene i mesi
+  uploaded + finestra teorica mese−1..+12, max 24) /wipe (invocato da clearAllLocalData su
+  logout). Realtime su sala_schedule (migration 030, publication supabase_realtime): chi è
+  sulla pagina vede pubblicazioni/cancellazioni al volo — payload jsonb GREZZO = forma
+  compatta v2 → espanso con isSalaMonthData + buildScheduleFromMonthData PRIMA di setState
+  e cache write; DELETE → deleteCachedSchedule + rigenerazione teorica. handleMonthChange:
+  cache read → render → fetch → (race guard currentMonthRef) → cache write. I mesi teorici
+  NON vanno in cache (generati dal tree, zero rete). localStorage evitato per gli snapshot
+  (tetto ~5 MB per origine condiviso con auth/preferenze); IndexedDB è async e capiente.
+  Test: scripts/check-sala-schedule-cache.mjs (fake IDB in-memory con eventi async realistici).
