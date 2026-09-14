@@ -59,7 +59,7 @@ export function buildBareOwners(
   const out: BareOwnerMap = new Map()
   if (!tree?.types || !duplicateCognomi?.size) return out
   // cognome normalizzato → membri attivi dell'albero con quel cognome
-  const byCognome = new Map<string, Array<{ fullName: string; norm: string; bound: boolean }>>()
+  const byCognome = new Map<string, Array<{ fullName: string; norm: string; bound: boolean; userId: string | null }>>()
   // duplicateCognomi ha le chiavi COME SONO SCRITTE in users.cognome («Nevano»):
   // si confronta in entrambe le forme (normale e minuscola).
   const dupKeys = new Set<string>()
@@ -72,14 +72,14 @@ export function buildBareOwners(
         // solo i cognomi OMONIMI fra gli utenti interessano
         if (!key || !dupKeys.has(key)) continue
         const list = byCognome.get(key) ?? []
-        list.push({ fullName: member.full_name, norm: normNameKey(member.full_name), bound: !!member.user_id })
+        list.push({ fullName: member.full_name, norm: normNameKey(member.full_name), bound: !!member.user_id, userId: member.user_id })
         byCognome.set(key, list)
       }
     }
   }
   for (const [cognomeKey, members] of byCognome) {
     const owner = members.find(m => m.bound)
-    if (!owner) continue
+    if (!owner || !owner.userId) continue
     // iniziale dal full_name («nevano p.» → «p»); '' se il membro è bare
     const tail = owner.norm.slice(cognomeKey.length).trim()
     const initial = /^[a-z]$/.test(tail.replace(/\.$/, '')) ? tail.replace(/\.$/, '') : ''
@@ -87,7 +87,7 @@ export function buildBareOwners(
       fullName: owner.fullName,
       nameNorm: owner.norm,
       cognomeKey,
-      userId: null,
+      userId: owner.userId,
       initial,
     })
   }

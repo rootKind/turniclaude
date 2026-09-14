@@ -879,3 +879,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
 - **Test:** `node scripts/check-nevano-matching.mjs` (contratto completo: bare→Pietro, iniziale→Giuseppe,
   mese/giorno/confronto, display). Script DB di verifica: `scripts/check-nevano-state.mjs`,
   `scripts/check-nevano-bindings.mjs` (convenzione REST fetch di `apply-super-cycle.mjs`, NON pg).
+- **UI admin (14/09/2026):** nel dialog «Squadre e turni» → Membri, ogni membro in modifica ha
+  `MemberBindingRow` (components/admin/team-member-binding.tsx): select del legame `user_id`
+  (utenti già legati altrove disabilitati; guardia anti-doppio-legame anche in API PUT/POST
+  shift-teams) e, se il cognome è omonimo fra gli utenti, suggerimento di rinomina con iniziale
+  («NEVANO» → «NEVANO P.») con conferma. `buildBareOwners` ora propaga davvero `userId`.
+  Audit superficie: unici residui bare-surname erano l'etichetta tirocinante in desk-card
+  (ora via nameDisplay) — tutto il resto usa cognome+nome o è già mappato.

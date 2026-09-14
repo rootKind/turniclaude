@@ -51,7 +51,7 @@ export default async function TuoTurnoPage() {
   const personTheoretical: Record<string, PersonTheoretical> = {}
   if (pdfMonths.size > 0) {
     for (const u of users) {
-      const src = buildPersonTheoretical(pdfMonths, u, duplicateCognomi)
+      const src = buildPersonTheoretical(pdfMonths, u, duplicateCognomi, bareOwners)
       if (src) personTheoretical[u.id] = src
     }
   }

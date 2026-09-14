@@ -30,6 +30,7 @@ interface MutBody {
   full_name?: string
   pattern?: string[]
   is_lead?: boolean
+  user_id?: string | null  // lega il membro all'utente (regola bare-owner per gli omonimi)
   description?: string
 }
 
@@ -106,6 +107,7 @@ export async function POST(req: NextRequest) {
       sort_order: body.sort_order ?? 0,
       is_active: body.is_active ?? true,
       is_lead: body.is_lead ?? false,
+      user_id: body.user_id ?? null,
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ ok: true })
@@ -189,6 +191,24 @@ export async function PUT(req: NextRequest) {
     if (body.sort_order !== undefined) patch.sort_order = body.sort_order
     if (body.is_active !== undefined) patch.is_active = body.is_active
     if (body.is_lead !== undefined) patch.is_lead = body.is_lead
+    if (body.user_id !== undefined) {
+      // un utente può essere legato a UN SOLO membro: evita conflitti di matching
+      if (body.user_id) {
+        let clash = supabase
+          .from('shift_team_members')
+          .select('id, full_name')
+          .eq('user_id', body.user_id)
+        if (id) clash = clash.neq('id', id)
+        const { data: existing } = await clash.maybeSingle()
+        if (existing) {
+          return NextResponse.json(
+            { error: `L'utente è già legato al membro "${existing.full_name}"; scollega prima quello` },
+            { status: 400 },
+          )
+        }
+      }
+      patch.user_id = body.user_id
+    }
     if (body.pattern !== undefined) {
       if (!body.pattern.length) return NextResponse.json({ error: 'Pattern vuoto' }, { status: 400 })
       patch.pattern = body.pattern

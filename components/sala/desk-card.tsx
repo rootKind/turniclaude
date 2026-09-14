@@ -135,8 +135,8 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
 
   // All names that appear in the color picker: surnames + tirocinanti
   const pickerNames: Array<{ name: string; label: string }> = [
-    ...filledNames.map(n => ({ name: n, label: toTitleCase(n) })),
-    ...tirocinanti.filter(Boolean).map(n => ({ name: n, label: `Tir. ${toTitleCase(n)}` })),
+    ...filledNames.map(n => ({ name: n, label: lookupNameDisplay(n, nameDisplay) ?? toTitleCase(n) })),
+    ...tirocinanti.filter(Boolean).map(n => ({ name: n, label: `Tir. ${lookupNameDisplay(n, nameDisplay) ?? toTitleCase(n)}` })),
   ]
 
   return (
@@ -365,7 +365,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
                 ) : (
                   <span className="text-xs whitespace-nowrap italic text-muted-foreground flex items-center gap-0.5">
                     {renderDot(tir)}
-                    {tir ? toTitleCase(tir) : <span className="text-muted-foreground/40">—</span>}
+                    {tir ? lookupNameDisplay(tir, nameDisplay) ?? toTitleCase(tir) : <span className="text-muted-foreground/40">—</span>}
                     {renderDot(tir)}
                   </span>
                 )}

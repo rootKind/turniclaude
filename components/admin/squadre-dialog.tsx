@@ -12,7 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import type { ShiftCycleTemplate, ShiftTeamTree } from '@/types/database'
+import { MemberBindingRow } from '@/components/admin/team-member-binding'
+import { fetchAllUsersMinimal } from '@/lib/queries/users'
+import type { ShiftCycleTemplate, ShiftTeamTree, UserProfile } from '@/types/database'
 
 interface Props {
   open: boolean
@@ -47,6 +49,7 @@ async function api(method: string, body?: unknown) {
 export function SquadreDialog({ open, onClose }: Props) {
   const [tree, setTree] = useState<ShiftTeamTree | null>(null)
   const [templates, setTemplates] = useState<ShiftCycleTemplate[]>([])
+  const [users, setUsers] = useState<Array<Pick<UserProfile, 'id' | 'nome' | 'cognome'>>>([])
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState('types')
   const [membersTypeId, setMembersTypeId] = useState('')
@@ -54,18 +57,30 @@ export function SquadreDialog({ open, onClose }: Props) {
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [t, tpl] = await Promise.all([
+      const [t, tpl, us] = await Promise.all([
         fetchShiftTeamTree(createClient()),
         fetchShiftCycleTemplates(createClient()),
+        fetchAllUsersMinimal(),
       ])
       setTree(t)
       setTemplates(tpl)
+      setUsers(us)
     } catch (err) {
       toast.error('Errore caricamento: ' + (err as Error).message)
     } finally {
       setLoading(false)
     }
   }, [])
+
+  // user_id già legati a un membro (per disabilitarli nelle select del legame)
+  const boundUserIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const t of tree?.types ?? [])
+      for (const team of t.teams)
+        for (const m of team.members)
+          if (m.user_id) ids.add(m.user_id)
+    return ids
+  }, [tree])
 
   useEffect(() => {
     if (open) refresh()
@@ -112,7 +127,7 @@ export function SquadreDialog({ open, onClose }: Props) {
             <TabsContent value="types"><TypesTab tree={tree} run={run} onEditMembers={openMembers} /></TabsContent>
             <TabsContent value="teams"><TeamsTab tree={tree} run={run} /></TabsContent>
             <TabsContent value="members">
-              <MembersTab tree={tree} templates={templates} run={run} typeId={membersTypeId} onTypeChange={setMembersTypeId} />
+              <MembersTab tree={tree} templates={templates} users={users} boundUserIds={boundUserIds} run={run} typeId={membersTypeId} onTypeChange={setMembersTypeId} />
             </TabsContent>
           </div>
         </Tabs>
@@ -427,9 +442,11 @@ function CyclePicker({ templates, typeId, teamId, cycle, pattern, onApply }: {
   )
 }
 
-function MembersTab({ tree, templates, run, typeId, onTypeChange }: {
+function MembersTab({ tree, templates, users, boundUserIds, run, typeId, onTypeChange }: {
   tree: ShiftTeamTree
   templates: ShiftCycleTemplate[]
+  users: Array<Pick<UserProfile, 'id' | 'nome' | 'cognome'>>
+  boundUserIds: Set<string>
   run: (fn: () => Promise<void>, ok: string) => Promise<void>
   typeId: string
   onTypeChange: (typeId: string) => void
@@ -476,6 +493,8 @@ function MembersTab({ tree, templates, run, typeId, onTypeChange }: {
               templates={templates}
               typeId={activeTypeId}
               teamId={team.id}
+              users={users}
+              boundUserIds={boundUserIds}
               run={run}
             />
           ))}
@@ -502,12 +521,14 @@ function MembersTab({ tree, templates, run, typeId, onTypeChange }: {
   )
 }
 
-function MemberRow({ member, cycle, templates, typeId, teamId, run }: {
+function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserIds, run }: {
   member: Team['members'][number]
   cycle: number
   templates: ShiftCycleTemplate[]
   typeId: string
   teamId: string
+  users: Array<Pick<UserProfile, 'id' | 'nome' | 'cognome'>>
+  boundUserIds: Set<string>
   run: (fn: () => Promise<void>, ok: string) => Promise<void>
 }) {
   const [editing, setEditing] = useState(false)
@@ -557,6 +578,7 @@ function MemberRow({ member, cycle, templates, typeId, teamId, run }: {
       {editing && (
         <div className="space-y-2">
           <Input value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" />
+          <MemberBindingRow member={member} users={users} boundUserIds={boundUserIds} run={run} />
           <CyclePicker
             templates={templates}
             typeId={typeId}

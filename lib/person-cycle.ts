@@ -1,6 +1,7 @@
 import type { SalaMonthData } from '@/types/database'
 import { personNameMatches, type PersonRef } from '@/lib/person-shift'
 import { isShiftWorkCode } from '@/lib/shift-tokens'
+import type { BareOwnerMap } from '@/lib/shift-teams-matching'
 
 /**
  * Teorico per persona: nei mesi con PDF è la riga base del PDF (colonna `t` del
@@ -89,13 +90,14 @@ function buildSeq(
   pdfMonths: Map<string, SalaMonthData>,
   user: PersonRef | null | undefined,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): { seq: Map<number, string>; months: string[] } | null {
   if (!user?.cognome || pdfMonths.size === 0) return null
   const seq = new Map<number, string>()
   const months = [...pdfMonths.keys()].sort()
   for (const month of months) {
     const data = pdfMonths.get(month)!
-    const idx = data.names.findIndex(n => personNameMatches(n, user, duplicateCognomi))
+    const idx = data.names.findIndex(n => personNameMatches(n, user, duplicateCognomi, bareOwners))
     if (idx < 0) continue
     const row = data.rows[idx]
     if (!row) continue
@@ -129,8 +131,9 @@ export function deducePersonCycle(
   pdfMonths: Map<string, SalaMonthData> | Record<string, SalaMonthData>,
   user: PersonRef | null | undefined,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): PersonCycle | null {
-  const built = buildSeq(toMap(pdfMonths), user, duplicateCognomi)
+  const built = buildSeq(toMap(pdfMonths), user, duplicateCognomi, bareOwners)
   if (!built) return null
   return deduceCycleFromSeq(built.seq)
 }
@@ -355,8 +358,9 @@ export function buildPersonTheoretical(
   pdfMonths: Map<string, SalaMonthData> | Record<string, SalaMonthData>,
   user: PersonRef | null | undefined,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): PersonTheoretical | null {
-  const built = buildSeq(toMap(pdfMonths), user, duplicateCognomi)
+  const built = buildSeq(toMap(pdfMonths), user, duplicateCognomi, bareOwners)
   if (!built) return null
 
   const cycle = deduceCycleFromSeq(built.seq)
