@@ -34,7 +34,7 @@ import {
   type PersonTheoretical,
 } from '@/lib/person-cycle'
 import type { DaySchedule, SalaSchedule, ShiftTeamTree } from '@/types/database'
-import { buildCompareGroups, type CompareGroupUser } from '@/lib/compare-groups'
+import { buildCompareGroups } from '@/lib/compare-groups'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -802,16 +802,11 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     }
   }, [])
 
-  const filteredUsers = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const list = [...users].sort((a, b) => (a.cognome ?? '').localeCompare(b.cognome ?? ''))
-    if (!q) return list
-    return list.filter(u => `${u.cognome ?? ''} ${u.nome ?? ''}`.toLowerCase().includes(q))
-  }, [users, query])
-
-  // Elenco del CONFRONTO: solo chi l'admin ha reso visibile (show_in_compare),
-  // diviso nei gruppi «Noni» / «DCO» con una sezione per squadra dei turni
-  // teorici (in terza → in seconda → rilievo → semplici A-D → varianti → altre).
+  // Elenco del CONFRONTO e del SELETTORE UTENTE (richiesta 19/09/2026: stesso
+  // menu, stessi gruppi e ordine): solo chi l'admin ha reso visibile
+  // (show_in_compare), diviso nei gruppi «Noni» / «DCO» con una sezione per
+  // squadra dei turni teorici (terza → seconda → rilievo → semplici A-D →
+  // varianti → altre). Il selettore «Turni di chi?» usa la STESSA struttura.
   const compareGroups = useMemo(() => buildCompareGroups(users, tree), [users, tree])
   // filtro di ricerca dentro gruppi e sezioni
   const compareVisibleGroups = useMemo(() => {
@@ -1102,23 +1097,36 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             />
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto -mx-1">
-            {filteredUsers.length === 0 ? (
+            {compareVisibleGroups.length === 0 ? (
               <p className="text-sm text-muted-foreground px-1 py-2">Nessun dipendente trovato.</p>
             ) : (
-              filteredUsers.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => { setSelectedUserId(u.id); setPickerOpen(false) }}
-                  className={cn(
-                    'w-full text-left px-2 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors',
-                    u.id === selectedUserId ? 'bg-primary/10 font-medium' : 'hover:bg-muted',
-                  )}
-                >
-                  <span className="flex-1 min-w-0 truncate">{[u.cognome, u.nome].filter(Boolean).join(' ')}</span>
-                  {u.id === currentUserId && (
-                    <span className="text-[10px] text-muted-foreground shrink-0">tu</span>
-                  )}
-                </button>
+              compareVisibleGroups.map(group => (
+                <div key={group.key} className="mb-2">
+                  {group.sections.map(sec => (
+                    <div key={sec.key || group.key}>
+                      {sec.label && (
+                        <p className="px-1 pt-2 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/90">
+                          {sec.label} · {sec.users.length}
+                        </p>
+                      )}
+                      {sec.users.map(u => (
+                        <button
+                          key={u.id}
+                          onClick={() => { setSelectedUserId(u.id); setPickerOpen(false) }}
+                          className={cn(
+                            'w-full text-left px-2 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors',
+                            u.id === selectedUserId ? 'bg-primary/10 font-medium' : 'hover:bg-muted',
+                          )}
+                        >
+                          <span className="flex-1 min-w-0 truncate">{[u.cognome, u.nome].filter(Boolean).join(' ')}</span>
+                          {u.id === currentUserId && (
+                            <span className="text-[10px] text-muted-foreground shrink-0">tu</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               ))
             )}
           </div>

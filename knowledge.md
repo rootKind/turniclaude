@@ -918,3 +918,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   - **Migration 029 APPLICATA al progetto dev (turniclaude-dev)** via `supabase db query
     --linked`; persistenza verificata con scripts/check-notif-overrides-persist.mjs
     (PATCH → read-back → reset). apply-migration-029.mjs automatizza il controllo.
+- **Selettore utente /tuoturno = menu Confronta (19/09/2026):** «Turni di chi?» riusa la STESSA
+  struttura del selettore multipto di confronto (compareVisibleGroups → buildCompareGroups):
+  gruppi Noni/DCO, sezione per squadra dei turni teorici (terza → seconda → rilievo → semplici
+  → varianti → altre) + «Senza squadra» ordinata per cognome. Vale quindi anche lì il filtro
+  admin show_in_compare (nascosti assenti da ENTRAMBI i menu; l'utente corrente nascosto resta
+  selezionabile come «tu» perché lo switch del confronto lo include comunque). filteredUsers
+  (lista piatta alfabetica) eliminata.
