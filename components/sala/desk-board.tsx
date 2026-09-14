@@ -7,7 +7,7 @@ import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { toast } from 'sonner'
 import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType, ShiftTeamTree } from '@/types/database'
-import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
+import { groupAltriPresenti, ALTRI_COLORS, type AltriGruppo } from '@/lib/altri-gruppi'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
@@ -15,7 +15,7 @@ import { decodeSalaMonth } from '@/lib/sala-month'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName, matchesCognome } from '@/lib/utils'
 import { buildBareOwners, lookupNameDisplay, type BareOwnerMap } from '@/lib/shift-teams-matching'
-import { normName, theoRealSectionCompare, surnameKey, type TheoRealSectionCompare } from '@/lib/turni-teorici'
+import { GRUPPO_EXTRA_KEY, normName, theoRealSectionCompare, surnameKey, type TheoRealExtra, type TheoRealSectionCompare } from '@/lib/turni-teorici'
 import { useAllDuplicateCognomi, useAllUsersForNames } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
@@ -550,8 +550,8 @@ export function DeskBoard({
         realCodes.set(normName(p.name), code)
       }
     }
-    return theoRealSectionCompare(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day, realCodes, bareOwners)
-  }, [theoDiffEnabled, shiftTree, schedule, selectedDay, currentMonth, bareOwners])
+    return theoRealSectionCompare(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day, realCodes, bareOwners, duplicateCognomi)
+  }, [theoDiffEnabled, shiftTree, schedule, selectedDay, currentMonth, bareOwners, duplicateCognomi])
   // Confronto per CARD: la card guarda la sua sezione collegata (sectionKey o titolo).
   const theoCompareByCardId = useMemo(() => {
     const map = new Map<string, TheoRealSectionCompare>()
@@ -562,6 +562,19 @@ export function DeskBoard({
     }
     return map
   }, [theoDiffEnabled, cards, theoCompareBySection, selectedShift])
+
+  // Extra di GRUPPO del teorico≠reale (23/09/2026): bucket riservato
+  // GRUPPO_EXTRA_KEY — reali presenti SOLO nelle «altre presenti» (trasferte,
+  // corsi…) che il teorico non prevedeva lì. Ordinati per tipologia, lo stesso
+  // ordine dei gruppi sotto.
+  const gruppoExtras: TheoRealExtra[] = useMemo(() => {
+    const bucket = theoCompareBySection.get(GRUPPO_EXTRA_KEY)
+    if (!bucket) return []
+    const order = ['trasferte', 'corsi', 'istruttori', 'tutor', 'altro']
+    return [...bucket.extras].sort(
+      (a, b) => order.indexOf(a.group ?? 'altro') - order.indexOf(b.group ?? 'altro'),
+    )
+  }, [theoCompareBySection])
 
   const scheduleSections: string[] = schedule
     ? [...new Set([
@@ -823,9 +836,24 @@ export function DeskBoard({
 
       {/* Altri presenti RAGGRUPPATI per tipologia (richiesta 22/09/2026):
           Trasferte / Corsi SP / Istruttori SP / Tutor / Altre attività.
-          Ogni gruppo appare solo se ha almeno una persona oggi. */}
-      {altriGruppi.length > 0 && (
+          Ogni gruppo appare solo se ha almeno una persona oggi.
+          TINTE dedicate per gruppo (23/09/2026): pill riconoscibile a colpo
+          d'occhio. In testa, solo in vista teorico≠reale, i «Nuovi» di GRUPPO:
+          reali presenti SOLO nelle altre presenti che il teorico non prevedeva
+          lì, con la tinta della tipologia e la provenienza «da <token>». */}
+      {(gruppoExtras.length > 0 || altriGruppi.length > 0) && (
         <div className="flex flex-col gap-1 pt-1 border-t border-border/40">
+          {gruppoExtras.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-muted-foreground shrink-0">Nuovi:</span>
+              {gruppoExtras.map((e, i) => (
+                <span key={i} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${ALTRI_COLORS[(e.group ?? 'altro') as AltriGruppo['key']]}`}>
+                  {displayForPdfName(e.name)}
+                  {e.theo && <span className="tabular-nums opacity-70 font-medium">da {e.theo}</span>}
+                </span>
+              ))}
+            </div>
+          )}
           {altriGruppi.map(gruppo => (
             <div key={gruppo.key} className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-muted-foreground shrink-0">{gruppo.label}:</span>
@@ -834,7 +862,7 @@ export function DeskBoard({
                 return (
                   <span
                     key={i}
-                    className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : 'sala-present-pill'}`}
+                    className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : gruppo.colorClass}`}
                   >
                     {displayForPdfName(name)}
                   </span>

@@ -7,6 +7,7 @@ import type {
   ShiftTypeGroup,
 } from '@/types/database'
 import { ABSENT_CODES, NON_SECTION_DUTIES, applyTokenToDay, isShiftCode, parseShiftCode } from '@/lib/shift-tokens'
+import { classifyAltriToken } from '@/lib/altri-gruppi'
 import { type BareOwnerMap } from '@/lib/shift-teams-matching'
 
 // ─── date helpers (UTC, senza timezone) ──────────────────────────────────────
@@ -159,6 +160,10 @@ export interface TheoRealExtra {
   real: string
   /** Codice teorico di origine (es. «RC», «M4S»), '' se non previsto dall'albero. */
   theo: string
+  /** Tipologia «altre presenti» del turno REALE (trasferte/corsi/istruttori/
+   *  tutor/altro): extra di gruppo (richiesta 23/09/2026); assente nelle extra
+   *  di sezione (lì il reale sta in colonna, non in un gruppo). */
+  group?: string
 }
 
 /**
@@ -171,7 +176,16 @@ export interface TheoRealSectionCompare {
   extras: TheoRealExtra[]
   /** true se la sezione esiste SOLO nel teorico (nessun reale quel giorno). */
   theoreticalOnly: boolean
+  /** true per il bucket RISERVATO delle extra di gruppo (chiave GRUPPO_EXTRA_KEY):
+   *  reali trovati SOLO nelle «altre presenti» (trasferte/corsi…) che il teorico
+   *  non prevedeva lì — il board li mostra nel blocco «Nuovi» raggruppato. */
+  isGruppo?: boolean
 }
+
+/** Chiave RISERVATA della mappa ritornata da theoRealSectionCompare: raccoglie
+ *  le extra di gruppo del giorno. Il prefisso «@» rende la chiave incapace di
+ *  collidere con le sezioni reali del PDF (numeri o nomi). */
+export const GRUPPO_EXTRA_KEY = '@gruppo' as const
 
 /** Una persona nel PDF reale del giorno, con il contesto del suo turno. */
 interface RealEntry {
@@ -198,6 +212,11 @@ interface RealEntry {
  * Le righe dove il teorico è CONFERMATO (stesso turno+sezione) NON compaiono:
  * le card mostrano già i nomi reali.
  *
+ * EXTRA DI GRUPPO (richiesta 23/09/2026): anche i reali presenti SOLO nelle
+ * «altre presenti» del giorno (trasferte, corsi SP, istruttori, tutor) finiscono
+ * fra i «Nuovi», raccolti sotto la chiave riservata GRUPPO_EXTRA_KEY con
+ * `isGruppo: true` — il board li visualizza raggruppati per tipologia.
+ *
  * `realCodes`: sigla PDF (giorno `day`) per ogni persona NON in sezione —
  * assenze/riposi COME NEL PDF («A», «AG7», «F.E.»…). Con il solo day-schedule
  * quei codici sono perduti (un assente non entra nella giornata); si
@@ -208,6 +227,10 @@ interface RealEntry {
  * duplicateCognomi)): omonimi con membro LEGATO via user_id — la riga PDF con
  * il SOLO cognome («NEVANO») appartiene al legato (Pietro), gli altri omonimi
  * matchano solo con l'iniziale («NEVANO G.»).
+ *
+ * `duplicateCognomi`: cognomi presenti più volte in anagrafica (anche senza
+ * membro legato) — un PDF con il solo cognome per quei casi è ambiguo, quindi
+ * le extra di gruppo non lo attribuiscono al teorico per cognome.
  */
 export function theoRealSectionCompare(
   month: string,
@@ -217,6 +240,7 @@ export function theoRealSectionCompare(
   realDay: DaySchedule | undefined,
   realCodes?: Map<string, string>,
   bareOwners?: BareOwnerMap | null,
+  duplicateCognomi?: Set<string>,
 ): Map<string, TheoRealSectionCompare> {
   const dateISO = `${month}-${String(day).padStart(2, '0')}`
   // 1) teorico: token per MEMBRO (non collassato per cognome: gli omonimi
@@ -227,6 +251,16 @@ export function theoRealSectionCompare(
   const theoMembers: TheoMember[] = []
   const theoByExact = new Map<string, string>()
   const theoByCognome = new Map<string, string>()
+  // Quanti teorici ATTIVI condividono un cognome: se >1 il cognome nudo nel PDF
+  // è ambiguo (attribuibile solo via bare owner). Serve alle extra di gruppo.
+  const theoCognomeCount = new Map<string, number>()
+  // duplicateCognomi arriva col cognome COME SCRITTO in anagrafica («Nevano»):
+  // normalizzo una volta — le chiavi di confronto qui sono tutte lowercased.
+  const dupCognomi = new Set([...(duplicateCognomi ?? [])].map(normName))
+  // Teorici SENZA sezione (altre presenti attese: trasferte, corsi, tutor…):
+  // nome normalizzato → token atteso. Serve a NON promuovere un gruppo quando
+  // la persona nel gruppo reale era GIÀ prevista lì dal teorico.
+  const theoNoSection = new Map<string, string>()
   for (const type of tree.types) {
     if (!type.is_active) continue
     for (const team of type.teams) {
@@ -237,6 +271,11 @@ export function theoRealSectionCompare(
         const exactKey = normName(member.full_name)
         const cognomeKey = surnameKey(member.full_name)
         theoMembers.push({ exactKey, cognomeKey, token, full: member.full_name, nameNorm: exactKey })
+        theoCognomeCount.set(cognomeKey, (theoCognomeCount.get(cognomeKey) ?? 0) + 1)
+        // «Senza sezione» = token nudo (M/N/P), attività senza sezione (TUTOR)
+        // o presenza senza sezione (Sp*/Dis*): finiscono tutti in altriPresenti.
+        const isNoSection = !isShiftCode(token) || NON_SECTION_DUTIES.has(parseShiftCode(token).section.toUpperCase())
+        if (isNoSection && !ABSENT_CODES.has(token)) theoNoSection.set(exactKey, token)
         theoByExact.set(exactKey, token)
         // Omonimi: la chiave cognome vale solo se NON ambigua; se c'è un legato
         // (user_id) il bare è SUO, quindi la sua sigla vince la collisione.
@@ -256,15 +295,17 @@ export function theoRealSectionCompare(
   }
   // 2) reale: TUTTE le posizioni per cognome (omonimi: «DI NAPOLI M.» e
   //    «DI NAPOLI A.» condividono la chiave e possono essere in sezioni diverse
-  //    lo stesso giorno) + codice PDF per i non-in-sezione.
+  //    lo stesso giorno) + codice PDF per i non-in-sezione. `altriTokenByName`
+  //    conserva il TOKEN dei presenti senza sezione (per il gruppo dell'extra).
   const realByCognome = new Map<string, RealEntry[]>()
+  const altriTokenByName = new Map<string, string>()
   if (realDay) {
     const put = (name: string, shift: string, section: string | null) => {
       const key = surnameKey(name)
       if (!key) return
       const norm = normName(name)
       // Nome BARE (solo cognome) di un cognome con legato: la posizione è del
-      // legato («NEVANO» →nevano p.»), così i match ESATTI per omonimo funzionano.
+      // legato («NEVANO» → «nevano p.»), così i match ESATTI per omonimo funzionano.
       const ownerNorm = bareOwnerOf.get(key)
       const exact = ownerNorm && norm === key ? ownerNorm : norm
       const list = realByCognome.get(key) ?? []
@@ -282,6 +323,9 @@ export function theoRealSectionCompare(
       }
     }
     for (const n of realDay.altriPresenti) put(n, '—', null)
+    for (const { name, token } of realDay.altriPresentiTokens ?? []) {
+      if (!altriTokenByName.has(normName(name))) altriTokenByName.set(normName(name), token)
+    }
   }
 
   const out = new Map<string, TheoRealSectionCompare>()
@@ -292,6 +336,37 @@ export function theoRealSectionCompare(
   }
   const sectionHasRealPeople = (section: string) =>
     [...realByCognome.values()].some(list => list.some(r => r.section === section))
+
+  // 2b) EXTRA DI GRUPPO (richiesta 23/09/2026): reali nelle «altre presenti»
+  //     (trasferte, corsi SP, istruttori, tutor) che il teorico NON prevedeva
+  //     fra le altre presenti → «Nuovi» raggruppati sotto la chiave riservata,
+  //     con tipologia (`group` = classifica del TOKEN reale) e provenienza
+  //     teorica (`theo` = token di origine, anche di sezione: M7S → DisNa).
+  const grExtras: TheoRealExtra[] = []
+  const grSeen = new Set<string>()
+  if (realDay) {
+    for (const n of realDay.altriPresenti) {
+      const norm = normName(n)
+      const key = surnameKey(n)
+      if (!key || grSeen.has(norm)) continue
+      // Già prevista fra le altre presenti dal teorico → confermata, niente extra.
+      if (theoNoSection.has(norm)) continue
+      // Cognome nudo di un OMONIMO (più attivi col cognome, anche senza membro
+      // legato): attribuibile SOLO via bare owner, altrimenti salta.
+      if (norm === key && ((theoCognomeCount.get(key) ?? 0) > 1 || dupCognomi.has(key)) && !bareOwnerOf.has(key)) continue
+      grSeen.add(norm)
+      const theo = theoByExact.get(norm) ?? (norm === key && (theoCognomeCount.get(key) ?? 0) === 1 ? theoByCognome.get(key) : undefined)
+      grExtras.push({
+        name: n,
+        real: '—',
+        theo: theo ?? '',
+        group: classifyAltriToken(altriTokenByName.get(norm) ?? ''),
+      })
+    }
+    if (grExtras.length) {
+      out.set(GRUPPO_EXTRA_KEY, { rows: [], extras: grExtras, theoreticalOnly: false, isGruppo: true })
+    }
+  }
 
   // 3) righe TEORICHE: una per membro previsto IN SERVIZIO con sezione.
   //    Con gli OMONIMI una chiave cognome ha più posizioni reali: prima si
@@ -368,8 +443,10 @@ export function theoRealSectionCompare(
   }
 
   // 5) le sezioni SOLO teoriche (nessun reale) restano con theoreticalOnly=true:
-  //    le righe «assente» bastano a raccontarle.
+  //    le righe «assente» bastano a raccontarle. Il bucket di gruppo non è una
+  //    sezione: non partecipa al calcolo.
   for (const [key, cmp] of out) {
+    if (cmp.isGruppo) continue
     const [section] = key.split('|')
     cmp.theoreticalOnly = !sectionHasRealPeople(section)
   }

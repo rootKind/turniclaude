@@ -29,7 +29,7 @@ try {
   writeFileSync(join(dir, 'altri-gruppi.js'), gruppi)
 
   const { applyTokenToDay, isShiftCode } = await import(pathToFileURL(join(dir, 'shift-tokens.js')).href)
-  const { groupAltriPresenti, classificaAltriToken } = await import(pathToFileURL(join(dir, 'altri-gruppi.js')).href)
+  const { groupAltriPresenti, classificaAltriToken, ALTRI_COLORS } = await import(pathToFileURL(join(dir, 'altri-gruppi.js')).href)
 
   function dayFor(token) {
     const day = { sections: {}, altriPresenti: [], altriPresentiTokens: [] }
@@ -105,6 +105,17 @@ try {
   // classifica diretta
   assert.equal(classificaAltriToken('NDisCas'), 'trasferte')
   assert.equal(classificaAltriToken('GTUTOR'), 'tutor')
+
+  // ── COLORI per gruppo (richiesta 23/09/2026): ogni gruppo ha la sua classe ─
+  for (const gruppo of g) {
+    assert.match(gruppo.colorClass, /^altri-pill-[a-z]+$/, 'classe pill dedicata')
+    assert.equal(gruppo.colorClass, ALTRI_COLORS[gruppo.key], 'classe coerente con ALTRI_COLORS')
+  }
+  assert.equal(ALTRI_COLORS.trasferte, 'altri-pill-trasferte')
+  assert.equal(ALTRI_COLORS.corsi, 'altri-pill-corsi')
+  assert.equal(ALTRI_COLORS.istruttori, 'altri-pill-istruttori')
+  assert.equal(ALTRI_COLORS.tutor, 'altri-pill-tutor')
+  assert.equal(ALTRI_COLORS.altro, 'altri-pill-altro')
 
   console.log('PASS ✓ — tutti i vincoli contrattuali verificati')
 } finally {

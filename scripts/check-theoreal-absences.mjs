@@ -19,9 +19,13 @@ try {
 
   // Il transpile mantiene il path alias: lo riscrivo sul file vicino.
   const tt = transpile(readFileSync('lib/turni-teorici.ts', 'utf8')).replaceAll('@/lib/shift-tokens', './shift-tokens.js')
+    .replaceAll('@/lib/altri-gruppi', './altri-gruppi.js')
   const st = transpile(readFileSync('lib/shift-tokens.ts', 'utf8'))
+  const ag = transpile(readFileSync('lib/altri-gruppi.ts', 'utf8')).replaceAll('@/types/database', './types-stub.js')
+  writeFileSync(join(dir, 'types-stub.js'), 'module.exports = {}\n')
   writeFileSync(join(dir, 'turni-teorici.js'), tt)
   writeFileSync(join(dir, 'shift-tokens.js'), st)
+  writeFileSync(join(dir, 'altri-gruppi.js'), ag)
   const mod = await import(pathToFileURL(join(dir, 'turni-teorici.js')).href)
   const { theoRealSectionCompare } = mod.default ?? mod
 
@@ -91,7 +95,73 @@ try {
     'fallback senza mese v2',
   )
 
-  console.log('OK — sigle assenze dal mese v2, «assente» solo con cella vuota, omonimi e Nuovi invariati')
+  // ── EXTRA DI GRUPPO (23/09/2026): reali SOLO nelle «altre presenti» ───────
+  // GIALLO è atteso fra le altre presenti (DisNa) → confermato, nessuna extra.
+  // SPAGNULO M. non è nell'albero → «Nuovi» di gruppo, tipologia dal TOKEN reale.
+  const treeG = {
+    types: [{
+      is_active: true, cycle_days: 28, pattern_start: '2026-09-14',
+      teams: [{ id: 'tg', members: [
+        { ...member('GIALLO PAOLO'), pattern: ['DisNa'] },
+        { ...member('ROSSI MARIO'), pattern: ['M4S'] },
+      ] }],
+    }],
+  }
+  const realDayG = {
+    sections: {},
+    altriPresenti: ['GIALLO PAOLO', 'SPAGNULO M.'],
+    altriPresentiTokens: [
+      { name: 'GIALLO PAOLO', token: 'DisNa' },
+      { name: 'SPAGNULO M.', token: 'DisNa' },
+    ],
+  }
+  const outG = theoRealSectionCompare('2026-09', 14, treeG, [], realDayG, new Map())
+  const bucket = outG.get('@gruppo')
+  assert.ok(bucket?.isGruppo, 'bucket riservato @gruppo con isGruppo')
+  assert.deepEqual(
+    bucket.extras,
+    [{ name: 'SPAGNULO M.', real: '—', theo: '', group: 'trasferte' }],
+    'extra di gruppo: solo i NON attesi tra le altre presenti',
+  )
+
+  // Cognome nudo AMBIGUO (due teorici omonimi, nessun legato): nessuna extra.
+  const treeO = {
+    types: [{
+      is_active: true, cycle_days: 28, pattern_start: '2026-09-14',
+      teams: [{ id: 'to', members: [
+        { ...member('NERI P.'), pattern: ['M4S'] },
+        { ...member('NERI S.'), pattern: ['M5S'] },
+      ] }],
+    }],
+  }
+  const realDayO = {
+    sections: {},
+    altriPresenti: ['NERI'],
+    altriPresentiTokens: [{ name: 'NERI', token: 'Trasf' }],
+  }
+  const outO = theoRealSectionCompare('2026-09', 14, treeO, [], realDayO, new Map())
+  assert.ok(!outO.has('@gruppo'), 'cognome nudo di omonimo senza legato: non attribuibile')
+
+  // Attesa in SEZIONE, reale in gruppo (M4S → DisNa): extra CON provenienza.
+  const treeS = {
+    types: [{
+      is_active: true, cycle_days: 28, pattern_start: '2026-09-14',
+      teams: [{ id: 'ts', members: [{ ...member('VERDI SIMONE'), pattern: ['M4S'] }] }],
+    }],
+  }
+  const realDayS = {
+    sections: {},
+    altriPresenti: ['VERDI SIMONE'],
+    altriPresentiTokens: [{ name: 'VERDI SIMONE', token: 'NDisNa' }],
+  }
+  const outS = theoRealSectionCompare('2026-09', 14, treeS, [], realDayS, new Map())
+  assert.deepEqual(
+    outS.get('@gruppo')?.extras,
+    [{ name: 'VERDI SIMONE', real: '—', theo: 'M4S', group: 'trasferte' }],
+    'extra di gruppo con provenienza teorica di sezione',
+  )
+
+  console.log('OK — sigle assenze dal mese v2, «assente» solo con cella vuota, omonimi e Nuovi invariati, extra di gruppo con tipologia')
 } finally {
   rmSync(dir, { recursive: true, force: true })
 }

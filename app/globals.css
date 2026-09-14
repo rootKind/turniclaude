@@ -215,6 +215,20 @@
   /* Sala — pill "Altri presenti" (dedicate, non usano --muted) */
   --sala-present-pill-bg: #e6edf5;
   --sala-present-pill-text: #1c1c1c;
+  /* Sala — tinte dei GRUPPI «altre presenti» (richiesta 23/09/2026): ogni
+     tipologia ha la sua pill, distinguibile a colpo d'occhio. Le famiglie
+     richiamano le tinte già usate dall'app (corsi = azzurro Mattina,
+     tutor = viola Notte, trasferte = ambra Pomeriggio). */
+  --altri-pill-trasferte-bg: #ffedd5;
+  --altri-pill-trasferte-text: #9a3412;
+  --altri-pill-corsi-bg: #dbeafe;
+  --altri-pill-corsi-text: #1d4ed8;
+  --altri-pill-istruttori-bg: #ccfbf1;
+  --altri-pill-istruttori-text: #0f766e;
+  --altri-pill-tutor-bg: #ede9fe;
+  --altri-pill-tutor-text: #6d28d9;
+  --altri-pill-altro-bg: #e6edf5;
+  --altri-pill-altro-text: #1c1c1c;
   /* Sala — toolbar (26/08/2026): lo SFONDO della card d'intestazione = corpo delle
      card delle sezioni (come nel tema chiaro, dove già coincidevano); la chip
      selezionata N/M/P = colore del TITOLO delle card delle sezioni (banda titolo). */
@@ -401,6 +415,18 @@
   /* Sala — pill "Altri presenti" — dark */
   --sala-present-pill-bg: #363636;
   --sala-present-pill-text: #f5f5f5;
+  /* Sala — tinte GRUPPI «altre presenti» — dark (stesse famiglie del chiaro:
+     sfondi scuri desaturati + testo brillante, come le pill M/P/N dark). */
+  --altri-pill-trasferte-bg: #3b2300;
+  --altri-pill-trasferte-text: #fbbf24;
+  --altri-pill-corsi-bg: #1e3a5f;
+  --altri-pill-corsi-text: #6fb1fc;
+  --altri-pill-istruttori-bg: #134e4a;
+  --altri-pill-istruttori-text: #5eead4;
+  --altri-pill-tutor-bg: #2d1b69;
+  --altri-pill-tutor-text: #a78bfa;
+  --altri-pill-altro-bg: #363636;
+  --altri-pill-altro-text: #f5f5f5;
   /* Sala — toolbar — dark (26/08/2026): sfondo = corpo card = #171717 (bg-card),
      uniforme con /turniferie dove card d'intestazione e corpi periodo sono già #171717;
      chip selezionato = titolo card (#454545, prima bianco). */
@@ -781,6 +807,12 @@
   .sala-card-tir    { background-color: var(--sala-card-tir-bg); }
   .sala-card-title-sep { border-color: var(--sala-card-title-sep); }
   .sala-present-pill { background-color: var(--sala-present-pill-bg); color: var(--sala-present-pill-text); }
+  /* Tinte dei gruppi «altre presenti» (richiesta 23/09/2026) */
+  .altri-pill-trasferte  { background-color: var(--altri-pill-trasferte-bg);  color: var(--altri-pill-trasferte-text); }
+  .altri-pill-corsi      { background-color: var(--altri-pill-corsi-bg);      color: var(--altri-pill-corsi-text); }
+  .altri-pill-istruttori { background-color: var(--altri-pill-istruttori-bg); color: var(--altri-pill-istruttori-text); }
+  .altri-pill-tutor      { background-color: var(--altri-pill-tutor-bg);      color: var(--altri-pill-tutor-text); }
+  .altri-pill-altro      { background-color: var(--altri-pill-altro-bg);      color: var(--altri-pill-altro-text); }
 
   /* Sala toolbar — sfondo card d'intestazione + chip selezionato + navigazione mese */
   .sala-toolbar-bg   { background-color: var(--sala-toolbar-bg); }

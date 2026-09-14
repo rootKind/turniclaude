@@ -1038,3 +1038,17 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   applyTokenToDay per il raggruppamento; mesi v1 storici → fallback «Altre attività».
   F.E./AG7 restano assenze (utente). Test: scripts/check-altri-gruppi.mjs (moduli reali).
   Verificato live: gruppi per-giorno su mar2026 g2/g5/g12/g22 corretti.
+
+- **Extra di GRUPPO nel teorico≠reale + TINTE (23/09/2026)**: (1) le persone reali presenti
+  SOLO nelle «altre presenti» (trasferte/corsi/…) che il teorico NON prevedeva lì finiscono
+  nei «Nuovi» — theoRealSectionCompare le raccoglie sotto la chiave RISERVATA
+  GRUPPO_EXTRA_KEY='@gruppo' (isGruppo:true, mai in collisione con le sezioni reali), con
+  tipologia (`TheoRealExtra.group` = classifica del TOKEN reale via classificaAltriToken) e
+  provenienza (`theo`, anche di sezione: M7S→DisNa). Confermati in gruppo = attesi anch'essi
+  tra le altre presenti (theoNoSection); cognome nudo di omonimo senza legato o in
+  duplicateCognomi → non attribuibile, niente extra. (2) OGNI gruppo ha una tinta dedicata
+  (ALTRI_COLORS in lib/altri-gruppi.ts → classi .altri-pill-* in globals.css, light+dark:
+  trasferte=ambra, corsi=azzurro, istruttori=teal, tutor=viola, altro=neutro); la riga
+  «Nuovi:» in testa ai gruppi usa la stessa tinta con la provenienza «da <token>».
+  Test: check-theoreal-absences.mjs (bucket, omonimi, provenienza), check-altri-gruppi.mjs
+  (classi coerenti). Verificato live su mar2026 g5/g12/g22 con teorico≠reale ON.
