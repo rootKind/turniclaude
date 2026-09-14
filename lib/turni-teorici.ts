@@ -6,7 +6,7 @@ import type {
   ShiftTeamTree,
   ShiftTypeGroup,
 } from '@/types/database'
-import { ABSENT_CODES, NON_SECTION_DUTIES, applyTokenToDay, isShiftCode, parseShiftCode } from '@/lib/shift-tokens'
+import { ABSENT_CODES, NON_SECTION_DUTIES, applyTokenToDay, isAbsenceCode, isShiftCode, parseShiftCode } from '@/lib/shift-tokens'
 import { classifyAltriToken } from '@/lib/altri-gruppi'
 import { type BareOwnerMap } from '@/lib/shift-teams-matching'
 
@@ -453,8 +453,140 @@ export function theoRealSectionCompare(
   return out
 }
 
+// ─── assenti nel loro turno teorico (blocco «Assenti» di /turnisala, 23/09/2026) ───
 // ─── mesi teorici disponibili ────────────────────────────────────────────────
 // Mesi non caricati a mano, dal mese precedente fino a +12 mesi in avanti.
+
+/**
+ * Persona ASSENTE nel PDF del giorno, con il turno teorico in cui va mostrata.
+ */
+export interface AssenteDelTurno {
+  /** Nome COMPLETO dall'albero teorico (il PDF spesso ha solo il cognome). */
+  name: string
+  /** Sigla PDF com'è («A», «AG7», «F.E.», «VS»…); cade su «assente» se il
+   *  giorno non ha mese v2 (nessuna sigla ricostruibile). */
+  code: string
+  /** Turno teorico della persona (M/P/N): il blocco Assenti la mostra SOLO lì. */
+  theoShift: string
+}
+
+/**
+ * Gli ASSENTI del giorno (A/AG7/F.E./VS/… dal mese v2) attribuiti al LORO
+ * turno teorico: nel blocco «Assenti» compaiono solo sotto M, P o N — mai in
+ * tutti e tre (richiesta 23/09/2026). Una persona senza turno teorico quel
+ * giorno (fuori albero/pattern vuoto/assenza totale) NON compare: il suo
+ * posto resta nelle righe del teorico≠reale.
+ *
+ * Omonimi (convenzione Nevano): il nome BARE del PDF (solo cognome) è del
+ * proprietario del legato; gli omonimi con iniziale matchano il loro nome
+ * esatto. Con due teorici attivi STESSO cognome e nessun legato, il cognome
+ * nudo è ambiguo: nessuna attribuzione.
+ */
+export function assentiPerTurno(
+  month: string,
+  day: number,
+  tree: Pick<ShiftTeamTree, 'types'>,
+  adjustments: ShiftAdjustment[],
+  realCodes?: Map<string, string>,
+  bareOwners?: BareOwnerMap | null,
+  duplicateCognomi?: Set<string>,
+): Map<string, AssenteDelTurno[]> {
+  const dateISO = `${month}-${String(day).padStart(2, '0')}`
+  const dupCognomi = new Set([...(duplicateCognomi ?? [])].map(normName))
+  // Nome COME DELL'ALBERO per ogni chiave normalizzata (il PDF è spesso tutto
+  // maiuscole o solo cognome: il blocco Assenti mostra il nome vero).
+  const originalName = new Map<string, string>()
+  const activeNames = new Set<string>()
+  const theoByExact = new Map<string, { shift: string; token: string }>()
+  const theoByCognome = new Map<string, { shift: string; token: string }>()
+  const cognomeCount = new Map<string, number>()
+  for (const type of tree.types) {
+    if (!type.is_active) continue
+    for (const team of type.teams) {
+      for (const member of team.members) {
+        if (!member.is_active) continue
+        const token = tokenForMember(type, member, team.id, adjustments, dateISO)
+        if (!token) continue
+        const exactKey = normName(member.full_name)
+        const cognomeKey = surnameKey(member.full_name)
+        activeNames.add(exactKey)
+        originalName.set(exactKey, member.full_name)
+        cognomeCount.set(cognomeKey, (cognomeCount.get(cognomeKey) ?? 0) + 1)
+        theoByExact.set(exactKey, { shift: token[0].toUpperCase(), token })
+        if (!theoByCognome.has(cognomeKey) || member.user_id) theoByCognome.set(cognomeKey, { shift: token[0].toUpperCase(), token })
+      }
+    }
+  }
+  const bareOwnerOf = new Map<string, string>()
+  if (bareOwners?.size) {
+    for (const [key, owner] of bareOwners) {
+      if (theoByExact.has(owner.nameNorm)) bareOwnerOf.set(key, owner.nameNorm)
+    }
+  }
+  const out = new Map<string, AssenteDelTurno[]>()
+  if (!realCodes?.size) return out
+  // realCodes ha DUE chiavi per persona (cognome + nome normalizzato, stessa
+  // sigla): una persona risolta va contata una volta sola.
+  const seenPersons = new Set<string>()
+  for (const [key, code] of realCodes) {
+    if (!isAbsenceCode(code)) continue
+    const k = normName(key)
+    const bare = k === key
+    const ownerNorm = bareOwnerOf.get(k)
+    const lastTok = k.split(' ').pop() ?? ''
+    const initial = /^[a-z]\.?$/.test(lastTok) ? lastTok[0] : null
+    // Cognome BASE (senza iniziale): «neri g.» → «neri». Con gli omonimi conta
+    // quello, non la chiave completa.
+    const base = initial ? k.slice(0, k.length - lastTok.length - 1) : k
+    const omonimo = (cognomeCount.get(base) ?? 0) > 1
+    let theo: { shift: string; token: string } | undefined
+    let name: string | undefined
+    if (bare && ownerNorm) {
+      // Il bare del legato è già stato riscritto sul proprietario («NEVANO» →
+      // Nevano P.): l'assenza è sua.
+      theo = theoByExact.get(ownerNorm)
+      name = ownerNorm
+    } else if (initial) {
+      // PDF con INIZIALE («NERI G.» / «NEVANO G.»): risale al membro il cui
+      // nome inizia con cognome+lettera; 0 o 2+ match → non attribuibile.
+      const ms = [...theoByExact.keys()].filter(n => n.startsWith(`${base} ${initial}`))
+      if (ms.length !== 1) continue
+      theo = theoByExact.get(ms[0])
+      name = ms[0]
+    } else {
+      // Cognome nudo SENZA iniziale di omonimo (più attivi nell'albero o
+      // duplicato anagrafico) e senza legato: ambiguo → nessuna attribuzione.
+      if (omonimo || dupCognomi.has(base)) continue
+      // Match esatto, poi fallback sul cognome, poi prefisso UNICO
+      // («ROSSI» → albero «ROSSI MARIO» se è l'unico Rossi).
+      theo = theoByExact.get(k) ?? theoByCognome.get(base)
+      if (!theo) {
+        const ms = [...theoByExact.keys()].filter(n => n === base || n.startsWith(`${base} `))
+        if (ms.length !== 1) continue
+        theo = theoByExact.get(ms[0])
+        name = ms[0]
+      } else {
+        name = k
+      }
+    }
+    if (!theo || !name) continue
+    // Nome VERO dell'albero, quando la persona è risolta su un membro noto.
+    name = originalName.get(name) ?? name
+    // Solo turni VERI: un membro il cui pattern è essa stessa un'assenza non
+    // ha un turno M/P/N in cui mostrarlo.
+    if (!['M', 'P', 'N'].includes(theo.shift)) continue
+    if (seenPersons.has(name)) continue
+    seenPersons.add(name)
+    const arr = out.get(theo.shift) ?? []
+    if (!arr.some(a => normName(a.name) === normName(name))) {
+      arr.push({ name, code, theoShift: theo.shift })
+      out.set(theo.shift, arr)
+    }
+  }
+  // Ordine stabile dentro ogni turno: alfabetico per nome normalizzato.
+  for (const arr of out.values()) arr.sort((a, b) => normName(a.name).localeCompare(normName(b.name)))
+  return out
+}
 
 export function theoreticalMonthList(
   uploadedMonths: string[],

@@ -57,6 +57,22 @@ export const ABSENT_CODES = new Set([
   'A', 'AG', 'F', 'RM', 'RC', 'RI', 'VS', 'D',
 ])
 
+/**
+ * Famiglia ASSENZE del PDF (richiesta 23/09/2026, blocco «Assenti» di
+ * /turnisala): i codici base (ABSENT_CODES) più le varianti con qualificatore
+ * che il PDF aggiunge («AG7», «F.E.» = ferie estiva). NON sono assenze le
+ * presenze/attività invisibili per decisione utente (G, GIAP, GRicTir, TIR,
+ * Na, MSb, 12.14…): restano fuori dal blocco Assenti.
+ */
+export function isAbsenceCode(token: string): boolean {
+  const t = (token ?? '').trim()
+  if (!t) return false
+  if (ABSENT_CODES.has(t)) return true
+  if (/^AG\d+$/i.test(t)) return true
+  if (/^F\.?E\.?$/i.test(t)) return true
+  return false
+}
+
 export function isPresentNoSection(token: string): boolean {
   if (ABSENT_CODES.has(token)) return false
   // Famiglie case-insensitive: il PDF mescola maiuscole (SpN/SPN/spn, SPCA,

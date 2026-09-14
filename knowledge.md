@@ -1052,3 +1052,17 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   «Nuovi:» in testa ai gruppi usa la stessa tinta con la provenienza «da <token>».
   Test: check-theoreal-absences.mjs (bucket, omonimi, provenienza), check-altri-gruppi.mjs
   (classi coerenti). Verificato live su mar2026 g5/g12/g22 con teorico≠reale ON.
+
+- **ASSENTI per turno teorico su /turnisala (23/09/2026)**: il blocco in fondo alla board
+  mostra anche gli ASSENTI (famiglia isAbsenceCode in shift-tokens.ts: A/AG/RI/RC/RM/VS/F…),
+  ognuno SOLO nel turno teorico (M/P/N) in cui era previsto — mai ripetuto sugli altri turni
+  (richiesta utente). assentiPerTurno(month, day, tree, adjustments, realCodes, bareOwners,
+  duplicateCognomi) in turni-teorici.ts risolve la chiave PDF (cognome nudo o con iniziale)
+  contro l'albero squadre (convenzione nome completo O iniziale: cognomeCount sul cognome
+  BASE, non sulla chiave). Regole omonimi: bare del legato → owner (bareOwnerOf); con
+  iniziale → match prefisso unico (0 o 2+ match → non attribuito); bare di omonimo
+  (cognomeCount>1 o duplicateCognomi) → NON attribuito. Dedup persona (realCodes ha 2 chiavi
+  per persona: cognome + nome). Board: memo realCodesForDay condivisa con theo≠real, righe
+  M/P/N condizionate, tinta cell-tint-abs, nome mostrato come nell'albero. Test:
+  scripts/check-assenti.mjs (moduli transpilati). Live mar2026 g3–14: 93 assenti, 0
+  duplicati, iniziali risolte (Esposito Al., Loni G., Romano N.).

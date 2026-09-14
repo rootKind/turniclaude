@@ -15,7 +15,7 @@ import { decodeSalaMonth } from '@/lib/sala-month'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName, matchesCognome } from '@/lib/utils'
 import { buildBareOwners, lookupNameDisplay, type BareOwnerMap } from '@/lib/shift-teams-matching'
-import { GRUPPO_EXTRA_KEY, normName, theoRealSectionCompare, surnameKey, type TheoRealExtra, type TheoRealSectionCompare } from '@/lib/turni-teorici'
+import { GRUPPO_EXTRA_KEY, assentiPerTurno, normName, theoRealSectionCompare, surnameKey, type AssenteDelTurno, type TheoRealExtra, type TheoRealSectionCompare } from '@/lib/turni-teorici'
 import { useAllDuplicateCognomi, useAllUsersForNames } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
@@ -532,26 +532,26 @@ export function DeskBoard({
     },
     [nameDisplay],
   )
+  // Codici PDF del giorno (mese v2) per le persone NON in sezione — assenze/
+  // riposi COME NEL PDF («A», «AG7», «F.E.», «VS»…). Serve al teorico≠reale E
+  // al blocco «Assenti»: memo condivisa, un solo decode per giorno.
+  const realCodesForDay: Map<string, string> | undefined = useMemo(() => {
+    if (!schedule?.data) return undefined
+    const map = new Map<string, string>()
+    for (const p of decodeSalaMonth(schedule.data)) {
+      const code = p.days[selectedDay - 1] ?? ''
+      if (!code) continue
+      const key = surnameKey(p.name)
+      if (key && !map.has(key)) map.set(key, code)
+      map.set(normName(p.name), code)
+    }
+    return map
+  }, [schedule, selectedDay])
   const theoCompareBySection = useMemo(() => {
     if (!theoDiffEnabled || !shiftTree || !schedule) return new Map<string, TheoRealSectionCompare>()
     const day = schedule.schedule[selectedDay]
-    // Codici PDF del giorno per le persone NON in sezione (assenza/riposo):
-    // dal mese compatto v2, che conserva le celle originali del PDF. Due chiavi:
-    // nome normalizzato ESATTO (gli omonimi hanno celle diverse) e chiave
-    // cognome (fallback: vince il primo trovato).
-    let realCodes: Map<string, string> | undefined
-    if (schedule.data) {
-      realCodes = new Map()
-      for (const p of decodeSalaMonth(schedule.data)) {
-        const code = p.days[selectedDay - 1] ?? ''
-        if (!code) continue
-        const key = surnameKey(p.name)
-        if (key && !realCodes.has(key)) realCodes.set(key, code)
-        realCodes.set(normName(p.name), code)
-      }
-    }
-    return theoRealSectionCompare(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day, realCodes, bareOwners, duplicateCognomi)
-  }, [theoDiffEnabled, shiftTree, schedule, selectedDay, currentMonth, bareOwners, duplicateCognomi])
+    return theoRealSectionCompare(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day, realCodesForDay, bareOwners, duplicateCognomi)
+  }, [theoDiffEnabled, shiftTree, schedule, selectedDay, currentMonth, realCodesForDay, bareOwners, duplicateCognomi])
   // Confronto per CARD: la card guarda la sua sezione collegata (sectionKey o titolo).
   const theoCompareByCardId = useMemo(() => {
     const map = new Map<string, TheoRealSectionCompare>()
@@ -575,6 +575,16 @@ export function DeskBoard({
       (a, b) => order.indexOf(a.group ?? 'altro') - order.indexOf(b.group ?? 'altro'),
     )
   }, [theoCompareBySection])
+
+  // BLOCCO «ASSENTI» (richiesta 23/09/2026): chi nel PDF del giorno ha una
+  // sigla di assenza (A/AG7/F.E./VS…), attribuito al SOLO turno teorico della
+  // persona — mai in tutti e tre. Righe con tinta assenza (come le celle
+  // «Il tuo turno»), sempre visibili anche fuori dalla vista teorico≠reale:
+  // sono fatti reali del PDF, non confronti.
+  const assenti: Map<string, AssenteDelTurno[]> = useMemo(() => {
+    if (!shiftTree) return new Map()
+    return assentiPerTurno(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, realCodesForDay, bareOwners, duplicateCognomi)
+  }, [shiftTree, currentMonth, selectedDay, realCodesForDay, bareOwners, duplicateCognomi])
 
   const scheduleSections: string[] = schedule
     ? [...new Set([
@@ -841,7 +851,7 @@ export function DeskBoard({
           d'occhio. In testa, solo in vista teorico≠reale, i «Nuovi» di GRUPPO:
           reali presenti SOLO nelle altre presenti che il teorico non prevedeva
           lì, con la tinta della tipologia e la provenienza «da <token>». */}
-      {(gruppoExtras.length > 0 || altriGruppi.length > 0) && (
+      {(gruppoExtras.length > 0 || altriGruppi.length > 0 || assenti.size > 0) && (
         <div className="flex flex-col gap-1 pt-1 border-t border-border/40">
           {gruppoExtras.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
@@ -868,6 +878,22 @@ export function DeskBoard({
                   </span>
                 )
               })}
+            </div>
+          ))}
+          {/* ASSENTI per turno teorico (23/09/2026): solo nel turno N/M/P in cui
+              la persona era prevista, mai ripetuta sugli altri. Tinta assenza. */}
+          {(['M', 'P', 'N'] as const).filter(s => assenti.get(s)?.length).map(s => (
+            <div key={s} className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-semibold text-muted-foreground shrink-0 w-4">{s}</span>
+              {assenti.get(s)!.map((a, i) => (
+                <span
+                  key={i}
+                  className="text-xs px-2 py-0.5 rounded-full cell-tint-abs"
+                >
+                  {displayForPdfName(a.name)}
+                  <span className="tabular-nums font-semibold opacity-80"> {a.code}</span>
+                </span>
+              ))}
             </div>
           ))}
         </div>
