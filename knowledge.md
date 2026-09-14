@@ -996,3 +996,23 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (prima duplicava lo stato in useState locale). /tuoturno, /turnisala, /dashboard,
   /notifiche, /impostazioni: i loro loading.tsx/skeleton sono SOLO attese tecniche SSR/fetch
   — già mitigati dal cache-first (messe IDB, anagrafiche 6h).
+
+- **Misurazione click→contenuto su PROD (21/09/2026)**: script riusabile scripts/measure-nav-prod.mjs
+  (artefatto measure-nav-prod.json) su `next build && next start`, viewport mobile, Fast 3G CDP
+  (150ms RTT, 1.6Mbps/750Kbps), catena di click reali sulla bottom-nav. Cold: tutte le pagine
+  ~0,8–1,4 s (il pavimento è 1 RTT documento + SSR + ~700ms JS/TTFB su Fast 3G; /turnisala
+  +540ms di query SSR). Warm: gruppi a toggle ~0,8s (SSR per-query), selettori raggruppati
+  0,2–0,4s, /impostazioni ~40ms (RSC prefetch), cache-first /tuoturno zero REST mes.
+  Nota tecnica: throttling CDP è PER-PAGE (non per-context); i bottoni «Turni Sala e Ferie»/
+  «Cambi» togglano nel gruppo se già dentro → per automatizzare serve re-seedare le chiavi
+  turni-last-page/cambi-last-page a ogni passata. Le leve residue di ottimizzazione restano
+  la transizione 200ms e il fetch speculativo del mese iniziale /turnisala.
+
+- **Prefetch nav (21/09/2026)**: i bottoni gruppo «Turni Sala e Ferie»/«Cambi» della bottom-nav
+  erano router.push (niente prefetch) → ogni navigazione SSR pagava l'intero round-trip (~830ms
+  warm su Fast 3G). Convertiti in <Link prefetch> con href dinamico (stesso comportamento di
+  toggle/last-page), aggiunto prefetch anche a «Il tuo turno» e alla campanella notifiche.
+  RISULTATO (build prod, Fast 3G): warm 820-860ms → 30-63ms su TUTTE le pagine; cold: turnisala
+  1362→62ms (prefetch serve l'RSC durante l'idratazione della pagina di partenza), turniferie
+  resta ~830ms (prima della catena, niente prefetched), il resto cold 40-850ms. Leva residua:
+  solo la transizione 200ms di PageTransitionWrapper.

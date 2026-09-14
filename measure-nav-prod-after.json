@@ -1,0 +1,117 @@
+{
+  "base": "http://localhost:3000",
+  "throttle": "Fast 3G (150ms RTT, 1.6Mbps/750Kbps)",
+  "scenario": {
+    "cold": {
+      "label": "cold",
+      "pages": {
+        "turnisala": {
+          "ms": 62,
+          "rest": 2,
+          "kb": 0
+        },
+        "turniferie": {
+          "ms": 836,
+          "rest": 5,
+          "kb": 29
+        },
+        "vacanze": {
+          "ms": 40,
+          "rest": 3,
+          "kb": 0
+        },
+        "dashboard": {
+          "ms": 852,
+          "rest": 1,
+          "kb": 26
+        },
+        "tuoturno": {
+          "ms": 38,
+          "rest": 1,
+          "kb": 0
+        },
+        "impostazioni": {
+          "ms": 51,
+          "rest": 0,
+          "kb": 0
+        },
+        "notifiche": {
+          "ms": 49,
+          "rest": 0,
+          "kb": 0
+        }
+      },
+      "rest": [
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/sala_schedule",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/users",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_types",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_teams",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_team_members",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_adjustments",
+        "https://uokfixddsuqcjddbfkln.supabase.co/auth/v1/user",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_assignments",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_year_overrides",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/users",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/users",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_requests",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_year_overrides",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_assignments",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_year_overrides",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_year_overrides",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shifts",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/sala_schedule"
+      ],
+      "bytes": 388813
+    },
+    "warm": {
+      "label": "warm",
+      "pages": {
+        "turnisala": {
+          "ms": 54,
+          "rest": 0,
+          "kb": 0
+        },
+        "turniferie": {
+          "ms": 47,
+          "rest": 2,
+          "kb": 0
+        },
+        "vacanze": {
+          "ms": 31,
+          "rest": 2,
+          "kb": 0
+        },
+        "dashboard": {
+          "ms": 49,
+          "rest": 0,
+          "kb": 0
+        },
+        "tuoturno": {
+          "ms": 55,
+          "rest": 1,
+          "kb": 0
+        },
+        "impostazioni": {
+          "ms": 48,
+          "rest": 0,
+          "kb": 0
+        },
+        "notifiche": {
+          "ms": 34,
+          "rest": 0,
+          "kb": 0
+        }
+      },
+      "rest": [
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/sala_schedule",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_assignments",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_year_overrides",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_year_overrides",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_assignments",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/vacation_year_overrides",
+        "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/sala_schedule"
+      ],
+      "bytes": 293532
+    }
+  }
+}

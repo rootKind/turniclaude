@@ -14,6 +14,7 @@ export function NotificationBell() {
   return (
     <Link
       href="/notifiche"
+      prefetch={true}
       className="fixed top-[calc(env(safe-area-inset-top,0px)_+_1rem)] right-4 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-background border border-border shadow-sm hover:bg-muted transition-colors"
       aria-label={unreadCount > 0 ? `${unreadCount} notifiche non lette` : 'Notifiche'}
     >

@@ -377,8 +377,9 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
                 l'altra, 'Cambi' sotto. Si illumina SOLO la freccia della pagina attiva: su
                 /dashboard → 'Turni', su /vacanze ← 'Ferie' (foreground+bold+stroke 2.5); l'altra
                 resta muted. 'Cambi' evidenziato quando si è su una delle due. */}
-            <button
-              onClick={() => router.push(isCambi ? (pathname === '/dashboard' ? '/vacanze' : '/dashboard') : cambiLastPage)}
+            <Link
+              href={isCambi ? (pathname === '/dashboard' ? '/vacanze' : '/dashboard') : cambiLastPage}
+              prefetch={true}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
               aria-label="Cambi"
             >
@@ -393,12 +394,13 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
                 </span>
               </div>
               <span className={cn('text-[10px]', isCambi ? 'text-foreground' : 'text-muted-foreground')}>Cambi</span>
-            </button>
+            </Link>
 
             {/* 'Il tuo turno': icona calendario singolo che apre la mia piantina personale (/tuoturno).
                 Concettualmente distinta da 'Cambi' (frecce-scambio) e da 'Turni' (calendario+palma), anche
                 se condivide l'icona calendario con 'Turni'. */}            <Link
               href="/tuoturno"
+              prefetch={true}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
               aria-label="Il tuo turno"
             >
@@ -538,9 +540,11 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
               )}
             </div>
 
-            <button
-              onClick={() => router.push(isTurni ? (pathname === '/turnisala' ? '/turniferie' : '/turnisala') : turniLastPage)}
+            <Link
+              href={isTurni ? (pathname === '/turnisala' ? '/turniferie' : '/turnisala') : turniLastPage}
+              prefetch={true}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
+              aria-label="Turni Sala e Ferie"
             >
               <div className="flex items-center gap-0.5">
                 <Calendar
@@ -556,7 +560,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
                 />
               </div>
               <span className={cn('text-[10px] whitespace-nowrap', isTurni ? 'text-foreground' : 'text-muted-foreground')}>Turni Sala e Ferie</span>
-            </button>
+            </Link>
 
             {rightLinks.map(({ href, icon: Icon, label, badge }) => (
               <NavItem key={href} href={href} icon={Icon} label={label} badge={badge} active={pathname === href} />
