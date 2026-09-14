@@ -925,3 +925,14 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   admin show_in_compare (nascosti assenti da ENTRAMBI i menu; l'utente corrente nascosto resta
   selezionabile come «tu» perché lo switch del confronto lo include comunque). filteredUsers
   (lista piatta alfabetica) eliminata.
+- **Upload PDF multiplo /turnisala (19/09/2026):** il FAB admin accetta N PDF (input `multiple`).
+  Flusso: input → POST /api/admin/detect-pdf-month (solo LETTURA testo con pdf-parse, niente
+  parse completo) → dialog di RIEPILOGO con per ogni file: nome, mese/anno rilevati
+  (lib/pdf-month-detect.ts: forme «Settembre 2026», «2026-09», «09/2026»; punteggi cumulati
+  fra pagine; parimerito → null = scelta manuale), etichette «duplicato»/«bassa confidenza»/
+  «mese già presente: sarà sovrascritto», menù mese/anno di correzione → bottone «Conferma e
+  carica (N)» → onUploadBatch esegue in sequenza, salta sul primo mese caricato, mette in coda
+  i popup di pulizia cambi uno per mese. Il vecchio prop onUpload è sostituito da
+  onUploadBatch (il singolo file è il caso N=1). Falsi positivi cognomi (MARZANO, MAGGIO)
+  evitati con match a forma esatta + confini di parola e segnale debole senza anno.
+  Test: scripts/check-pdf-month-detect.mjs.

@@ -47,7 +47,7 @@ function DroppableCell({ id, children, isEditing }: { id: string; children: Reac
 
 const KNOWN_SECTIONS = ['1', '2', '3', '4', '5', '6', '7', '8']
 
-const MONTHS_IT = [
+export const MONTHS_IT = [
   'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
   'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
 ]
@@ -133,7 +133,10 @@ interface Props {
   /** Albero squadre: serve alla vista «Teorico ≠ reale» (solo admin). */
   shiftTree?: ShiftTeamTree | null
   onMonthChange: (month: string) => Promise<void>
-  onUpload: (file: File, month: string) => Promise<void>
+  /** Upload MULTIPLI (19/09/2026): il board passa l'intero lotto confermato
+   *  [{file, month}] a sala-page-client, che lo esegue in sequenza e mette in
+   *  coda i cleanup di ogni mese. Un file solo è il caso particolare N=1. */
+  onUploadBatch: (items: Array<{ file: File; month: string }>) => Promise<void>
   onDeleteMonth: (month: string) => Promise<void>
   onColorChange?: (month: string, day: number, name: string, color: string | null) => void
 }
@@ -151,7 +154,7 @@ export function DeskBoard({
   theoreticalMonths,
   shiftTree,
   onMonthChange,
-  onUpload,
+  onUploadBatch,
   onDeleteMonth,
   onColorChange,
 }: Props) {
@@ -180,12 +183,17 @@ export function DeskBoard({
   const [deletingMonth, setDeletingMonth] = useState<string | null>(null)
 
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
-  const [pendingFile, setPendingFile] = useState<File | null>(null)
-  // Default the upload month to the month currently being viewed (not next month)
-  const [uploadMonth, setUploadMonth] = useState(() => {
-    const [y, m] = currentMonth.split('-').map(Number)
-    return { year: y, month: m }
-  })
+  /* Upload MULTIPLI (19/09/2026): input accetta N PDF → /api/admin/detect-pdf-month
+     deduce mese+anno da OGNI file → dialog di RIEPILOGO con correzione manuale →
+     conferma → onUploadBatch. Sostituisce il vecchio flow «1 file + menù mese». */
+  interface UploadRow {
+    file: File
+    month: string | null      // rilevato o corretto dall'admin (null = da risolvere)
+    confidence: number
+    error?: string
+  }
+  const [pendingFiles, setPendingFiles] = useState<UploadRow[] | null>(null)
+  const [analyzing, setAnalyzing] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -370,21 +378,43 @@ export function DeskBoard({
   }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
     e.target.value = ''
-    const [y, m] = currentMonth.split('-').map(Number)
-    setUploadMonth({ year: y, month: m })
-    setPendingFile(file)
+    const pdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf') || f.type === 'application/pdf')
+    const rejected = files.length - pdfs.length
+    if (rejected > 0) toast.info(`${rejected} file ignorati (solo PDF)`)
+    if (pdfs.length === 0) return
+    setAnalyzing(true)
+    setPendingFiles(pdfs.map(f => ({ file: f, month: null, confidence: 0 })))
+    const fd = new FormData()
+    for (const f of pdfs) fd.append('files', f)
+    fetch('/api/admin/detect-pdf-month', { method: 'POST', body: fd })
+      .then(async res => {
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Rilevamento fallito')
+        return res.json() as Promise<{ results: Array<{ fileName: string; month: string | null; confidence: number; error?: string }> }>
+      })
+      .then(({ results }) => {
+        const byName = new Map(results.map(r => [r.fileName, r]))
+        setPendingFiles(pdfs.map(f => {
+          const r = byName.get(f.name)
+          return { file: f, month: r?.month ?? null, confidence: r?.confidence ?? 0, error: r?.error }
+        }))
+      })
+      .catch(err => {
+        toast.error('Errore rilevamento: ' + (err as Error).message)
+        setPendingFiles(null)
+      })
+      .finally(() => setAnalyzing(false))
   }
 
-  const handleConfirmUpload = async () => {
-    if (!pendingFile) return
-    const month = `${uploadMonth.year}-${String(uploadMonth.month).padStart(2, '0')}`
-    setPendingFile(null)
+  const confirmUploadBatch = async () => {
+    const items = pendingFiles?.filter((r): r is UploadRow & { month: string } => !!r.month) ?? []
+    if (items.length === 0) return
+    setPendingFiles(null)
     setUploading(true)
     try {
-      await onUpload(pendingFile, month)
+      await onUploadBatch(items.map(it => ({ file: it.file, month: it.month })))
     } catch (err) {
       toast.error('Errore upload: ' + (err as Error).message)
     } finally {
@@ -693,7 +723,8 @@ export function DeskBoard({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf"
+              accept=".pdf,application/pdf"
+              multiple
               className="hidden"
               onChange={handleFileChange}
             />
@@ -795,47 +826,87 @@ export function DeskBoard({
         </div>
       )}
 
-      {/* Upload month picker dialog */}
-      {pendingFile && (
+      {/* Upload multiplo: riepilogo con mese/anno rilevati + conferma (19/09/2026) */}
+      {pendingFiles && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-card rounded-xl shadow-xl w-full max-w-xs flex flex-col gap-4 p-5">
-            <h2 className="text-sm font-semibold">Mese del PDF</h2>
-            <p className="text-xs text-muted-foreground truncate" title={pendingFile.name}>
-              {pendingFile.name}
-            </p>
-            <div className="flex gap-2">
-              <select
-                value={uploadMonth.month}
-                onChange={e => setUploadMonth(prev => ({ ...prev, month: Number(e.target.value) }))}
-                className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary"
-              >
-                {MONTHS_IT.map((label, i) => (
-                  <option key={i + 1} value={i + 1}>{label}</option>
-                ))}
-              </select>
-              <select
-                value={uploadMonth.year}
-                onChange={e => setUploadMonth(prev => ({ ...prev, year: Number(e.target.value) }))}
-                className="w-24 px-2 py-1.5 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary"
-              >
-                {/* Current year plus past years (uploads are often backfilled) */}
-                {[currentYear, currentYear - 1, currentYear - 2].map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-md flex flex-col gap-3 p-5 max-h-[85vh]">
+            <div>
+              <h2 className="text-sm font-semibold">Riepilogo caricamento PDF</h2>
+              <p className="text-xs text-muted-foreground">
+                {analyzing
+                  ? 'Analisi dei file… (mese e anno letti dal contenuto)'
+                  : `${pendingFiles.filter(r => r.month).length} di ${pendingFiles.length} file con mese rilevato — verifica e conferma`}
+              </p>
             </div>
-            <div className="flex gap-2 justify-end">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-2 -mx-1 px-1">
+              {pendingFiles.map((row, i) => {
+                const dup = !!row.month && pendingFiles.filter(r => r.month === row.month).length > 1
+                const existing = !!row.month && availableMonths.includes(row.month)
+                const setRowMonth = (y: number, m: number) =>
+                  setPendingFiles(prev =>
+                    prev?.map((r, ri) => (ri === i ? { ...r, month: `${y}-${String(m).padStart(2, '0')}`, confidence: 1 } : r)) ?? prev,
+                  )
+                const [yy, mm] = (row.month ?? `${currentYear}-${String(currentMonth.split('-')[1]).padStart(2, '0')}`).split('-').map(Number)
+                return (
+                  <div key={i} className="rounded-lg border bg-background/50 px-2.5 py-2 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium flex-1 min-w-0 truncate" title={row.file.name}>{row.file.name}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{(row.file.size / 1024).toFixed(0)} KB</span>
+                    </div>
+                    {row.error ? (
+                      <p className="text-[11px] text-destructive">Errore lettura: {row.error}</p>
+                    ) : analyzing ? (
+                      <p className="text-[11px] text-muted-foreground">Rilevamento…</p>
+                    ) : row.month ? (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] font-semibold text-primary uppercase">
+                          {MONTHS_IT[mm - 1]} {yy}
+                        </span>
+                        {row.confidence < 0.6 && <span className="text-[10px] text-amber-600 dark:text-amber-400">bassa confidenza</span>}
+                        {dup && <span className="text-[10px] text-amber-600 dark:text-amber-400">duplicato!</span>}
+                        {!dup && existing && <span className="text-[10px] text-muted-foreground">mese già presente: sarà sovrascritto</span>}
+                        {dup && existing && <span className="text-[10px] text-muted-foreground">mese già presente: sarà sovrascritto</span>}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400">Mese non rilevato: scegli a mano qui sotto</p>
+                    )}
+                    <div className="flex gap-1.5">
+                      <select
+                        value={mm}
+                        onChange={e => setRowMonth(yy, Number(e.target.value))}
+                        className="flex-1 px-2 py-1 rounded-lg border border-border bg-background text-xs outline-none focus:border-primary"
+                      >
+                        {MONTHS_IT.map((label, mi) => (
+                          <option key={mi + 1} value={mi + 1}>{label}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={yy}
+                        onChange={e => setRowMonth(Number(e.target.value), mm)}
+                        className="w-24 px-2 py-1 rounded-lg border border-border bg-background text-xs outline-none focus:border-primary"
+                      >
+                        {[currentYear, currentYear + 1, currentYear - 1, currentYear - 2].map(y => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex gap-2 justify-end items-center">
               <button
-                onClick={() => setPendingFile(null)}
+                onClick={() => setPendingFiles(null)}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition-colors"
               >
                 Annulla
               </button>
               <button
-                onClick={handleConfirmUpload}
-                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                onClick={confirmUploadBatch}
+                disabled={analyzing || pendingFiles.filter(r => r.month).length === 0}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                Carica
+                Conferma e carica ({pendingFiles.filter(r => r.month).length})
               </button>
             </div>
           </div>

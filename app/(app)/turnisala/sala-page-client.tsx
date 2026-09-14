@@ -1,11 +1,18 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+
+/** «2026-09» → «set 2026» per i toast del batch (etichetta breve). */
+function formatMonthShort(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  return `${(MONTHS_IT[m - 1] ?? '').slice(0, 3)} ${y}`
+}
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { upsertSalaLayout } from '@/lib/queries/sala-layout'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
 import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { generateTheoreticalMonth } from '@/lib/turni-teorici'
-import { DeskBoard } from '@/components/sala/desk-board'
+import { DeskBoard, MONTHS_IT } from '@/components/sala/desk-board'
 import { ShiftCleanupDialog } from '@/components/admin/shift-cleanup-dialog'
 import type { ShiftCleanupCandidate } from '@/lib/queries/shift-cleanup'
 import type { SalaLayout, SalaSchedule, ShiftTeamTree } from '@/types/database'
@@ -66,8 +73,11 @@ export function SalaPageClient({
   // browser) lasciando la pagina senza teorico né vista «Teorico ≠ reale».
   const [shiftTree, setShiftTree] = useState<ShiftTeamTree | null>(initialShiftTree)
   const [treeError, setTreeError] = useState(false)
-  // Richieste di cambio già esaudite dal PDF appena caricato: popup di conferma.
+  // Richieste di cambio già esaudite dai PDF appena caricati: popup di conferma.
+  // Upload MULTIPLI (19/09/2026): i candidati di OGNI mese finiscono in coda;
+  // il dialog li mostra uno alla volta (shift-cleanup-dialog è per un mese).
   const [cleanup, setCleanup] = useState<{ month: string; candidates: ShiftCleanupCandidate[] } | null>(null)
+  const cleanupQueue = useRef<Array<{ month: string; candidates: ShiftCleanupCandidate[] }>>([])
 
   // Ref per rigenerare il mese teorico quando i dati delle squadre arrivano
   // (es. navigazione avvenuta prima del caricamento iniziale).
@@ -120,7 +130,7 @@ export function SalaPageClient({
     setSchedule(data ?? (shiftTree ? generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments) : null))
   }
 
-  const handleUpload = async (file: File, month: string) => {
+  const uploadOne = async (file: File, month: string) => {
     const fd = new FormData()
     fd.append('pdf', file)
     fd.append('month', month)
@@ -132,15 +142,53 @@ export function SalaPageClient({
     const body = (await res.json().catch(() => null)) as
       | { cleanup?: { candidates?: ShiftCleanupCandidate[] } }
       | null
-    const supabase = createClient()
-    const data = await getSalaSchedule(supabase, month)
-    setSchedule(data)
-    setCurrentMonth(month)
-    setAvailableMonths(prev =>
-      prev.includes(month) ? prev : [month, ...prev].sort((a, b) => b.localeCompare(a)),
-    )
     const candidates = body?.cleanup?.candidates ?? []
-    if (candidates.length > 0) setCleanup({ month, candidates })
+    return { month, candidates, schedule: null as SalaSchedule | null }
+  }
+
+
+
+  /**
+   * Upload MULTIPLI (19/09/2026): esegue i caricamenti in sequenza (l'ordine
+   * non conta: ogni mese è indipendente), aggiorna l'elenco dei mesi disponibili
+   * e SALTA sul primo mese appena caricato. I cleanup di ogni mese vanno in
+   * coda e il popup li mostra uno alla volta alla fine del batch.
+   */
+  const handleUploadBatch = async (items: Array<{ file: File; month: string }>) => {
+    const supabase = createClient()
+    const months: string[] = []
+    const failures: string[] = []
+    const queued: Array<{ month: string; candidates: ShiftCleanupCandidate[] }> = []
+    for (const { file, month } of items) {
+      try {
+        const { candidates } = await uploadOne(file, month)
+        months.push(month)
+        if (candidates.length > 0) queued.push({ month, candidates })
+      } catch (err) {
+        failures.push(`${month}: ${(err as Error).message}`)
+      }
+    }
+    if (months.length > 0) {
+      setAvailableMonths(prev =>
+        [...new Set([...months, ...prev])].sort((a, b) => b.localeCompare(a)),
+      )
+      const first = months.sort((a, b) => a.localeCompare(b))[0]
+      const data = await getSalaSchedule(supabase, first)
+      setSchedule(data)
+      setCurrentMonth(first)
+      toast.success(`${months.length} mes${months.length === 1 ? 'e caricato' : 'i caricati'}: ${months.map(formatMonthShort).join(', ')}`)
+    }
+    if (failures.length > 0) {
+      toast.error(`${failures.length} caricament${failures.length === 1 ? 'o fallito' : 'i falliti'}: ${failures.join(' · ')}`)
+    }
+    // Popup cleanup: il primo in coda adesso, gli altri a cascata alla chiusura.
+    cleanupQueue.current = queued.slice(1)
+    if (queued.length > 0) setCleanup(queued[0])
+  }
+
+  const handleCleanupNext = () => {
+    const next = cleanupQueue.current.shift()
+    setCleanup(next ?? null)
   }
 
   const handleColorChange = async (month: string, day: number, name: string, color: string | null) => {
@@ -210,7 +258,7 @@ export function SalaPageClient({
         theoreticalMonths={theoreticalMonths}
         shiftTree={shiftTree}
         onMonthChange={handleMonthChange}
-        onUpload={handleUpload}
+        onUploadBatch={handleUploadBatch}
         onDeleteMonth={handleDeleteMonth}
         onColorChange={handleColorChange}
       />
@@ -220,7 +268,7 @@ export function SalaPageClient({
           open
           month={cleanup.month}
           initialCandidates={cleanup.candidates}
-          onClose={() => setCleanup(null)}
+          onClose={handleCleanupNext}
         />
       )}
     </main>
