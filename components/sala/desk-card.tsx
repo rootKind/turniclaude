@@ -19,10 +19,22 @@ interface Props {
   /** Vista admin «Teorico ≠ reale»: persone che il TEORICO mette in questa
    *  sezione/turno ma il PDF reale no (altrove, presente senza sezione o assente). */
   theoDiff?: Array<{ name: string; theo: string; real: string | null; missing: boolean }>
+  /** Vista INVERSA: persone REALI in questa card che il teorico metteva ALTROVE
+   *  (o a riposo): accanto al loro nome esce cosa dovevano fare in origine. */
+  theoAnnotations?: Array<{ name: string; real: string; theo: string | null }>
 }
 
 const toTitleCase = (s: string) =>
   s ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : s
+
+/** Cognome da «COGNOME Nome»/«COGNOME N.»: toglie l'ultimo token SOLO quando
+ *  è un'iniziale — «DI NAPOLI M.» → «Di Napoli», «DE GIOVANNI» resta intero. */
+const cognomeOf = (name: string) => {
+  const parts = name.trim().split(/\s+/)
+  const last = parts[parts.length - 1] ?? ''
+  const display = parts.length > 1 && /^[A-Za-z]\.?$/.test(last) ? parts.slice(0, -1).join(' ') : name.trim()
+  return toTitleCase(display)
+}
 
 
 function colorToHex(color: string | null | undefined): string {
@@ -36,7 +48,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoDiff }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoDiff, theoAnnotations }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -303,9 +315,25 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
           {theoDiff.map(d => (
             <div key={d.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
               <span className="text-destructive font-bold select-none">≠</span>
-              <span className="whitespace-nowrap font-medium">{toTitleCase(d.name.split(/\s+/)[0])}</span>
+              <span className="whitespace-nowrap font-medium">{cognomeOf(d.name)}</span>
               <span className="tabular-nums text-muted-foreground whitespace-nowrap">
                 {d.theo}→{d.missing ? '—' : d.real}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Vista INVERSA: chi sta FACENDO il turno ma secondo il teorico doveva
+          stare altrove (o riposare) — accanto al cognome, il codice di origine. */}
+      {!isEditing && theoAnnotations && theoAnnotations.length > 0 && (
+        <div className="border-t sala-card-title-sep shrink-0 bg-muted/30">
+          {theoAnnotations.map(a => (
+            <div key={a.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
+              <span className="text-destructive font-bold select-none">←</span>
+              <span className="whitespace-nowrap font-medium">{cognomeOf(a.name)}</span>
+              <span className="tabular-nums text-muted-foreground whitespace-nowrap">
+                {a.theo ?? 'non previsto'}
               </span>
             </div>
           ))}

@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { matchesCognome } from '@/lib/utils'
-import { theoRealDiffsForDay, type TheoRealDiff } from '@/lib/turni-teorici'
+import { theoRealDiffsForDay, theoRealAnnotationsForDay, type TheoRealDiff, type TheoRealAnnotation } from '@/lib/turni-teorici'
 import { useAllDuplicateCognomi } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
@@ -482,6 +482,23 @@ export function DeskBoard({
     return map
   }, [theoDiffEnabled, cards, theoDiffsBySection, selectedShift])
 
+  /* Annotazioni INVERSE: per ogni persona REALE nel turno visualizzato che sta
+     facendo qualcosa di diverso dal teorico, COSA DOVEVA FARE IN ORIGINE.
+     Aggiunge le persone «sostituite» (es. MININO in M6S con teorico RC) accanto
+     a chi in teoria doveva stare lì. La mappa è per card-id, stessa chiave. */
+  const theoAnnotationsByCardId = useMemo(() => {
+    const map = new Map<string, TheoRealAnnotation[]>()
+    if (!theoDiffEnabled || !shiftTree || !schedule) return map
+    const day = schedule.schedule[selectedDay]
+    const all = theoRealAnnotationsForDay(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day)
+    for (const card of cards) {
+      const section = card.sectionKey ?? card.title
+      const list = all.filter(a => a.section === section && a.shift === selectedShift)
+      if (list.length) map.set(card.id, list)
+    }
+    return map
+  }, [theoDiffEnabled, shiftTree, schedule, cards, selectedDay, currentMonth, selectedShift])
+
   const scheduleSections: string[] = schedule
     ? [...new Set([
         ...KNOWN_SECTIONS,
@@ -698,6 +715,7 @@ export function DeskBoard({
                           ? (name, color) => onColorChange(currentMonth, selectedDay, name, color)
                           : undefined}
                         theoDiff={theoDiffByCardId.get(card.id)}
+                        theoAnnotations={theoAnnotationsByCardId.get(card.id)}
                       />
                     ))}
                   </DroppableCell>
