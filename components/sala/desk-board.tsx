@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { toast } from 'sonner'
 import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType, ShiftTeamTree } from '@/types/database'
+import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
@@ -601,9 +602,15 @@ export function DeskBoard({
       })
     : cards
 
-  const altriPresenti = (schedule && !isEditing)
-    ? (schedule.schedule[selectedDay]?.altriPresenti ?? [])
-    : []
+  // Raggruppamento per tipologia (richiesta 22/09/2026): i token espliciti
+  // arrivano dal day schedule (v2 ricostruita, parser o teorico); i mesi v1
+  // storici non hanno token → ricadono nel gruppo «Altre attività».
+  const altriGruppi: AltriGruppo[] = useMemo(() => {
+    if (isEditing || !schedule) return []
+    const day = schedule.schedule[selectedDay]
+    if (!day) return []
+    return groupAltriPresenti(day)
+  }, [schedule, selectedDay, isEditing])
 
   // Build grid: rows 1-4, cols left/center/right
   const usedRows: number[] = isEditing
@@ -814,21 +821,27 @@ export function DeskBoard({
         </DragOverlay>
       </DndContext>
 
-      {/* Altri presenti */}
-      {altriPresenti.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40">
-          <span className="text-xs text-muted-foreground shrink-0">Altri presenti:</span>
-          {altriPresenti.map((name, i) => {
-            const isMe = matchesCognome([name], userCognome, userNome, duplicateCognomi, bareOwners)
-            return (
-              <span
-                key={i}
-                className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : 'sala-present-pill'}`}
-              >
-                {displayForPdfName(name)}
-              </span>
-            )
-          })}
+      {/* Altri presenti RAGGRUPPATI per tipologia (richiesta 22/09/2026):
+          Trasferte / Corsi SP / Istruttori SP / Tutor / Altre attività.
+          Ogni gruppo appare solo se ha almeno una persona oggi. */}
+      {altriGruppi.length > 0 && (
+        <div className="flex flex-col gap-1 pt-1 border-t border-border/40">
+          {altriGruppi.map(gruppo => (
+            <div key={gruppo.key} className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-muted-foreground shrink-0">{gruppo.label}:</span>
+              {gruppo.names.map((name, i) => {
+                const isMe = matchesCognome([name], userCognome, userNome, duplicateCognomi, bareOwners)
+                return (
+                  <span
+                    key={i}
+                    className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : 'sala-present-pill'}`}
+                  >
+                    {displayForPdfName(name)}
+                  </span>
+                )
+              })}
+            </div>
+          ))}
         </div>
       )}
 

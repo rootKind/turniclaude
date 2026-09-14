@@ -12,7 +12,17 @@ export interface ParsedShift {
 }
 
 export function isShiftCode(token: string): boolean {
-  return /^[MNP][A-Z0-9]+$/.test(token)
+  // Sezione anche in MAIUSCOLE MISTE (MDCIFTir, Miap, piaptir: richieste
+  // 22/09/2026): [A-Za-z0-9@] invece di [A-Z0-9]. «Na» resta escluso
+  // (disponibilità nave) e restano INVISIBILI per decisione utente 22/09:
+  // NDis* (notti trasferta → gruppo Trasferte via isPresentNoSection),
+  // MSb/PSb/GSb (sabati) e MSp@/GSp@/PSp@ (e-learning con turno).
+  if (/^na$/i.test(token)) return false
+  if (/^N?Dis/i.test(token)) return false
+  if (/^[MNP]?Sb$/i.test(token)) return false
+  if (/^[MNP]?Sp@$/i.test(token)) return false
+  // prima lettera anche minuscola (il PDF scrive «piaptir»)
+  return /^[MNPmnp][A-Za-z0-9@]+$/.test(token)
 }
 
 /**
@@ -47,15 +57,33 @@ export const ABSENT_CODES = new Set([
   'A', 'AG', 'F', 'RM', 'RC', 'RI', 'VS', 'D',
 ])
 
-export const NON_SECTION_DUTIES = new Set(['TUTOR'])
-
 export function isPresentNoSection(token: string): boolean {
   if (ABSENT_CODES.has(token)) return false
   // Famiglie case-insensitive: il PDF mescola maiuscole (SpN/SPN/spn, SPCA,
   // SPW/ISPW, DisNa/DisCas…). Richiesta 13/09/2026.
   if (/^Sp[A-Za-z@]/i.test(token)) return true
   if (/^ISp[A-Za-z]/i.test(token)) return true
-  if (/^Dis[A-Za-z]/.test(token)) return true
+  // Dis* E NDis* (NDisNa = notte trasferta Napoli — utente 22/09/2026):
+  // tutte le trasferte sede finiscono tra le altre presenti, gruppo Trasferte.
+  if (/^N?Dis[A-Za-z]/i.test(token)) return true
+  return false
+}
+
+/**
+ * Attività senza sezione da mostrare tra le «Altri presenti» (richiesta
+ * 22/09/2026): TUTOR con turno qualsiasi (MTUTOR/PTUTOR/GTUTOR — di tutta la
+ * famiglia G solo GTUTOR è stato approvato dall'utente; G, GIAP, GRicTir,
+ * GRICTIR restano invisibili) e Trasf (trasferta generica).
+ */
+export const NON_SECTION_DUTIES = new Set(['TUTOR'])
+
+/** Token del quale registrare la presenza senza sezione (per il raggruppamento). */
+export function isAltriPresentiToken(token: string): boolean {
+  if (ABSENT_CODES.has(token)) return false
+  // TUTOR con qualunque turno, incluse le guardie (GTUTOR — utente 22/09/2026;
+  // G, GIAP, GRicTir, GRICTIR SENZA tutor restano invisibili).
+  if (/^(?:[MNP]|G)?TUTOR$/i.test(token)) return true
+  if (/^Trasf$/i.test(token)) return true
   return false
 }
 
@@ -66,6 +94,10 @@ export function emptyShift(): SectionShiftData {
 /**
  * Applica un token turno a un giorno della programmazione. Ritorna false se il
  * token non produce presenze (assente, riposo, disponibilità o codice ignoto).
+ *
+ * Quando `day.altriPresentiTokens` esiste (opzionale), ogni presenza senza
+ * sezione vi registra anche il TOKEN originale — la board /turnisala lo usa
+ * per raggruppare le altre presenti per tipologia (richiesta 22/09/2026).
  */
 export function applyTokenToDay(day: DaySchedule, name: string, token: string): boolean {
   if (!token || ABSENT_CODES.has(token)) return false
@@ -74,11 +106,19 @@ export function applyTokenToDay(day: DaySchedule, name: string, token: string): 
   // non è indicata nel PDF — finisce tra le altre presenze, non in una colonna.
   if (/^[MNP]$/.test(token)) {
     day.altriPresenti.push(name)
+    day.altriPresentiTokens?.push({ name, token })
     return true
   }
 
   if (isPresentNoSection(token)) {
     day.altriPresenti.push(name)
+    day.altriPresentiTokens?.push({ name, token })
+    return true
+  }
+
+  if (isAltriPresentiToken(token)) {
+    day.altriPresenti.push(name)
+    day.altriPresentiTokens?.push({ name, token })
     return true
   }
 
@@ -86,8 +126,9 @@ export function applyTokenToDay(day: DaySchedule, name: string, token: string): 
 
   const { shift, section, slot, isTir } = parseShiftCode(token)
 
-  if (NON_SECTION_DUTIES.has(section)) {
+  if (NON_SECTION_DUTIES.has(section.toUpperCase())) {
     day.altriPresenti.push(name)
+    day.altriPresentiTokens?.push({ name, token })
     return true
   }
 

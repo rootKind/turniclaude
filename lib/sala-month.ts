@@ -77,7 +77,7 @@ export function decodeSalaMonth(data: SalaMonthData): MonthPersonShifts[] {
  */
 export function buildScheduleFromMonthData(data: SalaMonthData): Record<number, DaySchedule> {
   const schedule: Record<number, DaySchedule> = {}
-  for (let d = 1; d <= data.days; d++) schedule[d] = { sections: {}, altriPresenti: [] }
+  for (let d = 1; d <= data.days; d++) schedule[d] = { sections: {}, altriPresenti: [], altriPresentiTokens: [] }
   for (const p of decodeSalaMonth(data)) {
     for (let d = 1; d <= data.days; d++) applyTokenToDay(schedule[d], p.name, p.days[d - 1] ?? '')
   }

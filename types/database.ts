@@ -145,6 +145,10 @@ export interface SectionShiftData {
 export interface DaySchedule {
   sections: Record<string, Record<SalaShiftType, SectionShiftData>>
   altriPresenti: string[]
+  /** Token originale di ciascuna presenza senza sezione —parallel to altriPresenti,
+   *  popolato solo quando richiesto (board /turnisala per il raggruppamento).
+   *  Opzionale: i mesi salvati non lo contengono, si ricostruisce dal v2. */
+  altriPresentiTokens?: { name: string; token: string }[]
 }
 
 /**

@@ -85,7 +85,7 @@ export function generateTheoreticalMonth(
 ): SalaSchedule {
   const schedule: Record<number, DaySchedule> = {}
   const nDays = daysInMonthISO(month)
-  for (let d = 1; d <= nDays; d++) schedule[d] = { sections: {}, altriPresenti: [] }
+  for (let d = 1; d <= nDays; d++) schedule[d] = { sections: {}, altriPresenti: [], altriPresentiTokens: [] }
 
   for (const type of tree.types) {
     if (!type.is_active) continue

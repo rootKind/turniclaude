@@ -1025,3 +1025,16 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   con createPortal(document.body) in desk-board.tsx → mai più contenuto. Verificato con probe
   rAF su 5 navigazioni CPU-throttled 1×-9×: 267 frame col badge, 0 violazioni (bottom≈780,
   contained=false anche a transform attivo).
+
+- **«Altri presenti» RAGGRUPPATI (22/09/2026)**: tassonomia decita con l'utente su catalogo
+  reale del DB (scripts/catalog-altri-tokens.mjs, analisi scripts/analyze-altri-presenti.mjs).
+  Gruppi (lib/altri-gruppi.ts, ordine): Trasferte (Trasf, Dis*, NDis* notti trasferta, M/N
+  nude di Spagnulo) / Corsi SP (Sp*: SpN Napoli, SPCA Cancello, Sp@ e-learning, SPW webinar)
+  / Istruttori SP (ISp*) / Tutor (MTUTOR/PTUTOR/GTUTOR) / Altre attività (fallback). RESTANO
+  INVISIBILI per decisione: G, GIAP, GRicTir, GRICTIR, Na, TIR, 12.14, MSb/PSb/GSb,
+  MSp@/GSp@/PSp@. Parser allargato: isShiftCode accetta sezioni a maiuscole miste
+  (MDCIFTir→colonna DCIF tirocinante, Miap/piaptir→IAP) con esclusioni esplicite
+  (NDis*, ?Sb, ?Sp@, na). DaySchedule.altriPresentiTokens opzionale (nome→token) popolato da
+  applyTokenToDay per il raggruppamento; mesi v1 storici → fallback «Altre attività».
+  F.E./AG7 restano assenze (utente). Test: scripts/check-altri-gruppi.mjs (moduli reali).
+  Verificato live: gruppi per-giorno su mar2026 g2/g5/g12/g22 corretti.
