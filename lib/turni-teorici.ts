@@ -7,6 +7,7 @@ import type {
   ShiftTypeGroup,
 } from '@/types/database'
 import { ABSENT_CODES, NON_SECTION_DUTIES, applyTokenToDay, isShiftCode, parseShiftCode } from '@/lib/shift-tokens'
+import { type BareOwnerMap } from '@/lib/shift-teams-matching'
 
 // ─── date helpers (UTC, senza timezone) ──────────────────────────────────────
 
@@ -202,6 +203,11 @@ interface RealEntry {
  * quei codici sono perduti (un assente non entra nella giornata); si
  * ricostruiscono dal mese v2 (`SalaSchedule.data` → decodeSalaMonth) quando
  * disponibile. UNA persona senza posizione né sigla resta «assente».
+ *
+ * `bareOwners` (lib/shift-teams-matching, da buildBareOwners(tree,
+ * duplicateCognomi)): omonimi con membro LEGATO via user_id — la riga PDF con
+ * il SOLO cognome («NEVANO») appartiene al legato (Pietro), gli altri omonimi
+ * matchano solo con l'iniziale («NEVANO G.»).
  */
 export function theoRealSectionCompare(
   month: string,
@@ -210,6 +216,7 @@ export function theoRealSectionCompare(
   adjustments: ShiftAdjustment[],
   realDay: DaySchedule | undefined,
   realCodes?: Map<string, string>,
+  bareOwners?: BareOwnerMap | null,
 ): Map<string, TheoRealSectionCompare> {
   const dateISO = `${month}-${String(day).padStart(2, '0')}`
   // 1) teorico: token per MEMBRO (non collassato per cognome: gli omonimi
@@ -231,8 +238,20 @@ export function theoRealSectionCompare(
         const cognomeKey = surnameKey(member.full_name)
         theoMembers.push({ exactKey, cognomeKey, token, full: member.full_name, nameNorm: exactKey })
         theoByExact.set(exactKey, token)
-        theoByCognome.set(cognomeKey, token)
+        // Omonimi: la chiave cognome vale solo se NON ambigua; se c'è un legato
+        // (user_id) il bare è SUO, quindi la sua sigla vince la collisione.
+        if (!theoByCognome.has(cognomeKey) || member.user_id) theoByCognome.set(cognomeKey, token)
       }
+    }
+  }
+  // Proprietario del nome BARE per cognome (omonimi con membro LEGATO, caso
+  // NEVANO): dalla mappa dei bare owner. Il proprietario conta solo se il suo
+  // membro è davvero fra i previsti dal teorico (altrimenti il PDF bare
+  // resterebbe senza destinatario). Chiave cognome → nome normalizzato.
+  const bareOwnerOf = new Map<string, string>()
+  if (bareOwners?.size) {
+    for (const [key, owner] of bareOwners) {
+      if (theoByExact.has(owner.nameNorm)) bareOwnerOf.set(key, owner.nameNorm)
     }
   }
   // 2) reale: TUTTE le posizioni per cognome (omonimi: «DI NAPOLI M.» e
@@ -243,10 +262,15 @@ export function theoRealSectionCompare(
     const put = (name: string, shift: string, section: string | null) => {
       const key = surnameKey(name)
       if (!key) return
+      const norm = normName(name)
+      // Nome BARE (solo cognome) di un cognome con legato: la posizione è del
+      // legato («NEVANO» →nevano p.»), così i match ESATTI per omonimo funzionano.
+      const ownerNorm = bareOwnerOf.get(key)
+      const exact = ownerNorm && norm === key ? ownerNorm : norm
       const list = realByCognome.get(key) ?? []
       // prima posizione vince per la STESSA persona (dedup tirocinanti/slot)
       if (list.some(r => r.shift === shift && r.section === section)) return
-      list.push({ shift, section, full: name, exact: normName(name), code: realCodes?.get(key) ?? '' })
+      list.push({ shift, section, full: name, exact, code: realCodes?.get(key) ?? '' })
       realByCognome.set(key, list)
     }
     for (const [section, shifts] of Object.entries(realDay.sections)) {
@@ -284,13 +308,18 @@ export function theoRealSectionCompare(
     // normalizzato (gli OMONIMI hanno celle diverse: DI NAPOLI M. ≠ DI NAPOLI A.),
     // altrimenti la prima sigla trovata sul COGNOME.
     const norm = normName(full)
-    const cognomeCode = realCodes?.get(cognomeKey)
+    // Omonimi con LEGATO (caso NEVANO): il bare («NEVANO») è del legato — i non
+    // proprietari non possono né prendere le sue posizioni né la sua sigla.
+    const ownerNorm = bareOwnerOf.get(cognomeKey)
+    const isOwner = !ownerNorm || norm === ownerNorm
+    const cognomeCode = isOwner ? realCodes?.get(cognomeKey) : undefined
     const exactCode = realCodes?.get(norm)
     // Omonimi: le posizioni reali della STESSA persona (nome esatto) se il PDF
-    // le distingue («DI NAPOLI A.»), altrimenti tutte quelle del cognome.
+    // le distingue («DI NAPOLI A.»), altrimenti tutte quelle del cognome — ma i
+    // NON proprietari del bare vedono SOLO le posizioni con la loro iniziale.
     const cognomeList = realByCognome.get(cognomeKey) ?? []
     const exactList = cognomeList.filter(c => c.exact === norm)
-    const candidates = exactList.length ? exactList : cognomeList
+    const candidates = !isOwner ? exactList : exactList.length ? exactList : cognomeList
     const confirmed = candidates.find(c => !claimed.has(c) && c.section !== null && c.shift === shift && c.section === section)
     if (confirmed) {
       claimed.add(confirmed)

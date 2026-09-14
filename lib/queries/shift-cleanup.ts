@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { DaySchedule, SalaShiftType, ShiftType, UserProfile } from '@/types/database'
 import { buildDuplicateCognomi, matchesCognome } from '@/lib/utils'
+import { buildBareOwners } from '@/lib/shift-teams-matching'
+import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { buildScheduleFromMonthData, isSalaMonthData } from '@/lib/sala-month'
 
 /**
@@ -66,6 +68,7 @@ export function actualShiftsForPerson(
   cognome?: string | null,
   nome?: string | null,
   duplicateCognomi?: Set<string>,
+  bareOwners?: ReturnType<typeof buildBareOwners>,
 ): SalaShiftType[] {
   if (!day) return []
   const found = new Set<SalaShiftType>()
@@ -77,7 +80,7 @@ export function actualShiftsForPerson(
         ...(data.surnames?.noSlot ?? []),
         ...(data.tirocinanti ?? []),
       ]
-      if (matchesCognome(names, cognome, nome, duplicateCognomi)) {
+      if (matchesCognome(names, cognome, nome, duplicateCognomi, bareOwners)) {
         found.add(shift as SalaShiftType)
       }
     }
@@ -94,6 +97,8 @@ export function findFulfilledShiftRequests(
   users: Pick<UserProfile, 'id' | 'nome' | 'cognome'>[],
   month: string,
   schedule: Record<number, DaySchedule>,
+  /** Omonimi con LEGATO (caso NEVANO): opzionale, da computeShiftCleanup. */
+  bareOwners?: ReturnType<typeof buildBareOwners>,
 ): ShiftCleanupCandidate[] {
   const duplicateCognomi = buildDuplicateCognomi(users)
   const out: ShiftCleanupCandidate[] = []
@@ -102,7 +107,7 @@ export function findFulfilledShiftRequests(
     if (!s.shift_date?.startsWith(`${month}-`)) continue
 
     const day = Number(s.shift_date.slice(8, 10))
-    const actual = actualShiftsForPerson(schedule[day], s.user?.cognome, s.user?.nome, duplicateCognomi)
+    const actual = actualShiftsForPerson(schedule[day], s.user?.cognome, s.user?.nome, duplicateCognomi, bareOwners)
     if (actual.length === 0) continue
 
     const fulfilled = (s.requested_shifts ?? []).find(r => actual.includes(SHIFT_TO_SALA[r]))
@@ -151,11 +156,18 @@ export async function computeShiftCleanup(
   if (shiftsRes.error) throw shiftsRes.error
   if (usersRes.error) throw usersRes.error
 
+  // Omonimi con LEGATO (caso NEVANO): la riga PDF bare appartiene al legato.
+  let bareOwners: ReturnType<typeof buildBareOwners> | undefined
+  try {
+    bareOwners = buildBareOwners(await fetchShiftTeamTree(supabase), buildDuplicateCognomi(usersRes.data ?? []))
+  } catch { /* albero non disponibile: matching standard */ }
+
   return findFulfilledShiftRequests(
     (shiftsRes.data ?? []) as unknown as ShiftRequestRow[],
     (usersRes.data ?? []) as Pick<UserProfile, 'id' | 'nome' | 'cognome'>[],
     month,
     sched,
+    bareOwners,
   )
 }
 
@@ -164,6 +176,9 @@ export interface ShiftLookupContext {
   duplicateCognomi: Set<string>
   usersById: Map<string, Pick<UserProfile, 'id' | 'nome' | 'cognome'>>
   schedules: Map<string, Record<number, DaySchedule>>
+  /** Omonimi con membro LEGATO (caso NEVANO): opzionale, da loadShiftLookup-
+   *  ContextWithTree; senza, il matching resta per cognome puro. */
+  bareOwners?: ReturnType<typeof buildBareOwners>
 }
 
 interface ScheduleRow {
@@ -200,6 +215,15 @@ export async function loadShiftLookupContext(
   }
 }
 
+/** Variante con l'albero: costruisce anche la mappa bare-owner degli omonimi. */
+export async function loadShiftLookupContextWithTree(
+  supabase: SupabaseClient,
+  months: string[],
+): Promise<ShiftLookupContext & { bareOwners: ReturnType<typeof buildBareOwners> }> {
+  const [ctx, tree] = await Promise.all([loadShiftLookupContext(supabase, months), fetchShiftTeamTree(supabase)])
+  return { ...ctx, bareOwners: buildBareOwners(tree, ctx.duplicateCognomi) }
+}
+
 /** Turni reali (M/P/N) di un utente in una data YYYY-MM-DD, secondo il calendario caricato. */
 export function actualShiftsForUserDate(
   ctx: ShiftLookupContext,
@@ -215,5 +239,6 @@ export function actualShiftsForUserDate(
     user.cognome,
     user.nome,
     ctx.duplicateCognomi,
+    ctx.bareOwners,
   )
 }

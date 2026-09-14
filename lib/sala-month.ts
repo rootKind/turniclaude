@@ -2,6 +2,7 @@ import type { DaySchedule, SalaMonthData } from '@/types/database'
 import { applyTokenToDay, isShiftWorkCode } from '@/lib/shift-tokens'
 import { matchesCognome } from '@/lib/utils'
 import { personNameMatches, type PersonRef } from '@/lib/person-shift'
+import type { BareOwnerMap } from '@/lib/shift-teams-matching'
 
 /**
  * Turni reali (dal PDF) di UNA persona in un mese, con i codici COMPLETI:
@@ -85,14 +86,19 @@ export function buildScheduleFromMonthData(data: SalaMonthData): Record<number, 
 
 // ─── persona ↔ utente ────────────────────────────────────────────────────────
 
-/** Persona del mese corrispondente all'utente (match per nome, come nel resto dell'app). */
+/**
+ * Persona del mese corrispondente all'utente (match per nome, come nel resto
+ * dell'app). `bareOwners` (lib/shift-teams-matching): con omonimi LEGATI via
+ * user_id, la riga PDF con il solo cognome appartiene SOLO al legato.
+ */
 export function findMonthPerson(
   people: MonthPersonShifts[] | null | undefined,
   user: PersonRef | null | undefined,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): MonthPersonShifts | null {
   if (!people?.length || !user?.cognome) return null
-  return people.find(p => personNameMatches(p.name, user, duplicateCognomi)) ?? null
+  return people.find(p => personNameMatches(p.name, user, duplicateCognomi, bareOwners)) ?? null
 }
 
 /** Come sopra ma con la variante «solo cognome» usata dal calendario di sala. */
@@ -101,9 +107,10 @@ export function findMonthPersonByCognome(
   cognome: string | null | undefined,
   nome?: string | null,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): MonthPersonShifts | null {
   if (!people?.length || !cognome) return null
-  return people.find(p => matchesCognome([p.name], cognome, nome, duplicateCognomi)) ?? null
+  return people.find(p => matchesCognome([p.name], cognome, nome, duplicateCognomi, bareOwners)) ?? null
 }
 
 // ─── significato dei codici ─────────────────────────────────────────────────

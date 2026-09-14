@@ -2,6 +2,7 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import type { UserProfile, ShiftType } from '@/types/database'
+import { isBareOwnedName, userOwnsBareName, type BareOwnerMap } from '@/lib/shift-teams-matching'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -154,12 +155,18 @@ export const SHIFT_PILL_CLASSES: Record<ShiftType, string> = {
  * all'utente. La disambiguazione degli omonimi usa `duplicateCognomi` (vedi
  * `buildDuplicateCognomi`) e il suffisso del nome viene tollerato quando il
  * PDF lo aggiunge.
+ *
+ * `bareOwners` (vedi lib/shift-teams-matching): quando più persone condividono
+ * il cognome e l'albero squadre LEGA una di esse a un utente (user_id), una
+ * riga PDF con il SOLO cognome («NEVANO») appartiene SOLO a quella persona;
+ * gli altri omonimi matchano solo con l'iniziale («NEVANO G.»).
  */
 export function matchesCognome(
   surnames: string[],
   cognome?: string | null,
   nome?: string | null,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): boolean {
   if (!cognome) return false
   const displayName = formatDisplayName({ nome: nome ?? '', cognome }, duplicateCognomi).toLowerCase().trim()
@@ -168,6 +175,9 @@ export function matchesCognome(
   return surnames.some(s => {
     const sNorm = s.toLowerCase().trim()
     if (sNorm === displayName) return true
+    // Nome BARE (solo cognome) con proprietario nell'albero: solo il
+    // proprietario matcha (Pietro per «NEVANO», Giuseppe no).
+    if (isBareOwnedName(s, bareOwners)) return userOwnsBareName(cognome, nome, bareOwners)
     // PDF può aggiungere suffisso anche senza omonimia — strip fallback solo per non-omonimi
     if (!isOmonimo && sNorm.replace(/\s+[a-z]+\.$/, '') === normCognome) return true
     return false

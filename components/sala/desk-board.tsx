@@ -11,9 +11,10 @@ import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import { decodeSalaMonth } from '@/lib/sala-month'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
-import { matchesCognome } from '@/lib/utils'
+import { formatDisplayName, matchesCognome } from '@/lib/utils'
+import { buildBareOwners, lookupNameDisplay, type BareOwnerMap } from '@/lib/shift-teams-matching'
 import { normName, theoRealSectionCompare, surnameKey, type TheoRealSectionCompare } from '@/lib/turni-teorici'
-import { useAllDuplicateCognomi } from '@/hooks/use-users'
+import { useAllDuplicateCognomi, useAllUsersForNames } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
 import {
@@ -57,6 +58,11 @@ type Align = typeof ALIGNS[number]
 function getDaysInMonth(month: string): number {
   const [y, m] = month.split('-').map(Number)
   return new Date(y, m, 0).getDate()
+}
+
+/** «NEVANO P.» / «nevano p.» → «Nevano P.» per la visualizzazione. */
+function toTitleCaseLike(s: string): string {
+  return s ? s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : s
 }
 
 function getPrevMonth(month: string): string {
@@ -455,6 +461,45 @@ export function DeskBoard({
      diversa: altro turno, riposo, non in scheda).
      Niente più strisce «≠»/«←»: tropo largo su schermo stretto. */
   const theoDiffEnabled = !!(isAdmin && showTheoDiff && shiftTree && schedule && schedule.source !== 'theoretical')
+  // Omonimi con membro LEGATO via user_id (caso NEVANO P./G.): la riga PDF con
+  // il solo cognome («NEVANO») appartiene al legato, gli altri omonimi solo con
+  // l'iniziale. Mappa calcolata una volta per albero+anagrafica.
+  const bareOwners: BareOwnerMap = useMemo(
+    () => buildBareOwners(shiftTree, duplicateCognomi),
+    [shiftTree, duplicateCognomi],
+  )
+  const usersForNames = useAllUsersForNames()
+  // Iniziali negli OMONIMI (richiesta 14/09/2026): dove appare il solo cognome
+  // (card, altri presenti, righe teorico≠reale) i Nevano diventano «Nevano P.»
+  // / «Nevano G.». La mappa copre le TRE forme con cui un nome può comparire:
+  // «nevano pietro» (nome completo), «nevano» (bare, SOLO se proprietario
+  // unico del bare) e «nevano p.» (iniziale) → tutte → «Nevano P.».
+  const nameDisplay = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const u of usersForNames) {
+      if (!u.cognome) continue
+      if (!duplicateCognomi.has(u.cognome)) continue
+      const display = formatDisplayName(u, duplicateCognomi)
+      if (u.nome) map.set(`${u.cognome} ${u.nome}`.toLowerCase().replace(/\s+/g, ' ').trim(), display)
+      // Forma bare: SOLO il proprietario del bare può rivendicarla (con due
+      // proprietari la bare resterebbe ambigua: nessuna voce).
+      const owner = bareOwners.get(u.cognome.toLowerCase().replace(/\s+/g, ' ').trim())
+      const nome = u.nome ?? ''
+      if (owner && owner.initial && nome.toLowerCase().startsWith(owner.initial)) {
+        map.set(u.cognome.toLowerCase().replace(/\s+/g, ' ').trim(), display)
+      }
+      // Forma con iniziale «nevano p.»
+      if (u.nome) map.set(`${u.cognome} ${u.nome.charAt(0).toLowerCase()}.`.toLowerCase().replace(/\s+/g, ' ').trim(), display)
+    }
+    return map
+  }, [usersForNames, duplicateCognomi, bareOwners])
+  const displayForPdfName = useCallback(
+    (pdfName: string): string => {
+      const resolved = lookupNameDisplay(pdfName, nameDisplay)
+      return resolved ?? toTitleCaseLike(pdfName)
+    },
+    [nameDisplay],
+  )
   const theoCompareBySection = useMemo(() => {
     if (!theoDiffEnabled || !shiftTree || !schedule) return new Map<string, TheoRealSectionCompare>()
     const day = schedule.schedule[selectedDay]
@@ -473,8 +518,8 @@ export function DeskBoard({
         realCodes.set(normName(p.name), code)
       }
     }
-    return theoRealSectionCompare(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day, realCodes)
-  }, [theoDiffEnabled, shiftTree, schedule, selectedDay, currentMonth])
+    return theoRealSectionCompare(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day, realCodes, bareOwners)
+  }, [theoDiffEnabled, shiftTree, schedule, selectedDay, currentMonth, bareOwners])
   // Confronto per CARD: la card guarda la sua sezione collegata (sectionKey o titolo).
   const theoCompareByCardId = useMemo(() => {
     const map = new Map<string, TheoRealSectionCompare>()
@@ -689,8 +734,8 @@ export function DeskBoard({
                         card={card}
                         isEditing={isEditing}
                         highlighted={!isEditing && (
-                          matchesCognome(card.surnames, userCognome, userNome, duplicateCognomi) ||
-                          matchesCognome(card.tirocinanti ?? [], userCognome, userNome, duplicateCognomi)
+                          matchesCognome(card.surnames, userCognome, userNome, duplicateCognomi, bareOwners) ||
+                          matchesCognome(card.tirocinanti ?? [], userCognome, userNome, duplicateCognomi, bareOwners)
                         )}
                         minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
                         
@@ -702,6 +747,7 @@ export function DeskBoard({
                           ? (name, color) => onColorChange(currentMonth, selectedDay, name, color)
                           : undefined}
                         theoCompare={theoCompareByCardId.get(card.id)}
+                        nameDisplay={nameDisplay}
                       />
                     ))}
                   </DroppableCell>
@@ -736,13 +782,13 @@ export function DeskBoard({
         <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40">
           <span className="text-xs text-muted-foreground shrink-0">Altri presenti:</span>
           {altriPresenti.map((name, i) => {
-            const isMe = matchesCognome([name], userCognome, userNome, duplicateCognomi)
+            const isMe = matchesCognome([name], userCognome, userNome, duplicateCognomi, bareOwners)
             return (
               <span
                 key={i}
                 className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : 'sala-present-pill'}`}
               >
-                {name}
+                {displayForPdfName(name)}
               </span>
             )
           })}

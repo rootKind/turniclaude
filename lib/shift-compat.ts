@@ -4,6 +4,7 @@ import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { decodeSalaMonth, findMonthPerson, salaCodeInfo } from '@/lib/sala-month'
 import { theoreticalTokenFor } from '@/lib/person-shift'
 import { buildDuplicateCognomi } from '@/lib/utils'
+import { buildBareOwners } from '@/lib/shift-teams-matching'
 
 /**
  * Compatibilità fra una richiesta di cambio turno e il turno dell'utente in un
@@ -53,7 +54,14 @@ export async function getUserShiftOnDate(
     if (raw && typeof raw === 'object' && raw.v === 2) {
       const people = decodeSalaMonth(raw as unknown as SalaMonthData)
       const { data: u } = await supabase.from('users').select('nome, cognome').eq('id', userId).maybeSingle()
-      const person = findMonthPerson(people, { id: userId, nome: u?.nome, cognome: u?.cognome })
+      // Omonimi con LEGATO (caso NEVANO): serve l'albero per la mappa bare-owner.
+      let bareOwners
+      try {
+        const treeForBare = await fetchShiftTeamTree(supabase)
+        const { data: allUsers } = await supabase.from('users').select('id, nome, cognome')
+        bareOwners = buildBareOwners(treeForBare, buildDuplicateCognomi(allUsers ?? []))
+      } catch { /* albero non disponibile: matching per nome standard */ }
+      const person = findMonthPerson(people, { id: userId, nome: u?.nome, cognome: u?.cognome }, undefined, bareOwners)
       const token = person?.days[Number(dateISO.slice(8, 10)) - 1] ?? ''
       const shift = salaTokenToShiftType(token)
       if (shift) return { shift, source: 'real', token }
@@ -69,8 +77,9 @@ export async function getUserShiftOnDate(
     if (tree) {
       const { data: users } = await supabase.from('users').select('id, nome, cognome')
       const duplicateCognomi = buildDuplicateCognomi(users ?? [])
+      const bareOwners = buildBareOwners(tree, duplicateCognomi)
       const me = (users ?? []).find(u => u.id === userId)
-      const token = theoreticalTokenFor(tree, me ?? { id: userId }, dateISO, duplicateCognomi)
+      const token = theoreticalTokenFor(tree, me ?? { id: userId }, dateISO, duplicateCognomi, bareOwners)
       const shift = salaTokenToShiftType(token)
       if (shift) return { shift, source: 'theoretical', token }
       if (token) return { shift: null, source: 'theoretical', token }

@@ -9,6 +9,7 @@ import { useDuplicateCognomi } from '@/hooks/use-users'
 import { createShift, findCompatibleShifts, toggleInterest } from '@/lib/queries/shifts'
 import { getSalaSchedule, listScheduleMonths } from '@/lib/queries/sala-schedule'
 import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
+import { buildBareOwners } from '@/lib/shift-teams-matching'
 import { decodeSalaMonth, findMonthPerson, personDayShift, shiftCodePill, isSalaMonthData } from '@/lib/sala-month'
 import { theoreticalTokenFor } from '@/lib/person-shift'
 import { createClient } from '@/lib/supabase/client'
@@ -98,6 +99,8 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
         if (cancelled) return
         const pdfMonths = new Set(monthsRes ?? [])
         const map = new Map<string, ReturnType<typeof shiftCodePill>>()
+        // Omonimi con LEGATO (caso NEVANO): la riga PDF bare è del legato.
+        const bareOwners = treeRes ? buildBareOwners(treeRes, duplicateCognomi) : undefined
         // 1. Mesi PDF: la riga REALE della persona (la verità, come in /tuoturno).
         const current = candidates.find(m => pdfMonths.has(m)) ?? null
         if (current) {
@@ -105,7 +108,7 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
           if (cancelled) return
           if (schedule && isSalaMonthData(schedule.data)) {
             const people = decodeSalaMonth(schedule.data)
-            const person = findMonthPerson(people, profile, duplicateCognomi)
+            const person = findMonthPerson(people, profile, duplicateCognomi, bareOwners)
             if (person) {
               for (let d = 1; d <= person.days.length; d++) {
                 const info = personDayShift(person, d)
@@ -123,7 +126,7 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
             const dim = new Date(y, mm, 0).getDate()
             for (let d = 1; d <= dim; d++) {
               const iso = `${m}-${String(d).padStart(2, '0')}`
-              const pill = shiftCodePill(theoreticalTokenFor(treeRes, profile, iso, duplicateCognomi))
+              const pill = shiftCodePill(theoreticalTokenFor(treeRes, profile, iso, duplicateCognomi, bareOwners))
               if (pill) map.set(iso, pill)
             }
           }

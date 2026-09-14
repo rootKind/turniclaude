@@ -7,7 +7,7 @@ import {
   SHIFT_TO_SALA,
   actualShiftsForUserDate,
   computeShiftCleanup,
-  loadShiftLookupContext,
+  loadShiftLookupContextWithTree,
   type ShiftLookupContext,
 } from '@/lib/queries/shift-cleanup'
 import { pushToUser } from '@/lib/push/send-to-user'
@@ -116,7 +116,8 @@ export async function POST(req: NextRequest) {
     schedules: new Map(),
   }
   try {
-    ctx = await loadShiftLookupContext(admin, months)
+    // Variante con albero: aggiunge la mappa bare-owner degli omonimi (NEVANO).
+    ctx = await loadShiftLookupContextWithTree(admin, months)
   } catch (err) {
     console.error('Shift cleanup: contesto turni non disponibile', err)
   }

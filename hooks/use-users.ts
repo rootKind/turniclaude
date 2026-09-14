@@ -28,3 +28,17 @@ export function useAllDuplicateCognomi() {
   })
   return buildDuplicateCognomi(users)
 }
+
+/**
+ * Anagrafica minima di TUTTI gli utenti (stessa query dei duplicati): serve a
+ * desk-board per le INIZIALI degli omonimi («Nevano P.») dove appare il solo
+ * cognome. Condivide la cache di useAllDuplicateCognomi: nessun fetch in più.
+ */
+export function useAllUsersForNames() {
+  const { data: users = [] } = useQuery({
+    queryKey: ['users', 'all'],
+    queryFn: fetchAllUsersMinimal,
+    staleTime: 10 * 60 * 1000,
+  })
+  return users
+}

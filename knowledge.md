@@ -856,3 +856,26 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   in `/impostazioni` (footer hardcoded in `settings-page.tsx`). Il `<hash>` è lo short hash del commit
   padre (HEAD prima del commit di bump).
 - **Branch:** sviluppo su `dev`, deploy da `master`.
+
+---
+
+## Omonimi e bare-owner matching (caso NEVANO, 14/09/2026)
+
+- **Dati:** Pietro Nevano è nelle scorte di rilievo, Giuseppe (omonimo, DCO) è «Senza squadra».
+  Il membro di Rilievo D è rinominato `NEVANO P.` e LEGATO a Pietro con `shift_team_members.user_id`
+  (il binding via id ha priorità in `findMemberForUser`). Nei PDF il cognome di solito è BARE
+  («NEVANO» senza iniziale); quando compaiono entrambi il PDF distingue con l'iniziale.
+- **Regola bare-owner** (`lib/shift-teams-matching.ts`): per un cognome OMONIMO fra gli utenti
+  (`duplicateCognomi`) con un membro LEGATO via user_id, la riga PDF con il SOLO cognome appartiene
+  SOLO al legato («NEVANO» → Pietro); gli altri omonimi matchano solo con l'iniziale («NEVANO G.» →
+  Giuseppe). `buildBareOwners(tree, duplicateCognomi)` costruisce la mappa; il parametro è opzionale
+  ovunque — senza mappa comportamento precedente. Consumatori: `matchesCognome`, `personNameMatches`,
+  `findMonthPerson`, `realShiftFor`, `theoreticalTokenFor`, `theoRealSectionCompare` (+`theoByCognome`
+  risolve la collisione assegnando la sigla al legato).
+- **Iniziali in UI:** dove appare il solo cognome (card sala, «Altri presenti», righe teorico≠reale,
+  chip del selettore Confronta) gli omonimi mostrano l'iniziale («Nevano P.» / «Nevano G.») via
+  `formatDisplayName`/`lookupNameDisplay` con la mappa a TRE forme di desk-board («cognome nome»,
+  bare per il SOLO proprietario, «cognome p.»).
+- **Test:** `node scripts/check-nevano-matching.mjs` (contratto completo: bare→Pietro, iniziale→Giuseppe,
+  mese/giorno/confronto, display). Script DB di verifica: `scripts/check-nevano-state.mjs`,
+  `scripts/check-nevano-bindings.mjs` (convenzione REST fetch di `apply-super-cycle.mjs`, NON pg).

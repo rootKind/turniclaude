@@ -5,6 +5,7 @@ import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { DeskCard as DeskCardType } from '@/types/database'
 import type { TheoRealSectionCompare } from '@/lib/turni-teorici'
+import { lookupNameDisplay } from '@/lib/shift-teams-matching'
 
 interface Props {
   card: DeskCardType
@@ -18,10 +19,14 @@ interface Props {
   canEditColors?: boolean
   onColorChange?: (name: string, color: string | null) => void
   /** Vista admin «Teorico ≠ reale» COMPATTA (17/09/2026): per la sezione/turno
-   *  della card, righe «Cognome <tecnico> <reale>» (i teorici NON confermati,
+   *  della card, righe «Cognome <reale>» (i teorici NON confermati,
    *  assenze col CODICE PDF: A/AG/F.E.) e «Nuovi» (reali di provenienza diversa:
    *  altro turno, riposo RC/RI/RM/D, non in scheda → provenienza dopo il nome). */
   theoCompare?: TheoRealSectionCompare
+  /** Iniziali degli OMONIMI (richiesta 14/09/2026): chiave = nome normalizzato
+   *  dal PDF («nevano pietro»), valore = «Nevano P.». Dove appare il solo
+   *  cognome evita gli equivoci fra persone con lo stesso cognome. */
+  nameDisplay?: Map<string, string>
 }
 
 const toTitleCase = (s: string) =>
@@ -36,6 +41,12 @@ const cognomeOf = (name: string) => {
   return toTitleCase(display)
 }
 
+/** Etichetta di una riga compatta: per gli OMONIMI risolve con la mappa di
+ *  desk-board («NEVANO» → «Nevano P.», l'iniziale evita equivoci); per tutti
+ *  gli altri resta il cognome puro com'era prima. */
+const rowLabel = (name: string, nameDisplay?: Map<string, string>) =>
+  lookupNameDisplay(name, nameDisplay) ?? cognomeOf(name)
+
 
 function colorToHex(color: string | null | undefined): string {
   if (!color) return '#000000'
@@ -48,7 +59,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -99,13 +110,17 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     return <span style={{ color: col }} className="select-none">●</span>
   }
 
+  // Nome in card: per gli OMONIMI (mappa di desk-board) mostra l'iniziale
+  // («NEVANO» → «Nevano P.») — richiesta 14/09/2026; gli altri restano tali e quali.
   const renderName = (surname: string, i: number) => {
     const dot = renderDot(surname)
     const slotClass = getSlotClass(i)
+    const resolved = lookupNameDisplay(surname, nameDisplay)
+    const label = resolved ?? toTitleCase(surname)
     return (
       <span className={`text-sm whitespace-nowrap leading-tight flex items-center gap-0.5 ${slotClass}`}>
         {dot}
-        {surname ? toTitleCase(surname) : <span className="text-muted-foreground/40">—</span>}
+        {surname ? label : <span className="text-muted-foreground/40">—</span>}
         {dot}
       </span>
     )
@@ -317,7 +332,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
         <div className="border-t sala-card-title-sep shrink-0 bg-muted/30">
           {theoCompare.rows.map(r => (
             <div key={r.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
-              <span className="whitespace-nowrap font-medium">{cognomeOf(r.name)}</span>
+              <span className="whitespace-nowrap font-medium">{rowLabel(r.name, nameDisplay)}</span>
               {/* Il teorico NON si riscrive: la card in cui la riga sta parla
                   già di sezione+turno previsti (es. M 14/9). Solo il REALE —
                   spostamento, sigla di assenza, «presente»/«assente» — in rosso. */}
@@ -326,7 +341,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
  ))}
           {theoCompare.extras.map(e => (
             <div key={e.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
-              <span className="whitespace-nowrap font-medium">{cognomeOf(e.name)}</span>
+              <span className="whitespace-nowrap font-medium">{rowLabel(e.name, nameDisplay)}</span>
               {e.theo && <span className="tabular-nums text-muted-foreground whitespace-nowrap">da {e.theo}</span>}
             </div>
           ))}

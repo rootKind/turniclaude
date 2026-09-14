@@ -8,6 +8,7 @@ import type {
   ShiftTypeGroup,
 } from '@/types/database'
 import { matchesCognome } from '@/lib/utils'
+import { isBareOwnedName, userOwnsBareName, type BareOwnerMap } from '@/lib/shift-teams-matching'
 import { tokenForMember } from '@/lib/turni-teorici'
 import { isShiftWorkCode } from '@/lib/shift-tokens'
 
@@ -30,16 +31,24 @@ export interface MemberRef {
  * «esposito au.» corrisponde a Esposito Aurora (il prefisso «au» deve essere
  * l'inizio del nome). È più tollerante di `matchesCognome`, che per gli omonimi
  * confronta solo il prefisso minimo (una lettera).
+ *
+ * `bareOwners` (lib/shift-teams-matching): omonimi con membro LEGATO via user_id —
+ * la riga PDF con il solo cognome («NEVANO») vale SOLO per il legato (Pietro);
+ * gli altri omonimi matchano solo con l'iniziale («NEVANO G.»).
  */
 export function personNameMatches(
   fullName: string,
   user: PersonRef | null | undefined,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): boolean {
   if (!user?.cognome) return false
   const fn = fullName.trim().toLowerCase()
   const cognome = user.cognome.trim().toLowerCase()
   if (!fn || !cognome) return false
+  // Nome BARE (solo cognome) con proprietario nell'albero: matcha solo il
+  // proprietario legato (Pietro per «NEVANO», Giuseppe no).
+  if (isBareOwnedName(fn, bareOwners)) return userOwnsBareName(user.cognome, user.nome, bareOwners)
   if (fn === cognome) return true
 
   const prefixed = fn.match(/^(.*)\s+([a-z]+)\.$/)
@@ -49,26 +58,29 @@ export function personNameMatches(
   }
 
   // Fallback per i nomi senza suffisso riconoscibile
-  return matchesCognome([fullName], user.cognome, user.nome, duplicateCognomi)
+  return matchesCognome([fullName], user.cognome, user.nome, duplicateCognomi, bareOwners)
 }
 
 export function anyNameMatches(
   names: string[] | undefined,
   user: PersonRef | null | undefined,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): boolean {
   if (!names?.length) return false
-  return names.some(n => personNameMatches(n, user, duplicateCognomi))
+  return names.some(n => personNameMatches(n, user, duplicateCognomi, bareOwners))
 }
 
 /**
  * Membro della struttura teorica corrispondente all'utente. L'`user_id` (se
  * valorizzato) ha priorità; in mancanza si confronta il `full_name`.
+ * `bareOwners` serve al match per nome degli omonimi legati (caso NEVANO).
  */
 export function findMemberForUser(
   tree: Pick<ShiftTeamTree, 'types'> | null | undefined,
   user: PersonRef | null | undefined,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): MemberRef | null {
   if (!tree || !user) return null
   let byName: MemberRef | null = null
@@ -77,7 +89,7 @@ export function findMemberForUser(
       for (const member of team.members) {
         if (!member.is_active) continue
         if (user.id && member.user_id === user.id) return { type, team, member }
-        if (!byName && personNameMatches(member.full_name, user, duplicateCognomi)) {
+        if (!byName && personNameMatches(member.full_name, user, duplicateCognomi, bareOwners)) {
           byName = { type, team, member }
         }
       }
@@ -92,9 +104,10 @@ export function theoreticalTokenFor(
   user: PersonRef | null | undefined,
   dateISO: string,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): string {
   if (!tree) return ''
-  const ref = findMemberForUser(tree, user, duplicateCognomi)
+  const ref = findMemberForUser(tree, user, duplicateCognomi, bareOwners)
   if (!ref) return ''
   return tokenForMember(ref.type, ref.member, ref.team.id, tree.adjustments, dateISO)
 }
@@ -120,27 +133,28 @@ export function realShiftFor(
   day: DaySchedule | undefined,
   user: PersonRef | null | undefined,
   duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): RealShiftInfo {
   if (!day || !user?.cognome) return NO_REAL_SHIFT
 
   for (const [section, byShift] of Object.entries(day.sections ?? {})) {
     for (const [shift, data] of Object.entries(byShift ?? {}) as [SalaShiftType, SectionShiftData][]) {
-      if (anyNameMatches(data.surnames?.T, user, duplicateCognomi)) {
+      if (anyNameMatches(data.surnames?.T, user, duplicateCognomi, bareOwners)) {
         return { token: `${shift}${section}T`, shift, section, slot: 'T', presentNoSection: false }
       }
-      if (anyNameMatches(data.surnames?.S, user, duplicateCognomi)) {
+      if (anyNameMatches(data.surnames?.S, user, duplicateCognomi, bareOwners)) {
         return { token: `${shift}${section}S`, shift, section, slot: 'S', presentNoSection: false }
       }
-      if (anyNameMatches(data.surnames?.noSlot, user, duplicateCognomi)) {
+      if (anyNameMatches(data.surnames?.noSlot, user, duplicateCognomi, bareOwners)) {
         return { token: `${shift}${section}`, shift, section, slot: null, presentNoSection: false }
       }
-      if (anyNameMatches(data.tirocinanti, user, duplicateCognomi)) {
+      if (anyNameMatches(data.tirocinanti, user, duplicateCognomi, bareOwners)) {
         return { token: `${shift}${section}TIR`, shift, section, slot: null, presentNoSection: false }
       }
     }
   }
 
-  if (anyNameMatches(day.altriPresenti, user, duplicateCognomi)) {
+  if (anyNameMatches(day.altriPresenti, user, duplicateCognomi, bareOwners)) {
     return { ...NO_REAL_SHIFT, presentNoSection: true }
   }
 

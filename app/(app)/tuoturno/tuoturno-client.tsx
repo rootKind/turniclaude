@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { Check, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
-import { buildDuplicateCognomi, cn } from '@/lib/utils'
+import { buildDuplicateCognomi, cn, formatDisplayName } from '@/lib/utils'
+import type { BareOwnerMap } from '@/lib/shift-teams-matching'
 import {
   findMemberForUser,
   isWorkToken,
@@ -80,8 +81,9 @@ function legacyRealShift(
   day: DaySchedule | undefined,
   user: UserOption | null,
   duplicateCognomi: Set<string>,
+  bareOwners?: BareOwnerMap | null,
 ): PersonDayShift | null {
-  const info = realShiftFor(day, user, duplicateCognomi)
+  const info = realShiftFor(day, user, duplicateCognomi, bareOwners)
   if (!info) return null
   if (info.token) return { kind: 'work', label: 'Turno', short: info.token, pending: false }
   if (info.presentNoSection) return { kind: 'duty', label: 'Presente senza sezione', short: '•', pending: false }
@@ -543,9 +545,13 @@ interface Props {
   /** Predittore del teorico per utente (dalla storia dei PDF, vedi page.tsx). */
   personTheoretical: Record<string, PersonTheoretical>
   initialMonth: string
+  /** Omonimi con membro LEGATO (caso NEVANO P./G.): serializzato da page.tsx
+   *  come coppie [cognome, owner] perché le Map non attraversano il confine RSC. */
+  bareOwners: [string, { fullName: string; nameNorm: string; cognomeKey: string; userId: string | null; initial: string }][]
 }
 
-export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, tree, personTheoretical, initialMonth }: Props) {
+export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, tree, personTheoretical, initialMonth, bareOwners: bareOwnerEntries }: Props) {
+  const bareOwners: BareOwnerMap = useMemo(() => new Map(bareOwnerEntries), [bareOwnerEntries])
   const [selectedUserId, setSelectedUserId] = useState(currentUserId)
   const [month, setMonth] = useState(initialMonth)
   const [schedules, setSchedules] = useState<Record<string, SalaSchedule | null>>({})
@@ -631,13 +637,13 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     [realSchedule],
   )
   const realPerson = useMemo(
-    () => (realPeople ? findMonthPerson(realPeople, selectedUser, duplicateCognomi) : null),
-    [realPeople, selectedUser, duplicateCognomi],
+    () => (realPeople ? findMonthPerson(realPeople, selectedUser, duplicateCognomi, bareOwners) : null),
+    [realPeople, selectedUser, duplicateCognomi, bareOwners],
   )
   const realShiftOfDay = (d: number): PersonDayShift | null => {
     if (!isRealMonth) return null
     if (realPerson) return personDayShift(realPerson, d)
-    return legacyRealShift(realSchedule?.schedule?.[d], selectedUser, duplicateCognomi)
+    return legacyRealShift(realSchedule?.schedule?.[d], selectedUser, duplicateCognomi, bareOwners)
   }
 
   // ── teorico: tre sorgenti in ordine di priorità ──────────────────────────
@@ -656,7 +662,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     }
     const pred = theoPredicted[d - 1] ?? ''
     if (pred) return pred
-    return theoreticalTokenFor(tree, selectedUser, `${month}-${String(d).padStart(2, '0')}`, duplicateCognomi)
+    return theoreticalTokenFor(tree, selectedUser, `${month}-${String(d).padStart(2, '0')}`, duplicateCognomi, bareOwners)
   }
   // ── confronto fra più dipendenti ──────────────────────────────────────────
   const viewportHeight = useSyncExternalStore(subscribeResize, () => window.innerHeight, () => 700)
@@ -692,13 +698,13 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const compareRows = useMemo<CompareRow[]>(() => {
     if (!comparing) return []
     return comparePeople.map(u => {
-      const person = realPeople ? findMonthPerson(realPeople, u, duplicateCognomi) : null
+      const person = realPeople ? findMonthPerson(realPeople, u, duplicateCognomi, bareOwners) : null
       const src = personTheoretical[u.id] ?? null
       const predicted = predictTheoreticalMonth(src, month)
       const hasTheo = !!(
         (isRealMonth && person?.teorico.some(t => t)) ||
         src ||
-        findMemberForUser(tree, u, duplicateCognomi)
+        findMemberForUser(tree, u, duplicateCognomi, bareOwners)
       )
       const cells = Array.from({ length: totalDays }, (_, i) => {
         const d = i + 1
@@ -707,15 +713,15 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           ? null
           : person
             ? personDayShift(person, d)
-            : legacyRealShift(realSchedule?.schedule?.[d], u, duplicateCognomi)
+            : legacyRealShift(realSchedule?.schedule?.[d], u, duplicateCognomi, bareOwners)
         const theo = (isRealMonth ? person?.teorico[d - 1] : undefined)
           || predicted[d - 1]
-          || theoreticalTokenFor(tree, u, dateISO, duplicateCognomi)
+          || theoreticalTokenFor(tree, u, dateISO, duplicateCognomi, bareOwners)
         return buildCompareDay(real, theo, hasTheo)
       })
       return { id: u.id, name: [u.cognome, u.nome].filter(Boolean).join(' '), cognome: u.cognome ?? '', nome: u.nome ?? '', cells }
     })
-  }, [comparing, comparePeople, realPeople, tree, duplicateCognomi, totalDays, month, isRealMonth, realSchedule, personTheoretical])
+  }, [comparing, comparePeople, realPeople, tree, duplicateCognomi, bareOwners, totalDays, month, isRealMonth, realSchedule, personTheoretical])
 
   // Larghezza minima uniforme delle celle: dal codice PIÙ LUNGO del mese
   // (tutte le righe, tutte le celle — equità fra le righe, richiesta 14/09/2026).
@@ -1146,7 +1152,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                     aria-label={`Togli ${u.cognome ?? ''}`}
                     className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
                   >
-                    {u.cognome}
+                    {formatDisplayName(u, duplicateCognomi)}
                     <X size={11} />
                   </button>
                 )

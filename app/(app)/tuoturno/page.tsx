@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { listScheduleMonths } from '@/lib/queries/sala-schedule'
 import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { buildDuplicateCognomi } from '@/lib/utils'
+import { buildBareOwners } from '@/lib/shift-teams-matching'
 import { buildPersonTheoretical, type PersonTheoretical } from '@/lib/person-cycle'
 import type { SalaMonthData } from '@/types/database'
 import { TuoTurnoClient } from './tuoturno-client'
@@ -33,6 +34,9 @@ export default async function TuoTurnoPage() {
 
   const users = usersRes.data ?? []
   const duplicateCognomi = buildDuplicateCognomi(users)
+  // Omonimi con membro LEGATO via user_id (caso NEVANO P./G.): la riga PDF con
+  // il solo cognome appartiene al legato (Pietro), gli altri solo con l'iniziale.
+  const bareOwners = buildBareOwners(tree, duplicateCognomi)
 
   // Mesi PDF in forma compatta v2: servono le righe «teorico» del parser.
   const pdfMonths = new Map<string, SalaMonthData>()
@@ -64,6 +68,7 @@ export default async function TuoTurnoPage() {
       tree={tree}
       personTheoretical={personTheoretical}
       initialMonth={currentMonth}
+      bareOwners={[...bareOwners.entries()]}
     />
   )
 }
