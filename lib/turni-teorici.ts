@@ -111,8 +111,10 @@ export function generateTheoreticalMonth(
 
 // ─── teorico ≠ reale (visualizzazione admin, 15/09/2026) ─────────────────
 
-/** Nome canonico per il confronto: minuscole, niente titolo, spazi uniti. */
-function normName(s: string): string {
+/** Nome canonico per il confronto: minuscole, niente titolo, spazi uniti.
+ *  Esportata: la mappa dei codici PDF di desk-board è indicizzata anche con
+ *  questa chiave (match esatto per gli omonimi). */
+export function normName(s: string): string {
   return s.toLowerCase().trim().replace(/\s+/g, ' ')
 }
 
@@ -140,7 +142,7 @@ export interface TheoRealRow {
   name: string
   /** Codice teorico atteso (token completo, es. «M6S»). */
   theo: string
-  /** Stato REALE nel PDF, già compatto: turno/sezione alternativa, codice di
+  /** Stato REALE nel PDF, già compatto: turno/sezione alternativa, sigla di
    *  assenza/riposo com'è nel PDF («A», «AG7», «F.E.»…), «presente» senza
    *  sezione o «assente» (nessuna traccia nel PDF). */
   real: string
@@ -195,10 +197,11 @@ interface RealEntry {
  * Le righe dove il teorico è CONFERMATO (stesso turno+sezione) NON compaiono:
  * le card mostrano già i nomi reali.
  *
- * `realCodes`: codice PDF (giorno `day`) per ogni persona NON in sezione —
- * serve a mostrare A/AG/F.E. invece di un generico «assente». Con il solo
- * day-schedule quei codici sono perduti; si ricostruiscono dal mese v2
- * (`SalaSchedule.data` → decodeSalaMonth) quando disponibile.
+ * `realCodes`: sigla PDF (giorno `day`) per ogni persona NON in sezione —
+ * assenze/riposi COME NEL PDF («A», «AG7», «F.E.»…). Con il solo day-schedule
+ * quei codici sono perduti (un assente non entra nella giornata); si
+ * ricostruiscono dal mese v2 (`SalaSchedule.data` → decodeSalaMonth) quando
+ * disponibile. UNA persona senza posizione né sigla resta «assente».
  */
 export function theoRealSectionCompare(
   month: string,
@@ -213,7 +216,7 @@ export function theoRealSectionCompare(
   //    «DI NAPOLI M.» / «DI NAPOLI A.» hanno token diversi lo stesso giorno).
   //    Match ESATTO per nome normalizzato quando il PDF ha l'iniziale
   //    («DI NAPOLI A.»), altrimenti fallback sulla chiave COGNOME.
-  interface TheoMember { exactKey: string; cognomeKey: string; token: string; full: string }
+  interface TheoMember { exactKey: string; cognomeKey: string; token: string; full: string; nameNorm: string }
   const theoMembers: TheoMember[] = []
   const theoByExact = new Map<string, string>()
   const theoByCognome = new Map<string, string>()
@@ -226,7 +229,7 @@ export function theoRealSectionCompare(
         if (!token) continue
         const exactKey = normName(member.full_name)
         const cognomeKey = surnameKey(member.full_name)
-        theoMembers.push({ exactKey, cognomeKey, token, full: member.full_name })
+        theoMembers.push({ exactKey, cognomeKey, token, full: member.full_name, nameNorm: exactKey })
         theoByExact.set(exactKey, token)
         theoByCognome.set(cognomeKey, token)
       }
@@ -277,10 +280,16 @@ export function theoRealSectionCompare(
     if (!isShiftCode(token)) continue
     const { shift, section } = parseShiftCode(token)
     if (ABSENT_CODES.has(token) || NON_SECTION_DUTIES.has(section)) continue
+    // Sigla REALE del PDF per questa persona (mese v2): match ESATTO sul nome
+    // normalizzato (gli OMONIMI hanno celle diverse: DI NAPOLI M. ≠ DI NAPOLI A.),
+    // altrimenti la prima sigla trovata sul COGNOME.
+    const norm = normName(full)
+    const cognomeCode = realCodes?.get(cognomeKey)
+    const exactCode = realCodes?.get(norm)
     // Omonimi: le posizioni reali della STESSA persona (nome esatto) se il PDF
     // le distingue («DI NAPOLI A.»), altrimenti tutte quelle del cognome.
     const cognomeList = realByCognome.get(cognomeKey) ?? []
-    const exactList = cognomeList.filter(c => c.exact === normName(full))
+    const exactList = cognomeList.filter(c => c.exact === norm)
     const candidates = exactList.length ? exactList : cognomeList
     const confirmed = candidates.find(c => !claimed.has(c) && c.section !== null && c.shift === shift && c.section === section)
     if (confirmed) {
@@ -290,11 +299,14 @@ export function theoRealSectionCompare(
     const free = candidates.filter(c => !claimed.has(c))
     const real = free.find(c => c.section !== null && c.shift === shift) ?? free[0]
     if (real) claimed.add(real)
-    const status = !real
-      ? 'assente'
-      : real.section !== null
+    // Nessuna posizione nella giornata: la sigla REALE del PDF (A/AG7/F.E.…)
+    // dal mese v2; se nemmeno quella c'è la persona è proprio «assente».
+    const absenceCode = exactCode ?? cognomeCode
+    const status = real
+      ? real.section !== null
         ? `${real.shift}${real.section}`
         : real.code || 'presente'
+      : absenceCode || 'assente'
     ensure(section, shift).rows.push({ name: full, theo: token, real: status })
   }
 

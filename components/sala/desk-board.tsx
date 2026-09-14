@@ -12,7 +12,7 @@ import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import { decodeSalaMonth } from '@/lib/sala-month'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { matchesCognome } from '@/lib/utils'
-import { theoRealSectionCompare, surnameKey, type TheoRealSectionCompare } from '@/lib/turni-teorici'
+import { normName, theoRealSectionCompare, surnameKey, type TheoRealSectionCompare } from '@/lib/turni-teorici'
 import { useAllDuplicateCognomi } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
@@ -458,7 +458,9 @@ export function DeskBoard({
     if (!theoDiffEnabled || !shiftTree || !schedule) return new Map<string, TheoRealSectionCompare>()
     const day = schedule.schedule[selectedDay]
     // Codici PDF del giorno per le persone NON in sezione (assenza/riposo):
-    // dal mese compatto v2, che conserva le celle originali del PDF.
+    // dal mese compatto v2, che conserva le celle originali del PDF. Due chiavi:
+    // nome normalizzato ESATTO (gli omonimi hanno celle diverse) e chiave
+    // cognome (fallback: vince il primo trovato).
     let realCodes: Map<string, string> | undefined
     if (schedule.data) {
       realCodes = new Map()
@@ -467,6 +469,7 @@ export function DeskBoard({
         if (!code) continue
         const key = surnameKey(p.name)
         if (key && !realCodes.has(key)) realCodes.set(key, code)
+        realCodes.set(normName(p.name), code)
       }
     }
     return theoRealSectionCompare(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day, realCodes)

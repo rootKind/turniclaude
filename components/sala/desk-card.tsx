@@ -309,8 +309,9 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       {/* Vista «Teorico ≠ reale» COMPATTA (solo admin): sotto i nomi reali della
           sezione. Righe teoriche NON confermate: «Cognome M6S A» (rosso = non al
           suo posto; il codice reale è quello del PDF: altro turno, A/AG/F.E.,
-          «presente» senza sezione, «assente»). Poi i «Nuovi»: reali che il
-          teorico non prevedeva qui, con la provenienza (teorico di origine). */}
+          «presente» senza sezione, «assente» solo se la cella PDF è vuota).
+          Poi i «Nuovi»: reali che il teorico non prevedeva qui, con la
+          provenienza (teorico di origine). */}
       {!isEditing && theoCompare && (theoCompare.rows.length > 0 || theoCompare.extras.length > 0) && (
         <div className="border-t sala-card-title-sep shrink-0 bg-muted/30">
           {theoCompare.rows.map(r => (

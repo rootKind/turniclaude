@@ -208,7 +208,11 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   **extras** = persone REALI in sezione che il teorico non prevedeva lì → «Cognome da RC»
   / «da M4S» / solo nome se non in scheda (blocco «Nuovi», provenienza dei reali).
   I codici di assenza arrivano dal mese v2 (`SalaSchedule.data` → decodeSalaMonth,
-  giorno `day-1`): il day-schedule li perde. **OMONIMI (DI NAPOLI M./A.):** match ESATTO
+  giorno `day-1`): il day-schedule li perde — da 18/09/2026 il codice v2 è letto
+  ANCHE per gli assenti (prima chi non aveva posizione nella giornata mostrava il
+  generico «assente» anche con A/AG7/F.E. nella cella; la mappa `realCodes` è
+  ora indicizzata per nome esatto OLTRE che per cognome, vedi `normName`).
+  **OMONIMI (DI NAPOLI M./A.):** match ESATTO
   su nome normalizzato quando il PDF distingue le iniziali, fallback cognome; le posizioni
   reali vengono «consumate» dai teorici confermati prima di scegliere quella da mostrare
   (Set `claimed`) — senza questo il secondo omonimo generava righe/extras sbagliate.
