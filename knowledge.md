@@ -703,6 +703,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   Maternità (ex Varianti) → RIC/ASTER → «Senza squadra» (senza account nei turni teorici). Stessa struttura
   nell'editor di massa. Il match utente↔membro usa la STESSA regola dei PDF (cognome, o
   «COGNOME Iniz.» per gli omonimi) in `lib/compare-groups.ts` (`buildCompareGroups`).
+  BUG FIX (18/09/2026): `buildCompareGroups` filtra `show_in_compare === false` — l'editor di
+  massa che lo chiamava SECCO vedeva sparire l'utente appena disattivato (impossibile
+  riaccenderlo). Ora accetta `{ includeHidden: true }`: l'editor di massa passa TUTTI gli
+  utenti (lo switch vive sulla riga), il selettore di /tuoturno resta filtrato.
   (3) Migration 027: squadre scorte semplici rinominate «Squadra fase +N» → **«Semplici A/B/C/D»**
   (rinominati anche i template builtin 025 «Fase +N» → «Semplici X»), e la tipologia **IAP è
   ELIMINATA** (i dipendenti IAP attivi non hanno accesso all'app; i codici IAP nei PDF storici

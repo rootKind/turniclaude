@@ -104,8 +104,10 @@ export function CompareVisibilityDialog({ open, onClose }: { open: boolean; onCl
 
   const q = query.trim().toLowerCase()
   // stesso raggruppamento del selettore di /tuoturno (Noni/DCO + sezione per squadra)
+  // includeHidden: TUTTI gli utenti restano in lista anche a switch spento
+  // (senza, l'utente appena disattivato SPARIVA e non si poteva più riaccendere).
   const groups = useMemo(
-    () => buildCompareGroups(rows, tree),
+    () => buildCompareGroups(rows, tree, { includeHidden: true }),
     [rows, tree],
   )
   const visibleGroups = useMemo(() => {

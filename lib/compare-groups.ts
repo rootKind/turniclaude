@@ -62,6 +62,11 @@ export interface CompareUserInput {
 export function buildCompareGroups(
   users: CompareUserInput[],
   tree: ShiftTeamTree | null,
+  /** includeHidden: l'editor di massa admin vuole TUTTI gli utenti (con lo
+   *  switch spento restano in lista, altrimenti spariscono e non si può
+   *  più riaccendere la visibilità — bug 18/09/2026). Il selettore di
+   *  /tuoturno invece omette chi ha show_in_compare = false (default). */
+  opts?: { includeHidden?: boolean },
 ): CompareGroup[] {
   // ── squadre dei turni teorici, in ordine di tipo e sort_order ───────────────
   type TeamEntry = {
@@ -114,7 +119,7 @@ export function buildCompareGroups(
     })
   })
 
-  const visible = users.filter(u => u.show_in_compare !== false)
+  const visible = opts?.includeHidden ? users : users.filter(u => u.show_in_compare !== false)
   const byCognome = (a: CompareUserInput, b: CompareUserInput) => (a.cognome ?? '').localeCompare(b.cognome ?? '')
 
   const toUser = (u: CompareUserInput): CompareGroupUser => ({
