@@ -11,7 +11,9 @@ export interface AppSettings {
   notif_template_overrides: NotifOverrides | null
 }
 
-const DEFAULTS: AppSettings = {
+// Esportati anche per l'hook client (use-app-settings): il primo giro di una
+// sessione senza cache parte da qui invece di mostrare skeleton.
+export const DEFAULTS: AppSettings = {
   min_year_turniferie: 2026,
   min_year_vacanze: 2026,
   shift_swap_limit_enabled: false,

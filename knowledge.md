@@ -969,3 +969,27 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   namespacing utente necessario); il wipe al logout copre comunque il cambio account.
   Admin dialog che EDITANO squadre/utenti (squadre-dialog, shift-dialog, compare-visibility)
   tengono il loro refetch-on-open volutamente fresco. Test: scripts/check-query-idb-cache.mjs.
+
+- **Misurazione A/B cache-first (20/09/2026)**: BEFORE=13a3bee vs AFTER=cbf2e7d, due server dev
+  in parallelo (BEFORE su :3100 in worktree temporaneo, pnpm install via `npx pnpm@10`; package.json
+  identici), Playwright headless con tests/.auth-state.json → scripts/measure-cache-first.mjs
+  (riusabile; artefatti measure-before/after.json). Esiti (dev, StrictMode raddoppia i mount):
+  cold start /turnisala 9→5 chiamate REST (118KB→68KB); reload a caldo 9→0 chiamate anagrafiche
+  (da IDB); IDB = 1 mese dopo il cold start; mese rivisitato: stesso traffico (28KB, riconvalida
+  BY DESIGN) ma paint immediato da cache; /tuoturno swipe 3→2 chiamate. In PROD (StrictMode off)
+  il cold start è ~64KB→~68KB (+6%, payload users arricchito di show_in_compare ecc., una tantum).
+  Su localhost il vantaggio latenza cache-first non è misurabile (rete ~0ms): valgono conteggi
+  e byte. BUG TROVATO (pre-esistente): tendina «Scegli mese» /turnisala off-by-one (value 1-based
+  usato come indice 0-based → «Settembre» mostra Ottobre) — da correggere a parte.
+
+- **Skeleton solo tecnici (20/09/2026)**: audit conferma NESSUN delay artificiale nei
+  caricamenti (i due setTimeout 4s sono i timer di reset highlight URL, funzionali). Gli
+  skeleton «macchinosi» venivano dal gate anno di /vacanze e /turniferie: min_year arrivato
+  da getAppSettings SENZA cache → a ogni apertura fredda full-page skeleton finché la
+  rete rispondeva. Fix: useAppSettings cache-first (staleTime 24h, initialData da
+  localStorage cache:{userId}:app-settings, al primo giro assoluto DEFAULTS esportati da
+  lib/queries/app-settings) + gate ridotto al SOLO caso «selectedYear < minYear reale»
+  (praticamente mai). Realtime app_settings nelle pagine ora invalida la query react-query
+  (prima duplicava lo stato in useState locale). /tuoturno, /turnisala, /dashboard,
+  /notifiche, /impostazioni: i loro loading.tsx/skeleton sono SOLO attese tecniche SSR/fetch
+  — già mitigati dal cache-first (messe IDB, anagrafiche 6h).

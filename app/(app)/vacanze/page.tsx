@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, Suspense } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -8,7 +9,7 @@ import { isAdmin, isManager } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getMyVacationAssignment } from '@/lib/queries/vacations'
 import { VACATION_PERIOD_LABELS } from '@/lib/vacations'
-import { getAppSettings } from '@/lib/queries/app-settings'
+import { useAppSettings } from '@/hooks/use-app-settings'
 import { VacationRequestList } from '@/components/vacanze/vacation-request-list'
 import { VacationRequestDialog } from '@/components/vacanze/vacation-request-dialog'
 import { YearGateSkeleton } from '@/components/ui/year-gate-skeleton'
@@ -19,6 +20,7 @@ const MAX_YEAR = 2099
 function VacanzeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
 
   const { profile } = useCurrentUser()
   const [viewSecondary, setViewSecondary] = useState(false)
@@ -28,7 +30,12 @@ function VacanzeContent() {
   const [periodLabel, setPeriodLabel] = useState<string | null>(null)
   const [periodLabelYear, setPeriodLabelYear] = useState<number | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [minYear, setMinYear] = useState<number | null>(null)
+  // Cache-first (20/09/2026): niente più skeleton full-page mentre aspetta
+  // app_settings — l'hook parte da cache/DEFAULTS e il realtime aggancia i
+  // cambi. Il gate resta solo per il caso «anno selezionato < min reale».
+  const settings = useAppSettings()
+  const fetchedMinYear = settings.min_year_vacanze
+  const minYear: number | null = fetchedMinYear ?? null
   const [highlightRequestIds, setHighlightRequestIds] = useState<number[]>(() => {
     const multi = searchParams.get('requests')
     const single = searchParams.get('request')
@@ -83,17 +90,16 @@ function VacanzeContent() {
 
   useEffect(() => {
     const supabase = createClient()
-    getAppSettings(supabase)
-      .then(s => setMinYear(s.min_year_vacanze))
-      .catch(() => setMinYear(new Date().getFullYear()))
+    // min_year arriva da useAppSettings (cache-first): qui resta solo il
+    // realtime per riallineare l'anno se l'admin cambia le impostazioni.
     const channel = supabase
       .channel('app-settings-vacanze')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
-        const s = payload.new as { min_year_vacanze: number }
-        setMinYear(s.min_year_vacanze)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['app-settings'] })
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -128,7 +134,12 @@ function VacanzeContent() {
     }
   }, [minYear])
 
-  if (minYear === null) return <YearGateSkeleton variant="vacanze" />
+  // GATE solo quando serve davvero: anno selezionato PRIMA del minimo reale
+  // (es. utente su 2025 e min 2026). Mai su «impostazioni in arrivo»: in quel
+  // caso si parte dai default e l'anno si aggancia appena la query risolve —
+  // prima qui si mostrava lo skeleton full-page a OGNI apertura fredda.
+  // (useAppSettings ora restituisce SEMPRE un oggetto, mai undefined.)
+  if (selectedYear < minYear) return <YearGateSkeleton variant="vacanze" />
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">

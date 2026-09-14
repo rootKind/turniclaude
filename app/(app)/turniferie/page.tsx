@@ -10,7 +10,8 @@ import { isAdmin, isManager } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getAllVacationAssignmentsWithUsers, getVacationYearOverrides, type VacationAssignmentWithUser } from '@/lib/queries/vacations'
 import { VACATION_PERIOD_LABELS, getEffectivePeriodForYear } from '@/lib/vacations'
-import { getAppSettings } from '@/lib/queries/app-settings'
+import { useAppSettings } from '@/hooks/use-app-settings'
+import { useQueryClient } from '@tanstack/react-query'
 import { makeCacheKey } from '@/lib/cache'
 import type { VacationPeriod } from '@/types/database'
 
@@ -21,9 +22,13 @@ const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
 
 export default function TurniFeriePage() {
   const { profile } = useCurrentUser()
+  const queryClient = useQueryClient()
   const [viewSecondary, setViewSecondary] = useState(false)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [minYear, setMinYear] = useState<number | null>(null)
+  // Cache-first (20/09/2026): come /vacanze — niente skeleton full-page in
+  // attesa di app_settings; partiamo dai default e agganciamo appena risolve.
+  const settings = useAppSettings()
+  const minYear: number = settings.min_year_turniferie
   const [assignments, setAssignments] = useState<VacationAssignmentWithUser[]>([])
   const [expandedPeriods, setExpandedPeriods] = useState<Set<VacationPeriod>>(new Set([1, 2, 3, 4, 5, 6]))
   // true when viewport is tall enough to show all 6 cards fully expanded
@@ -48,21 +53,18 @@ export default function TurniFeriePage() {
   useEffect(() => {
     localStorage.setItem('turni-last-page', '/turniferie')
     const supabase = createClient()
-    getAppSettings(supabase)
-      .then(s => setMinYear(s.min_year_turniferie))
-      .catch(() => setMinYear(new Date().getFullYear()))
+    // min_year arriva da useAppSettings (cache-first); realtime solo per
+    // riallineare l'anno se l'admin cambia le impostazioni.
     const channel = supabase
       .channel('app-settings-turniferie')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
-        const s = payload.new as { min_year_turniferie: number }
-        setMinYear(s.min_year_turniferie)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['app-settings'] })
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [queryClient])
 
   useEffect(() => {
-    if (minYear === null) return
     setSelectedYear(y => Math.max(y, minYear))
   }, [minYear])
 
@@ -132,7 +134,6 @@ export default function TurniFeriePage() {
       startY = e.touches[0].clientY
     }
     function onTouchEnd(e: TouchEvent) {
-      if (minYear === null) return
       const dx = e.changedTouches[0].clientX - startX
       const dy = e.changedTouches[0].clientY - startY
       if (Math.abs(dx) <= 50 || Math.abs(dy) > Math.abs(dx)) return
@@ -226,7 +227,10 @@ export default function TurniFeriePage() {
     })
   }
 
-  if (minYear === null) return <YearGateSkeleton variant="turniferie" />
+  // GATE solo quando serve davvero: anno selezionato PRIMA del minimo reale
+  // (stesso criterio di /vacanze). Con l'impostazione in arrivo si parte dai
+  // default e si renderizza subito — prima: skeleton full-page a ogni apertura.
+  if (selectedYear < minYear) return <YearGateSkeleton variant="turniferie" />
 
   // ALTEZZA MINIMA, non fissa (fix 15/09/2026): con height fissa calc(100dvh - 4rem)
   // su schermi piccoli (o elenchi ricchi) i figli flex si COMPRAIMEVANO nel riquadro
