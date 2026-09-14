@@ -1080,4 +1080,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   → var(--cell-duty-*), --altri-pill-istruttori → var(--pill-notte-*),
   --altri-pill-altro → var(--pill-mattina-*); nessun hex duplicato, light+dark
   automatici; Assenti restano --cell-abs). Verificato live mar2026 g5/g12 con
-  confronto computed-style ↔ variabili su entrambi i temi.
+  confronto computed-style ↔ variabili su entrambi i temi. RIFINITURA 24/09:
+  (a) NIENTE più riga «Nuovi:» nel blocco gruppi — la provenienza teorica
+  «da <token>» va DIRETTAMENTE sulla pill del gruppo dei non-previsti
+  (gruppoProvenienza: Map normName→theo dal bucket @gruppo, solo con
+  teorico≠reale attivo); i «Nuovi» di SEZIONE nelle card restano invariati.
+  (b) Le classi .altri-pill-* hanno il BORDO color-mix(currentColor 30%)
+  come .cell-tint-abs (classe .altri-pill-tutor rimossa, orfana).

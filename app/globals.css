@@ -807,11 +807,12 @@
   .sala-card-title-sep { border-color: var(--sala-card-title-sep); }
   .sala-present-pill { background-color: var(--sala-present-pill-bg); color: var(--sala-present-pill-text); }
   /* Tinte dei gruppi «altre presenti» (richiesta 23/09/2026) */
-  .altri-pill-trasferte  { background-color: var(--altri-pill-trasferte-bg);  color: var(--altri-pill-trasferte-text); }
-  .altri-pill-corsi      { background-color: var(--altri-pill-corsi-bg);      color: var(--altri-pill-corsi-text); }
-  .altri-pill-istruttori { background-color: var(--altri-pill-istruttori-bg); color: var(--altri-pill-istruttori-text); }
-  .altri-pill-tutor      { background-color: var(--altri-pill-tutor-bg);      color: var(--altri-pill-tutor-text); }
-  .altri-pill-altro      { background-color: var(--altri-pill-altro-bg);      color: var(--altri-pill-altro-text); }
+  .altri-pill-trasferte  { background-color: var(--altri-pill-trasferte-bg);  color: var(--altri-pill-trasferte-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  /* Bordo in stile assenti (.cell-tint-abs): anello sottile dello stesso tinta
+     del testo — sottogruppi più definiti (richiesta 24/09/2026). */
+  .altri-pill-corsi      { background-color: var(--altri-pill-corsi-bg);      color: var(--altri-pill-corsi-text);      border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .altri-pill-istruttori { background-color: var(--altri-pill-istruttori-bg); color: var(--altri-pill-istruttori-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .altri-pill-altro      { background-color: var(--altri-pill-altro-bg);      color: var(--altri-pill-altro-text);      border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
 
   /* Sala toolbar — sfondo card d'intestazione + chip selezionato + navigazione mese */
   .sala-toolbar-bg   { background-color: var(--sala-toolbar-bg); }

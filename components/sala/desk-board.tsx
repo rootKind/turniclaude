@@ -7,7 +7,7 @@ import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { toast } from 'sonner'
 import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType, ShiftTeamTree } from '@/types/database'
-import { groupAltriPresenti, ALTRI_COLORS, type AltriGruppo } from '@/lib/altri-gruppi'
+import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
@@ -15,7 +15,7 @@ import { decodeSalaMonth } from '@/lib/sala-month'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName, matchesCognome } from '@/lib/utils'
 import { buildBareOwners, lookupNameDisplay, type BareOwnerMap } from '@/lib/shift-teams-matching'
-import { GRUPPO_EXTRA_KEY, assentiPerTurno, normName, theoRealSectionCompare, surnameKey, type AssenteDelTurno, type TheoRealExtra, type TheoRealSectionCompare } from '@/lib/turni-teorici'
+import { GRUPPO_EXTRA_KEY, assentiPerTurno, normName, theoRealSectionCompare, surnameKey, type AssenteDelTurno, type TheoRealSectionCompare } from '@/lib/turni-teorici'
 import { useAllDuplicateCognomi, useAllUsersForNames } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
@@ -568,13 +568,19 @@ export function DeskBoard({
   // corsi…) che il teorico non prevedeva lì. Ordinati per tipologia, lo stesso
   // ordine dei gruppi sotto. Il codice PDF del reale arriva nel «Nuovi» da
   // altriPresentiTokens (24/09).
-  const gruppoExtras: TheoRealExtra[] = useMemo(() => {
+  // Provenienza teorica dei «Nuovi» di gruppo (24/09/2026): niente riga
+  // «Nuovi:» separata — quando il teorico≠reale è attivo, l'annotazione
+  // «da <token>» appare DIRETTAMENTE sulla pill del gruppo corrispondente
+  // (chiave = nome normalizzato), evitando di riscrivere le persone.
+  const gruppoProvenienza = useMemo(() => {
     const bucket = theoCompareBySection.get(GRUPPO_EXTRA_KEY)
-    if (!bucket) return []
-    const order = ['trasferte', 'corsi', 'istruttori', 'altro']
-    return [...bucket.extras].sort(
-      (a, b) => order.indexOf(a.group ?? 'altro') - order.indexOf(b.group ?? 'altro'),
-    )
+    if (!bucket) return undefined
+    const m = new Map<string, string>()
+    for (const e of bucket.extras) {
+      const k = normName(e.name)
+      if (e.theo && !m.has(k)) m.set(k, e.theo)
+    }
+    return m
   }, [theoCompareBySection])
 
   // BLOCCO «ASSENTI» (richiesta 23/09/2026): chi nel PDF del giorno ha una
@@ -849,31 +855,19 @@ export function DeskBoard({
       </DndContext>
 
       {/* Altri presenti RAGGRUPPATI per tipologia (richiesta 22/09/2026):
-          Trasferte / Corsi SP / Istruttori SP / Tutor / Altre attività.
-          Ogni gruppo appare solo se ha almeno una persona oggi.
-          TINTE dedicate per gruppo (23/09/2026): pill riconoscibile a colpo
-          d'occhio. In testa, solo in vista teorico≠reale, i «Nuovi» di GRUPPO:
-          reali presenti SOLO nelle altre presenti che il teorico non prevedeva
-          lì, con la tinta della tipologia e la provenienza «da <token>». */}
-      {(gruppoExtras.length > 0 || altriGruppi.length > 0 || assenti.size > 0) && (
+          Trasferte / Corsi / Istruttori / Altre attività. Ogni gruppo appare
+          solo se ha almeno una persona oggi. TINTE = chip P/M/N + card verdi
+          (24/09). In vista teorico≠reale NIENTE riga «Nuovi» separata: la
+          provenienza teorica «da <token>» va DIRETTAMENTE sulla pill del
+          gruppo dei non-previsti (richiesta 24/09, niente ridondanza). */}
+      {(altriGruppi.length > 0 || assenti.size > 0) && (
         <div className="flex flex-col gap-1 pt-1 border-t border-border/40">
-          {gruppoExtras.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs text-muted-foreground shrink-0">Nuovi:</span>
-              {gruppoExtras.map((e, i) => (
-                <span key={i} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${ALTRI_COLORS[(e.group ?? 'altro') as AltriGruppo['key']]}`}>
-                  {displayForPdfName(e.name)}
-                  {e.code && <span className="tabular-nums font-semibold opacity-80"> {e.code}</span>}
-                  {e.theo && <span className="tabular-nums opacity-70 font-medium">da {e.theo}</span>}
-                </span>
-              ))}
-            </div>
-          )}
           {altriGruppi.map(gruppo => (
             <div key={gruppo.key} className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-muted-foreground shrink-0">{gruppo.label}:</span>
               {gruppo.entries.map((e, i) => {
                 const isMe = matchesCognome([e.name], userCognome, userNome, duplicateCognomi, bareOwners)
+                const da = gruppoProvenienza?.get(normName(e.name))
                 return (
                   <span
                     key={i}
@@ -881,6 +875,7 @@ export function DeskBoard({
                   >
                     {displayForPdfName(e.name)}
                     {e.code && <span className="tabular-nums font-semibold opacity-80"> {e.code}</span>}
+                    {da && <span className="tabular-nums opacity-70 font-medium"> da {da}</span>}
                   </span>
                 )
               })}
