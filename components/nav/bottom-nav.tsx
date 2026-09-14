@@ -6,6 +6,7 @@ import { Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, 
 import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
+import { NotificationBadge } from '@/components/ui/notification-badge'
 
 const MANAGER_CYCLE = ['/dashboard', '/vacanze', '/turnisala', '/turniferie']
 function nextManagerPage(current: string): string {
@@ -556,9 +557,9 @@ function NavItem({ href, icon: Icon, label, badge = 0, active }: {
       <div className="relative">
         <Icon size={22} strokeWidth={active ? 2.5 : 1.5} />
         {badge > 0 && (
-          <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 border border-destructive/40 bg-destructive/10 dark:bg-destructive/20 text-destructive text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-            {badge > 99 ? '99+' : badge}
-          </span>
+          /* Strati: fondo opaco «taglio» (stessa forma del badge) + badge vero:
+             il riempimento traslucido non fa più trasparire l'icona. */
+          <NotificationBadge count={badge} className="absolute -top-1 -right-1.5" />
         )}
       </div>
       <span className="text-[10px]">{label}</span>

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, EyeOff, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { NotificationBadge } from '@/components/ui/notification-badge'
 import { getAppSettings, updateAppSettings } from '@/lib/queries/app-settings'
 import { NotificationDialog } from './notification-dialog'
 import { NotificationTestDialog } from './notification-test-dialog'
@@ -283,9 +284,8 @@ function PanelButton({ icon, label, description, badge, onClick }: {
       </span>
       <span className="text-[11px] font-medium leading-tight">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="absolute top-1 right-1 min-w-[17px] h-[17px] border border-destructive/40 bg-destructive/10 dark:bg-destructive/20 text-destructive text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-          {badge > 99 ? '99+' : badge}
-        </span>
+        /* Fondo opaco «taglio» (superficie = card) + badge: niente icona che traspare. */
+        <NotificationBadge count={badge} surface="card" className="absolute top-1 right-1 min-w-[17px] h-[17px]" />
       )}
     </button>
   )

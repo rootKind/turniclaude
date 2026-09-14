@@ -287,6 +287,14 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   ampiamente anche sotto 640px). Sotto ~330px di viewport (es. 319px) il contenitore
   interno del titolo ha `flex-wrap`, quindi il BOTTONE scende su una riga propria sotto il
   titolo, che resta su UNA SOLA riga (143px, non troncato su 3) — verifica 25/08/2026.
+  - **Badge notifiche (17/09/2026):** componente condiviso `components/ui/notification-badge.tsx`
+  (`NotificationBadge`, usato da bottom-nav `NavItem`, campanella, pannello admin). Stile = tasto
+  Esci (fill `destructive/10` scuro `/20`, bordo `destructive/40`, testo rosso) MA a DUE strati:
+  esterno opaco del colore della superficie (`bg-background` o `bg-card` con `surface="card"`,
+  stesso radius pieno) + badge vero sopra. IL FILL TRASLUCIDO ALONE lascia trasparire le linee
+  dell'icona sotto: NON tornare al badge singolo translucido — se un badge poggia su una nuova
+  superficie, aggiungere la variante surface opportuna (o passare bg esplicito) per mantenere il
+  «taglio» della sovrapposizione.
   Header con `flex-wrap` + `min-w-0` + bottone `flex-shrink-0` e titolo `leading-snug`;
   campanella (`NotificationBell`, fixed top-right) sempre visibile, nessun overflow X.
 - **Responsiveness orizzontale (25/08/2026):** tutte le schermate usano `max-w-lg mx-auto px-4`

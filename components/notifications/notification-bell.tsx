@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Bell } from 'lucide-react'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
 import { usePathname } from 'next/navigation'
+import { NotificationBadge } from '@/components/ui/notification-badge'
 
 export function NotificationBell() {
   const { unreadCount } = useNotificationHistory()
@@ -19,9 +20,8 @@ export function NotificationBell() {
       <div className="relative">
         <Bell size={20} strokeWidth={1.5} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 border border-destructive/40 bg-destructive/10 dark:bg-destructive/20 text-destructive text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
+          /* Fondo opaco «taglio» + badge: niente icona che traspare. */
+          <NotificationBadge count={unreadCount} className="absolute -top-1 -right-1.5" />
         )}
       </div>
     </Link>
