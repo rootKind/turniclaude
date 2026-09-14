@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { pushToUser } from '@/lib/push/send-to-user'
+import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import {
   findVacationChains,
   VACATION_REQUESTS_WITH_INTERESTS_SELECT,
@@ -83,7 +84,8 @@ export async function POST(req: Request) {
   if (toNotify.size === 0) return NextResponse.json({ notified: 0 })
 
   const newReq = allRequests.find(r => r.user_id === newRequestUserId)
-  const actorName = newReq ? [newReq.user.nome, newReq.user.cognome].filter(Boolean).join(' ') : 'Qualcuno'
+  const actorName = newReq ? [newReq.user.cognome, newReq.user.nome].filter(Boolean).join(' ') : 'Qualcuno'
+  const notifOverrides = await loadNotifOverrides()
 
   await Promise.allSettled([...toNotify].map(async (userId) => {
     const { data: owner } = await admin
@@ -107,9 +109,12 @@ export async function POST(req: Request) {
         : [userReq.id]
     })() : []
 
+    const msg = messageFor(notifOverrides, 'vacation_chain_ready.title', {
+      cognome_attore: actorName, anno: String(year),
+    })
     await pushToUser(userId, {
-      title: 'Nuova catena ferie disponibile',
-      body: `${actorName} ha inserito una richiesta che completa una catena con la tua (${year})`,
+      title: msg.title,
+      body: msg.body,
       type: 'new_vacation',
       requestIds: chainRequestIds,
     })

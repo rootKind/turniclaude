@@ -904,3 +904,17 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
     /api/admin/notifications?userId=) per iscrizioni stale.
   - Da collegare (futuro): i route di push (notify, manager, cleanup, chains) leggono gli
     override con fetchNotifOverrides e sostituiscono i testi hardcoded.
+- **Override attivi nei flussi reali (14/09/2026):** TUTTI i route di push ora leggono gli
+  override admin e sostituiscono le variabili automaticamente:
+  - `loadNotifOverrides()` + `messageFor()` (lib/push/send-with-template.ts): override →
+    default → rendering con `renderFlowTemplate` (variabili non risolte RIMOSE con pulizia
+    spazi, a differenza del pannello che le mostra). `pushTemplateToUser(s)` per invii con
+    nome/cognome del destinatario nel contesto.
+  - Flussi riconnessi: app/api/push/notify (new_shift con caduta senza-data, interest con
+    caduta senza-dettagli, vacation_interest, new_vacation), manager shift-requests
+    (pending/approve creator+winner/others/reject con {motivo}), admin shift-cleanup
+    (cleanup.done con {dettaglio}+{extra}, partner, gone), vacanze join-chain e check-chains.
+  - Nuove variabili registry: {motivo}, {turno_effettivo}, {dettaglio}, {extra}.
+  - **Migration 029 APPLICATA al progetto dev (turniclaude-dev)** via `supabase db query
+    --linked`; persistenza verificata con scripts/check-notif-overrides-persist.mjs
+    (PATCH → read-back → reset). apply-migration-029.mjs automatizza il controllo.

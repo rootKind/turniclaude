@@ -11,6 +11,7 @@ import {
   type ShiftLookupContext,
 } from '@/lib/queries/shift-cleanup'
 import { pushToUser } from '@/lib/push/send-to-user'
+import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import { formatDateShort } from '@/lib/utils'
 
 export const runtime = 'nodejs'
@@ -134,6 +135,8 @@ export async function POST(req: NextRequest) {
   // ── Notifiche ────────────────────────────────────────────────────────────
   // Una notifica per utente: prima i richiedenti (più rilevante nel caso in cui
   // un interessato sia anche autore di una richiesta ripulita), poi gli interessati.
+  // Testi da registry: override admin (app_settings) → default del codice.
+  const overrides = await loadNotifOverrides()
   const payloads = new Map<string, { title: string; body: string }>()
 
   const byUser = new Map<string, ShiftRow[]>()
@@ -150,12 +153,16 @@ export async function POST(req: NextRequest) {
       .find(a => (first.requested_shifts ?? []).some(r => SHIFT_TO_SALA[r] === a))
     const actualLabel = actual ? ACTUAL_LABEL[actual] : null
     const extra = userShifts.length > 1 ? ` (e altre ${userShifts.length - 1} richieste)` : ''
-    payloads.set(userId, {
-      title: 'Cambio turno già registrato',
-      body: actualLabel
-        ? `La richiesta di cambio del ${dateLabel} (${first.offered_shift} → ${requestedLabel}) è stata eliminata: nel turno caricato risulti già in ${actualLabel}.${extra}`
-        : `La richiesta di cambio del ${dateLabel} (${first.offered_shift} → ${requestedLabel}) è stata eliminata: il turno richiesto risulta già assegnato.${extra}`,
+    // {dettaglio} spiega il caso specifico: turno trovato nel calendario o
+    // «già assegnato»; {extra} elenca le altre richieste ripulite, se ci sono.
+    const msg = messageFor(overrides, 'cleanup.done.title', {
+      data: dateLabel, turno: first.offered_shift, turno_cercati: requestedLabel,
+      dettaglio: actualLabel
+        ? `nel turno caricato risulti già in ${actualLabel}`
+        : 'il turno richiesto risulta già assegnato',
+      extra,
     })
+    payloads.set(userId, { title: msg.title, body: msg.body })
   }
 
   for (const s of shifts) {
@@ -167,15 +174,14 @@ export async function POST(req: NextRequest) {
       // Se l'interessato compare nel calendario nel turno che il richiedente
       // cedeva, allora il cambio è stato fatto proprio con lui.
       const isPartner = actualShiftsForUserDate(ctx, userId, s.shift_date).includes(ceduto)
-      payloads.set(userId, isPartner
-        ? {
-            title: 'Cambio turno completato',
-            body: `Il cambio del ${dateLabel} con ${userLabel(s.user_id)} è andato a buon fine: risulti in ${s.offered_shift}.`,
-          }
-        : {
-            title: 'Cambio turno non più disponibile',
-            body: `La richiesta di cambio ${s.offered_shift} → ${requestedLabel} del ${dateLabel} di ${userLabel(s.user_id)} è stata eliminata: il turno non è più disponibile.`,
+      const msg = isPartner
+        ? messageFor(overrides, 'cleanup.partner.title', {
+            data: dateLabel, cognome_attore: userLabel(s.user_id), turno: s.offered_shift,
           })
+        : messageFor(overrides, 'cleanup.gone.title', {
+            turno: s.offered_shift, turno_cercati: requestedLabel, data: dateLabel, cognome_attore: userLabel(s.user_id),
+          })
+      payloads.set(userId, { title: msg.title, body: msg.body })
     }
   }
 

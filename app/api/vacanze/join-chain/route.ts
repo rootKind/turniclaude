@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { pushToUser } from '@/lib/push/send-to-user'
+import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import { getVacationPeriodForYear, VACATION_PERIOD_LABELS_SHORT } from '@/lib/vacations'
 import type { VacationPeriod } from '@/types/database'
 
@@ -84,6 +85,7 @@ export async function POST(req: Request) {
   // Notifica push agli owner di ogni richiesta (fire-and-forget).
   // pushToUser usa il service role: RLS su push_subscriptions è own-row-only.
   const admin = createAdminSupabase()
+  const overrides = await loadNotifOverrides()
 
   await Promise.allSettled(requestIds.map(async (requestId) => {
     const vacReq = byId.get(requestId)
@@ -97,9 +99,12 @@ export async function POST(req: Request) {
     if (!owner || owner.notification_enabled === false || owner.notify_on_vacation_interest === false) return
 
     const offeredLabel = VACATION_PERIOD_LABELS_SHORT[vacReq.offered_period as VacationPeriod] ?? `Periodo ${vacReq.offered_period}`
+    const msg = messageFor(overrides, 'vacation_chain.title', {
+      cognome_attore: actorName ?? '', periodo: offeredLabel, anno: String(year),
+    })
     await pushToUser(owner.id, {
-      title: 'Interesse alla tua richiesta ferie (catena)',
-      body: `${actorName} è interessato al tuo ${offeredLabel} ${year} come parte di una catena`,
+      title: msg.title,
+      body: msg.body,
       type: 'vacation_interest',
       requestId,
       requestIds,

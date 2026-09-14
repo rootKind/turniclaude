@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { pushToUser } from '@/lib/push/send-to-user'
+import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import { formatDateShort } from '@/lib/utils'
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -63,10 +64,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         ? `${winnerProfile.cognome ?? ''} ${winnerProfile.nome ?? ''}`.trim()
         : 'un collega'
       const dateLabel = shift.shift_date ? formatDateShort(shift.shift_date as string) : ''
-      const notifBody = `Il cambio ${shift.offered_shift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''} con ${winnerName} non può essere ancora accettato perché ci sono scorte disponibili`
+      // Testo da registry (override admin → default) verso creatore e vincitore.
+      const overrides = await loadNotifOverrides()
+      const msg = messageFor(overrides, 'pending.title', {
+        turno: shift.offered_shift ?? '', data: dateLabel, cognome_attore: winnerName,
+      })
       await Promise.allSettled([
-        pushToUser(shift.user_id as string, { title: 'Cambio in attesa di conferma', body: notifBody, type: 'system' }),
-        pushToUser(winnerId, { title: 'Cambio in attesa di conferma', body: notifBody, type: 'system' }),
+        pushToUser(shift.user_id as string, { title: msg.title, body: msg.body, type: 'system' }),
+        pushToUser(winnerId, { title: msg.title, body: msg.body, type: 'system' }),
       ])
     }
     await adminSupabase.from('shifts').update({ is_pending: true }).eq('id', shiftId)
@@ -84,10 +89,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (action === 'reject') {
     const reasonStr = typeof reason === 'string' && reason.trim() ? reason.trim() : null
-    const bodyText = `Il turnista ha cancellato la tua richiesta di cambio ${shift.offered_shift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''}${reasonStr ? ` per: ${reasonStr}` : ''}`
+    // Testo da registry: {motivo} include il prefisso « per: …» solo se presente.
+    const overrides = await loadNotifOverrides()
+    const msg = messageFor(overrides, 'rejected.title', {
+      turno: shift.offered_shift ?? '', data: dateLabel, motivo: reasonStr ? `per: ${reasonStr}` : '',
+    })
     await pushToUser(shift.user_id as string, {
-      title: 'Richiesta di cambio cancellata',
-      body: bodyText,
+      title: msg.title,
+      body: msg.body,
       type: 'system',
     }).catch(() => {})
   } else {
@@ -107,27 +116,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         ? `${creatorProfile.cognome ?? ''} ${creatorProfile.nome ?? ''}`.trim()
         : 'un collega'
 
+      // Testi da registry (override admin → default), uno per destinatario.
+      const overrides = await loadNotifOverrides()
+      const msgCreator = messageFor(overrides, 'approved.creator.title', {
+        turno: shift.offered_shift ?? '', data: dateLabel, cognome_attore: winnerName,
+      })
+      const msgWinner = messageFor(overrides, 'approved.winner.title', {
+        turno: shift.offered_shift ?? '', data: dateLabel, cognome_attore: creatorName,
+      })
       await Promise.allSettled([
-        pushToUser(shift.user_id as string, {
-          title: 'Cambio turno approvato',
-          body: `Il turnista ha approvato la tua richiesta di cambio ${shift.offered_shift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''} con ${winnerName}`,
-          type: 'system',
-        }),
-        pushToUser(winnerId, {
-          title: 'Cambio turno approvato',
-          body: `Il turnista ha approvato il cambio ${shift.offered_shift ?? ''}${dateLabel ? ` del ${dateLabel}` : ''} con ${creatorName}`,
-          type: 'system',
-        }),
+        pushToUser(shift.user_id as string, { title: msgCreator.title, body: msgCreator.body, type: 'system' }),
+        pushToUser(winnerId, { title: msgWinner.title, body: msgWinner.body, type: 'system' }),
       ])
     }
 
     if (otherIds.length) {
+      const overrides = await loadNotifOverrides()
+      const msg = messageFor(overrides, 'others.title', {})
       await Promise.allSettled(otherIds.map((id: string) =>
-        pushToUser(id, {
-          title: 'Cambio turno assegnato ad altri',
-          body: 'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.',
-          type: 'system',
-        })
+        pushToUser(id, { title: msg.title, body: msg.body, type: 'system' })
       ))
     }
   }

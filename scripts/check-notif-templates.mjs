@@ -23,7 +23,7 @@ try {
   writeFileSync(join(dir, 'types-stub.js'), 'module.exports = {}\n')
   writeFileSync(join(dir, 'notification-templates.js'), tpl)
 
-  const { NOTIF_TEMPLATES, NOTIF_TEMPLATE_BY_KEY, renderNotifTemplate, extractTemplateVars, varsForTemplate, resolveTemplates, buildTemplateVars, NOTIF_VARS } =
+  const { NOTIF_TEMPLATES, NOTIF_TEMPLATE_BY_KEY, renderNotifTemplate, renderFlowTemplate, extractTemplateVars, varsForTemplate, resolveTemplates, resolveMessage, buildTemplateVars, NOTIF_VARS } =
     await import(pathToFileURL(join(dir, 'notification-templates.js')).href)
 
   // ── registry coerente ────────────────────────────────────────────────────────
@@ -56,6 +56,29 @@ try {
   assert.equal(renderNotifTemplate('Vuoto: {} {nome}', { nome: 'A' }), 'Vuoto: {} A', 'token vuoto {} intatto, {nome} sostituita')
   assert.equal(extractTemplateVars('{a} {b} {a}').length, 2, 'extract deduplica')
 
+  // ── rendering flussi reali (variabili non risolte RIMOSE) ────────────────────
+  assert.equal(
+    renderFlowTemplate('Il cambio {turno} del {data} con {cognome_attore} non può essere accettato', {
+      turno: 'Mattina', data: '15/05', cognome_attore: '',
+    }),
+    'Il cambio Mattina del 15/05 con non può essere accettato',
+    'variabile vuota rimossa dal testo di flusso',
+  )
+  assert.equal(
+    renderFlowTemplate('Il turnista ha cancellato la tua richiesta di cambio {turno} del {data} {motivo}', {
+      turno: 'Notte', data: '02/06', motivo: '',
+    }),
+    'Il turnista ha cancellato la tua richiesta di cambio Notte del 02/06',
+    '{motivo} assente: nessun doppio spazio/trailing',
+  )
+  assert.equal(
+    renderFlowTemplate('La richiesta del {data} è stata eliminata: {dettaglio}{extra}', {
+      data: '15/05', dettaglio: 'nel turno caricato risulti già in Pomeriggio', extra: ' (e altre 2 richieste)',
+    }),
+    'La richiesta del 15/05 è stata eliminata: nel turno caricato risulti già in Pomeriggio (e altre 2 richieste)',
+    'dettaglio+extra compongono il caso completo',
+  )
+
   // ── override ─────────────────────────────────────────────────────────────────
   const ovr = { 'pending.title': { title: 'ATTESA', body: 'Scorte per {turno} del {data}' } }
   const resolved = resolveTemplates(ovr)
@@ -66,6 +89,10 @@ try {
   const defInterest = NOTIF_TEMPLATES.find(t => t.key === 'interest.title')
   assert.equal(untouched.title, defInterest.title, 'gli altri restano default')
   assert.deepEqual(resolveTemplates(null), NOTIF_TEMPLATES, 'null = default')
+
+  // ── resolveMessage (override → default) ────────────────────────────────────
+  assert.equal(resolveMessage(ovr, 'pending.title').title, 'ATTESA', 'resolveMessage: override vince')
+  assert.equal(resolveMessage({}, 'interest.title').title, defInterest.title, 'resolveMessage: default senza override')
 
   // ── variabili suggerite per tipo ─────────────────────────────────────────────
   const shiftVars = varsForTemplate(NOTIF_TEMPLATE_BY_KEY.get('new_shift.title'))

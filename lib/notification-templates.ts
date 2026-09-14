@@ -4,10 +4,10 @@
 // contesto variabile con cui viene generato e i valori REALI letti dal codice
 // — il pannello mostra l'esempio attuale, non testo inventato.
 //
-// Sistema di variabili: nei template admin si può scrivere {nome}, {cognome},
-// {turno}, {data}… — vengono sostituiti con i dati del destinatario al momento
-// dell'invio (solo per l'invio di prova con destinatari selezionati; un invio
-// senza contesto lascia il testo com'è, segnalando le variabili non risolte).
+// Sistema di variabili: i route dei flussi reali risolvono il testo con
+// resolveMessage (override admin → default) e popolano le variabili per OGNI
+// destinatario con pushTemplateToUsers (lib/push/send-with-template.ts); le
+// variabili senza contesto restano letterali (debug-friendly).
 import type { VacationPeriod } from '@/types/database'
 
 export type NotifType = 'system' | 'interest' | 'new_shift' | 'vacation_interest' | 'new_vacation'
@@ -31,6 +31,10 @@ export const NOTIF_VARS: TemplateVar[] = [
   { name: 'periodo', description: 'Periodo ferie offerto', sample: '16–30 Giu' },
   { name: 'periodo_cercati', description: 'Periodi ferie cercati', sample: '01–15 Lug, 16–31 Lug' },
   { name: 'anno', description: 'Anno delle ferie', sample: '2026' },
+  { name: 'motivo', description: 'Motivo testuale di un rifiuto (facoltativo)', sample: 'per: copertura già assicurata' },
+  { name: 'turno_effettivo', description: 'Turno realmente trovato nel calendario (pulizia cambi)', sample: 'Pomeriggio' },
+  { name: 'dettaglio', description: 'Spiegazione specifica del messaggio (pulizia cambi)', sample: 'nel turno caricato risulti già in Pomeriggio' },
+  { name: 'extra', description: 'Aggiunta testuale facoltativa (es. «e altre 2 richieste»)', sample: ' (e altre 2 richieste)' },
 ]
 
 /** Sostituisce {var} con i valori del contesto; le sconosciute restano invariate. */
@@ -40,6 +44,19 @@ export function renderNotifTemplate(template: string, vars?: Record<string, stri
     const v = vars[key]
     return v === undefined || v === null || v === '' ? m : v
   })
+}
+
+/**
+ * Rendering per i FLUSSI REALI: come renderNotifTemplate ma le variabili non
+ * risolte vengono RIMOSSE (con pulizia degli spazi) — all'utente finale un
+ * placeholder visibile sarebbe un bug, diversamente dal pannello di debug che
+ * usa renderNotifTemplate per tenerli visibili.
+ */
+export function renderFlowTemplate(template: string, vars: Record<string, string | null | undefined>): string {
+  return renderNotifTemplate(template, vars)
+    .replace(/\s*\{[a-z_]+\}/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 /** Elenco delle variabili PRESENTI in un testo (anche non risolte). */
@@ -121,15 +138,15 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
   },
   {
     key: 'rejected.title', title: 'Richiesta di cambio cancellata',
-    body: 'Il turnista ha cancellato la tua richiesta di cambio {turno} del {data}',
+    body: 'Il turnista ha cancellato la tua richiesta di cambio {turno} del {data} {motivo}',
     label: 'Richiesta cancellata dal turnista', type: 'system', source: 'Rifiuto manager',
-    context: 'Al creatore della richiesta',
+    context: 'Al creatore della richiesta; {motivo} se indicato',
   },
   {
     key: 'cleanup.done.title', title: 'Cambio turno già registrato',
-    body: 'La richiesta di cambio del {data} ({turno} → {turno_cercati}) è stata eliminata: risulti già coperto da scorte o dal turno caricato',
+    body: 'La richiesta di cambio del {data} ({turno} → {turno_cercati}) è stata eliminata: {dettaglio}{extra}',
     label: 'Pulizia: già registrato', type: 'system', source: 'Pulizia cambi (admin)',
-    context: 'Al richiedente, quando il cambio è già nei turni caricati',
+    context: 'Al richiedente, quando il cambio è già nei turni caricati ({dettaglio} spiega il caso)',
   },
   {
     key: 'cleanup.partner.title', title: 'Cambio turno completato',
@@ -194,6 +211,19 @@ export function varsForTemplate(def: NotifTemplateDef): TemplateVar[] {
 
 /** Override memorizzati in app_settings (chiave → {title, body}). */
 export type NotifOverrides = Record<string, { title: string; body: string }>
+
+/**
+ * Testo di UN messaggio del registry: override admin se presente, altrimenti
+ * default del codice. È la funzione che i flussi reali usano per ogni invio.
+ */
+export function resolveMessage(
+  overrides: NotifOverrides | null | undefined,
+  key: string,
+): { title: string; body: string } {
+  const def = NOTIF_TEMPLATE_BY_KEY.get(key)
+  const o = overrides?.[key]
+  return { title: o?.title ?? def?.title ?? key, body: o?.body ?? def?.body ?? '' }
+}
 
 /** Applica gli override ai template predefiniti. */
 export function resolveTemplates(overrides?: NotifOverrides | null): NotifTemplateDef[] {

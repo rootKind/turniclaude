@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { pushToUser } from '@/lib/push/send-to-user'
+import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import { formatDateShort } from '@/lib/utils'
 import { VACATION_PERIOD_LABELS_SHORT } from '@/lib/vacations'
 import { getUserShiftOnDate, userCoversRequest } from '@/lib/shift-compat'
@@ -92,11 +93,18 @@ export async function POST(req: Request) {
         t.notify_shift_filter !== true || compatByUser.get(t.id) === true,
       )
       const requestedLabel = Array.isArray(requestedShifts) ? (requestedShifts as string[]).join('/') : ''
+      // Testo da registry (override admin → default), con caduta «senza data».
+      const overrides = await loadNotifOverrides()
+      const actor = typeof actorName === 'string' ? actorName : ''
+      const offered = typeof offeredShift === 'string' ? offeredShift : ''
+      const msg = dateLabel
+        ? messageFor(overrides, 'new_shift.title', {
+            cognome_attore: actor, data: dateLabel, turno: offered, turno_cercati: requestedLabel,
+          })
+        : messageFor(overrides, 'new_shift.fallback.title', { cognome_attore: actor })
       const payload = {
-        title: 'Nuovo turno disponibile',
-        body: dateLabel
-          ? `${actorName} cede ${offeredShift} il ${dateLabel}, cerca ${requestedLabel}`
-          : `${actorName} ha pubblicato un nuovo cambio turno`,
+        title: msg.title,
+        body: msg.body,
         type: 'new_shift',
         shiftId: shiftId ? Number(shiftId) : null,
       }
@@ -126,11 +134,16 @@ export async function POST(req: Request) {
 
     const dateLabel = shift.shift_date ? formatDateShort(shift.shift_date as string) : ''
     const requestedLabel = Array.isArray(shift.requested_shifts) ? (shift.requested_shifts as string[]).join('/') : ''
+    // Testo da registry (override admin → default), con caduta «senza dettagli».
+    const overrides = await loadNotifOverrides()
+    const msg = dateLabel
+      ? messageFor(overrides, 'interest.title', {
+          cognome_attore: typeof actorName === 'string' ? actorName : '', turno: (shift.offered_shift as string) ?? '', data: dateLabel, turno_cercati: requestedLabel,
+        })
+      : messageFor(overrides, 'interest.fallback.title', { cognome_attore: typeof actorName === 'string' ? actorName : '' })
     await pushToUser(owner.id, {
-      title: 'Nuovo interesse al tuo turno',
-      body: dateLabel
-        ? `${actorName} è interessato al tuo ${shift.offered_shift} del ${dateLabel} (cerca ${requestedLabel})`
-        : `${actorName} è interessato al tuo cambio`,
+      title: msg.title,
+      body: msg.body,
       type: 'interest',
       shiftId: Number(shiftId),
     })
@@ -157,9 +170,13 @@ export async function POST(req: Request) {
 
     const offeredLabel = VACATION_PERIOD_LABELS_SHORT[vacReq.offered_period as VacationPeriod] ?? `Periodo ${vacReq.offered_period}`
     const yearLabel = year ? ` ${year}` : ''
+    const overrides = await loadNotifOverrides()
+    const msg = messageFor(overrides, 'vacation_interest.title', {
+      cognome_attore: typeof actorName === 'string' ? actorName : '', periodo: offeredLabel, anno: yearLabel,
+    })
     await pushToUser(owner.id, {
-      title: 'Qualcuno è interessato al tuo cambio ferie',
-      body: `${actorName} è interessato al tuo ${offeredLabel}${yearLabel}`,
+      title: msg.title,
+      body: msg.body,
       type: 'vacation_interest',
       requestId: Number(requestId),
     })
@@ -178,9 +195,13 @@ export async function POST(req: Request) {
         ? 'qualsiasi periodo'
         : ((targetPeriods as number[]) ?? []).map(p => VACATION_PERIOD_LABELS_SHORT[p as VacationPeriod] ?? `P${p}`).join(', ')
       const nvYearLabel = year ? ` (${year})` : ''
+      const overrides = await loadNotifOverrides()
+      const msg = messageFor(overrides, 'new_vacation.title', {
+        cognome_attore: typeof actorName === 'string' ? actorName : '', periodo: offLabel, periodo_cercati: tgLabel, anno: nvYearLabel,
+      })
       const payload = {
-        title: 'Nuovo cambio ferie disponibile',
-        body: `${actorName} offre ${offLabel} in cambio di ${tgLabel}${nvYearLabel}`,
+        title: msg.title,
+        body: msg.body,
         type: 'new_vacation',
         requestId: requestId ? Number(requestId) : null,
       }
