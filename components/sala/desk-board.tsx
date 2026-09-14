@@ -880,12 +880,14 @@ export function DeskBoard({
               })}
             </div>
           ))}
-          {/* ASSENTI per turno teorico (23/09/2026): solo nel turno N/M/P in cui
-              la persona era prevista, mai ripetuta sugli altri. Tinta assenza. */}
-          {(['M', 'P', 'N'] as const).filter(s => assenti.get(s)?.length).map(s => (
-            <div key={s} className="flex flex-wrap items-center gap-1.5">
-              <span className="text-xs font-semibold text-muted-foreground shrink-0 w-4">{s}</span>
-              {assenti.get(s)!.map((a, i) => (
+          {/* ASSENTI (24/09/2026): sottogruppo singolo che segue la CHIP del
+              turno selezionata in testa alla board — mostra solo gli assenti
+              (A/AG7/F.E./VS/RI/RC…) attribuiti a QUEL turno teorico (mai
+              ripetuti sugli altri). Tinta assenza, come le celle. */}
+          {(assenti.get(selectedShift)?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-muted-foreground shrink-0">Assenti:</span>
+              {assenti.get(selectedShift)!.map((a, i) => (
                 <span
                   key={i}
                   className="text-xs px-2 py-0.5 rounded-full cell-tint-abs"
@@ -895,7 +897,7 @@ export function DeskBoard({
                 </span>
               ))}
             </div>
-          ))}
+          )}
         </div>
       )}
 

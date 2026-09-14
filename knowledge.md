@@ -1063,6 +1063,9 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   iniziale → match prefisso unico (0 o 2+ match → non attribuito); bare di omonimo
   (cognomeCount>1 o duplicateCognomi) → NON attribuito. Dedup persona (realCodes ha 2 chiavi
   per persona: cognome + nome). Board: memo realCodesForDay condivisa con theo≠real, righe
-  M/P/N condizionate, tinta cell-tint-abs, nome mostrato come nell'albero. Test:
+  M/P/N condizionate, tinta cell-tint-abs, nome mostrato come nell'albero.  Test:
   scripts/check-assenti.mjs (moduli transpilati). Live mar2026 g3–14: 93 assenti, 0
-  duplicati, iniziali risolte (Esposito Al., Loni G., Romano N.).
+  duplicati, iniziali risolte (Esposito Al., Loni G., Romano N.). UPDATE 24/09: la resa
+  è UN sottogruppo «Assenti:» che segue la CHIP del turno selezionata in testa alla
+  board (selectedShift) — non più tre righe M/P/N insieme; il resto dell'attribuzione
+  è invariato. Verificato live mar2026 g3 N/M/P.
