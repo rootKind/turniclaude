@@ -4,6 +4,7 @@ import { Trash2, UserPlus, Link2, ArrowLeftRight, ArrowUpDown, GripVertical, Pal
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { DeskCard as DeskCardType } from '@/types/database'
+import type { TheoRealSectionCompare } from '@/lib/turni-teorici'
 
 interface Props {
   card: DeskCardType
@@ -16,12 +17,11 @@ interface Props {
   isDragOverlay?: boolean
   canEditColors?: boolean
   onColorChange?: (name: string, color: string | null) => void
-  /** Vista admin «Teorico ≠ reale»: persone che il TEORICO mette in questa
-   *  sezione/turno ma il PDF reale no (altrove, presente senza sezione o assente). */
-  theoDiff?: Array<{ name: string; theo: string; real: string | null; missing: boolean }>
-  /** Vista INVERSA: persone REALI in questa card che il teorico metteva ALTROVE
-   *  (o a riposo): accanto al loro nome esce cosa dovevano fare in origine. */
-  theoAnnotations?: Array<{ name: string; real: string; theo: string | null }>
+  /** Vista admin «Teorico ≠ reale» COMPATTA (17/09/2026): per la sezione/turno
+   *  della card, righe «Cognome <tecnico> <reale>» (i teorici NON confermati,
+   *  assenze col CODICE PDF: A/AG/F.E.) e «Nuovi» (reali di provenienza diversa:
+   *  altro turno, riposo RC/RI/RM/D, non in scheda → provenienza dopo il nome). */
+  theoCompare?: TheoRealSectionCompare
 }
 
 const toTitleCase = (s: string) =>
@@ -48,7 +48,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoDiff, theoAnnotations }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -306,35 +306,24 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
         )}
       </div>
 
-      {/* Vista «Teorico ≠ reale» (solo admin): sotto i nomi REALI della sezione,
-          le persone che secondo il teorico dovevano esserci. Restano DISTINTE dai
-          nomi veri (riga a parte, rosso, con i codici teorico→reale): sono un
-          riscontro, non dati della piantina. */}
-      {!isEditing && theoDiff && theoDiff.length > 0 && (
+      {/* Vista «Teorico ≠ reale» COMPATTA (solo admin): sotto i nomi reali della
+          sezione. Righe teoriche NON confermate: «Cognome M6S A» (rosso = non al
+          suo posto; il codice reale è quello del PDF: altro turno, A/AG/F.E.,
+          «presente» senza sezione, «assente»). Poi i «Nuovi»: reali che il
+          teorico non prevedeva qui, con la provenienza (teorico di origine). */}
+      {!isEditing && theoCompare && (theoCompare.rows.length > 0 || theoCompare.extras.length > 0) && (
         <div className="border-t sala-card-title-sep shrink-0 bg-muted/30">
-          {theoDiff.map(d => (
-            <div key={d.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
-              <span className="text-destructive font-bold select-none">≠</span>
-              <span className="whitespace-nowrap font-medium">{cognomeOf(d.name)}</span>
-              <span className="tabular-nums text-muted-foreground whitespace-nowrap">
-                {d.theo}→{d.missing ? '—' : d.real}
-              </span>
+          {theoCompare.rows.map(r => (
+            <div key={r.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
+              <span className="whitespace-nowrap font-medium">{cognomeOf(r.name)}</span>
+              <span className="tabular-nums text-muted-foreground whitespace-nowrap">{r.theo}</span>
+              <span className="tabular-nums whitespace-nowrap text-destructive font-semibold">{r.real}</span>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Vista INVERSA: chi sta FACENDO il turno ma secondo il teorico doveva
-          stare altrove (o riposare) — accanto al cognome, il codice di origine. */}
-      {!isEditing && theoAnnotations && theoAnnotations.length > 0 && (
-        <div className="border-t sala-card-title-sep shrink-0 bg-muted/30">
-          {theoAnnotations.map(a => (
-            <div key={a.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
-              <span className="text-destructive font-bold select-none">←</span>
-              <span className="whitespace-nowrap font-medium">{cognomeOf(a.name)}</span>
-              <span className="tabular-nums text-muted-foreground whitespace-nowrap">
-                {a.theo ?? 'non previsto'}
-              </span>
+          {theoCompare.extras.map(e => (
+            <div key={e.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
+              <span className="whitespace-nowrap font-medium">{cognomeOf(e.name)}</span>
+              {e.theo && <span className="tabular-nums text-muted-foreground whitespace-nowrap">da {e.theo}</span>}
             </div>
           ))}
         </div>

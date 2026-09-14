@@ -9,10 +9,10 @@ import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSche
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
+import { decodeSalaMonth } from '@/lib/sala-month'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { matchesCognome } from '@/lib/utils'
-import { theoRealDiffsForDay, theoRealAnnotationsForDay, type TheoRealDiff, type TheoRealAnnotation } from '@/lib/turni-teorici'
-import { NON_SECTION_DUTIES, isShiftCode, parseShiftCode } from '@/lib/shift-tokens'
+import { theoRealSectionCompare, surnameKey, type TheoRealSectionCompare } from '@/lib/turni-teorici'
 import { useAllDuplicateCognomi } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
@@ -448,63 +448,39 @@ export function DeskBoard({
   }
 
   /* Vista «Teorico ≠ reale» (solo admin): attiva SOLO su mesi caricati da PDF
-     (il confronto è teorico vs reale) con l'albero squadre disponibile. Le
-     persone che secondo il teorico dovevano stare in una sezione/turno e nel
-     PDF non ci sono (spostate, in altriPresenti o assenti) vengono AGGIUNTE
-     alla card della sezione prevista, in una striscia separata — anche se la
-     card supera il numero abituale di nomi (è una verifica, non la piantina). */
+     (il confronto è teorico vs reale) con l'albero squadre disponibile.
+     CONFRONTO COMPATTO (17/09/2026): per ogni sezione del teorico, le righe
+     «nome + teorico + stato reale» (assenze col CODICE PDF: A/AG/F.E.…) e le
+     «Nuovi» (reali di provenienza diversa: altro turno, riposo, non in scheda).
+     Niente più strisce «≠»/«←»: tropo largo su schermo stretto. */
   const theoDiffEnabled = !!(isAdmin && showTheoDiff && shiftTree && schedule && schedule.source !== 'theoretical')
-  const theoDiffsBySection = useMemo(() => {
-    if (!theoDiffEnabled || !shiftTree || !schedule) return new Map<string, TheoRealDiff[]>()
+  const theoCompareBySection = useMemo(() => {
+    if (!theoDiffEnabled || !shiftTree || !schedule) return new Map<string, TheoRealSectionCompare>()
     const day = schedule.schedule[selectedDay]
-    const diffs = theoRealDiffsForDay(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day)
-    // Raggruppa per la sezione PREVISTA dal teorico (es. «M4» → sezione "4"):
-    // è lì che la persona doveva stare e lì che la striscia deve comparire.
-    const map = new Map<string, TheoRealDiff[]>()
-    for (const d of diffs) {
-      /* Chiave = SEZIONE PREVISTA dal teorico (es. «M6S» → sezione "6",
-         «MDCIF» → "DCIF"): è lì che la persona doveva stare e lì che la
-         striscia deve comparire. Con il vecchio regex ^(M|P|N)\d+$ i token
-         con slot (M6S) o sezione alfabetica (MDCIF) venivano scartati — gli
-         assenti previsti in quei turni non apparivano mai. */
-      if (!isShiftCode(d.theo)) continue
-      const { shift, section } = parseShiftCode(d.theo)
-      if (NON_SECTION_DUTIES.has(section)) continue
-      const key = `${section}|${shift}` // "6|M" / "DCIF|M"
-      const list = map.get(key)
-      if (list) list.push(d)
-      else map.set(key, [d])
+    // Codici PDF del giorno per le persone NON in sezione (assenza/riposo):
+    // dal mese compatto v2, che conserva le celle originali del PDF.
+    let realCodes: Map<string, string> | undefined
+    if (schedule.data) {
+      realCodes = new Map()
+      for (const p of decodeSalaMonth(schedule.data)) {
+        const code = p.days[selectedDay - 1] ?? ''
+        if (!code) continue
+        const key = surnameKey(p.name)
+        if (key && !realCodes.has(key)) realCodes.set(key, code)
+      }
     }
-    return map
+    return theoRealSectionCompare(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day, realCodes)
   }, [theoDiffEnabled, shiftTree, schedule, selectedDay, currentMonth])
-  // Diffs per CARD: la card guarda la sua sezione collegata (sectionKey o titolo).
-  const theoDiffByCardId = useMemo(() => {
-    const map = new Map<string, TheoRealDiff[]>()
+  // Confronto per CARD: la card guarda la sua sezione collegata (sectionKey o titolo).
+  const theoCompareByCardId = useMemo(() => {
+    const map = new Map<string, TheoRealSectionCompare>()
     if (!theoDiffEnabled) return map
     for (const card of cards) {
-      const key = `${card.sectionKey ?? card.title}|${selectedShift}`
-      const diffs = theoDiffsBySection.get(key)
-      if (diffs?.length) map.set(card.id, diffs)
+      const cmp = theoCompareBySection.get(`${card.sectionKey ?? card.title}|${selectedShift}`)
+      if (cmp && (cmp.rows.length || cmp.extras.length)) map.set(card.id, cmp)
     }
     return map
-  }, [theoDiffEnabled, cards, theoDiffsBySection, selectedShift])
-
-  /* Annotazioni INVERSE: per ogni persona REALE nel turno visualizzato che sta
-     facendo qualcosa di diverso dal teorico, COSA DOVEVA FARE IN ORIGINE.
-     Aggiunge le persone «sostituite» (es. MININO in M6S con teorico RC) accanto
-     a chi in teoria doveva stare lì. La mappa è per card-id, stessa chiave. */
-  const theoAnnotationsByCardId = useMemo(() => {
-    const map = new Map<string, TheoRealAnnotation[]>()
-    if (!theoDiffEnabled || !shiftTree || !schedule) return map
-    const day = schedule.schedule[selectedDay]
-    const all = theoRealAnnotationsForDay(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day)
-    for (const card of cards) {
-      const section = card.sectionKey ?? card.title
-      const list = all.filter(a => a.section === section && a.shift === selectedShift)
-      if (list.length) map.set(card.id, list)
-    }
-    return map
-  }, [theoDiffEnabled, shiftTree, schedule, cards, selectedDay, currentMonth, selectedShift])
+  }, [theoDiffEnabled, cards, theoCompareBySection, selectedShift])
 
   const scheduleSections: string[] = schedule
     ? [...new Set([
@@ -721,8 +697,7 @@ export function DeskBoard({
                         onColorChange={canUpload && onColorChange
                           ? (name, color) => onColorChange(currentMonth, selectedDay, name, color)
                           : undefined}
-                        theoDiff={theoDiffByCardId.get(card.id)}
-                        theoAnnotations={theoAnnotationsByCardId.get(card.id)}
+                        theoCompare={theoCompareByCardId.get(card.id)}
                       />
                     ))}
                   </DroppableCell>

@@ -130,58 +130,93 @@ export function surnameKey(s: string): string {
   return parts.length > 1 && /^[a-z]\.?$/.test(last) ? parts.slice(0, -1).join(' ') : n
 }
 
-export interface TheoRealDiff {
+/**
+ * RIGA «compatta» della sezione del giorno: chi il teorico prevede e come sta
+ * davvero nel PDF. Sostituisce le vecchie strisce «≠» / «←» (troppo larghe:
+ * richiesta 17/09/2026 di condensare le informazioni).
+ */
+export interface TheoRealRow {
   /** Nome del membro (come nell'albero teorico). */
   name: string
-  /** Codice teorico atteso (token completo, es. «M4»). */
+  /** Codice teorico atteso (token completo, es. «M6S»). */
   theo: string
-  /** Codice reale dal PDF (token completo), se presente. */
-  real: string | null
-  /** true = nel PDF la persona NON c'è per niente quel giorno. */
-  missing: boolean
-}
-
-/**
- * Annotazione INVERSA: persona REALE in sezione che secondo il teorico doveva
- * stare ALTROVE (o stare a riposo / non essere prevista). Mostra COSA DOVEVA
- * FARE IN ORIGINE (`theo`, null = nessun turno previsto dall'albero).
- */
-export interface TheoRealAnnotation {
-  /** Nome come nel PDF. */
-  name: string
-  /** Token reale (es. «M6S» o «MDCIF»). */
+  /** Stato REALE nel PDF, già compatto: turno/sezione alternativa, codice di
+   *  assenza/riposo com'è nel PDF («A», «AG7», «F.E.»…), «presente» senza
+   *  sezione o «assente» (nessuna traccia nel PDF). */
   real: string
-  /** Token teorico di origine (es. «RC», «M4S»), null se non previsto. */
-  theo: string | null
-  /** Sezione reale (chiave card, es. «6» o «DCIF»). */
-  section: string
-  /** Turno reale (M/P/N). */
-  shift: string
 }
 
 /**
- * Per un GIORNO di un mese caricato da PDF, confronta il teorico (dall'albero
- * squadre, token per membro) con il reale (day schedule derivato dal PDF).
- * Restituisce SOLO le persone che deviano: turno in sezione/slot diversi,
- * codice differente o ASSENZA dal PDF (missing — teorico in servizio, reale
- * assente: la richiesta del 15/09/2026 di vedere anche chi «doveva lavorare e
- * ha fatto assenza»). Le persone di «altriPresenti» senza sezione si confrontano
- * per PRESENZA (teoria in sezione ma real no = diff; entrambi senza sezione = ok).
- *
- * Il matching nome è per normalizzazione minima (minuscole + spazi): l'albero
- * usa «COGNOME Nome», il PDF «COGNOME N.» — il confronto riguarda il COGNOME
- * (prefisso del nome normalizzato) con fallback sul nome intero.
+ * Persona REALE (visibile nelle card del giorno) che il teorico NON prevedeva
+ * in questo turno/sezione: di provenienza — doveva stare altrove, riposare
+ * (RC/RI/RM/D) o non è in scheda. La provenienza esce nel blocco «Nuovi».
  */
-export function theoRealDiffsForDay(
+export interface TheoRealExtra {
+  name: string
+  real: string
+  /** Codice teorico di origine (es. «RC», «M4S»), '' se non previsto dall'albero. */
+  theo: string
+}
+
+/**
+ * Riepilogo COMPLETO per un GIORNO/SEZIONE: le righe teoriche (una per membro
+ * previsto) e le extra (reali di provenienza diversa). Il matching è per
+ * cognome — vedi surnameKey.
+ */
+export interface TheoRealSectionCompare {
+  rows: TheoRealRow[]
+  extras: TheoRealExtra[]
+  /** true se la sezione esiste SOLO nel teorico (nessun reale quel giorno). */
+  theoreticalOnly: boolean
+}
+
+/** Una persona nel PDF reale del giorno, con il contesto del suo turno. */
+interface RealEntry {
+  /** Turno (M/P/N) in cui appare; «—» se in altriPresenti. */
+  shift: string
+  /** Sezione in cui appare; null se senza sezione (altriPresenti). */
+  section: string | null
+  /** Nome completo come nel PDF. */
+  full: string
+  /** Nome normalizzato (match esatto contro l'albero, per gli omonimi). */
+  exact: string
+  /** Codice PDF di chi non è in sezione (assenza/riposo/altri presenti): '' se in sezione. */
+  code: string
+}
+
+/**
+ * CONFRONTO COMPATTO per un GIORNO (richiesta 17/09/2026: niente frecce/uguale,
+ * informazioni condensate perché manca larghezza). Per OGNI sezione del teorico:
+ *  - rows: una riga per membro teorico del giorno → nome + codice teorico + stato
+ *    reale compatto (turno/sezione alternativa, codice PDF di assenza come
+ *    «A»/«AG7»/«F.E.», «assente» se non c'è, «presente» se senza sezione);
+ *  - extras: persone REALI nel turno/sezione che il teorico non prevedeva lì
+ *    (da altro turno, da riposo RC/RI/RM/D o non in scheda) con la provenienza.
+ * Le righe dove il teorico è CONFERMATO (stesso turno+sezione) NON compaiono:
+ * le card mostrano già i nomi reali.
+ *
+ * `realCodes`: codice PDF (giorno `day`) per ogni persona NON in sezione —
+ * serve a mostrare A/AG/F.E. invece di un generico «assente». Con il solo
+ * day-schedule quei codici sono perduti; si ricostruiscono dal mese v2
+ * (`SalaSchedule.data` → decodeSalaMonth) quando disponibile.
+ */
+export function theoRealSectionCompare(
   month: string,
   day: number,
   tree: Pick<ShiftTeamTree, 'types'>,
   adjustments: ShiftAdjustment[],
   realDay: DaySchedule | undefined,
-): TheoRealDiff[] {
-  // 1) teorico: nome → token del giorno.
-  const theoByName = new Map<string, { token: string; full: string }>()
+  realCodes?: Map<string, string>,
+): Map<string, TheoRealSectionCompare> {
   const dateISO = `${month}-${String(day).padStart(2, '0')}`
+  // 1) teorico: token per MEMBRO (non collassato per cognome: gli omonimi
+  //    «DI NAPOLI M.» / «DI NAPOLI A.» hanno token diversi lo stesso giorno).
+  //    Match ESATTO per nome normalizzato quando il PDF ha l'iniziale
+  //    («DI NAPOLI A.»), altrimenti fallback sulla chiave COGNOME.
+  interface TheoMember { exactKey: string; cognomeKey: string; token: string; full: string }
+  const theoMembers: TheoMember[] = []
+  const theoByExact = new Map<string, string>()
+  const theoByCognome = new Map<string, string>()
   for (const type of tree.types) {
     if (!type.is_active) continue
     for (const team of type.teams) {
@@ -189,22 +224,27 @@ export function theoRealDiffsForDay(
         if (!member.is_active) continue
         const token = tokenForMember(type, member, team.id, adjustments, dateISO)
         if (!token) continue
-        // Stessa chiave del lato REALE (surnameKey): con normName un nome con
-        // iniziale («DI NAPOLI M.» → «di napoli m.») non matchava mai il reale.
-        theoByName.set(surnameKey(member.full_name), { token, full: member.full_name })
+        const exactKey = normName(member.full_name)
+        const cognomeKey = surnameKey(member.full_name)
+        theoMembers.push({ exactKey, cognomeKey, token, full: member.full_name })
+        theoByExact.set(exactKey, token)
+        theoByCognome.set(cognomeKey, token)
       }
     }
   }
-  // 2) reale: il PDF mette la persona in (sezione, shift, slot) oppure in altriPresenti.
-  // Ricostruiamo per ogni persona reale la DESCRIZIONE del suo turno: «shift» + sezione.
-  const realByCognome = new Map<string, { shift: string; section: string | null; token: string | null; full: string }>()
+  // 2) reale: TUTTE le posizioni per cognome (omonimi: «DI NAPOLI M.» e
+  //    «DI NAPOLI A.» condividono la chiave e possono essere in sezioni diverse
+  //    lo stesso giorno) + codice PDF per i non-in-sezione.
+  const realByCognome = new Map<string, RealEntry[]>()
   if (realDay) {
     const put = (name: string, shift: string, section: string | null) => {
       const key = surnameKey(name)
       if (!key) return
-      // NB: persone con lo stesso cognome (omonimi) — l'ultima vince; il PDF
-      // distingue con l'iniziale del nome, qui resta un limite accettato.
-      realByCognome.set(key, { shift, section, token: null, full: name })
+      const list = realByCognome.get(key) ?? []
+      // prima posizione vince per la STESSA persona (dedup tirocinanti/slot)
+      if (list.some(r => r.shift === shift && r.section === section)) return
+      list.push({ shift, section, full: name, exact: normName(name), code: realCodes?.get(key) ?? '' })
+      realByCognome.set(key, list)
     }
     for (const [section, shifts] of Object.entries(realDay.sections)) {
       for (const shift of ['M', 'P', 'N'] as const) {
@@ -214,97 +254,83 @@ export function theoRealDiffsForDay(
         for (const n of data.tirocinanti) put(n, shift, section)
       }
     }
-    for (const n of realDay.altriPresenti) put(n, '—', null) // presente ma senza sezione (M nudo, riposo lavorato, G…)
+    for (const n of realDay.altriPresenti) put(n, '—', null)
   }
-  // 3) confronto: per ogni membro teorico con turno IN SEZIONE, guarda dove
-  //    really è finito. Teorico senza sezione (M/P/N nudi, riposi, assenze) NON
-  //    produce diff: il PDF non dà una posizione da contrapporre.
-  const diffs: TheoRealDiff[] = []
-  for (const [key, { token, full }] of theoByName) {
-    /* Posizionale = QUALUNQUE turno di lavoro con sezione: M6, M6S, M6T, MDCIF…
-       Il vecchio regex ^(M|P|N)\d+$ riconosceva solo i token nudi (M9): chi era
-       teoricamente in M6S (formato più comune) o in una sezione alfabetica e
-       risultava ASSENTE nel PDF non produceva nessuna differenza — la striscia
-       «≠» non mostrava mai gli assenti. Si usa il parser condiviso dei codici. */
-    if (!isShiftCode(token)) continue // riposi, M nudi, SpN: nessun confronto posizionale
-    const { shift: theoShift, section: theoSection } = parseShiftCode(token)
-    // TUTOR ecc.: il reale li mette in altriPresenti (mai in sezione) — come il
-    // teorico non danno una posizione contrappponibile.
-    if (ABSENT_CODES.has(token) || NON_SECTION_DUTIES.has(theoSection)) continue
-    const real = realByCognome.get(key)
-    if (!real) {
-      // Nel PDF non c'è: o assente o in codice non-posizionale. Diff SOLO se il
-      // teorico lo mette IN SEZIONE e il reale non lo vede da nessuna parte:
-      // segnalarlo come missing (la sezione quel giorno è diversa dal previsto).
-      diffs.push({ name: full, theo: token, real: null, missing: true })
+
+  const out = new Map<string, TheoRealSectionCompare>()
+  const ensure = (section: string, shift: string) => {
+    const key = `${section}|${shift}`
+    if (!out.has(key)) out.set(key, { rows: [], extras: [], theoreticalOnly: false })
+    return out.get(key)!
+  }
+  const sectionHasRealPeople = (section: string) =>
+    [...realByCognome.values()].some(list => list.some(r => r.section === section))
+
+  // 3) righe TEORICHE: una per membro previsto IN SERVIZIO con sezione.
+  //    Con gli OMONIMI una chiave cognome ha più posizioni reali: prima si
+  //    cerca la CONFERMA (stesso turno+sezione — quella persona c'è, riga via),
+  //    poi per le righe restanti si sceglie la posizione NON ancora usata,
+  //    preferendo lo stesso turno (chi si sposta resta di solito nel turno).
+  const claimed = new Set<RealEntry>()
+  for (const tm of theoMembers) {
+    const { token, full, cognomeKey } = tm
+    if (!isShiftCode(token)) continue
+    const { shift, section } = parseShiftCode(token)
+    if (ABSENT_CODES.has(token) || NON_SECTION_DUTIES.has(section)) continue
+    // Omonimi: le posizioni reali della STESSA persona (nome esatto) se il PDF
+    // le distingue («DI NAPOLI A.»), altrimenti tutte quelle del cognome.
+    const cognomeList = realByCognome.get(cognomeKey) ?? []
+    const exactList = cognomeList.filter(c => c.exact === normName(full))
+    const candidates = exactList.length ? exactList : cognomeList
+    const confirmed = candidates.find(c => !claimed.has(c) && c.section !== null && c.shift === shift && c.section === section)
+    if (confirmed) {
+      claimed.add(confirmed)
       continue
     }
-    if (real.section !== null && (real.shift !== theoShift || real.section !== theoSection)) {
-      diffs.push({ name: full, theo: token, real: `${real.shift}${real.section}`, missing: false })
-    }
-    // real.section === null: presente in altriPresenti (es. riposo lavorato): il
-    // teorico aspettava la sezione → è comunque una differenza.
-    if (real.section === null) {
-      diffs.push({ name: full, theo: token, real: 'presente', missing: false })
-    }
+    const free = candidates.filter(c => !claimed.has(c))
+    const real = free.find(c => c.section !== null && c.shift === shift) ?? free[0]
+    if (real) claimed.add(real)
+    const status = !real
+      ? 'assente'
+      : real.section !== null
+        ? `${real.shift}${real.section}`
+        : real.code || 'presente'
+    ensure(section, shift).rows.push({ name: full, theo: token, real: status })
   }
-  return diffs
-}
 
-/**
- * Vista INVERSA: per le persone REALI nei turni di sezione del giorno (quelle
- * visibili nelle card), restituisce COSA PREVEDEVA IL TEORICO. Serve a mostrare
- * accanto a chi sta facendo un turno diverso dal suo il codice di origine:
- * es. MININO in M6S con teorico «RC» → «← RC». Le persone non nell'albero
- * (esterni, quadri) escono con theo=null («non previsto»).
- */
-export function theoRealAnnotationsForDay(
-  month: string,
-  day: number,
-  tree: Pick<ShiftTeamTree, 'types'>,
-  adjustments: ShiftAdjustment[],
-  realDay: DaySchedule | undefined,
-): TheoRealAnnotation[] {
-  if (!realDay) return []
-  // 1) teorico: cognome → token del giorno (unica fonte di verità dell'origine).
-  const theoByCognome = new Map<string, string>()
-  const dateISO = `${month}-${String(day).padStart(2, '0')}`
-  for (const type of tree.types) {
-    if (!type.is_active) continue
-    for (const team of type.teams) {
-      for (const member of team.members) {
-        if (!member.is_active) continue
-        const token = tokenForMember(type, member, team.id, adjustments, dateISO)
-        if (!token) continue
-        theoByCognome.set(surnameKey(member.full_name), token)
+  // 4) EXTRAS: persone REALI in sezione che il teorico non prevedeva LÌ
+  //    (altro turno, riposo RC/RI/RM/D, assenza o non in scheda).
+  const seenExtras = new Set<string>()
+  if (realDay) {
+    for (const [section, shifts] of Object.entries(realDay.sections)) {
+      for (const shift of ['M', 'P', 'N'] as const) {
+        const data = shifts[shift]
+        if (!data) continue
+        const people = [...data.surnames.T, ...data.surnames.S, ...data.surnames.noSlot, ...data.tirocinanti]
+        for (const name of people) {
+          const key = surnameKey(name)
+          const dedup = `${key}|${shift}|${section}`
+          if (!key || seenExtras.has(dedup)) continue
+          seenExtras.add(dedup)
+          const theoToken = theoByExact.get(normName(name)) ?? theoByCognome.get(key)
+          // Non è un «Nuovi» se una posizione reale di questo cognome con lo
+          // stesso turno+sezione è stata CONSUMATA da un teorico confermato
+          // (omonimi: l'altro DI NAPOLI non genera un extra falso qui).
+          const consumed = (realByCognome.get(key) ?? []).some(
+            c => claimed.has(c) && c.shift === shift && c.section === section,
+          )
+          if (consumed) continue
+          ensure(section, shift).extras.push({ name, real: `${shift}${section}`, theo: theoToken ?? '' })
+        }
       }
     }
   }
-  // 2) annotazioni per ogni persona reale in sezione: teorico diverso → annota.
-  const out: TheoRealAnnotation[] = []
-  const seen = new Set<string>() // cognome+shift+sezione (dedup tirocinanti/slot)
-  for (const [section, shifts] of Object.entries(realDay.sections)) {
-    for (const shift of ['M', 'P', 'N'] as const) {
-      const data = shifts[shift]
-      if (!data) continue
-      const people = [...data.surnames.T, ...data.surnames.S, ...data.surnames.noSlot, ...data.tirocinanti]
-      for (const name of people) {
-        const key = surnameKey(name)
-        const dedupKey = `${key}|${shift}|${section}`
-        if (!key || seen.has(dedupKey)) continue
-        seen.add(dedupKey)
-        const theo = theoByCognome.get(key) ?? null
-        // steso: il teorico CONFERMA il turno reale stesso → nessuna annotazione.
-        const same = theo !== null && (
-          (theo === `${shift}${section}`) ||
-          // teorico con slot/tipo diverso nella stessa sezione+shift (es. M6S vs M6):
-          // il turno è quello previsto, non è una differenza da segnalare.
-          new RegExp(`^${shift}\\s*${section}(?:[A-Z]|$)`).test(theo)
-        )
-        if (same) continue
-        out.push({ name, real: `${shift}${section}`, theo, section, shift })
-      }
-    }
+
+  // 5) le sezioni SOLO teoriche (nessun reale) restano con theoreticalOnly=true:
+  //    le righe «assente» bastano a raccontarle.
+  for (const [key, cmp] of out) {
+    const [section] = key.split('|')
+    cmp.theoreticalOnly = !sectionHasRealPeople(section)
   }
   return out
 }

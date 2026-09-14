@@ -197,18 +197,25 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   dal PDF («—»); teorici NON sezionati (riposi, M nudi) non producono diff. L'output è  raggruppato per SEZIONE PREVISTA (parser condiviso `parseShiftCode`: **qualsiasi turno
   con sezione produce diff — digit M4/M9, con slot M6S/M6T e ALFABETICHE MDCIF/NDCP/MM3M40;
   fino al 17/09/2026 il regex `^(M|P|N)\d+$` scartava i token con slot/alfabetici e gli
-  assenti previsti lì non apparivano MAI) e la card collegata (sectionKey o titolo) mostra la striscia `≠ Cognome M8→N6` SOTTO i nomi reali — la card può superare i nomi
-  abituali (è una verifica). **Vista INVERSA (16/09/2026, `theoRealAnnotationsForDay`):** per
-  ogni persona REALE in sezione il teorico NON conferma (altrove, riposo «D/RC/RI», o fuori
-  albero) la card REALE mostra la striscia `← Cognome <teorico>` (es. 14/9 M: «← Minino RC»
-  in DCO 6°, «← Di Napoli M6S» in DCIF — Minino reale M6S, teorico RC; il teorico CONFERMATO
-  stesso turno+sezione, anche con slot diverso tipo M6S vs M6, NON produce annotazione).
+  assenti previsti lì non apparivano MAI). **REWRITE COMPATTO (17/09/2026, `theoRealSectionCompare`):**
+  le due API precedenti (`theoRealDiffsForDay` + `theoRealAnnotationsForDay`, strisce «≠»/«←»)
+  sono state RIMOSE — troppo larghe per lo schermo stretto, criterio frecce/uguale poco chiaro.
+  UNA funzione per giorno ritorna `Map<section|shift, {rows, extras, theoreticalOnly}>`:
+  **rows** = una per membro teorico NON confermato → «Cognome <teorico> <reale>» dove
+  <reale> è il codice PDF COM'È (assenza/riposo: A, AG7, F.E., D…), «assente» se senza
+  traccia, «presente» se senza sezione, oppure turno+sezione alternativi (es. «N6»);
+  teorico CONFERMATO (stesso turno+sezione, slot irrilevante) = NESSUNA riga (già nelle card).
+  **extras** = persone REALI in sezione che il teorico non prevedeva lì → «Cognome da RC»
+  / «da M4S» / solo nome se non in scheda (blocco «Nuovi», provenienza dei reali).
+  I codici di assenza arrivano dal mese v2 (`SalaSchedule.data` → decodeSalaMonth,
+  giorno `day-1`): il day-schedule li perde. **OMONIMI (DI NAPOLI M./A.):** match ESATTO
+  su nome normalizzato quando il PDF distingue le iniziali, fallback cognome; le posizioni
+  reali vengono «consumate» dai teorici confermati prima di scegliere quella da mostrare
+  (Set `claimed`) — senza questo il secondo omonimo generava righe/extras sbagliate.
   **MATCHING per CHIAVE COGNOME:** `surnameKey` (esportata, riusabile) toglie l'ultimo token SOLO se è un'iniziale
   (`/^[a-z]\.?$/`): «DI NAPOLI M.» → «di napoli», «DE GIOVANNI» resta intero. MAI
   `split(' ')[0]`: collassava tutte le persone DI*/DE* sulla chiave «di»/«de» e matchava la
-  persona sbagliata. USARE surnameKey su ENTRAMBI i lati del confronto (tecnico e reale):
-  il primo lato teorico usava normName e i nomi con iniziale non matchavano mai. Diff con
-  sezione senza card a schermo (es. PRIC/NDCP/P11) NON sono visibili: se serve coprirle,
+  persona sbagliata. Diff con sezione senza card a schermo (es. PRIC/NDCP/P11) NON sono visibili: se serve coprirle,
   aggiungere una card nel layout con sectionKey corrispondente. ATTIVABILE SOLO su mesi caricati da PDF (source !==
   'theoretical'). **ATTENZIONE RLS:** fetchShiftTeamTree dal CLIENT può tornare 0 righe
   anche autenticati (policy «to authenticated» + sessione browser) — la pagina server
