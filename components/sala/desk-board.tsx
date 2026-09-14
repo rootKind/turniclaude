@@ -644,14 +644,19 @@ export function DeskBoard({
                   {/* Selettori MESE e ANNO in testa (come «Il tuo turno»): il teorico
                       si calcola per qualsiasi mese, quindi l'anno copre il millennio. */}
                   <div className="flex gap-1.5 p-2 border-b border-border bg-muted/40">
+                    {/* FIX off-by-one (21/09/2026): la tendina scriveva il value
+                        1-based dentro new Date(y, month, 1) che attende l'indice
+                        0-based → selezionando «Settembre» compariva Ottobre.
+                        Ora le option portano l'indice 0-based come value e
+                        currentMonth guida direttamente il value del select. */}
                     <select
-                      value={cm}
+                      value={cm - 1}
                       onChange={e => setPickerMonth(new Date(pickerMonth.getFullYear(), Number(e.target.value), 1))}
                       className="cal-monthsel flex-1 rounded-lg border border-border bg-card px-2 py-1 text-xs font-semibold"
                       aria-label="Scegli mese"
                     >
                       {MONTHS_IT.map((label, i) => (
-                        <option key={label} value={i + 1}>{label}</option>
+                        <option key={label} value={i}>{label}</option>
                       ))}
                     </select>
                     <select

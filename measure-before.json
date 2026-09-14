@@ -1,0 +1,157 @@
+{
+  "variant": "before",
+  "base": "http://localhost:3100",
+  "rest": [
+    {
+      "t": 1789403852349,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/users",
+      "phase": "cold-turnisala"
+    },
+    {
+      "t": 1789403852355,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_types",
+      "phase": "cold-turnisala"
+    },
+    {
+      "t": 1789403852355,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_teams",
+      "phase": "cold-turnisala"
+    },
+    {
+      "t": 1789403852355,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_team_members",
+      "phase": "cold-turnisala"
+    },
+    {
+      "t": 1789403852363,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_adjustments",
+      "phase": "cold-turnisala"
+    },
+    {
+      "t": 1789403852363,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_types",
+      "phase": "cold-turnisala"
+    },
+    {
+      "t": 1789403852363,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_teams",
+      "phase": "cold-turnisala"
+    },
+    {
+      "t": 1789403852363,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_team_members",
+      "phase": "cold-turnisala"
+    },
+    {
+      "t": 1789403852363,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_adjustments",
+      "phase": "cold-turnisala"
+    },
+    {
+      "t": 1789403853028,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/sala_schedule",
+      "phase": "month-revisit"
+    },
+    {
+      "t": 1789403853819,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/users",
+      "phase": "warm-reload"
+    },
+    {
+      "t": 1789403853819,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_types",
+      "phase": "warm-reload"
+    },
+    {
+      "t": 1789403853819,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_teams",
+      "phase": "warm-reload"
+    },
+    {
+      "t": 1789403853820,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_team_members",
+      "phase": "warm-reload"
+    },
+    {
+      "t": 1789403853820,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_adjustments",
+      "phase": "warm-reload"
+    },
+    {
+      "t": 1789403853820,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_types",
+      "phase": "warm-reload"
+    },
+    {
+      "t": 1789403853820,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_teams",
+      "phase": "warm-reload"
+    },
+    {
+      "t": 1789403853821,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_team_members",
+      "phase": "warm-reload"
+    },
+    {
+      "t": 1789403853821,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/shift_adjustments",
+      "phase": "warm-reload"
+    },
+    {
+      "t": 1789403855253,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/sala_schedule",
+      "phase": "tuoturno-month-prev"
+    },
+    {
+      "t": 1789403855264,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/sala_schedule",
+      "phase": "tuoturno-month-prev"
+    },
+    {
+      "t": 1789403855535,
+      "method": "GET",
+      "url": "https://uokfixddsuqcjddbfkln.supabase.co/rest/v1/sala_schedule",
+      "phase": "tuoturno-month-prev"
+    }
+  ],
+  "ws": [],
+  "phases": {
+    "coldTurnisalaMs": 5205,
+    "idbMonthsAfterCold": -1,
+    "monthFirstVisitMs": 480,
+    "monthRevisitMs": 172,
+    "warmReloadMs": 828,
+    "warmReloadRestCalls": 9,
+    "coldTuoturnoMs": 1351,
+    "tuoturnoPrevMonthMs": 1492,
+    "tuoturnoNextMonthMs": 1256
+  },
+  "currentPhase": "tuoturno-month-next",
+  "restSummary": {
+    "cold-turnisala": 9,
+    "month-revisit": 1,
+    "warm-reload": 9,
+    "tuoturno-month-prev": 3
+  }
+}

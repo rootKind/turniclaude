@@ -980,7 +980,10 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   il cold start è ~64KB→~68KB (+6%, payload users arricchito di show_in_compare ecc., una tantum).
   Su localhost il vantaggio latenza cache-first non è misurabile (rete ~0ms): valgono conteggi
   e byte. BUG TROVATO (pre-esistente): tendina «Scegli mese» /turnisala off-by-one (value 1-based
-  usato come indice 0-based → «Settembre» mostra Ottobre) — da correggere a parte.
+  usato come indice 0-based → «Settembre» mostra Ottobre) — CORRETTO il 21/09/2026: option ora
+  0-based (value={cm-1}, value={i}); audit completo di tutti gli altri selettori mese dell'app
+  (batch-upload dropdown e shift-cleanup dialog) = nessun altro caso; script misura aggiornato
+  e verificato live (Settembre+15 → «MAR 15 SETTEMBRE 2026», prima del fix dava Ottobre).
 
 - **Skeleton solo tecnici (20/09/2026)**: audit conferma NESSUN delay artificiale nei
   caricamenti (i due setTimeout 4s sono i timer di reset highlight URL, funzionali). Gli
