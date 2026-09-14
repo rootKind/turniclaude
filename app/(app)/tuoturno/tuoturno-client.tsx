@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { Check, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
+import { readCachedSchedule, writeCachedSchedule } from '@/lib/sala-schedule-cache'
 import { buildDuplicateCognomi, cn, formatDisplayName } from '@/lib/utils'
 import type { BareOwnerMap } from '@/lib/shift-teams-matching'
 import {
@@ -595,15 +596,30 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     ? [selectedUser.cognome, selectedUser.nome].filter(Boolean).join(' ')
     : '—'
 
-  // I mesi caricati dai PDF si leggono dal DB (una volta per mese).
+  // I mesi caricati dai PDF si leggono dalla CACHE IDB (istantaneo se già
+  // visitato) e poi riconvalidano in background dal DB — stesso schema di
+  // /turnisala. In questo modo anche lo swipe dei mesi è zero-rete a caldo.
   useEffect(() => {
     if (!uploaded.has(month) || month in schedules) return
     let cancelled = false
-    getSalaSchedule(createClient(), month)
-      .then(data => { if (!cancelled) setSchedules(prev => ({ ...prev, [month]: data })) })
-      .catch(() => { if (!cancelled) setSchedules(prev => ({ ...prev, [month]: null })) })
+    const supabase = createClient()
+    ;(async () => {
+      const cached = currentUserId ? await readCachedSchedule(currentUserId, month) : null
+      if (cancelled) return
+      if (cached) setSchedules(prev => (month in prev ? prev : { ...prev, [month]: cached }))
+      try {
+        const data = await getSalaSchedule(supabase, month)
+        if (cancelled) return
+        setSchedules(prev => ({ ...prev, [month]: data }))
+        if (data && currentUserId) await writeCachedSchedule(currentUserId, data)
+      } catch {
+        if (!cancelled && !(month in schedules)) {
+          setSchedules(prev => ({ ...prev, [month]: cached }))
+        }
+      }
+    })()
     return () => { cancelled = true }
-  }, [month, uploaded, schedules])
+  }, [month, uploaded, schedules, currentUserId])
 
   const realSchedule = isRealMonth ? schedules[month] : null
   const loadingReal = isRealMonth && !(month in schedules)

@@ -950,3 +950,22 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   NON vanno in cache (generati dal tree, zero rete). localStorage evitato per gli snapshot
   (tetto ~5 MB per origine condiviso con auth/preferenze); IndexedDB è async e capiente.
   Test: scripts/check-sala-schedule-cache.mjs (fake IDB in-memory con eventi async realistici).
+
+- **Cache-first fase 2 — anagrafiche + /tuoturno (20/09/2026)**: estensione del pattern a
+  utenti/albero squadre. lib/query-idb-cache.ts persiste su IndexedDB («turni-query-cache»)
+  SOLO le query whitelisted (prefissi ['users',…], ['shift-team-tree']): il QueryProvider
+  le ripristina all'avvio con il LORO dataUpdatedAt (setQueryData options.updatedAt) e
+  riscrive ogni fetch riuscita via queryCache.subscribe. hooks/use-users.ts: staleTime 6 ORE
+  su tutti gli hook anagrafici + nuovo useShiftTeamTreeData (albero lato client, prima solo
+  SSR/one-shot). hooks/use-realtime-invalidation.ts (montato da components/providers/
+  realtime-invalidation.tsx nel layout app): UN canale supabase invalida ['users'] /
+  ['shift-team-tree'] su eventi delle 5 tabelle (+ evizione IDB con removeQueryCacheByPrefix,
+  cursor range JSON-prefix). Migration 031: users, shift_types/teams/members/adjustments in
+  supabase_realtime. /tuoturno: i mesi PDF ora leggono readCachedSchedule PRIMA del fetch
+  (stesso schema /turnisala; la copia si sana a ogni switch mese, realtime non necessario).
+  /turnisala: l'albero squadre usa useShiftTeamTreeData → si aggiorna live quando l'admin
+  modifica le squadre (prima: fetch once al mount, mai più). clearAllLocalData wipe anche
+  turni-query-cache. NB le tabelle whitelisted sono IDENTICHE per tutti gli utenti (nessun
+  namespacing utente necessario); il wipe al logout copre comunque il cambio account.
+  Admin dialog che EDITANO squadre/utenti (squadre-dialog, shift-dialog, compare-visibility)
+  tengono il loro refetch-on-open volutamente fresco. Test: scripts/check-query-idb-cache.mjs.

@@ -30,14 +30,18 @@ export async function updateUserProfile(updates: Partial<Pick<UserProfile,
   if (error) throw error
 }
 
-export async function fetchAllUsersMinimal(): Promise<Pick<UserProfile, 'id' | 'nome' | 'cognome'>[]> {
+export async function fetchAllUsersMinimal(): Promise<Pick<UserProfile,
+  'id' | 'nome' | 'cognome' | 'is_secondary' | 'is_manager' | 'show_in_compare'>[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('users')
-    .select('id, nome, cognome')
+    // Stessa riga del selettore «Turni di chi?» di /tuoturno (flag inclusi):
+    // un SOLO payload alimenta nomi, gruppi e visibilità di confronto.
+    .select('id, nome, cognome, is_secondary, is_manager, show_in_compare')
     .order('cognome')
   if (error) throw error
-  return data as Pick<UserProfile, 'id' | 'nome' | 'cognome'>[]
+  return data as Pick<UserProfile,
+    'id' | 'nome' | 'cognome' | 'is_secondary' | 'is_manager' | 'show_in_compare'>[]
 }
 
 export async function fetchUsersByGroup(isSecondary: boolean): Promise<Pick<UserProfile, 'id' | 'nome' | 'cognome'>[]> {

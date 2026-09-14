@@ -5,6 +5,7 @@ import { NotificationBell } from '@/components/notifications/notification-bell'
 import { isAdmin } from '@/types/database'
 import { PageTransitionWrapper } from '@/components/providers/page-transition'
 import { ChangelogDialog } from '@/components/providers/changelog-dialog'
+import { RealtimeInvalidation } from '@/components/providers/realtime-invalidation'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -32,6 +33,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen safe-area-pt pb-[calc(4rem_+_env(safe-area-inset-bottom,0px))]">
+      {/* Un solo canale realtime per l'app: invalida le query anagrafiche
+          (utenti, albero squadre, mesi tuoturno) sui cambi delle tabelle. */}
+      <RealtimeInvalidation />
       <PageTransitionWrapper>{children}</PageTransitionWrapper>
       <NotificationBell />
       <ChangelogDialog />

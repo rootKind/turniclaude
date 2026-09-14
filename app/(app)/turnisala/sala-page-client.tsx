@@ -16,8 +16,8 @@ import {
   readCachedSchedule,
   writeCachedSchedule,
 } from '@/lib/sala-schedule-cache'
-import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { generateTheoreticalMonth } from '@/lib/turni-teorici'
+import { useShiftTeamTreeData } from '@/hooks/use-users'
 import { buildScheduleFromMonthData, isSalaMonthData } from '@/lib/sala-month'
 import { DeskBoard, MONTHS_IT } from '@/components/sala/desk-board'
 import { ShiftCleanupDialog } from '@/components/admin/shift-cleanup-dialog'
@@ -82,7 +82,6 @@ export function SalaPageClient({
   // client-side poteva tornare 0 righe (RLS «authenticated» con sessione del
   // browser) lasciando la pagina senza teorico né vista «Teorico ≠ reale».
   const [shiftTree, setShiftTree] = useState<ShiftTeamTree | null>(initialShiftTree)
-  const [treeError, setTreeError] = useState(false)
   // Richieste di cambio già esaudite dai PDF appena caricati: popup di conferma.
   // Upload MULTIPLI (19/09/2026): i candidati di OGNI mese finiscono in coda;
   // il dialog li mostra uno alla volta (shift-cleanup-dialog è per un mese).
@@ -111,22 +110,22 @@ export function SalaPageClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // I dati dei turni teorici sono leggibili da tutti gli utenti autenticati:
-  // la generazione dei mesi teorici avviene client-side.
+  // Albero squadre CACHE-FIRST (20/09/2026): parte dall'SSR, poi l'hook lo
+  // idrata/riconvalida (IDB + staleTime 6h) e il realtime lo tiene aggiornato
+  // quando un admin modifica squadre/cicli — prima il client NON ricaricava
+  // MAI l'albero dopo il mount.
+  // Il restore da IDB può essere leggermente meno fresco dell'SSR solo se un
+  // ALTRO dispositivo ha modificato le squadre mentre l'app era chiusa: la
+  // finestra è ≤6h (poi riconvalida) e guarisce al primo evento realtime.
+  const refreshedTree = useShiftTeamTreeData()
   useEffect(() => {
-    const supabase = createClient()
-    fetchShiftTeamTree(supabase)
-      .then(t => {
-        setShiftTree(t)
-        // Il mese corrente è teorico e non è ancora stato generato (arrivato
-        // prima dell'albero squadre): rigenera ora, per QUALSIASI mese.
-        if (!scheduleRef.current) {
-          setSchedule(generateTheoreticalMonth(currentMonthRef.current, t, t.adjustments))
-        }
-      })
-      .catch(() => setTreeError(true))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (!refreshedTree) return
+    setShiftTree(refreshedTree)
+    // Il mese corrente è teorico e non è ancora stato generato: rigenera ora.
+    if (!scheduleRef.current) {
+      setSchedule(generateTheoreticalMonth(currentMonthRef.current, refreshedTree, refreshedTree.adjustments))
+    }
+  }, [refreshedTree])
 
   const handleSaveLayout = async (updated: SalaLayout) => {
     const supabase = createClient()
