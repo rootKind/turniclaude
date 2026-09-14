@@ -1069,3 +1069,15 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   è UN sottogruppo «Assenti:» che segue la CHIP del turno selezionata in testa alla
   board (selectedShift) — non più tre righe M/P/N insieme; il resto dell'attribuzione
   è invariato. Verificato live mar2026 g3 N/M/P.
+
+- **GRUPPI «altre presenti» v2 + codici nelle pill (24/09/2026)**: (1) il codice PDF
+  compare accanto al nome in OGNI gruppo (entry {name, code} in AltriGruppo, da
+  altriPresentiTokens; i «Nuovi» di @gruppo hanno TheoRealExtra.code) e nel blocco
+  Assenti (come già prima). (2) FUSIONE Tutor→Istruttori (label «Istruttori») e
+  RINOMINA «Corsi SP»→«Corsi»: 4 gruppi di presenza + Assenti. (3) TINTE ripuntate
+  ALLE VARIABILI delle chip di /turnisala e della card verde di /tuoturno
+  (globals.css: --altri-pill-trasferte → var(--pill-pomeriggio-*), --altri-pill-corsi
+  → var(--cell-duty-*), --altri-pill-istruttori → var(--pill-notte-*),
+  --altri-pill-altro → var(--pill-mattina-*); nessun hex duplicato, light+dark
+  automatici; Assenti restano --cell-abs). Verificato live mar2026 g5/g12 con
+  confronto computed-style ↔ variabili su entrambi i temi.

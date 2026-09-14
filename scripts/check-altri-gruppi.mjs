@@ -54,9 +54,9 @@ try {
   for (const t of ['Trasf', 'DisNa', 'DisCas', 'DisSal', 'NDisNa', 'NDisSal', 'NDisCe', 'M', 'N', 'P'])
     assert.equal(gruppoOf(t), 'trasferte', `${t} → trasferte`)
 
-  // ── TUTOR (solo la famiglia TUTOR, G approvata dall'utente) ────────────────
+  // ── TUTOR fusi negli ISTRUTTORI (richiesta 24/09/2026) ────────────────────
   for (const t of ['MTUTOR', 'PTUTOR', 'GTUTOR', 'tutor'])
-    assert.equal(gruppoOf(t), 'tutor', `${t} → tutor`)
+    assert.equal(gruppoOf(t), 'istruttori', `${t} → istruttori (fusione tutor)`)
 
   // ── INVISIBILI (decisione utente 22/09: nessuna famiglia G, Na, TIR,
   //    12.14, sabati, e-learning con turno) ──────────────────────────────────
@@ -91,20 +91,25 @@ try {
     { name: 'ROSSI', token: 'MTUTOR' }, { name: 'SPAGNULO', token: 'M' }, { name: 'ESPOSITO', token: 'NDisNa' },
   ] }
   const g = groupAltriPresenti(day)
-  assert.deepEqual(g.map(x => x.key), ['trasferte', 'corsi', 'istruttori', 'tutor'], 'ordine gruppi')
+  assert.deepEqual(g.map(x => x.key), ['trasferte', 'corsi', 'istruttori'], 'ordine gruppi (tutor fuso)')
   assert.equal(g[0].label, 'Trasferte')
-  assert.deepEqual(g[0].names, ['ROSSI', 'SPAGNULO', 'ESPOSITO'], 'trasferte = DisNa + M nudo + NDisNa')
-  assert.deepEqual(g[1].names, ['NERI'])
+  assert.deepEqual(g[0].entries.map(e => e.name), ['ROSSI', 'SPAGNULO', 'ESPOSITO'], 'trasferte = DisNa + M nudo + NDisNa')
+  assert.deepEqual(g[0].entries.map(e => e.code), ['DisNa', 'M', 'NDisNa'], 'codice PDF nella entry')
+  assert.deepEqual(g[1].entries.map(e => e.name), ['NERI'])
+  assert.equal(g[1].label, 'Corsi', 'rinomina «Corsi SP» → «Corsi»')
+  assert.deepEqual(g[2].entries.map(e => e.name), ['NERI', 'ROSSI'], 'ISpN + MTUTOR fusi in Istruttori')
+  assert.equal(g[2].label, 'Istruttori')
 
   // fallback mesi v1 (senza token): tutto in «altro»
   const gLegacy = groupAltriPresenti({ altriPresenti: ['ROSSI', 'ROSSI', 'NERI'] })
   assert.equal(gLegacy.length, 1)
   assert.equal(gLegacy[0].key, 'altro')
-  assert.deepEqual(gLegacy[0].names, ['ROSSI', 'NERI'], 'dedup per nome')
+  assert.deepEqual(gLegacy[0].entries.map(e => e.name), ['ROSSI', 'NERI'], 'dedup per nome')
+  assert.deepEqual(gLegacy[0].entries.map(e => e.code), ['', ''], 'v1: entry senza codice')
 
   // classifica diretta
   assert.equal(classificaAltriToken('NDisCas'), 'trasferte')
-  assert.equal(classificaAltriToken('GTUTOR'), 'tutor')
+  assert.equal(classificaAltriToken('GTUTOR'), 'istruttori', 'tutor fuso in istruttori')
 
   // ── COLORI per gruppo (richiesta 23/09/2026): ogni gruppo ha la sua classe ─
   for (const gruppo of g) {
@@ -114,7 +119,6 @@ try {
   assert.equal(ALTRI_COLORS.trasferte, 'altri-pill-trasferte')
   assert.equal(ALTRI_COLORS.corsi, 'altri-pill-corsi')
   assert.equal(ALTRI_COLORS.istruttori, 'altri-pill-istruttori')
-  assert.equal(ALTRI_COLORS.tutor, 'altri-pill-tutor')
   assert.equal(ALTRI_COLORS.altro, 'altri-pill-altro')
 
   console.log('PASS ✓ — tutti i vincoli contrattuali verificati')

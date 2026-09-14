@@ -566,11 +566,12 @@ export function DeskBoard({
   // Extra di GRUPPO del teorico≠reale (23/09/2026): bucket riservato
   // GRUPPO_EXTRA_KEY — reali presenti SOLO nelle «altre presenti» (trasferte,
   // corsi…) che il teorico non prevedeva lì. Ordinati per tipologia, lo stesso
-  // ordine dei gruppi sotto.
+  // ordine dei gruppi sotto. Il codice PDF del reale arriva nel «Nuovi» da
+  // altriPresentiTokens (24/09).
   const gruppoExtras: TheoRealExtra[] = useMemo(() => {
     const bucket = theoCompareBySection.get(GRUPPO_EXTRA_KEY)
     if (!bucket) return []
-    const order = ['trasferte', 'corsi', 'istruttori', 'tutor', 'altro']
+    const order = ['trasferte', 'corsi', 'istruttori', 'altro']
     return [...bucket.extras].sort(
       (a, b) => order.indexOf(a.group ?? 'altro') - order.indexOf(b.group ?? 'altro'),
     )
@@ -632,6 +633,9 @@ export function DeskBoard({
     if (isEditing || !schedule) return []
     const day = schedule.schedule[selectedDay]
     if (!day) return []
+    // I mesi v2 portano già altriPresentiTokens (name → token PDF): la entry
+    // del gruppo mostra il codice accanto al nome (richiesta 24/09). I mesi v1
+    // non hanno token → entry senza codice, gruppo «Altre attività».
     return groupAltriPresenti(day)
   }, [schedule, selectedDay, isEditing])
 
@@ -859,6 +863,7 @@ export function DeskBoard({
               {gruppoExtras.map((e, i) => (
                 <span key={i} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${ALTRI_COLORS[(e.group ?? 'altro') as AltriGruppo['key']]}`}>
                   {displayForPdfName(e.name)}
+                  {e.code && <span className="tabular-nums font-semibold opacity-80"> {e.code}</span>}
                   {e.theo && <span className="tabular-nums opacity-70 font-medium">da {e.theo}</span>}
                 </span>
               ))}
@@ -867,14 +872,15 @@ export function DeskBoard({
           {altriGruppi.map(gruppo => (
             <div key={gruppo.key} className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-muted-foreground shrink-0">{gruppo.label}:</span>
-              {gruppo.names.map((name, i) => {
-                const isMe = matchesCognome([name], userCognome, userNome, duplicateCognomi, bareOwners)
+              {gruppo.entries.map((e, i) => {
+                const isMe = matchesCognome([e.name], userCognome, userNome, duplicateCognomi, bareOwners)
                 return (
                   <span
                     key={i}
                     className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : gruppo.colorClass}`}
                   >
-                    {displayForPdfName(name)}
+                    {displayForPdfName(e.name)}
+                    {e.code && <span className="tabular-nums font-semibold opacity-80"> {e.code}</span>}
                   </span>
                 )
               })}

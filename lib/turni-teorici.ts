@@ -161,9 +161,12 @@ export interface TheoRealExtra {
   /** Codice teorico di origine (es. «RC», «M4S»), '' se non previsto dall'albero. */
   theo: string
   /** Tipologia «altre presenti» del turno REALE (trasferte/corsi/istruttori/
-   *  tutor/altro): extra di gruppo (richiesta 23/09/2026); assente nelle extra
+   *  altro): extra di gruppo (richiesta 23/09/2026); assente nelle extra
    *  di sezione (lì il reale sta in colonna, non in un gruppo). */
   group?: string
+  /** Codice PDF del REALE che lo colloca nelle altre presenti (SpN, DisNa,
+   *  MTUTOR…), mostrato accanto al nome nel «Nuovi» (richiesta 24/09/2026). */
+  code?: string
 }
 
 /**
@@ -361,6 +364,7 @@ export function theoRealSectionCompare(
         real: '—',
         theo: theo ?? '',
         group: classifyAltriToken(altriTokenByName.get(norm) ?? ''),
+        code: altriTokenByName.get(norm) ?? '',
       })
     }
     if (grExtras.length) {

@@ -120,7 +120,7 @@ try {
   assert.ok(bucket?.isGruppo, 'bucket riservato @gruppo con isGruppo')
   assert.deepEqual(
     bucket.extras,
-    [{ name: 'SPAGNULO M.', real: '—', theo: '', group: 'trasferte' }],
+    [{ name: 'SPAGNULO M.', real: '—', theo: '', group: 'trasferte', code: 'DisNa' }],
     'extra di gruppo: solo i NON attesi tra le altre presenti',
   )
 
@@ -157,7 +157,7 @@ try {
   const outS = theoRealSectionCompare('2026-09', 14, treeS, [], realDayS, new Map())
   assert.deepEqual(
     outS.get('@gruppo')?.extras,
-    [{ name: 'VERDI SIMONE', real: '—', theo: 'M4S', group: 'trasferte' }],
+    [{ name: 'VERDI SIMONE', real: '—', theo: 'M4S', group: 'trasferte', code: 'NDisNa' }],
     'extra di gruppo con provenienza teorica di sezione',
   )
 
