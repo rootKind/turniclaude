@@ -886,3 +886,21 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   («NEVANO» → «NEVANO P.») con conferma. `buildBareOwners` ora propaga davvero `userId`.
   Audit superficie: unici residui bare-surname erano l'etichetta tirocinante in desk-card
   (ora via nameDisplay) — tutto il resto usa cognome+nome o è già mappato.
+- **Debug notifiche (14/09/2026):** il pannello admin ha «Invia Notifiche» (broadcast a tutti,
+  POST /api/admin/notifications audience 'all') e «Debug notifiche»
+  (components/admin/notification-debug-dialog.tsx, sostituisce notification-test-dialog):
+  - **Messaggi:** registry di TUTTI i testi push in lib/notification-templates.ts (chiave
+    stabile, source, contesto); override salvati in app_settings.notif_template_overrides
+    (migration 029) con «Ripristina default» per messaggio o globale.
+  - **Variabili:** {nome} {cognome} {nome_attore} {cognome_attore} {turno} {turno_cercati}
+    {data} {periodo} {periodo_cercati} {anno} — renderNotifTemplate sostituisce dal contesto,
+    le mancanti restano letterali (debug-friendly). Nei flussi reali: buildTemplateVars dal
+    profilo destinatario + attore/turno/data del route (convenzione «Cognome Nome» → primo
+    token = cognome_attore).
+  - **Invio di prova:** globale / gruppo DCO / Noni / selezione utenti, contesto variabile
+    facoltativo, report per destinatario (delivered / nessun dispositivo / errore) con testo
+    effettivo inviato. Bypassa le preferenze: l'admin decide esplicitamente.
+  - **Dispositivi:** conteggio subscription push per utente + rimozione (DELETE
+    /api/admin/notifications?userId=) per iscrizioni stale.
+  - Da collegare (futuro): i route di push (notify, manager, cleanup, chains) leggono gli
+    override con fetchNotifOverrides e sostituiscono i testi hardcoded.

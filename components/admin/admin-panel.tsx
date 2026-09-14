@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { NotificationBadge } from '@/components/ui/notification-badge'
 import { getAppSettings, updateAppSettings } from '@/lib/queries/app-settings'
 import { NotificationDialog } from './notification-dialog'
-import { NotificationTestDialog } from './notification-test-dialog'
+import { NotificationDebugDialog } from './notification-debug-dialog'
 import { FeedbackList } from './feedback-list'
 import { UserManagementDialog } from './user-management-dialog'
 import { ImpersonateDialog } from './impersonate-dialog'
@@ -109,7 +109,7 @@ export function AdminPanel() {
       <div className="grid grid-cols-3 gap-2">
         <PanelButton
           icon={<Bell size={15} />}
-          label="Notifiche"
+          label="Invia Notifiche"
           description="Invia una notifica push a tutti gli utenti"
           onClick={() => setNotifOpen(true)}
         />
@@ -164,8 +164,8 @@ export function AdminPanel() {
         />
         <PanelButton
           icon={<FlaskConical size={15} />}
-          label="Test notifiche"
-          description="Invia notifiche di prova a un dipendente specifico"
+          label="Debug notifiche"
+          description="Messaggi push dell'app, variabili, invii di prova e dispositivi"
           onClick={() => setNotifTestOpen(true)}
         />
         <PanelButton
@@ -236,7 +236,7 @@ export function AdminPanel() {
       </div>
 
       <NotificationDialog open={notifOpen} onClose={() => setNotifOpen(false)} />
-      <NotificationTestDialog open={notifTestOpen} onClose={() => setNotifTestOpen(false)} />
+      <NotificationDebugDialog open={notifTestOpen} onClose={() => setNotifTestOpen(false)} />
       <UserManagementDialog open={usersOpen} onClose={() => setUsersOpen(false)} />
       <FeedbackList open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <ImpersonateDialog open={impersonateOpen} onClose={() => setImpersonateOpen(false)} />
