@@ -1,5 +1,6 @@
 'use client'
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { X, ChevronDown } from 'lucide-react'
 import { it } from 'date-fns/locale'
 import { format } from 'date-fns'
@@ -918,15 +919,22 @@ export function DeskBoard({
         </div>
       )}
 
-      {/* PDF upload timestamp / badge mese teorico — fixed above bottom navbar */}
-      {!isEditing && schedule && (
+      {/* PDF upload timestamp / badge mese teorico — fixed sopra la bottom navbar.
+          FIX (22/09/2026): renderizzato in PORTAL su document.body — prima viveva
+          dentro PageTransitionWrapper (framer-motion): durante l'animazione di
+          ingresso (translateY 7→0) un transform su un antenato RINCHIUDE i fixed
+          nei bound del contenuto pagina, così il badge compariva a metà schermo
+          e «teletrasportato» in fondo quando il transform veniva rimosso a
+          animazione finita. Dal body non può più essere intrappolato. */}
+      {!isEditing && schedule && typeof document !== 'undefined' && createPortal(
         <div className="fixed bottom-[calc(4rem_+_env(safe-area-inset-bottom,0px))] inset-x-0 flex justify-center pointer-events-none z-30">
           <span className="text-[10px] text-muted-foreground/60 bg-background/80 backdrop-blur-sm px-2 py-0.5 rounded-full">
             {schedule.source === 'theoretical'
               ? 'Turno teorico'
               : schedule.uploaded_at ? `PDF: ${formatDateTime(schedule.uploaded_at)}` : ''}
           </span>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* History dialog */}

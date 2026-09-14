@@ -1016,3 +1016,12 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   1362→62ms (prefetch serve l'RSC durante l'idratazione della pagina di partenza), turniferie
   resta ~830ms (prima della catena, niente prefetched), il resto cold 40-850ms. Leva residua:
   solo la transizione 200ms di PageTransitionWrapper.
+
+- **FIX badge «PDF:/Turno teorico» /turnisala (22/09/2026)**: compariva a metà schermo e si
+  «teletrasportava» in fondo a fine transizione — classico inset trapping: durante l'animazione
+  di PageTransitionWrapper (translateY 7→0, 200ms) un transform su un antenato rinchiuso il
+  position:fixed del badge nei bound del contenuto pagina (bottom:64px risolto contro il box
+  pagina, non il viewport); a transform rimosso, snap in posizione. Fix: badge renderizzato
+  con createPortal(document.body) in desk-board.tsx → mai più contenuto. Verificato con probe
+  rAF su 5 navigazioni CPU-throttled 1×-9×: 267 frame col badge, 0 violazioni (bottom≈780,
+  contained=false anche a transform attivo).
