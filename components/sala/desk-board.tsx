@@ -12,6 +12,7 @@ import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { matchesCognome } from '@/lib/utils'
 import { theoRealDiffsForDay, theoRealAnnotationsForDay, type TheoRealDiff, type TheoRealAnnotation } from '@/lib/turni-teorici'
+import { NON_SECTION_DUTIES, isShiftCode, parseShiftCode } from '@/lib/shift-tokens'
 import { useAllDuplicateCognomi } from '@/hooks/use-users'
 import { DeskCard } from './desk-card'
 import { EditToolbar } from './edit-toolbar'
@@ -461,9 +462,15 @@ export function DeskBoard({
     // è lì che la persona doveva stare e lì che la striscia deve comparire.
     const map = new Map<string, TheoRealDiff[]>()
     for (const d of diffs) {
-      const m = /^(M|P|N)\s*(\d+)$/.exec(d.theo)
-      if (!m) continue
-      const key = `${m[2]}|${m[1]}` // "4|M"
+      /* Chiave = SEZIONE PREVISTA dal teorico (es. «M6S» → sezione "6",
+         «MDCIF» → "DCIF"): è lì che la persona doveva stare e lì che la
+         striscia deve comparire. Con il vecchio regex ^(M|P|N)\d+$ i token
+         con slot (M6S) o sezione alfabetica (MDCIF) venivano scartati — gli
+         assenti previsti in quei turni non apparivano mai. */
+      if (!isShiftCode(d.theo)) continue
+      const { shift, section } = parseShiftCode(d.theo)
+      if (NON_SECTION_DUTIES.has(section)) continue
+      const key = `${section}|${shift}` // "6|M" / "DCIF|M"
       const list = map.get(key)
       if (list) list.push(d)
       else map.set(key, [d])

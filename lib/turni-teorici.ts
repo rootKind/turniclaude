@@ -6,7 +6,7 @@ import type {
   ShiftTeamTree,
   ShiftTypeGroup,
 } from '@/types/database'
-import { applyTokenToDay } from '@/lib/shift-tokens'
+import { ABSENT_CODES, NON_SECTION_DUTIES, applyTokenToDay, isShiftCode, parseShiftCode } from '@/lib/shift-tokens'
 
 // ─── date helpers (UTC, senza timezone) ──────────────────────────────────────
 
@@ -123,7 +123,7 @@ function normName(s: string): string {
  * Con il vecchio split(' ')[0] tutte le persone DI* collassavano sulla chiave
  * «di» e il confronto matchava la persona sbagliata.
  */
-function surnameKey(s: string): string {
+export function surnameKey(s: string): string {
   const n = normName(s)
   const parts = n.split(' ')
   const last = parts[parts.length - 1]
@@ -163,9 +163,10 @@ export interface TheoRealAnnotation {
  * Per un GIORNO di un mese caricato da PDF, confronta il teorico (dall'albero
  * squadre, token per membro) con il reale (day schedule derivato dal PDF).
  * Restituisce SOLO le persone che deviano: turno in sezione/slot diversi,
- * codice differente o assenza dal PDF (missing). Le persone di «altriPresenti»
- * senza sezione si confrontano per PRESENZA (teoria in sezione ma real no = diff;
- * entrambi senza sezione = ok).
+ * codice differente o ASSENZA dal PDF (missing — teorico in servizio, reale
+ * assente: la richiesta del 15/09/2026 di vedere anche chi «doveva lavorare e
+ * ha fatto assenza»). Le persone di «altriPresenti» senza sezione si confrontano
+ * per PRESENZA (teoria in sezione ma real no = diff; entrambi senza sezione = ok).
  *
  * Il matching nome è per normalizzazione minima (minuscole + spazi): l'albero
  * usa «COGNOME Nome», il PDF «COGNOME N.» — il confronto riguarda il COGNOME
@@ -188,7 +189,9 @@ export function theoRealDiffsForDay(
         if (!member.is_active) continue
         const token = tokenForMember(type, member, team.id, adjustments, dateISO)
         if (!token) continue
-        theoByName.set(normName(member.full_name), { token, full: member.full_name })
+        // Stessa chiave del lato REALE (surnameKey): con normName un nome con
+        // iniziale («DI NAPOLI M.» → «di napoli m.») non matchava mai il reale.
+        theoByName.set(surnameKey(member.full_name), { token, full: member.full_name })
       }
     }
   }
@@ -218,9 +221,16 @@ export function theoRealDiffsForDay(
   //    produce diff: il PDF non dà una posizione da contrapporre.
   const diffs: TheoRealDiff[] = []
   for (const [key, { token, full }] of theoByName) {
-    const m = /^(M|P|N)\s*(\d+)$/.exec(token)
-    if (!m) continue // riposi, M nudi, TUTOR, ecc.: nessun confronto posizionale
-    const theoShift = m[1]
+    /* Posizionale = QUALUNQUE turno di lavoro con sezione: M6, M6S, M6T, MDCIF…
+       Il vecchio regex ^(M|P|N)\d+$ riconosceva solo i token nudi (M9): chi era
+       teoricamente in M6S (formato più comune) o in una sezione alfabetica e
+       risultava ASSENTE nel PDF non produceva nessuna differenza — la striscia
+       «≠» non mostrava mai gli assenti. Si usa il parser condiviso dei codici. */
+    if (!isShiftCode(token)) continue // riposi, M nudi, SpN: nessun confronto posizionale
+    const { shift: theoShift, section: theoSection } = parseShiftCode(token)
+    // TUTOR ecc.: il reale li mette in altriPresenti (mai in sezione) — come il
+    // teorico non danno una posizione contrappponibile.
+    if (ABSENT_CODES.has(token) || NON_SECTION_DUTIES.has(theoSection)) continue
     const real = realByCognome.get(key)
     if (!real) {
       // Nel PDF non c'è: o assente o in codice non-posizionale. Diff SOLO se il
@@ -229,7 +239,7 @@ export function theoRealDiffsForDay(
       diffs.push({ name: full, theo: token, real: null, missing: true })
       continue
     }
-    if (real.section !== null && (real.shift !== theoShift || real.section !== m[2])) {
+    if (real.section !== null && (real.shift !== theoShift || real.section !== theoSection)) {
       diffs.push({ name: full, theo: token, real: `${real.shift}${real.section}`, missing: false })
     }
     // real.section === null: presente in altriPresenti (es. riposo lavorato): il
