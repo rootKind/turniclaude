@@ -508,7 +508,7 @@
   /* «U»: presente ma senza turno da 8 ore (SPCA, RIC, TUTOR, …) — giorni non
      oggetto di cambi. Stessa tinta verde delle card duty de «Il tuo turno»:
      le variabili --cell-duty-* cambiano tema da sole. */
-  .pill-u          { background: var(--cell-duty-bg); color: var(--cell-duty-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+  .pill-g          { background: var(--cell-duty-bg); color: var(--cell-duty-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
 
   /* Celle de «Il tuo turno» (variante E): card interamente tinta, numero del giorno compreso.
      I colori di DEFAULT vivono qui; l'utente può sostituirli per tipologia dal pannello

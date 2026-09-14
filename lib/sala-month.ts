@@ -166,7 +166,8 @@ export interface PersonDayShift extends SalaCodeInfo {
  * sopra ogni cifra del calendario il suo turno — con le stesse tinte delle
  * pillole P/M/N già usate in tutta l'app. Resti e assenze non rendono nulla.
  * Le attività senza sezione (SPCA, RIC, TUTOR, …: presenti ma SENZA turno da
- * 8 ore, quindi non oggetto di cambi) rendono la sigla «U» VERDE, la stessa
+ * 8 ore, quindi non oggetto di cambi) rendono la sigla «G» VERDE (prima «U»,
+ * cambiata 18/09/2026 su richiesta dell'utente), la stessa
  * tinta delle card duty de «Il tuo turno» (richiesta 13/09/2026).
  */
 export function shiftCodePill(token: string | null | undefined): { code: string; kind: SalaCodeKind; cssClass: string } | null {
@@ -175,7 +176,7 @@ export function shiftCodePill(token: string | null | undefined): { code: string;
     // toUpperCase: il PDF scrive anche «piaptir»/«Miap» → la pillola è comunque P/M.
     return { code: info.short.charAt(0).toUpperCase(), kind: info.kind, cssClass: SHIFT_CODE_PILL_CLASS[info.short.charAt(0).toUpperCase()] }
   }
-  if (info.kind === 'duty') return { code: 'U', kind: info.kind, cssClass: 'pill-u' }
+  if (info.kind === 'duty') return { code: 'G', kind: info.kind, cssClass: 'pill-g' }
   return null
 }
 

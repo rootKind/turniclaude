@@ -771,7 +771,8 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   se presente, sopra la cifra di ogni giorno compare una mini-pillola M/P/N (`shiftCodePill`
   in `lib/sala-month.ts`, classi `.pill-*` già esistenti → stesse tinte delle pillole sala).
   Le attività senza sezione (SPCA/RIC/TUTOR: presenti senza turno da 8 ore, non oggetto di
-  cambi) rendono la sigla «U» con `.pill-u` = tinta verde `--cell-duty-*` delle card duty
+  cambi) rendono la sigla «G» con `.pill-g` = tinta verde `--cell-duty-*` delle card duty
+  (sigla rinominata da «U» a «G» il 18/09/2026 su richiesta dell'utente, classe pure)
   de «Il tuo turno». RIClassificazione (13/09/2026, su segnalazione dell'utente): M/N/P
   «nudi» senza sezione (SPAGNULO), le varianti a maiuscole miste del PDF (Mric, Miap,
   piaptir…) e AG7 NON sono più U — i primi due gruppi sono turni veri e propri (`isShiftWorkCode`
