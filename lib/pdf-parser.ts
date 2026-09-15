@@ -227,11 +227,25 @@ interface PersonData {
 /** Giorni marcati in giallo sulla riga con quel y (±6px dal centro della cella). */
 function yellowDaysAtRow(yellowCells: Rect[], rowY: number, headerXMap: Record<number, number>, daysInMonth: number): number[] {
   const days: number[] = []
+  // v8b: una cella gialla può essere DOPPIA larghezza (il PDF evidenzia due
+  // giorni adiacenti con UN rect, es. colonne 24+25 del cluster BARRA/DI MEO
+  // di settembre 2026) — il CENTRO del rect cade sulla seconda colonna e il
+  // primo giorno andrebbe PERSO. Assegno il giorno a OGNI colonna il cui
+  // header x sta DENTRO l'estensione orizzontale del rect: gli header delle
+  // colonne effettivamente coperte cadono TUTTI dentro il rect (verificato
+  // sulla geometria reale: margine ≥ 2.4px), quindi la tolleranza è minima
+  // (3px di arrotondamento) e le celle singole non sanguinano sulle adiacenti.
+  const COL_TOLERANCE = 3
   for (const c of yellowCells) {
     const cy = c.y + c.h / 2
     if (Math.abs(cy - rowY) > 6) continue
-    const day = xToDay(c.x + c.w / 2, headerXMap)
-    if (day && day >= 1 && day <= daysInMonth && !days.includes(day)) days.push(day)
+    const x1 = c.x - COL_TOLERANCE
+    const x2 = c.x + c.w + COL_TOLERANCE
+    for (const [day, hx] of Object.entries(headerXMap)) {
+      const d = parseInt(day)
+      if (d < 1 || d > daysInMonth) continue
+      if (hx >= x1 && hx <= x2 && !days.includes(d)) days.push(d)
+    }
   }
   return days
 }
