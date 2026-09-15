@@ -112,31 +112,30 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
 
   const getColor = (name: string) => card.surnameColors?.[name]
 
-  // Marker GIALLA del PDF (v6, 25/09/2026): CHIP dopo il nome, riempimento
-  // giallo = chip trasferte di /turnisala (--altri-pill-trasferte-bg), bordo
-  // sottile del tinta-testo della chip; DENTRO, la sigla del turno reale in
-  // ROSSO (richiesta esplicita). Ereditata dalle v5: tinta coerente chiaro/scuro.
-  const YellowChip = ({ code }: { code?: string }) => (
+  // Marker GIALLA del PDF (v7, 26/09/2026): CHIP DOPO/il posto del nome che
+  // INGLOBA il COGNOME (testo ROSSO --cell-abs-text, come i pill Assenti);
+  // riempimento giallo = chip trasferte (--altri-pill-trasferte-bg), bordo
+  // sottile del tinta-testo. La sigla del reale sta DENTRO solo per assenze
+  // (A/AG/FE/VS) e attività senza sezione (corsi/trasferte): per i turni di
+  // sezione la card su cui sta la persona dice già dove lavora (showCode=false).
+  const YellowChip = ({ name, code }: { name: string; code?: string }) => (
     <span
       style={{
         background: 'var(--altri-pill-trasferte-bg)',
         border: '1px solid color-mix(in srgb, var(--altri-pill-trasferte-text) 30%, transparent)',
       }}
-      className="select-none inline-flex items-center rounded-full px-1 leading-4"
+      className="select-none inline-flex items-center rounded-full px-1.5 leading-4"
     >
-      <span className="text-[10px] font-semibold tabular-nums" style={{ color: 'var(--cell-abs-text)' }}>
-        {code ?? 'G'}
+      <span className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--cell-abs-text)' }}>
+        {name}
+        {code ? <span className="text-[10px] font-semibold tabular-nums ml-1">{code}</span> : null}
       </span>
     </span>
   )
   const renderDot = (name: string) => {
-    // Chip gialla per i 'teo' — persona prevista su questa card il cui reale è
-    // diverso (corso SpCA/SpN, altro turno, assenza). Per i 'real' (sostituti)
-    // la riga dell'equipaggio è resa interamente come «Nome [chip]» (v5/v6).
+    // v7: il giallo 'teo' SOSTITUISCE la riga del nome — la chip INGLOBA il
+    // cognome (renderYellowRow). Qui restano solo i pallini admin.
     const y = yellowForSlot.get(normName(name))
-    const yellow = y?.target === 'teo'
-      ? <span key="y"><YellowChip code={y.showCode && y.code ? y.code : undefined} /></span>
-      : null
     // Pallino del COLORE scelto dall'admin (verde/salmone/personalizzato):
     // coesiste con la chip gialla (fianco a fianco, fix 25/09/2026).
     const col = getColor(name)
@@ -144,18 +143,28 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       : col === 'green' ? <span key="a" className="text-emerald-500 select-none">●</span>
       : col === 'salmon' ? <span key="a" className="text-red-400 select-none">●</span>
       : <span key="a" style={{ color: col }} className="select-none">●</span>
-    if (!yellow && !admin) return null
-    return <>{yellow}{admin}</>
+    if (y?.target === 'teo' && admin) return admin
+    if (!admin) return null
+    return admin
   }
 
   // Nome in card: per gli OMONIMI (mappa di desk-board) mostra l'iniziale
   // («NEVANO» → «Nevano P.») — richiesta 14/09/2026; gli altri restano tali e quali.
   const renderName = (surname: string, i: number) => {
     const y = yellowForSlot.get(normName(surname))
-    // v6: il SOSTITUTO ('real') che il PDF ha messo QUI resta al suo POSTO
-    // nella riga di equipaggio, reso come «Nome [chip gialla]» — niente slot
-    // vuoto né riga separata in fondo (caso Langione, 22/09).
+    // v7: giallo 'teo' → la chip INGLOBA il cognome al posto della riga
+    // normale (renderYellowRow); i pallini admin restano fuori, a fianco.
+    // Il 'real' (sostituto in slot) è interamente chip, come le righe in coda.
     if (y?.target === 'real') return renderYellowRow(y)
+    if (y?.target === 'teo') {
+      const admin = renderDot(surname)
+      return (
+        <span className="flex items-center gap-1 text-sm leading-tight whitespace-nowrap">
+          {renderYellowRow(y)}
+          {admin}
+        </span>
+      )
+    }
     const dot = renderDot(surname)
     const slotClass = getSlotClass(i)
     const resolved = lookupNameDisplay(surname, nameDisplay)
@@ -168,7 +177,6 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
         ) : (
           <span className="text-muted-foreground/40">—</span>
         )}
-        {dot}
       </span>
     )
   }
@@ -228,12 +236,16 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     }
   }
 
-  // Riga GIALLA (v6): «Nome [chip gialla col turno reale in rosso]» — la chip
-  // sta DOPO il nome (richiesta 25/09/2026), senza prefissi Cong./Sost.
+  // Riga GIALLA (v7): «[Nome Sigla]» — la CHIP INGLOBA il cognome (rosso,
+  // come i pill Assenti), la sigla del reale dentro SOLO per assenze/corsi.
+  // Vale sia per le righe aggiunte in coda sia per lo slot dell'equipaggio
+  // occupato dal giallo (renderName la usa al posto della riga normale).
   const renderYellowRow = (y: YellowEntry) => (
-    <span className="flex items-center gap-1 text-sm leading-tight whitespace-nowrap">
-      {rowLabel(y.name, nameDisplay)}
-      <YellowChip code={y.showCode && y.code ? y.code : undefined} />
+    <span className="flex items-center text-sm leading-tight">
+      <YellowChip
+        name={rowLabel(y.name, nameDisplay)}
+        code={y.showCode && y.code ? y.code : undefined}
+      />
     </span>
   )
 
@@ -471,11 +483,13 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
                     onChange={e => updateTirocinante(i, e.target.value)}
                     placeholder="Cogn."
                   />
+                ) : yellowForSlot.get(normName(tir))?.target === 'teo' ? (
+                  // v7: tirocinante giallo → chip che ingloba il nome (rosso).
+                  renderYellowRow(yellowForSlot.get(normName(tir))!)
                 ) : (
                   <span className="text-xs whitespace-nowrap italic text-muted-foreground flex items-center gap-0.5">
                     {renderDot(tir)}
                     {tir ? lookupNameDisplay(tir, nameDisplay) ?? toTitleCase(tir) : <span className="text-muted-foreground/40">—</span>}
-                    {renderDot(tir)}
                   </span>
                 )}
               </div>

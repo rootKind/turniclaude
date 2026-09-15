@@ -224,15 +224,14 @@ export interface YellowEntry {
   code: string
   role: 'richiedente' | 'sostituto'
   /** Card su cui sta la voce: 'teo' = sezione TEORICA (la persona resta
-   *  nell'ELENCO della card, col pallino giallo e la sigla del turno reale
-   *  se diversa dal teorico — «Minino SpCA» sulla card della P8);
+   *  nell'ELENCO della card col NOME DENTRO la chip gialla);
    *  'real' = lavora qui senza esservi previsto (SOSTITUTO: mai in elenco,
-   *  riga in FONDO alla card — richiesta 25/09/2026 v4, caso Minicozzi D→P8
-   *  in fondo, Minino SPCA nell'elenco). */
+   *  riga in coda — caso Minicozzi D→P8). */
   target: 'teo' | 'real'
-  /** Mostrare la sigla del reale accanto al nome: sempre per i 'real' (in
-   *  fondo), per i 'teo' solo se diversa dal teorico (reale = teorico → solo
-   *  pallino, richiesta pendente). */
+  /** Sigla del reale DENTRO la chip: SOLO assenze (A/AG/FE/VS) e attività
+   *  senza sezione (corsi SpCA/SpN, trasferte Dis*, TUTOR…) — per i turni di
+   *  sezione la card su cui sta la persona dice già dove lavora, niente sigla
+   *  (richiesta 26/09/2026 v7). */
   showCode: boolean
 }
 
@@ -243,6 +242,19 @@ export function isLeaveToken(token: string): boolean {
   if (/^AG\d+$/i.test(t)) return true
   if (/^F\.?E\.?$/i.test(t)) return true
   return ['A', 'AG', 'F', 'VS'].includes(t.toUpperCase())
+}
+
+/** La sigla va DENTRO la chip gialla solo quando il reale NON è un turno di
+ *  sezione: assenze (A/AG/FE/VS) e attività senza sezione (corsi Sp/ISp,
+ *  trasferte Dis/NDis, TUTOR). Per i turni di sezione (anche cambi RC/D→P6T
+ *  o spostamenti P7S→P4S) la persona è già posizionata sulla card adatta:
+ *  chip con il solo nome (richiesta 26/09/2026 v7). */
+function yellowShowsCode(real: string): boolean {
+  const r = (real ?? '').trim()
+  if (!r) return false
+  if (isLeaveToken(r)) return true
+  if (isPresentNoSection(r)) return true
+  return false
 }
 
 /**
@@ -305,11 +317,14 @@ export function yellowForDay(
     const teoSection = yellowSectionToken(teo)
     const realSection = cls.role === 'sostituto' ? yellowSectionToken(real) : null
     // La sezione TEORICA è sempre 'teo' (in elenco); il REALE, se diverso,
-    // è 'real' (in fondo). Quando coincidono resta solo la voce 'teo'.
+    // è 'real' (in coda). Quando coincidono resta solo la voce 'teo'.
     const same = normCodeEq(real, teo)
+    // v7: la sigla in chip SOLO per assenze/corsi (mai per turni di sezione);
+    // per il 'teo' con reale = teorico (pendente) comunque niente sigla.
+    const showCode = yellowShowsCode(real) && !same
     const targets = new Map<string, { target: 'teo' | 'real'; showCode: boolean }>([
-      ...(teoSection ? [[teoSection, { target: 'teo' as const, showCode: !same }] as const] : []),
-      ...(realSection && realSection !== teoSection ? [[realSection, { target: 'real' as const, showCode: true }] as const] : []),
+      ...(teoSection ? [[teoSection, { target: 'teo' as const, showCode }] as const] : []),
+      ...(realSection && realSection !== teoSection ? [[realSection, { target: 'real' as const, showCode }] as const] : []),
     ])
     for (const [token, meta] of targets) {
       const parsed = parseShiftCode(token)

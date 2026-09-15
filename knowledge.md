@@ -1177,3 +1177,12 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (Langione PDCP) e 23/9 DCO 6° (Principe P6T), entrambi i temi
   (fill light rgb(254,243,199) / dark rgb(59,35,0), sigla rossa in
   entrambi); 16/16 test, tsc, eslint ok.
+  REWORK v7 (26/09/2026): la chip INGLOBA anche il COGNOME (testo rosso
+  dentro la chip, niente nome fuori) e la sigla sta dentro SOLO per
+  assenze (A/AG/FE/VS) e attività senza sezione (corsi Sp/ISp, trasferte
+  Dis/NDis, TUTOR — yellowShowsCode in sala-month): per i turni di
+  sezione (cambi RC/D→P6T, spostamenti P7S→P4S) la card su cui sta la
+  persona dice già dove lavora → chip col SOLO nome. showCode è per-voce
+  (assenza su teo=true, real=false, ecc.). Verificato live 25/9: Barra
+  «Barra A» su DCCM (assenza, sigla in chip), Di Meo/Langione chip senza
+  sigla (sezione), nome rosso rgb(140,42,36); 16/16 test, tsc ok.

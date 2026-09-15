@@ -109,22 +109,25 @@ try {
   // v4 (25/09/2026): target 'teo' = la persona resta IN ELENCO sulla sua card
   // teorica (pallino + sigla reale solo se diversa); 'real' = SOSTITUTO,
   // mai in elenco, riga in FONDO col codice reale.
+  // v7 (26/09/2026): showCode = sigla del reale DENTRO la chip SOLO per
+  // assenze (A/AG/FE/VS) e attività senza sezione (corsi/trasferte) — per i
+  // turni di sezione la card su cui sta la persona dice già dove lavora.
   const fmt = e => `${e.name}:${e.role}:${e.target}:${e.showCode}`
-  assert.deepEqual(y.get('10|P')?.map(fmt), ['SICA:richiedente:teo:false', 'MUCCI:sostituto:real:true', 'ESPOSITO:sostituto:teo:true'], 'card 10 P: richiesta pendente (no sigla), sostituto in fondo, teorico di ESPOSITO con sigla')
+  assert.deepEqual(y.get('10|P')?.map(fmt), ['SICA:richiedente:teo:false', 'MUCCI:sostituto:real:false', 'ESPOSITO:sostituto:teo:false'], 'card 10 P: richiesta pendente (no sigla), sostituto da D (no sigla), teorico di ESPOSITO (cambio turno, no sigla)')
   // v2 (24/09/2026): il sostituto che cambia turno viene sparso ANCHE sulla
-  // sua sezione teorica (da dove viene) — ESPOSITO su 5|M (reale, in fondo)
+  // sua sezione teorica (da dove viene) — ESPOSITO su 5|M (reale, in coda)
   // e 10|P (teo, in elenco).
-  assert.deepEqual(y.get('5|M')?.map(fmt), ['ESPOSITO:sostituto:real:true'], 'sostituto nella card dove lavora (in fondo)')
-  assert.deepEqual(y.get('7|P')?.map(fmt), ['NERI:richiedente:teo:true'], 'v4: corso SpCA con teorico di sezione → in elenco sulla card teorica con sigla reale')
-  assert.deepEqual(y.get('DCP|N')?.map(fmt), ['DI MONDA:richiedente:teo:true'], 'richiedente assente nella colonna teorica, sigla A')
-  assert.deepEqual(y.get('DCP|M')?.map(fmt), ['SENATORE:sostituto:real:true'], 'sostituto da D sulla card reale DCP|M')
+  assert.deepEqual(y.get('5|M')?.map(fmt), ['ESPOSITO:sostituto:real:false'], 'sostituto nella card dove lavora (in coda), senza sigla (turno di sezione)')
+  assert.deepEqual(y.get('7|P')?.map(fmt), ['NERI:richiedente:teo:true'], 'v4: corso SpCA con teorico di sezione → in elenco sulla card teorica CON sigla (corso)')
+  assert.deepEqual(y.get('DCP|N')?.map(fmt), ['DI MONDA:richiedente:teo:true'], 'richiedente assente nella colonna teorica, sigla A (assenza → in chip)')
+  assert.deepEqual(y.get('DCP|M')?.map(fmt), ['SENATORE:sostituto:real:false'], 'sostituto da D sulla card reale DCP|M, senza sigla (turno di sezione)')
   assert.equal(y.get('6|P')?.length, 2, 'CAIAZZO + FATIGATI sulla 6 P')
   assert.ok(![...y.values()].flat().some(e => e.name === 'NON_GIALLO'), 'senza giallo mai incluso')
 
   // Giorno diverso: nessun giallo.
   assert.equal(yellowForDay(people, 2).size, 0, 'giorno senza gialli → mappa vuota')
 
-  console.log('PASS — gialli v5: pallino del colore chip trasferte, sostituito/sostituto in elenco o in coda senza separatore, sigla reale')
+  console.log('PASS — gialli v7: chip che ingloba il nome in rosso, sigla in chip solo per assenze/corsi (non turni di sezione)')
 } finally {
   rmSync(dir, { recursive: true, force: true })
 }
