@@ -124,7 +124,7 @@ try {
   // Giorno diverso: nessun giallo.
   assert.equal(yellowForDay(people, 2).size, 0, 'giorno senza gialli → mappa vuota')
 
-  console.log('PASS — gialli v4: sostituito in elenco col pallino, sostituto in fondo, sigla reale, corsi senza sezione sulla card teorica')
+  console.log('PASS — gialli v5: pallino del colore chip trasferte, sostituito/sostituto in elenco o in coda senza separatore, sigla reale')
 } finally {
   rmSync(dir, { recursive: true, force: true })
 }

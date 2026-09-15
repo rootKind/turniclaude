@@ -96,7 +96,9 @@
   --cell-n-bg: var(--pill-notte-bg);       --cell-n-text: #8f7dd0;
   --cell-rest-bg: #e4e6e9;  --cell-rest-text: #4a5057;
   --cell-avail-bg: #d6ecf5; --cell-avail-text: #1d5568;
-  --cell-yellow-bg: #fef08a; --cell-yellow-text: #a16207;
+  /* Giallo del PDF = RIEMPIMENTO chip trasferte (richiesta 25/09/2026 v5):
+     stessa tinta identica su celle, pill e pallini. */
+  --cell-yellow-bg: var(--altri-pill-trasferte-bg); --cell-yellow-text: var(--altri-pill-trasferte-text);
   --cell-abs-bg: #fbd9d6;   --cell-abs-text: #8c2a24;
   --cell-duty-bg: #d6f0dd;  --cell-duty-text: #1f5a34;
   --cell-empty-bg: #eef0f2; --cell-empty-text: #8b939e;
@@ -299,7 +301,7 @@
   --cell-n-bg: var(--pill-notte-bg);       --cell-n-text: #c3b4ef;
   --cell-rest-bg: #24282e;  --cell-rest-text: #aeb5bd;
   --cell-avail-bg: #12303c; --cell-avail-text: #a8d8ea;
-  --cell-yellow-bg: #3a2f0a; --cell-yellow-text: #fde68a;
+  --cell-yellow-bg: var(--altri-pill-trasferte-bg); --cell-yellow-text: var(--altri-pill-trasferte-text);
   --cell-abs-bg: #3d1c1a;   --cell-abs-text: #fbd9d6;
   --cell-duty-bg: #16301f;  --cell-duty-text: #9fd9b4;
   --cell-empty-bg: #1b1f24; --cell-empty-text: #8b939e;

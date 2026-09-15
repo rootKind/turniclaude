@@ -112,14 +112,21 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
 
   const getColor = (name: string) => card.surnameColors?.[name]
 
+  // Pallino GIALLA del PDF (v5, 25/09/2026): il giallo è quello del
+  // RIEMPIMENTO delle chip trasferte di /turnisala (var --altri-pill-trasferte-bg,
+  // richiesta esplicita), con bordo sottile del tinta-testo della chip per
+  // restare ben visibile su entrambi i temi.
+  const yellowDot = (
+    <span style={{ color: 'var(--altri-pill-trasferte-bg)', WebkitTextStroke: '0.6px var(--altri-pill-trasferte-text)' }} className="select-none">●</span>
+  )
   const renderDot = (name: string) => {
-    // Pallino GIALLA del PDF (v4, 25/09/2026): SOLO per i 'teo' — la persona
-    // prevista su questa card il cui reale è diverso (corso SpCA/SpN, altro
-    // turno, assenza): pallino accanto al nome, resta in elenco. Per i
-    // 'real' (sostituti) la riga lascia l'elenco e va in fondo alla card.
+    // SOLO per i 'teo' — la persona prevista su questa card il cui reale è
+    // diverso (corso SpCA/SpN, altro turno, assenza): pallino accanto al nome,
+    // resta in elenco. Per i 'real' (sostituti) la riga lascia l'elenco e va
+    // in coda sotto gli altri (senza separatore, v5).
     const y = yellowForSlot.get(normName(name))
     const yellow = y?.target === 'teo'
-      ? <span key="y" style={{ color: 'var(--cell-yellow-text)' }} className="select-none">●</span>
+      ? <span key="y">{yellowDot}</span>
       : null
     // Pallino del COLORE scelto dall'admin (verde/salmone/personalizzato):
     // RIPRISTINATO — la v3 lo nascondeva dietro il giallo (precedenza errata,
@@ -137,10 +144,10 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
   // («NEVANO» → «Nevano P.») — richiesta 14/09/2026; gli altri restano tali e quali.
   const renderName = (surname: string, i: number) => {
     const y = yellowForSlot.get(normName(surname))
-    // v4: il SOSTITUTO (target 'real') lavora qui senza esservi previsto →
-    // NON sta nell'elenco: la sua riga va in fondo alla card (Minicozzi,
-    // mentre Minino resta in elenco). Le voci 'teo' restano in elenco.
-    if (y?.target === 'real') return null
+    // v5: il SOSTITUTO ('real') che il PDF ha messo QUI resta al suo POSTO
+    // nella riga di equipaggio, reso come riga gialla «● Nome Sigla» — niente
+    // slot vuoto né riga separata in fondo (caso Langione, 22/09).
+    if (y?.target === 'real') return renderYellowRow(y)
     const dot = renderDot(surname)
     const slotClass = getSlotClass(i)
     const resolved = lookupNameDisplay(surname, nameDisplay)
@@ -153,7 +160,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
         ) : (
           <span className="text-muted-foreground/40">—</span>
         )}
-        {y?.showCode && y.code && <span className="text-xs tabular-nums font-semibold text-[var(--cell-yellow-text)]">{y.code}</span>}
+        {y?.showCode && y.code && <span className="text-xs tabular-nums">{y.code}</span>}
         {dot}
       </span>
     )
@@ -193,33 +200,33 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     }
   }
   const dupNorm = duplicateCognomi ? new Set([...duplicateCognomi].map(normName)) : null
-  // v4: i 'real' (SOSTITUTI, lavorano qui senza esservi previsti) vanno in
-  // FONDO alla card; i 'teo' non presenti nell'elenco (sostituiti, es. Minino
-  // che il PDF sposta a SpCA/SpN) vengono AGGIUNTI all'INTERNO dell'elenco,
-  // col pallino e la sigla del reale (richiesta 25/09/2026).
-  const yellowBottom: YellowEntry[] = []
+  // v5 (25/09/2026): TUTTE le aggiunte gialle stanno IN CODA all'elenco della
+  // card, senza separatore né blocco a fondo card (richiesta: Langione/Principe
+  // non separati, sotto gli altri in ordine di altezza). I 'real' (sostituti)
+  // presenti nell'elenco lasciano la lista e rientrano in coda col pallino.
   const yellowInList: YellowEntry[] = []
   if (yellowByCard) {
     for (const [key, y] of yellowByCard) {
       if (matchedYellow.has(key)) {
-        // Già nell'elenco: solo i SOSTITUTI ('real') scendono in fondo.
-        if (y.target !== 'real') continue
+        // Già nell'elenco: il 'real' sta AL SUO POSTO (renderName), i 'teo'
+        // sono marcati lì col pallino.
+        continue
       } else {
         const n = normName(y.name)
         // Riga nuda di cognome DUPLICATO in anagrafica → NON aggiunta
         // (ambigua, come nel resto dell'app).
         if (!n.includes(' ') && dupNorm?.has(n)) continue
-        if (y.target !== 'real') { yellowInList.push(y); continue }
       }
-      yellowBottom.push(y)
+      yellowInList.push(y)
     }
   }
 
-  // Riga GIALLA in elenco o in fondo (v4): «● Nome Sigla-reale», senza
-  // prefissi Cong./Sost. (richiesta 25/09/2026: «Minino SpN»).
+  // Riga GIALLA in coda all'elenco (v5): «● Nome Sigla-reale» — nome e sigla
+  // nel colore normale della card, il pallino giallo è l'unico marker (v5:
+  // «il nome lo puoi lasciare com'era prima»). Senza prefissi Cong./Sost.
   const renderYellowRow = (y: YellowEntry) => (
-    <span className="flex items-center gap-1 text-sm leading-tight whitespace-nowrap font-semibold text-[var(--cell-yellow-text)]">
-      <span style={{ color: 'var(--cell-yellow-text)' }} className="select-none">●</span>
+    <span className="flex items-center gap-1 text-sm leading-tight whitespace-nowrap">
+      {yellowDot}
       {rowLabel(y.name, nameDisplay)}
       {y.showCode && y.code ? <span className="text-xs tabular-nums">{y.code}</span> : null}
     </span>
@@ -387,8 +394,8 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
                 ) : renderName(surname, i)}
               </div>
             ))}
-            {/* v4: i SOSTITUITI ('teo') non previsti nell'elenco si AGGIUNGONO
-                qui, in coda all'elenco (es. Minino sulla card della P8). */}
+            {/* v5: le aggiunte gialle in CODA all'elenco, senza separatore
+                (es. Minino sulla card della P8, Langione sulla PDCP). */}
             {!isEditing && yellowInList.map((y, i) => (
               <div key={`yl-${i}`} className="flex items-center px-2 py-0.5">{renderYellowRow(y)}</div>
             ))}
@@ -410,29 +417,13 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
                 </div>
               ))}
             </div>
-            {/* v4: variante RIGA con aggiunte in coda, sotto i nomi. */}
+            {/* v5: variante RIGA con aggiunte in coda, sotto i nomi. */}
             {!isEditing && yellowInList.length > 0 && (
               <div className="flex flex-col items-center gap-0.5 px-2 pb-1.5">{yellowInList.map((y, i) => <span key={`yl-${i}`}>{renderYellowRow(y)}</span>)}</div>
             )}
           </div>
         )}
       </div>
-
-      {/* GIALLI fuori elenco (v4, 25/09/2026): in fondo alla card, righe in
-          giallo «● Nome Sigla-reale» — i SOSTITUTI ('real', lavorano qui senza
-          esservi previsti, es. Minicozzi sulla 8). Nessun prefisso Cong./Sost.:
-          solo cognome e sigla (richiesta 25/09). */}
-      {!isEditing && yellowBottom.length > 0 && (
-        <div className="border-t sala-card-title-sep shrink-0 flex flex-col items-center gap-0.5 px-2 py-1">
-          {yellowBottom.map((y, i) => (
-            <span key={i} className="flex items-center gap-1 text-sm leading-tight whitespace-nowrap font-semibold text-[var(--cell-yellow-text)]">
-              <span style={{ color: 'var(--cell-yellow-text)' }} className="select-none">●</span>
-              {rowLabel(y.name, nameDisplay)}
-              {y.showCode && y.code ? <span className="text-xs tabular-nums">{y.code}</span> : null}
-            </span>
-          ))}
-        </div>
-      )}
 
       {/* Vista «Teorico ≠ reale» COMPATTA (solo admin): sotto i nomi reali della
           sezione. Righe teoriche NON confermate: «Cognome N6» — SOLO lo stato

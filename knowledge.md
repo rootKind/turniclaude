@@ -1145,7 +1145,25 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   yellowTargetTokens rimossa. Verificato live set g23 chip P: DCO 8°
   Minino (elenco) + Minicozzi P8 (fondo), stesso pattern su 4/5/6/7/9/10/11
   e DCCM/DCP; light rgb(161,98,7), dark rgb(253,230,138); pallini admin
-  ok (mag g6 chip M: 48 dot).
+  ok (  mag g6 chip M: 48 dot).
+  REWORK v5 (25/09/2026,richieste sul colore e sul layout): il PALLINO giallo
+  usa il RIEMPIMENTO delle chip trasferte (--altri-pill-trasferte-bg, cioè
+  --pill-pomeriggio-bg) con contorno sottile del tinta-testo della chip
+  (WebkitTextStroke 0.6px) per essere visibile in chiaro e scuro;
+  --cell-yellow-bg/text ora puntano entrambe alle variabili chip (niente più
+  #a16207/#713f12/#fef08a). IL NOME torna NORMALE (niente testo giallo): il
+  solo pallino è il marker (sigla reale neutra accanto, tabular-nums).
+  NIENTE BLOCCO a fondo card né slot vuoto: il sostituto ('real') PRESENTE
+  nell'equipaggio è reso AL SUO POSTO come riga «● Nome Sigla» (caso Langione
+  22/9 RC→PDCP sulla DCP); le aggiunte non previste stanno IN CODA
+  all'elenco senza separatore (caso Principe 23/9 D→P6T, "basta che sta
+  sotto gli altri in ordine di altezza"). NB dataset: il 25/09 16:30 un
+  nuovo PDF settembre ha riscritto i gialli (prima 18 il 23/9, ora 1:
+  Principe; il 22/9: Barra A + Langione) — le verifiche precedenti su
+  Minicozzi/Cocozza/SPCA si riferiscono al PDF vecchio.
+  Verificato live 22/9 chip P (Langione inline «● Langione PDCP», DCP) e
+  23/9 chip P (Principe in coda col pallino); fill light rgb(254,243,199),
+  dark rgb(59,35,0); 16/16 test, tsc, eslint ok.
   NOTA DEV: dopo un commit, il watcher CSS del dev server può restare su un
   chunk vecchio (variabili nuove assenti) → touch app/globals.css o restart
   del server. FIX highlight: le pill del blocco Assenti ora hanno il check isMe
