@@ -37,6 +37,10 @@ interface Props {
    *  è ambigua → il nome NON si aggiunge alla card (uno dei due è giallo,
    *  ma non si sa quale). */
   duplicateCognomi?: Set<string>
+  /** Card SCOPERTA (richiesta 27/09/2026): la persona che il teorico le
+   *  assegnava è stata spostata da un giallo (chip sulla card di destinazione)
+   *  e nessuno l'ha rimpiazzata → chip gialla «scoperto» in coda all'elenco. */
+  scoperto?: boolean
 }
 
 const toTitleCase = (s: string) =>
@@ -69,7 +73,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowByCard, duplicateCognomi }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowByCard, duplicateCognomi, scoperto }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -118,6 +122,9 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
   // sottile del tinta-testo. La sigla del reale sta DENTRO solo per assenze
   // (A/AG/FE/VS) e attività senza sezione (corsi/trasferte): per i turni di
   // sezione la card su cui sta la persona dice già dove lavora (showCode=false).
+  // La sigla sta DENTRO la chip sulla STESSA riga di base del nome e della
+  // stessa misura (richiesta 27/09/2026: a text-[10px] il codice sembrava più
+  // piccolo e più in basso del cognome — resta semibold per distinguersi).
   const YellowChip = ({ name, code }: { name: string; code?: string }) => (
     <span
       style={{
@@ -126,9 +133,9 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       }}
       className="select-none inline-flex items-center rounded-full px-1.5 leading-4"
     >
-      <span className="text-sm font-medium whitespace-nowrap" style={{ color: 'var(--cell-abs-text)' }}>
+      <span className="text-sm font-medium whitespace-nowrap align-baseline" style={{ color: 'var(--cell-abs-text)' }}>
         {name}
-        {code ? <span className="text-[10px] font-semibold tabular-nums ml-1">{code}</span> : null}
+        {code ? <span className="text-sm font-semibold tabular-nums ml-1 align-baseline">{code}</span> : null}
       </span>
     </span>
   )
@@ -248,6 +255,24 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       />
     </span>
   )
+
+  // Riga «scoperto» (richiesta 27/09/2026): la card perde la persona che il
+  // teorico le assegnava per un giallo che l'ha spostata altrove e nessuno
+  // l'ha rimpiazzata → stessa chip gialla dei gialli, col testo rosso. Il
+  // TRATTINO del posto libero sta DENTRO la chip («— scoperto», richiesta
+  // 27/09/2026): sulla card scoperta il placeholder «—» non si disegna più.
+  const renderScopertoRow = () => (
+    <span className="flex items-center text-sm leading-tight">
+      <YellowChip name="— scoperto" />
+    </span>
+  )
+
+  // Slot di nome da disegnare. Sulla card SCOPERTA gli slot vuoti non rendono
+  // il loro «—» (lo porta la chip): restano gli indici ORIGINALI per slot
+  // T/S e colori, quindi si filtrano le voci vuote, non le posizioni.
+  const slots = !isEditing && scoperto
+    ? card.surnames.map((surname, i) => ({ surname, i })).filter(s => s.surname)
+    : card.surnames.map((surname, i) => ({ surname, i }))
 
   return (
     <div
@@ -399,7 +424,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
         {/* Surnames */}
         {useColLayout ? (
           <div className="flex flex-col flex-1 sala-card-body items-center justify-center">
-            {card.surnames.map((surname, i) => (
+            {slots.map(({ surname, i }) => (
               <div key={i} className="flex items-center px-2 py-0.5">
                 {isEditing ? (
                   <input
@@ -416,11 +441,15 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
             {!isEditing && yellowInList.map((y, i) => (
               <div key={`yl-${i}`} className="flex items-center px-2 py-0.5">{renderYellowRow(y)}</div>
             ))}
+            {/* Card scoperta (anch'essa in coda agli altri nomi). */}
+            {!isEditing && scoperto && (
+              <div className="flex items-center px-2 py-0.5">{renderScopertoRow()}</div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col flex-1">
             <div className="flex flex-1 items-center justify-center px-2 py-2 gap-3 sala-card-body">
-              {card.surnames.map((surname, i) => (
+              {slots.map(({ surname, i }) => (
                 <div key={i} className="shrink-0">
                   {isEditing ? (
                     <input
@@ -435,8 +464,12 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
               ))}
             </div>
             {/* v5: variante RIGA con aggiunte in coda, sotto i nomi. */}
-            {!isEditing && yellowInList.length > 0 && (
-              <div className="flex flex-col items-center gap-0.5 px-2 pb-1.5">{yellowInList.map((y, i) => <span key={`yl-${i}`}>{renderYellowRow(y)}</span>)}</div>
+            {!isEditing && (yellowInList.length > 0 || scoperto) && (
+              <div className="flex flex-col items-center gap-0.5 px-2 pb-1.5">
+                {yellowInList.map((y, i) => <span key={`yl-${i}`}>{renderYellowRow(y)}</span>)}
+                {/* Card scoperta: riga gialla in coda, sotto i nomi. */}
+                {scoperto && <span>{renderScopertoRow()}</span>}
+              </div>
             )}
           </div>
         )}

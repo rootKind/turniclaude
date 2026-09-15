@@ -11,7 +11,7 @@ import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
-import { decodeSalaMonth, yellowForDay, type YellowEntry } from '@/lib/sala-month'
+import { decodeSalaMonth, scopertiForDay, yellowForDay, type YellowEntry } from '@/lib/sala-month'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName, matchesCognome } from '@/lib/utils'
 import { buildBareOwners, lookupNameDisplay, type BareOwnerMap } from '@/lib/shift-teams-matching'
@@ -624,6 +624,34 @@ export function DeskBoard({
     return map
   }, [schedule, selectedDay, selectedShift, cards, isEditing])
 
+  // NOMI DEI GIALLI per card, chiave = card.id (richiesta 27/09/2026): servono
+  // all'EVIDENZIA della card del dipendente loggato. Un giallo RICHIEDENTE ha
+  // reale di assenza/corso (A, SpCA…), quindi NON compare più fra i cognomi
+  // della sezione: senza questi nomi la sua card non si evidenzierebbe
+  // (verificato: BARRA il 24/9, cognomi DCCM = [SENATORE]).
+  const yellowNamesByCard = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const [cardId, entries] of yellowByCard) map.set(cardId, [...entries.values()].map(y => y.name))
+    return map
+  }, [yellowByCard])
+
+  // CARD SCOPERTE (richiesta 27/09/2026): la card perde la persona che il
+  // teorico le assegnava perché un giallo l'ha spostata altrove (la chip sta
+  // sulla card di DESTINAZIONE) e nessuno l'ha rimpiazzata → chip gialla
+  // «scoperto» dentro l'elenco. Solo le cause GIALLE contano: una divergenza
+  // senza giallo è un fatto normale del foglio e non si segnala (v8).
+  // Nel conteggio restano le card con 2 attese e 1 reale (non solo le vuote).
+  const scoperti = useMemo(() => {
+    const out = new Set<string>()
+    if (isEditing || !schedule?.data) return out
+    const keys = scopertiForDay(decodeSalaMonth(schedule.data), selectedDay)
+    if (!keys.size) return out
+    for (const card of cards) {
+      if (keys.has(`${card.sectionKey ?? card.title}|${selectedShift}`)) out.add(card.id)
+    }
+    return out
+  }, [schedule, selectedDay, selectedShift, cards, isEditing])
+
   // BLOCCO «ASSENTI» (richiesta 23/09/2026): chi nel PDF del giorno ha una
   // sigla di assenza (A/AG7/F.E./VS…), attribuito al SOLO turno teorico della
   // persona — mai in tutti e tre. Righe con tinta assenza (come le celle
@@ -858,7 +886,11 @@ export function DeskBoard({
                         isEditing={isEditing}
                         highlighted={!isEditing && (
                           matchesCognome(card.surnames, userCognome, userNome, duplicateCognomi, bareOwners) ||
-                          matchesCognome(card.tirocinanti ?? [], userCognome, userNome, duplicateCognomi, bareOwners)
+                          matchesCognome(card.tirocinanti ?? [], userCognome, userNome, duplicateCognomi, bareOwners) ||
+                          // Gialli della card: il dipendente loggato c'è anche
+                          // quando compare SOLO come chip gialla (richiedente
+                          // con assenza/corso sul proprio turno).
+                          matchesCognome(yellowNamesByCard.get(card.id) ?? [], userCognome, userNome, duplicateCognomi, bareOwners)
                         )}
                         minWidth={card.type === 'double' ? defaults.doubleMinWidth : defaults.singleMinWidth}
                         
@@ -872,6 +904,7 @@ export function DeskBoard({
                         theoCompare={theoCompareByCardId.get(card.id)}
                         nameDisplay={nameDisplay}
                         yellowByCard={yellowByCard.get(card.id)}
+                        scoperto={scoperti.has(card.id)}
                         duplicateCognomi={duplicateCognomi}
                       />
                     ))}

@@ -362,6 +362,60 @@ function yellowSectionToken(t: string): string | null {
   return NON_SECTION_DUTIES.has(p.section.toUpperCase()) ? null : t
 }
 
+/** Chiave «SEZIONE|TURNO» della card su cui il PDF colloca un codice di turno
+ *  (null per riposi, assenze, disponibilità e attività senza sezione). Stessa
+ *  forma delle chiavi di yellowForDay: la usa desk-board per trovare la card. */
+function yellowCardKey(t: string): string | null {
+  const token = yellowSectionToken(t)
+  if (!token) return null
+  const p = parseShiftCode(token)
+  return `${p.section}|${p.shift}`
+}
+
+/**
+ * Card rimaste SCOPERTE per effetto di un giallo (richiesta 27/09/2026): la
+ * persona che il teorico dava su quella sezione+turno è stata spostata altrove
+ * (la chip sta sulla card di DESTINAZIONE) e nessuno l'ha rimpiazzata → la
+ * card perde la sua persona (es. P DCIF il 24/09 e M DCIF il 25/09, da cui DI
+ * MEO è stato chiamato sulla DCP).
+ *
+ * Restano FUORI i gialli che NON svuotano la card d'origine:
+ *  - RICHIEDENTE (assenza/corso/proposta sul proprio turno): la chip resta lì,
+ *    in elenco (es. BARRA A sulla DCCM del 24/09);
+ *  - sostituto che lavora nella STESSA card del teorico.
+ * E restano fuori le divergenze SENZA giallo (v8: «solo quelle gialle devono
+ * essere segnalate» — un teorico≠reale normale non è una scopertura).
+ *
+ * Il confronto è fra persone ATTESE (teorico) e REALI della card: con 2 attese
+ * e 1 reale la card è scoperta ANCHE SE non è vuota (richiesta 27/09/2026).
+ * Ritorna le chiavi «SEZIONE|TURNO» (stesse di yellowForDay).
+ */
+export function scopertiForDay(people: MonthPersonShifts[], day: number): Set<string> {
+  const attese = new Map<string, number>()
+  const reali = new Map<string, number>()
+  const spostate = new Map<string, number>()
+  const bump = (m: Map<string, number>, key: string) => m.set(key, (m.get(key) ?? 0) + 1)
+  for (const p of people) {
+    const real = p.days[day - 1] ?? ''
+    const teo = p.teorico[day - 1] ?? ''
+    const teoKey = yellowCardKey(teo)
+    const realKey = yellowCardKey(real)
+    if (teoKey) bump(attese, teoKey)
+    if (realKey) bump(reali, realKey)
+    if (!teoKey || !p.yellow.includes(day)) continue
+    // Solo il SOSTITUTO lascia la card teorica: il richiedente ci resta in
+    // elenco con la chip (target 'teo', vedi yellowForDay).
+    if (classifyYellowCell(real, teo)?.role !== 'sostituto') continue
+    if (realKey === teoKey) continue
+    bump(spostate, teoKey)
+  }
+  const out = new Set<string>()
+  for (const key of spostate.keys()) {
+    if ((attese.get(key) ?? 0) > (reali.get(key) ?? 0)) out.add(key)
+  }
+  return out
+}
+
 /** Confronto di codici turno indipendente da maiuscole (SpCA = spca = SPCA). */
 export function normCodeEq(a: string, b: string): boolean {
   return (a ?? '').trim().toUpperCase() === (b ?? '').trim().toUpperCase()
