@@ -1128,6 +1128,24 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   Verificato live: mar g22 chip M (9 pallini su DCCM/DCO 10°/DCP/DCO 7°),
   set g23 chip P (Cong.Minino DCO 8°, Cong.Lucignano DCO 4°, Cong.Neri
   DCO 7° + pallini nelle card reali).
+  REWORK v4 (25/09/2026, richiesta esplicita): SOSTITUITO vs SOSTITUTO
+  invertiti rispetto alla v3. Nell'ELENCO della card: i 'teo' (sostituiti:
+  teorico di sezione, reale SpCA/SpN/altro) col pallino giallo e la SIGLA
+  REALE se diversa dal teorico (yellowForDay ora ritorna showCode + target;
+  caso 23/9: Minino SpCA resta sulla card della P8, sopra Minicozzi). In
+  FONDO alla card: SOLO i SOSTITUTI ('real', lavorano lì senza esservi
+  previsti — Minicozzi D→P8), righe «● Nome Sigla» SENZA prefissi
+  Cong./Sost. Se il sostituto è anche nell'elenco reale della sezione,
+  renderName lo NASCONDE dalla lista (target 'real' → null). I pallini
+  ADMIN tornano: giallo e colore-admin COESISTONO (renderDot li mette
+  fianco a fianco; la v3 li nascondeva con la precedenza — segnalato).
+  Tema CHIARO: --cell-yellow-text #713f12 (marrone) → #a16207 (giallo-700,
+  leggibile su #fef08a); dark resta #fde68a su #3a2f0a. Helper:
+  yellowSectionToken (solo sezioni M/P/N vere) + normCodeEq (case-insens.);
+  yellowTargetTokens rimossa. Verificato live set g23 chip P: DCO 8°
+  Minino (elenco) + Minicozzi P8 (fondo), stesso pattern su 4/5/6/7/9/10/11
+  e DCCM/DCP; light rgb(161,98,7), dark rgb(253,230,138); pallini admin
+  ok (mag g6 chip M: 48 dot).
   NOTA DEV: dopo un commit, il watcher CSS del dev server può restare su un
   chunk vecchio (variabili nuove assenti) → touch app/globals.css o restart
   del server. FIX highlight: le pill del blocco Assenti ora hanno il check isMe

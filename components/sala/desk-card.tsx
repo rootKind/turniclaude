@@ -113,25 +113,34 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
   const getColor = (name: string) => card.surnameColors?.[name]
 
   const renderDot = (name: string) => {
-    // Pallino GIALLA del PDF (v3, 25/09/2026): cella gialla = persona
-    // «da confermare» che il PDF colloca ancora qui → pallino giallo accanto
-    // al nome (niente testo/codice giallo, niente sezione: la card è già
-    // quella giusta). Stessa tinta del testo giallo, leggibile su entrambi i
-    // temi. I pallini dei colori scelti dall'admin hanno la precedenza SOLO
-    // se la persona è anche colorata — il giallo vince (è un fatto del PDF).
-    if (yellowForSlot.has(normName(name))) {
-      return <span style={{ color: 'var(--cell-yellow-text)' }} className="select-none">●</span>
-    }
+    // Pallino GIALLA del PDF (v4, 25/09/2026): SOLO per i 'teo' — la persona
+    // prevista su questa card il cui reale è diverso (corso SpCA/SpN, altro
+    // turno, assenza): pallino accanto al nome, resta in elenco. Per i
+    // 'real' (sostituti) la riga lascia l'elenco e va in fondo alla card.
+    const y = yellowForSlot.get(normName(name))
+    const yellow = y?.target === 'teo'
+      ? <span key="y" style={{ color: 'var(--cell-yellow-text)' }} className="select-none">●</span>
+      : null
+    // Pallino del COLORE scelto dall'admin (verde/salmone/personalizzato):
+    // RIPRISTINATO — la v3 lo nascondeva dietro il giallo (precedenza errata,
+    // segnalato 25/09/2026). Ora i due pallini COESISTONO fianco a fianco.
     const col = getColor(name)
-    if (!col) return null
-    if (col === 'green') return <span className="text-emerald-500 select-none">●</span>
-    if (col === 'salmon') return <span className="text-red-400 select-none">●</span>
-    return <span style={{ color: col }} className="select-none">●</span>
+    const admin = !col ? null
+      : col === 'green' ? <span key="a" className="text-emerald-500 select-none">●</span>
+      : col === 'salmon' ? <span key="a" className="text-red-400 select-none">●</span>
+      : <span key="a" style={{ color: col }} className="select-none">●</span>
+    if (!yellow && !admin) return null
+    return <>{yellow}{admin}</>
   }
 
   // Nome in card: per gli OMONIMI (mappa di desk-board) mostra l'iniziale
   // («NEVANO» → «Nevano P.») — richiesta 14/09/2026; gli altri restano tali e quali.
   const renderName = (surname: string, i: number) => {
+    const y = yellowForSlot.get(normName(surname))
+    // v4: il SOSTITUTO (target 'real') lavora qui senza esservi previsto →
+    // NON sta nell'elenco: la sua riga va in fondo alla card (Minicozzi,
+    // mentre Minino resta in elenco). Le voci 'teo' restano in elenco.
+    if (y?.target === 'real') return null
     const dot = renderDot(surname)
     const slotClass = getSlotClass(i)
     const resolved = lookupNameDisplay(surname, nameDisplay)
@@ -144,6 +153,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
         ) : (
           <span className="text-muted-foreground/40">—</span>
         )}
+        {y?.showCode && y.code && <span className="text-xs tabular-nums font-semibold text-[var(--cell-yellow-text)]">{y.code}</span>}
         {dot}
       </span>
     )
@@ -162,12 +172,10 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     ...tirocinanti.filter(Boolean).map(n => ({ name: n, label: `Tir. ${lookupNameDisplay(n, nameDisplay) ?? toTitleCase(n)}` })),
   ]
 
-  // CELLE GIALLE del PDF (24/09/2026 v2): DENTRO l'elenco della card, non in
-  // un blocco separato. Chi ce l'ha già → renderName lo evidenzia in giallo;
-  // chi non c'è → riga aggiunta in coda, col codice reale. Il match
-  // slot↔giallo tollera le forme diverse («CAIAZZO» vs «CAIAZZO M.» vs
-  // «CAIAZZO MARIO»); con omonimi in anagrafica la sigla PDF nuda è ambigua
-  // → NON si aggiunge (come nel resto dell'app).
+  // GIALLI v4 (25/09/2026): match slot↔giallo tollerando le forme diverse
+  // («CAIAZZO» vs «CAIAZZO M.» vs «CAIAZZO MARIO»). Le voci 'real'
+  // (sostituti) presenti nell'elenco lo LASCIANO (renderName → null) e
+  // finiscono in fondo; le 'teo' restano in elenco col pallino.
   const yellowForSlot = new Map<string, YellowEntry>()
   const matchedYellow = new Set<string>()
   if (yellowByCard) {
@@ -185,15 +193,37 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     }
   }
   const dupNorm = duplicateCognomi ? new Set([...duplicateCognomi].map(normName)) : null
-  const yellowAdditions: YellowEntry[] = []
+  // v4: i 'real' (SOSTITUTI, lavorano qui senza esservi previsti) vanno in
+  // FONDO alla card; i 'teo' non presenti nell'elenco (sostituiti, es. Minino
+  // che il PDF sposta a SpCA/SpN) vengono AGGIUNTI all'INTERNO dell'elenco,
+  // col pallino e la sigla del reale (richiesta 25/09/2026).
+  const yellowBottom: YellowEntry[] = []
+  const yellowInList: YellowEntry[] = []
   if (yellowByCard) {
     for (const [key, y] of yellowByCard) {
-      if (matchedYellow.has(key)) continue
-      const n = normName(y.name)
-      if (!n.includes(' ') && dupNorm?.has(n)) continue
-      yellowAdditions.push(y)
+      if (matchedYellow.has(key)) {
+        // Già nell'elenco: solo i SOSTITUTI ('real') scendono in fondo.
+        if (y.target !== 'real') continue
+      } else {
+        const n = normName(y.name)
+        // Riga nuda di cognome DUPLICATO in anagrafica → NON aggiunta
+        // (ambigua, come nel resto dell'app).
+        if (!n.includes(' ') && dupNorm?.has(n)) continue
+        if (y.target !== 'real') { yellowInList.push(y); continue }
+      }
+      yellowBottom.push(y)
     }
   }
+
+  // Riga GIALLA in elenco o in fondo (v4): «● Nome Sigla-reale», senza
+  // prefissi Cong./Sost. (richiesta 25/09/2026: «Minino SpN»).
+  const renderYellowRow = (y: YellowEntry) => (
+    <span className="flex items-center gap-1 text-sm leading-tight whitespace-nowrap font-semibold text-[var(--cell-yellow-text)]">
+      <span style={{ color: 'var(--cell-yellow-text)' }} className="select-none">●</span>
+      {rowLabel(y.name, nameDisplay)}
+      {y.showCode && y.code ? <span className="text-xs tabular-nums">{y.code}</span> : null}
+    </span>
+  )
 
   return (
     <div
@@ -357,37 +387,48 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
                 ) : renderName(surname, i)}
               </div>
             ))}
+            {/* v4: i SOSTITUITI ('teo') non previsti nell'elenco si AGGIUNGONO
+                qui, in coda all'elenco (es. Minino sulla card della P8). */}
+            {!isEditing && yellowInList.map((y, i) => (
+              <div key={`yl-${i}`} className="flex items-center px-2 py-0.5">{renderYellowRow(y)}</div>
+            ))}
           </div>
         ) : (
-          <div className="flex flex-1 items-center justify-center px-2 py-2 gap-3 sala-card-body">
-            {card.surnames.map((surname, i) => (
-              <div key={i} className="shrink-0">
-                {isEditing ? (
-                  <input
-                    className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
-                    style={{ minWidth: '52px', width: `${Math.max(52, surname.length * 9)}px` }}
-                    value={surname}
-                    onChange={e => updateSurname(i, e.target.value)}
-                    placeholder="Cognome"
-                  />
-                ) : renderName(surname, i)}
-              </div>
-            ))}
+          <div className="flex flex-col flex-1">
+            <div className="flex flex-1 items-center justify-center px-2 py-2 gap-3 sala-card-body">
+              {card.surnames.map((surname, i) => (
+                <div key={i} className="shrink-0">
+                  {isEditing ? (
+                    <input
+                      className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
+                      style={{ minWidth: '52px', width: `${Math.max(52, surname.length * 9)}px` }}
+                      value={surname}
+                      onChange={e => updateSurname(i, e.target.value)}
+                      placeholder="Cognome"
+                    />
+                  ) : renderName(surname, i)}
+                </div>
+              ))}
+            </div>
+            {/* v4: variante RIGA con aggiunte in coda, sotto i nomi. */}
+            {!isEditing && yellowInList.length > 0 && (
+              <div className="flex flex-col items-center gap-0.5 px-2 pb-1.5">{yellowInList.map((y, i) => <span key={`yl-${i}`}>{renderYellowRow(y)}</span>)}</div>
+            )}
           </div>
         )}
       </div>
 
-      {/* GIALLI non presenti nell'elenco (v3, 25/09/2026): in fondo alla card,
-          righe in giallo col PALLINO — «Sost.» quando lavora qui senza esservi
-          previsto, «Cong.» per il richiedente assente. Niente codici né sezioni:
-          la posizione parla già (richiesta 25/09/2026). */}
-      {!isEditing && yellowAdditions.length > 0 && (
+      {/* GIALLI fuori elenco (v4, 25/09/2026): in fondo alla card, righe in
+          giallo «● Nome Sigla-reale» — i SOSTITUTI ('real', lavorano qui senza
+          esservi previsti, es. Minicozzi sulla 8). Nessun prefisso Cong./Sost.:
+          solo cognome e sigla (richiesta 25/09). */}
+      {!isEditing && yellowBottom.length > 0 && (
         <div className="border-t sala-card-title-sep shrink-0 flex flex-col items-center gap-0.5 px-2 py-1">
-          {yellowAdditions.map((y, i) => (
+          {yellowBottom.map((y, i) => (
             <span key={i} className="flex items-center gap-1 text-sm leading-tight whitespace-nowrap font-semibold text-[var(--cell-yellow-text)]">
               <span style={{ color: 'var(--cell-yellow-text)' }} className="select-none">●</span>
-              {y.role === 'sostituto' ? 'Sost.' : 'Cong.'}
               {rowLabel(y.name, nameDisplay)}
+              {y.showCode && y.code ? <span className="text-xs tabular-nums">{y.code}</span> : null}
             </span>
           ))}
         </div>

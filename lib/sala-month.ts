@@ -223,6 +223,17 @@ export interface YellowEntry {
   /** Codice reale (già nel codice della cella). */
   code: string
   role: 'richiedente' | 'sostituto'
+  /** Card su cui sta la voce: 'teo' = sezione TEORICA (la persona resta
+   *  nell'ELENCO della card, col pallino giallo e la sigla del turno reale
+   *  se diversa dal teorico — «Minino SpCA» sulla card della P8);
+   *  'real' = lavora qui senza esservi previsto (SOSTITUTO: mai in elenco,
+   *  riga in FONDO alla card — richiesta 25/09/2026 v4, caso Minicozzi D→P8
+   *  in fondo, Minino SPCA nell'elenco). */
+  target: 'teo' | 'real'
+  /** Mostrare la sigla del reale accanto al nome: sempre per i 'real' (in
+   *  fondo), per i 'teo' solo se diversa dal teorico (reale = teorico → solo
+   *  pallino, richiesta pendente). */
+  showCode: boolean
 }
 
 /** true se il token è un'assenza di congedo (A, AG/AG7, F/ferie, F.E., VS). */
@@ -291,11 +302,20 @@ export function yellowForDay(
     const teo = p.teorico[day - 1] ?? ''
     const cls = classifyYellowCell(real, teo)
     if (!cls) continue
-    for (const token of yellowTargetTokens(real, teo, cls.role)) {
+    const teoSection = yellowSectionToken(teo)
+    const realSection = cls.role === 'sostituto' ? yellowSectionToken(real) : null
+    // La sezione TEORICA è sempre 'teo' (in elenco); il REALE, se diverso,
+    // è 'real' (in fondo). Quando coincidono resta solo la voce 'teo'.
+    const same = normCodeEq(real, teo)
+    const targets = new Map<string, { target: 'teo' | 'real'; showCode: boolean }>([
+      ...(teoSection ? [[teoSection, { target: 'teo' as const, showCode: !same }] as const] : []),
+      ...(realSection && realSection !== teoSection ? [[realSection, { target: 'real' as const, showCode: true }] as const] : []),
+    ])
+    for (const [token, meta] of targets) {
       const parsed = parseShiftCode(token)
       const key = `${parsed.section}|${parsed.shift}`
       const arr = out.get(key) ?? []
-      if (!arr.some(e => e.name === p.name)) arr.push({ name: p.name, code: real, role: cls.role })
+      if (!arr.some(e => e.name === p.name)) arr.push({ name: p.name, code: real, role: cls.role, target: meta.target, showCode: meta.showCode })
       out.set(key, arr)
     }
   }
@@ -303,29 +323,21 @@ export function yellowForDay(
 }
 
 /**
- * Card su cui mostrare il giallo di una cella, come TOKEN «sezione+turno»
- * (vedi yellowForDay). Set per non duplicare la card quando teorico e reale
- * coincidono. SOLO sezioni di turno M/P/N: le attività SENZA sezione (SpCA,
- * SpN, Trasf, NDis*, TUTOR…) NON generano card — la persona resta nei suoi
- * sottogruppi (Corsi/Trasferte/…), i quali NON la elencano quando è gialla
- * (richiesta 24/09/2026 v3: il pallino giallo sulla card teorica parla già
- * di lei). Il ruolo NON cambia più i target: la sezione teorica è sempre la
- * prima card (il PDF la colloca lì), il reale aggiunge solo se diverso.
+ * La sezione come TOKEN card «sezione+turno» per il giallo, SOLO se è una
+ * sezione di turno M/P/N con vero numero/lettera di sezione. Le attività
+ * SENZA sezione (SpCA, SpN, ISp*, Dis*, TUTOR…) e i riposi NON generano card —
+ * la persona resta nei suoi sottogruppi (Corsi/Trasferte/…), i quali NON la
+ * elencano quando è gialla: il pallino giallo sulla card teorica parla già
+ * di lei (richiesta 24/09/2026 v3).
  */
-function yellowTargetTokens(real: string, teo: string, role: 'richiedente' | 'sostituto'): string[] {
-  void role
-  const targets = new Set<string>()
-  const sectionToken = (t: string) => {
-    if (!isShiftWorkCode(t)) return null
-    // Attività SENZA sezione (SpCA/SpN/ISp*/N?Dis*/TUTOR/nudi M|N|P): non
-    // generano card — la persona resta nei sottogruppi (fuori se gialla).
-    if (isPresentNoSection(t)) return null
-    const p = parseShiftCode(t)
-    return NON_SECTION_DUTIES.has(p.section.toUpperCase()) ? null : t
-  }
-  const teoSection = sectionToken(teo)
-  if (teoSection) targets.add(teoSection)
-  const realSection = role === 'sostituto' ? sectionToken(real) : null
-  if (realSection) targets.add(realSection)
-  return [...targets]
+function yellowSectionToken(t: string): string | null {
+  if (!isShiftWorkCode(t)) return null
+  if (isPresentNoSection(t)) return null
+  const p = parseShiftCode(t)
+  return NON_SECTION_DUTIES.has(p.section.toUpperCase()) ? null : t
+}
+
+/** Confronto di codici turno indipendente da maiuscole (SpCA = spca = SPCA). */
+function normCodeEq(a: string, b: string): boolean {
+  return (a ?? '').trim().toUpperCase() === (b ?? '').trim().toUpperCase()
 }
