@@ -1198,3 +1198,142 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   sulla notte DCP, il turno M non lo mostra affatto). Verificato live
   24/9 (riga normale, niente chip) e 25/9 (solo DCP|N); contratto v8;
   16/16 test, tsc ok.
+  FIX PARSER v8b (26/09/2026, seguito della v8): la chip mancante il 24/9 su
+  BARRA/DI MEO non era nella UI ma A MONTE, nel parser. Il PDF evidenzia DUE
+  giorni adiacenti con UN SOLO rettangolo (w 50.8 = due colonne, es. y 378.3
+  di DI MEO) e yellowDaysAtRow assegnava il giorno col CENTRO del rect: quel
+  centro (669.9) cade nella SECONDA colonna → il PRIMO giorno spariva (BARRA
+  [22,25], DI MEO [25], quindi nessuna chip il 24/9). Ora il giorno va a OGNI
+  colonna il cui header x sta DENTRO l'estensione del rect (tolleranza 3px):
+  le celle singole (w 25.4, header a 2.4px dal centro) restano identiche, le
+  doppie danno entrambi i giorni. Rete di sicurezza:
+  scripts/.dbg-yellow-regress.mjs riparseggia i 21 PDF d'esempio col parser di
+  HEAD e con quello di lavoro e diffa i gialli; l'unica differenza oltre ai
+  guadagni attesi (BARRA e DI MEO 24, SENATORE 22, CAIAZZO I. 21, D'AURIA e
+  LUCIGNANO 30 — ognuno è UN rect doppio, verificato con
+  scripts/.dbg-rect-map.mjs) è la PERDITA dei falsi positivi del giorno 1: la
+  swatch gialla della LEGENDA (x 24.0..65.4, a sinistra della colonna 1 il cui
+  header sta a 76.6) cadeva più vicina al giorno 1 che a ogni altro, quindi
+  TRANI/CASTALDI/GIORDANO/NAPOLITANO/STRINGILE avevano un giallo al giorno 1
+  in OGNI mese. Dopo il re-ingest settembre ha 0 persone col giallo il giorno
+  1 (erano 5) e quei nomi restano persone vere coi loro turni (TRANI PIAP,
+  CASTALDI A, GIORDANO GIAP…). Verificato live 24/9 e 25/9
+  (scripts/.dbg-verify24-25.mjs): DCCM «BarraA» (richiedente, sigla assenza
+  dentro la chip) e DCP «Di Meo» (sostituto), nessuna chip su altre card;
+  tsc + eslint ok. TRAPPOLA nelle verifiche DOM: nome e sigla della chip
+  stanno in UN UNICO span di testo (textContent «BarraA») → un filtro sui soli
+  elementi foglia NON vede la chip e dà falsi negativi (è così che il primo
+  dump aveva «perso» BARRA); cercare span[style*=altri-pill] o i text node.
+  CARD SCOPERTE + SIGLA nella chip (27/09/2026, richieste utente): (a) nelle
+  card di /turnisala che perdono la persona prevista dal teorico perché un
+  giallo l'ha spostata ALTROVE (chip sulla card di DESTINAZIONE) e nessuno l'ha
+  rimpiazzata compare una chip gialla col testo rosso «scoperto» — casi reali
+  24/9 P DCIF e 25/9 M DCIF, da cui DI MEO è stato chiamato sulla DCP. Logica
+  in scopertiForDay (sala-month): per ogni card «SEZIONE|TURNO» conta le persone
+  ATTESE (teorico) e REALI e marca solo le card che hanno PERSO qualcuno per un
+  giallo (sostituto spostato) con attese > reali: vale quindi anche per «2
+  attese e 1 reale», non solo per le card vuote. Fuori: i RICHIEDENTI
+  (assenza/corso sul proprio turno — la chip resta in elenco, es. BARRA A sulla
+  DCCM del 24/9) e tutte le divergenze SENZA giallo (v8). (b) la sigla dentro la
+  chip era text-[10px] e sembrava più piccola e più in basso del cognome: ora è
+  text-sm come il nome (semibold) e sulla stessa riga di base — «Barra A» con la
+  A di pari misura (misurato: 14px vs 14px, scarto riga di base 1px = metrica
+  del font, non disallineamento). La chip sta in coda all'elenco e il TRATTINO
+  del posto libero sta DENTRO di lei («— scoperto», richiesta 27/09/2026):
+  sulla card scoperta il placeholder «—» non si disegna più (le DCIF del 24/9 P
+  e del 25/9 M leggono «DCIF | — scoperto»), mentre le card vuote NON scoperte
+  tengono il loro «—» (verificato: la DCIF del 25/9 N). Gli slot si filtrano
+  sulle voci VUOTE tenendo gli indici originali (slot T/S e colori intatti).
+  Verificato live 24/9 e 25/9 sui turni M/P/N (scripts/.dbg-verify24-25.mjs:
+  chip attese, nessuna chip su card inattese, «—» solo dove deve stare, misure
+  del font; con l'argomento «all» stampa tutte le card) + caso sintetico
+  2-attese-1-reale e card ricoperta (scripts/.dbg-scoperti.mjs); tsc + eslint
+  ok (2 warning preesistenti).
+  EVIDENZIA della card + turno GIALLO (27/09/2026): l'evidenzia
+  (desk-card-highlight) nasceva dal match sui COGNOMI della card, ma
+  card.surnames si ricostruisce dai CODICI REALI (buildScheduleFromMonthData):
+  un giallo RICHIEDENTE ha reale di assenza/corso (A, SpCA…) e NON è più nei
+  cognomi della sezione, pur restando sulla card con la sua chip → la card non
+  si evidenziava (verificato: BARRA il 24/9, cognomi DCCM = [SENATORE]). Il
+  SOSTITUTO funzionava GIÀ, perché lavora davvero nella sezione di destinazione
+  (DI MEO 24/9 e 25/9: reale MDCP/NDCP, «DI MEO» nei cognomi della DCP). Fix:
+  la board passa all'evidenzia anche i NOMI DEI GIALLI della card
+  (yellowNamesByCard, chiave card.id dalla mappa yellowByCard) → l'evidenzia
+  copre sia l'elenco sia la chip. Verifica: scripts/.dbg-highlight.mjs rifà
+  l'espressione della board con l'helper vero (matchesCognome) e gli stessi
+  ingressi (buildScheduleFromMonthData + yellowForDay) sui dati del DB — BARRA
+  «solo cognomi NO → con i gialli SÌ», DI MEO SÌ in entrambi, TUTTO OK. NB: la
+  sessione di test non è una persona della board e il dev backdoor non ha
+  impersonazione, quindi il caso giallo NON è osservabile dal vivo: la prova
+  resta a livello di predicato + dati. tsc + eslint ok.
+  VERIFICA DAL VIVO con GLI UTENTI VERI (27/09/2026): l'evidenzia gialla è
+  stata confermata end-to-end. Come si entra senza toccare le password:
+  `admin.generateLink({type:'magiclink', email})` col service-role e poi
+  `verifyOtp({type:'magiclink', token_hash})` su un client `@supabase/ssr`
+  (createServerClient con cookies getAll/setAll su una Map) → i cookie di
+  sessione escono nel formato/chunk ESATTI dell'app e si iniettano nel
+  contesto Playwright (scripts/.dbg-highlight-live.mjs, non stampa mai i
+  token). NB: il link magico fatto CONSUMARE AL BROWSER NON funziona
+  (atterra su /login?error=auth-error) perché /auth/confirm scambia solo
+  «?code» (PKCE) mentre il link admin torna coi token nel fragment.
+  Esiti (24/09): BARRA Fabrizio <f.barra@rfi.it> con giallo richiedente →
+  card DCCM EVIDENZIATA (turno M) e NESSUNA evidenzia sul turno P (controllo
+  negativo: lì c'è solo la chip «— scoperto» della DCIF, non sua); DI MEO
+  Maurizio <m.dimeo@rfi.it> giallo sostituto → DCP evidenziata. tsc/eslint ok.
+  RETTIFICA sull'«assenza vera»: era un falso allarme — le assenze
+  (A/AG/F/VS…, non gialle) NON stanno dentro le card ma nel blocco «Assenti:»
+  in testa alla board, che segue la chip del turno, e la pill dell'utente
+  loggato usa GIÀ `desk-own-badge` (invece di cell-tint-abs): verificato dal
+  vivo con DI MONDA Fortunato <f.dimonda@rfi.it> (assenza A il 24/09) →
+  «fuori dalle card», classe `text-xs px-2 py-0.5 rounded-full desk-own-badge`.
+  Quindi per le assenze non manca nulla: non c'è nessuna card da evidenziare.
+  FIXTURE E2E «ENTRA COME DIPENDENTE» (27/09/2026): quella tecnica è diventata
+  infrastruttura dei test. `tests/employee-session.ts` = motore (env da
+  `.env.local`, `findEmployee` cognome/nome/email dall'anagrafica `users`,
+  `sessionForEmployee` = generateLink + verifyOtp su client `@supabase/ssr` con
+  cookie-jar, `asPlaywrightCookies`); `tests/fixtures.ts` = fixture Playwright
+  `asEmployee('Barra')` che svuota i cookie del contesto, inietta la sessione
+  del dipendente e rende la pagina (usa context/page del test, quindi eredita
+  viewport e bypass). `tests/sala-board.ts` = helper `openBoard` /
+  `boardCards` / `highlightedCards`. `tests/dipendente.spec.ts` è la prova
+  END-TO-END: BARRA 24/9 M → solo DCCM evidenziata (e chip «BarraA»), DI MEO
+  24/9 M → solo DCP, più il controllo negativo (turno P: nessuna evidenzia, ma
+  la chip «— scoperto» della DCIF) — 3/3 verdi con `E2E_BASE_URL`.
+  Due trappole scoperte scrivendo lo spec (documentate in tests/README.md):
+  (a) il dialog «Novità di questa versione» (changelog-dialog.tsx) si apre ~1,5s
+  dopo l'avvio agli utenti che non l'hanno mai visto e rende INERTE la pagina
+  sottostante → senza chiuderlo ogni click su trigger/turni viene intercettato
+  dall'overlay (falso «il turno non si seleziona»); si chiude con Escape/backdrop,
+  MAI con «Continua» che chiama markChangelogSeen (scriverebbe sul profilo di
+  una persona vera); (b) la board è a 3 colonne e a 320px (viewport degli altri
+  test) il calendario copre lo schermo senza backdrop cliccabile → lo spec usa
+  `test.use({ viewport: 1280x800 })`. tsc + eslint ok.
+- **CODICI LUNGHI nelle celle di /tuoturno (15/09/2026)**: la griglia dei giorni
+  è a 7 colonne FISSE dentro `max-w-lg` → cella 65px su desktop (anche a 1280px),
+  37px a 320px; i codici reali del PDF arrivano a 6-7 caratteri (MM3M40/PM3M40
+  ~110 celle, MDCCM/PDCCM/NDCCM ~180, MDCIF/PDCIF ~118, DisNa, MTUTOR, M11TIR,
+  NDisSal) e a 14px «MM3M40» misura 67px: finivano SEMPRE con l'ellipsis, anche
+  a schermo intero. Fix: `.cell-day.cell-fit` = `container-type: inline-size` e
+  `.cell-fit-text` con `font-size: clamp(8px, (100cqw − 2px)/(--fit-chars ×
+  0.83), --fit-max)` — misure da `codeFit()` in tuoturno-client (14px reale,
+  11px teorico, 12px barrato; `--fit-chars` = lunghezza del codice). 0.83
+  em/carattere è la misura reale in Geist extrabold (MDCCM 0.81, MM3M40 0.80,
+  MTUTOR 0.72, NDisSal 0.57) arrotondata per ECCESSO: il font può risultare un
+  filo più piccolo del necessario, mai tagliato; i 2px tolti coprono i bordi
+  delle metà sulle card split. Sotto i 44px di cella (schermi ≤345px) una regola
+  FUORI DAI LAYER manda il codice a capo — dentro @layer components la
+  `truncate` di Tailwind (layer utilities) vincerebbe. La card da 76px assorbe
+  la seconda riga SENZA crescere (verificato: cardMax 76px e pagina 596px a
+  tutte le larghezze). Misure dal vivo: desktop MDCCM 14px (13.6 nelle card non
+  split), MM3M40 12.6px; a 375px 8.9/8.6px; a 320px 2 righe a 8px. Il CONFRONTO
+  (size sm) NON è cell-fit: lì le celle si allargano sulla misura canvas
+  (compareCellWidth) e non tagliano mai.
+  Test: `tests/tuoturno.spec.ts` + helper `tests/tuoturno.ts` (`openCalendar`
+  fissa mese/anno e sceglie la persona dal selettore, `cellCodes` restituisce
+  label/font/righe/clipped) → per Di Monda e Smeragliuolo, da 320 a 1280px,
+  ZERO codici con `scrollWidth > clientWidth` e nessuno sotto gli 8px se non
+  andato a capo. Controllo NEGATIVO fatto: togliendo `cell-fit` dalla card il
+  test fallisce a 320px elencando i codici tagliati. NB: GAROFALO (l'unico con
+  `NDisSal`, 7 caratteri) non ha un utente in anagrafica → il suo calendario non
+  è visibile in /tuoturno; il codice più lungo raggiungibile da un utente è a 6
+  caratteri. tsc + eslint ok.
