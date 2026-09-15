@@ -11,7 +11,8 @@ import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
-import { decodeSalaMonth, yellowForDay, type YellowEntry } from '@/lib/sala-month'
+import { decodeSalaMonth, normCodeEq, yellowForDay, type YellowEntry } from '@/lib/sala-month'
+import { isShiftWorkCode } from '@/lib/shift-tokens'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName, matchesCognome } from '@/lib/utils'
 import { buildBareOwners, lookupNameDisplay, type BareOwnerMap } from '@/lib/shift-teams-matching'
@@ -556,9 +557,14 @@ export function DeskBoard({
     if (isEditing || !schedule?.data) return set
     // TUTTI i gialli del giorno (non solo quelli classificati): l'esclusione
     // da gruppi/Assenti/teorico≠reale riguarda la CELLA del PDF, che esiste
-    // anche quando il classificatore non ne deduce un ruolo.
+    // anche quando il classificatore non ne deduce un ruolo. v8: anche i
+    // cambi definitivi SENZA giallo (lavoro→lavoro, PDCIF→MDCP) sono
+    // rappresentati dalla chip sulla destinazione → esclusi dalle righe rosse.
     for (const p of decodeSalaMonth(schedule.data)) {
-      if (p.yellow.includes(selectedDay)) set.add(normName(p.name))
+      if (p.yellow.includes(selectedDay)) { set.add(normName(p.name)); continue }
+      const real = p.days[selectedDay - 1] ?? ''
+      const teo = p.teorico[selectedDay - 1] ?? ''
+      if (isShiftWorkCode(real) && isShiftWorkCode(teo) && !normCodeEq(real, teo)) set.add(normName(p.name))
     }
     return set
   }, [schedule, selectedDay, isEditing])
@@ -607,7 +613,9 @@ export function DeskBoard({
   const yellowByCard = useMemo(() => {
     const map = new Map<string, Map<string, YellowEntry>>()
     if (isEditing || !schedule?.data) return map
-    const perSection = yellowForDay(decodeSalaMonth(schedule.data), selectedDay)
+    // v8: include le divergenze NON gialle (cambi definitivi): chip anche per
+    // chi il PDF ha già spostato senza evidenzia (es. DI MEO 24/09 MDCP).
+    const perSection = yellowForDay(decodeSalaMonth(schedule.data), selectedDay, true)
     if (!perSection.size) return map
     const shift = selectedShift
     for (const card of cards) {

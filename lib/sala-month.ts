@@ -265,10 +265,17 @@ function yellowShowsCode(real: string): boolean {
 export function classifyYellowCell(
   real: string,
   teo: string,
+  /** v8 (26/09/2026): la cella è EVIDENZIATA in giallo nel PDF? Il giallo =
+   *  proposta NON ancora definitiva; una divergenza senza giallo è un cambio
+   *  GIÀ DEFINITIVO (il PDF la stampa senza evidenzia — es. DI MEO 24/09
+   *  MDCP vs PDCIF). Per le definitive vale SOLO la regola lavoro→lavoro:
+   *  chip sulla card di destinazione, nessun richiedente/assenza deducibile. */
+  highlighted = true,
 ): { role: 'richiedente' | 'sostituto' } | null {
   const r = (real ?? '').trim()
   const t = (teo ?? '').trim()
-  if (isLeaveToken(r)) return { role: 'richiedente' }
+  // v8: assenza NON evidenziata = dato normale del foglio → nessuna chip.
+  if (isLeaveToken(r)) return highlighted ? { role: 'richiedente' } : null
   // Teorico «D» (disponibilità) + reale lavorativo → il chiamato a coprire.
   if (/^D$/i.test(t) && isShiftWorkCode(r)) return { role: 'sostituto' }
   // Sostituto sul PROPRIO RIPOSO: il teorico era RC/RM/RI e il reale è un
@@ -277,62 +284,79 @@ export function classifyYellowCell(
   if (['RC', 'RM', 'RI'].includes(t.toUpperCase()) && isShiftWorkCode(r)) return { role: 'sostituto' }
   // Richiesta PENDENTE: il PDF mostra ancora la persona nel turno/sezione
   // previsti (reale = teorico) e la cella gialla segnala la richiesta in attesa
-  // (es. FATIGATI P6S/P6S giallo nel cluster congedi del 15/03).
-  if (r && r.toUpperCase() === t.toUpperCase() && isShiftWorkCode(r)) return { role: 'richiedente' }
+  // (es. FATIGATI P6S/P6S giallo nel cluster congedi del 15/03). Senza giallo
+  // reale = teorico non è una divergenza: niente chip (v8).
+  if (r && r.toUpperCase() === t.toUpperCase() && isShiftWorkCode(r)) return highlighted ? { role: 'richiedente' } : null
   // Cambio TURNO: reale e teorico lavorano, ma in turni diversi.
   if (isShiftWorkCode(r) && isShiftWorkCode(t) && r[0].toUpperCase() !== t[0].toUpperCase()) return { role: 'sostituto' }
   // Cambio SEZIONE a stesso turno (P7S→P4S): la persona si sposta di sezione
   // restando nel turno — il giallo la segue su entrambe le card (v3, 25/09).
   if (isShiftWorkCode(r) && isShiftWorkCode(t)) return { role: 'sostituto' }
+  // v8: cambio LAVORO→LAVORO NON evidenziato (definitivo, es. DI MEO 24/09
+  // MDCP vs PDCIF) → sostituto con la stessa semantica del giallo; i rami
+  // sopra coprono già i sotto-casi, qui resta il filtro anti-falsi-positivi:
+  // se NESSUN ramo ha combaciato, una divergenza non gialla non è marcata.
   // Attività SENZA sezione (corso/trasferta/istruttore: SpCA, SpN, ISp*,
   // Dis*, Trasf, TUTOR…) con teorico di SEZIONE: il PDF sposta la persona
   // fuori scheda ma la cella gialla la lega ancora alla sua sezione teorica
   // (i corsi SPCA del 23/9) → pallino giallo sulla card teorica, fuori dai
   // sottogruppi (richiesta 25/09/2026 v3).
-  if (isPresentNoSection(r) && isShiftWorkCode(t)) return { role: 'richiedente' }
+  if (isPresentNoSection(r) && isShiftWorkCode(t)) return highlighted ? { role: 'richiedente' } : null
   return null
 }
 
 /**
- * Il contenuto GIALLO del PDF per un giorno (richiesta 24/09/2026 v3):
- * NESSUN blocco a fondo card e NESSUN testo giallo: per ogni persona gialla
- * ritorna le card su cui mettere il PALLINO giallo:
- *  - la SEZIONE TEORICA, se è una sezione di turno M/P/N: lì la persona resta
- *    «in servizio» col pallino — il PDF la colloca ancora lì (i corsi SPCA
- *    del 23/9 con teorico P7S/P8/…) o l'assenza è del suo turno;
- *  - la sezione REALE, se diversa: il sostituto/cambiato compare anche sulla
- *    card dove lavora davvero quel giorno.
+ * Il contenuto GIALLO/definitivo del PDF per un giorno (v8, 26/09/2026):
+ * NESSUN blocco a fondo card e NESSUN testo giallo: per ogni persona con
+ * divergenza reale≠teorico ritorna le card su cui mettere la CHIP gialla.
+ *
+ * `includeUnhighlighted` (v8): quando true, oltre alle celle GIALLE del PDF
+ * (proposte NON definitive) processa anche le divergenze real≠teorico SENZA
+ * giallo — cambi GIÀ DEFINITIVI che il PDF stampa senza evidenzia (es.
+ * DI MEO 24/09 MDCP vs PDCIF). Solo lavoro→lavoro: le assenze NON evidenziate
+ * sono dati normali (chi gestisce il foglio non le segnala).
+ *
+ * Per ogni voce la chip sta su UNA sola card:
+ *  - richiedente (assenza/corso/proposta sul proprio turno): la sezione
+ *    TEORICA ('teo' — il PDF la colloca ancora lì);
+ *  - sostituto (chiamato da D/riposo, cambio turno o sezione): SOLO la card
+ *    di DESTINAZIONE ('real') — la posizione dice già dove lavora, la card
+ *    d'origine resta pulita (richiesta 26/09/2026 v8, caso DI MEO 25/09
+ *    teo MDCIF → real NDCP: chip solo sulla notte della DCP).
  */
 export function yellowForDay(
   people: MonthPersonShifts[],
   day: number,
+  includeUnhighlighted = false,
 ): Map<string, YellowEntry[]> {
   const out = new Map<string, YellowEntry[]>()
   for (const p of people) {
-    if (!p.yellow.includes(day)) continue
+    const highlighted = p.yellow.includes(day)
+    if (!highlighted && !includeUnhighlighted) continue
     const real = p.days[day - 1] ?? ''
     const teo = p.teorico[day - 1] ?? ''
-    const cls = classifyYellowCell(real, teo)
+    const cls = classifyYellowCell(real, teo, highlighted)
     if (!cls) continue
+    // v8: la chip sta su UNA sola card — teorica per il richiedente, di
+    // DESTINAZIONE per il sostituto (mai entrambe).
     const teoSection = yellowSectionToken(teo)
-    const realSection = cls.role === 'sostituto' ? yellowSectionToken(real) : null
-    // La sezione TEORICA è sempre 'teo' (in elenco); il REALE, se diverso,
-    // è 'real' (in coda). Quando coincidono resta solo la voce 'teo'.
+    const realSection = yellowSectionToken(real)
+    const [target, targetKind] =
+      cls.role === 'richiedente'
+        ? [teoSection, 'teo' as const]
+        : cls.role === 'sostituto'
+          ? [realSection, 'real' as const]
+          : [null, null]
+    if (!target || !targetKind) continue
     const same = normCodeEq(real, teo)
     // v7: la sigla in chip SOLO per assenze/corsi (mai per turni di sezione);
     // per il 'teo' con reale = teorico (pendente) comunque niente sigla.
     const showCode = yellowShowsCode(real) && !same
-    const targets = new Map<string, { target: 'teo' | 'real'; showCode: boolean }>([
-      ...(teoSection ? [[teoSection, { target: 'teo' as const, showCode }] as const] : []),
-      ...(realSection && realSection !== teoSection ? [[realSection, { target: 'real' as const, showCode }] as const] : []),
-    ])
-    for (const [token, meta] of targets) {
-      const parsed = parseShiftCode(token)
-      const key = `${parsed.section}|${parsed.shift}`
-      const arr = out.get(key) ?? []
-      if (!arr.some(e => e.name === p.name)) arr.push({ name: p.name, code: real, role: cls.role, target: meta.target, showCode: meta.showCode })
-      out.set(key, arr)
-    }
+    const parsed = parseShiftCode(target)
+    const key = `${parsed.section}|${parsed.shift}`
+    const arr = out.get(key) ?? []
+    if (!arr.some(e => e.name === p.name)) arr.push({ name: p.name, code: real, role: cls.role, target: targetKind, showCode })
+    out.set(key, arr)
   }
   return out
 }
@@ -353,6 +377,6 @@ function yellowSectionToken(t: string): string | null {
 }
 
 /** Confronto di codici turno indipendente da maiuscole (SpCA = spca = SPCA). */
-function normCodeEq(a: string, b: string): boolean {
+export function normCodeEq(a: string, b: string): boolean {
   return (a ?? '').trim().toUpperCase() === (b ?? '').trim().toUpperCase()
 }

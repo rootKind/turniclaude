@@ -1186,3 +1186,17 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   (assenza su teo=true, real=false, ecc.). Verificato live 25/9: Barra
   «Barra A» su DCCM (assenza, sigla in chip), Di Meo/Langione chip senza
   sigla (sezione), nome rosso rgb(140,42,36); 16/16 test, tsc ok.
+  REWORK v8 (26/09/2026, caso DI MEO 24-25/9): IL GIALLO = proposta NON
+  definitiva (chiarito dall'utente) — ma i cambi GIÀ DEFINITIVI il PDF
+  li stampa SENZA evidenzia (DI MEO 24/9 MDCP vs teo PDCIF, nessun
+  giallo). yellowForDay(people, day, includeUnhighlighted=false): la
+  board passa true → la chip copre OGNI divergenza lavoro→lavoro (gialla
+  o definitiva); assenze/corsi NON evidenziati restano dati normali
+  (classifyYellowCell(real, teo, highlighted): assenza/reale=teo/corso
+  → null se !highlighted). La chip sta su UNA SOLA card: teorica per il
+  richiedente, di DESTINAZIONE per il sostituto (ESPOSITO M5T→P10T non
+  è più su entrambe; DI MEO 25/9 teo MDCIF→real NDCP: chip SOLO sulla
+  notte DCP, il turno M non lo mostra affatto). yellowPeople include
+  anche i divergenti definitivi (esclusione da righe rosse/gruppi).
+  Verificato live 24/9 (chip su DCP|M) e 25/9 (solo DCP|N); contratto
+  v8 con DI MEO 24; 16/16 test, tsc ok.
