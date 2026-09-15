@@ -1168,3 +1168,12 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   chunk vecchio (variabili nuove assenti) → touch app/globals.css o restart
   del server. FIX highlight: le pill del blocco Assenti ora hanno il check isMe
   (desk-own-badge) come i gruppi.
+  REWORK v6 (25/09/2026): il marker giallo diventa una CHIP DOPO il nome
+  (niente più pallino prima): pill rotonda col fill trasferte
+  (--altri-pill-trasferte-bg + bordo 30% del tinta-testo chip) che INGLOBA
+  la sigla del turno reale in ROSSO (--cell-abs-text, come il testo dei
+  pill Assenti: #8c2a24 chiaro / #fbd9d6 scuro). La sigla non è più testo
+  separato neutro: sta DENTRO la chip. Verificato live 22/9 DCP
+  (Langione PDCP) e 23/9 DCO 6° (Principe P6T), entrambi i temi
+  (fill light rgb(254,243,199) / dark rgb(59,35,0), sigla rossa in
+  entrambi); 16/16 test, tsc, eslint ok.

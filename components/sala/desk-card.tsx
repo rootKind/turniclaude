@@ -112,25 +112,33 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
 
   const getColor = (name: string) => card.surnameColors?.[name]
 
-  // Pallino GIALLA del PDF (v5, 25/09/2026): il giallo è quello del
-  // RIEMPIMENTO delle chip trasferte di /turnisala (var --altri-pill-trasferte-bg,
-  // richiesta esplicita), con bordo sottile del tinta-testo della chip per
-  // restare ben visibile su entrambi i temi.
-  const yellowDot = (
-    <span style={{ color: 'var(--altri-pill-trasferte-bg)', WebkitTextStroke: '0.6px var(--altri-pill-trasferte-text)' }} className="select-none">●</span>
+  // Marker GIALLA del PDF (v6, 25/09/2026): CHIP dopo il nome, riempimento
+  // giallo = chip trasferte di /turnisala (--altri-pill-trasferte-bg), bordo
+  // sottile del tinta-testo della chip; DENTRO, la sigla del turno reale in
+  // ROSSO (richiesta esplicita). Ereditata dalle v5: tinta coerente chiaro/scuro.
+  const YellowChip = ({ code }: { code?: string }) => (
+    <span
+      style={{
+        background: 'var(--altri-pill-trasferte-bg)',
+        border: '1px solid color-mix(in srgb, var(--altri-pill-trasferte-text) 30%, transparent)',
+      }}
+      className="select-none inline-flex items-center rounded-full px-1 leading-4"
+    >
+      <span className="text-[10px] font-semibold tabular-nums" style={{ color: 'var(--cell-abs-text)' }}>
+        {code ?? 'G'}
+      </span>
+    </span>
   )
   const renderDot = (name: string) => {
-    // SOLO per i 'teo' — la persona prevista su questa card il cui reale è
-    // diverso (corso SpCA/SpN, altro turno, assenza): pallino accanto al nome,
-    // resta in elenco. Per i 'real' (sostituti) la riga lascia l'elenco e va
-    // in coda sotto gli altri (senza separatore, v5).
+    // Chip gialla per i 'teo' — persona prevista su questa card il cui reale è
+    // diverso (corso SpCA/SpN, altro turno, assenza). Per i 'real' (sostituti)
+    // la riga dell'equipaggio è resa interamente come «Nome [chip]» (v5/v6).
     const y = yellowForSlot.get(normName(name))
     const yellow = y?.target === 'teo'
-      ? <span key="y">{yellowDot}</span>
+      ? <span key="y"><YellowChip code={y.showCode && y.code ? y.code : undefined} /></span>
       : null
     // Pallino del COLORE scelto dall'admin (verde/salmone/personalizzato):
-    // RIPRISTINATO — la v3 lo nascondeva dietro il giallo (precedenza errata,
-    // segnalato 25/09/2026). Ora i due pallini COESISTONO fianco a fianco.
+    // coesiste con la chip gialla (fianco a fianco, fix 25/09/2026).
     const col = getColor(name)
     const admin = !col ? null
       : col === 'green' ? <span key="a" className="text-emerald-500 select-none">●</span>
@@ -144,9 +152,9 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
   // («NEVANO» → «Nevano P.») — richiesta 14/09/2026; gli altri restano tali e quali.
   const renderName = (surname: string, i: number) => {
     const y = yellowForSlot.get(normName(surname))
-    // v5: il SOSTITUTO ('real') che il PDF ha messo QUI resta al suo POSTO
-    // nella riga di equipaggio, reso come riga gialla «● Nome Sigla» — niente
-    // slot vuoto né riga separata in fondo (caso Langione, 22/09).
+    // v6: il SOSTITUTO ('real') che il PDF ha messo QUI resta al suo POSTO
+    // nella riga di equipaggio, reso come «Nome [chip gialla]» — niente slot
+    // vuoto né riga separata in fondo (caso Langione, 22/09).
     if (y?.target === 'real') return renderYellowRow(y)
     const dot = renderDot(surname)
     const slotClass = getSlotClass(i)
@@ -160,7 +168,6 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
         ) : (
           <span className="text-muted-foreground/40">—</span>
         )}
-        {y?.showCode && y.code && <span className="text-xs tabular-nums">{y.code}</span>}
         {dot}
       </span>
     )
@@ -221,14 +228,12 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     }
   }
 
-  // Riga GIALLA in coda all'elenco (v5): «● Nome Sigla-reale» — nome e sigla
-  // nel colore normale della card, il pallino giallo è l'unico marker (v5:
-  // «il nome lo puoi lasciare com'era prima»). Senza prefissi Cong./Sost.
+  // Riga GIALLA (v6): «Nome [chip gialla col turno reale in rosso]» — la chip
+  // sta DOPO il nome (richiesta 25/09/2026), senza prefissi Cong./Sost.
   const renderYellowRow = (y: YellowEntry) => (
     <span className="flex items-center gap-1 text-sm leading-tight whitespace-nowrap">
-      {yellowDot}
       {rowLabel(y.name, nameDisplay)}
-      {y.showCode && y.code ? <span className="text-xs tabular-nums">{y.code}</span> : null}
+      <YellowChip code={y.showCode && y.code ? y.code : undefined} />
     </span>
   )
 
