@@ -262,10 +262,14 @@ export function classifyYellowCell(
 }
 
 /**
- * Il contenuto GIALLO del PDF per un giorno: richiedenti il congedo e presunti
- * sostituti, ciascuno aggregato sotto la chiave «sezione|turno» della card in
- * cui il PDF colloca la cella (per il richiedente la colonna TEORICA = dove
- * sarebbe stato; per il sostituto che cambia turno il REALE = dove va davvero).
+ * Il contenuto GIALLO del PDF per un giorno (richiesta 24/09/2026 v2):
+ * NESSUN blocco a fondo card — i nomi gialli vivono DENTRO l'elenco delle
+ * sezioni. Per ogni persona gialla ritorna le card su cui evidenziarla:
+ *  - RICHIEDENTE (assenza in giallo o richiesta pendente): la card della
+ *    sua SEZIONE TEORICA (turno teorico) — «doveva stare qui quel giorno».
+ *  - SOSTITUTO (chiamato da D / dal proprio riposo / cambio turno): la card
+ *    del turno REALE (dove lavora davvero) e, se il teorico lo metteva su
+ *    una sezione di un ALTRO turno, anche quella (da dove viene).
  */
 export function yellowForDay(
   people: MonthPersonShifts[],
@@ -278,17 +282,40 @@ export function yellowForDay(
     const teo = p.teorico[day - 1] ?? ''
     const cls = classifyYellowCell(real, teo)
     if (!cls) continue
-    const key = yellowSectionKey(real, teo, cls.role)
-    const arr = out.get(key) ?? []
-    arr.push({ name: p.name, code: real, role: cls.role })
-    out.set(key, arr)
+    for (const token of yellowTargetTokens(real, teo, cls.role)) {
+      const parsed = parseShiftCode(token)
+      const key = `${parsed.section}|${parsed.shift}`
+      const arr = out.get(key) ?? []
+      if (!arr.some(e => e.name === p.name)) arr.push({ name: p.name, code: real, role: cls.role })
+      out.set(key, arr)
+    }
   }
   return out
 }
 
-/** Chiave «sezione|turno» di una cella gialla (vedi yellowForDay). */
-function yellowSectionKey(real: string, teo: string, role: 'richiedente' | 'sostituto'): string {
-  const token = role === 'richiedente' ? (teo || real) : (real || teo)
-  const parsed = parseShiftCode(token)
-  return `${parsed.section}|${parsed.shift}`
+/**
+ * Card su cui spargere il giallo di una cella, come TOKEN «sezione+turno»
+ * (vedi yellowForDay). Set per non duplicare la card teorica quando coincide
+ * con quella reale (es. richiedente pendente) o il doppio spruzzo del
+ * sostituto (es. teorico D, nessuna sezione teorica da mostrare).
+ */
+function yellowTargetTokens(real: string, teo: string, role: 'richiedente' | 'sostituto'): string[] {
+  const targets = new Set<string>()
+  // Solo codici CON SEZIONE producono una card (D/RC/RI/RM/assenze no).
+  const isSection = (t: string) => isShiftWorkCode(t)
+  if (role === 'richiedente') {
+    // La card della SEZIONE TEORICA (dove sarebbe stato quel giorno);
+    // fallback sul reale solo se il teorico non è una sezione.
+    if (isSection(teo)) targets.add(teo)
+    else if (isSection(real)) targets.add(real)
+  } else {
+    // La card dove lavora davvero (sempre: il classificatore garantisce
+    // che il reale del sostituto è un turno lavorativo).
+    if (isSection(real)) targets.add(real)
+    // Se il teorico lo collocava su una sezione di un ALTRO turno (es. era
+    // P10S ed è chiamato in M), giallo anche LÀ: la sua sezione teorica.
+    // Un teorico D/riposo invece non ha sezione → nessuna seconda card.
+    if (isSection(teo) && parseShiftCode(teo).shift !== parseShiftCode(real || teo).shift) targets.add(teo)
+  }
+  return [...targets]
 }

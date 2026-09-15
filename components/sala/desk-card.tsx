@@ -4,7 +4,7 @@ import { Trash2, UserPlus, Link2, ArrowLeftRight, ArrowUpDown, GripVertical, Pal
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { DeskCard as DeskCardType } from '@/types/database'
-import type { TheoRealSectionCompare } from '@/lib/turni-teorici'
+import { normName, surnameKey, type TheoRealSectionCompare } from '@/lib/turni-teorici'
 import { lookupNameDisplay } from '@/lib/shift-teams-matching'
 import type { YellowEntry } from '@/lib/sala-month'
 
@@ -28,10 +28,15 @@ interface Props {
    *  dal PDF («nevano pietro»), valore = «Nevano P.». Dove appare il solo
    *  cognome evita gli equivoci fra persone con lo stesso cognome. */
   nameDisplay?: Map<string, string>
-  /** CELLE GIALLE del PDF (richiesta 24/09/2026): richiedenti il congedo e
-   *  presunti sostituti di QUESTA card (chiave «sezione|turno»), pill gialla
-   *  con ruolo. Undefined se non ci sono gialli nel giorno. */
-  yellowEntries?: YellowEntry[]
+  /** CELLE GIALLE del PDF (richiesta 24/09/2026 v2): gialli di QUESTA card
+   *  per persona (chiave = nome normalizzato). Niente blocco a fondo card:
+   *  chi è già nell'elenco viene EVIDENZIATO in giallo, chi manca viene
+   *  AGGIUNTO in coda con il codice. Undefined se non ci sono gialli. */
+  yellowByCard?: Map<string, YellowEntry>
+  /** Cognomi presenti più volte in anagrafica: la riga PDF col solo cognome
+   *  è ambigua → il nome NON si aggiunge alla card (uno dei due è giallo,
+   *  ma non si sa quale). */
+  duplicateCognomi?: Set<string>
 }
 
 const toTitleCase = (s: string) =>
@@ -64,7 +69,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowEntries }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowByCard, duplicateCognomi }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -122,10 +127,18 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     const slotClass = getSlotClass(i)
     const resolved = lookupNameDisplay(surname, nameDisplay)
     const label = resolved ?? toTitleCase(surname)
+    // GIALLO del PDF (24/09/2026 v2): persona di questa card con cella gialla
+    // quel giorno → nome (e codice) in giallo DENTRO l'elenco.
+    const y = yellowForSlot.get(normName(surname))
     return (
       <span className={`text-sm whitespace-nowrap leading-tight flex items-center gap-0.5 ${slotClass}`}>
         {dot}
-        {surname ? label : <span className="text-muted-foreground/40">—</span>}
+        {surname ? (
+          <span className={y ? 'font-semibold text-[var(--cell-yellow-text)]' : undefined}>{label}</span>
+        ) : (
+          <span className="text-muted-foreground/40">—</span>
+        )}
+        {y && y.code && <span className="text-xs tabular-nums font-semibold text-[var(--cell-yellow-text)]">{y.code}</span>}
         {dot}
       </span>
     )
@@ -143,6 +156,39 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     ...filledNames.map(n => ({ name: n, label: lookupNameDisplay(n, nameDisplay) ?? toTitleCase(n) })),
     ...tirocinanti.filter(Boolean).map(n => ({ name: n, label: `Tir. ${lookupNameDisplay(n, nameDisplay) ?? toTitleCase(n)}` })),
   ]
+
+  // CELLE GIALLE del PDF (24/09/2026 v2): DENTRO l'elenco della card, non in
+  // un blocco separato. Chi ce l'ha già → renderName lo evidenzia in giallo;
+  // chi non c'è → riga aggiunta in coda, col codice reale. Il match
+  // slot↔giallo tollera le forme diverse («CAIAZZO» vs «CAIAZZO M.» vs
+  // «CAIAZZO MARIO»); con omonimi in anagrafica la sigla PDF nuda è ambigua
+  // → NON si aggiunge (come nel resto dell'app).
+  const yellowForSlot = new Map<string, YellowEntry>()
+  const matchedYellow = new Set<string>()
+  if (yellowByCard) {
+    for (const s of [...card.surnames, ...tirocinanti]) {
+      if (!s) continue
+      const k = normName(s)
+      for (const [key, y] of yellowByCard) {
+        const n = normName(y.name)
+        if (n === k || surnameKey(y.name) === k || normName(cognomeOf(y.name)) === k) {
+          yellowForSlot.set(k, y)
+          matchedYellow.add(key)
+          break
+        }
+      }
+    }
+  }
+  const dupNorm = duplicateCognomi ? new Set([...duplicateCognomi].map(normName)) : null
+  const yellowAdditions: YellowEntry[] = []
+  if (yellowByCard) {
+    for (const [key, y] of yellowByCard) {
+      if (matchedYellow.has(key)) continue
+      const n = normName(y.name)
+      if (!n.includes(' ') && dupNorm?.has(n)) continue
+      yellowAdditions.push(y)
+    }
+  }
 
   return (
     <div
@@ -326,20 +372,15 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
         )}
       </div>
 
-      {/* CELLE GIALLE del PDF (richiesta 24/09/2026): richiedente il congedo
-          («Cong.») e presunto sostituto («Sost.»), pill gialla come la cella
-          del PDF. Sempre visibili (non solo in teorico≠reale): il giallo è
-          informazione operativa del giorno. */}
-      {!isEditing && yellowEntries && yellowEntries.length > 0 && (
-        <div className="border-t sala-card-title-sep shrink-0 flex flex-wrap items-center justify-center gap-1 px-2 py-1">
-          {yellowEntries.map((y, i) => (
-            <span
-              key={i}
-              className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cell-tint-yellow"
-            >
-              <span className="tabular-nums font-bold opacity-80">{y.role === 'richiedente' ? 'Cong.' : 'Sost.'}</span>
-              <span className="font-medium">{rowLabel(y.name, nameDisplay)}</span>
-              {y.code && <span className="tabular-nums font-semibold opacity-80">{y.code}</span>}
+      {/* GIALLI non presenti nell'elenco (24/09/2026 v2): righe aggiunte in
+          coda, in giallo, con il codice reale — il richiedente sta nella
+          colonna teorica, il sostituto dove lavora davvero. */}
+      {!isEditing && yellowAdditions.length > 0 && (
+        <div className="border-t sala-card-title-sep shrink-0 flex flex-col items-center gap-0.5 px-2 py-1">
+          {yellowAdditions.map((y, i) => (
+            <span key={i} className="flex items-center gap-1 text-sm leading-tight whitespace-nowrap font-semibold text-[var(--cell-yellow-text)]">
+              {rowLabel(y.name, nameDisplay)}
+              {y.code && <span className="text-xs tabular-nums">{y.code}</span>}
             </span>
           ))}
         </div>

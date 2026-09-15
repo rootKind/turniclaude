@@ -583,11 +583,14 @@ export function DeskBoard({
     return m
   }, [theoCompareBySection])
 
-  // CELLE GIALLE del PDF (richiesta 24/09/2026): richiedenti congedo + presunti
-  // sostituti del giorno, aggregati per chiave «sezione|turno» delle card.
+  // CELLE GIALLE del PDF (richiesta 24/09/2026 v2): niente blocco a fondo
+  // card — ogni giallo viene SPARSO dentro l'elenco persone della card:
+  //  - già presente nell'elenco → EVIDENZIATO (testo giallo)
+  //  - assente dall'elenco → AGGIUNTO in coda (testo giallo + codice)
+  // Per persona/codice, così la card sa quali nomi marcari in giallo.
   // Solo mesi v2 (le gialle stanno nei dati compatti); teorico≠reale non serve.
   const yellowByCard = useMemo(() => {
-    const map = new Map<string, YellowEntry[]>()
+    const map = new Map<string, Map<string, YellowEntry>>()
     if (isEditing || !schedule?.data) return map
     const perSection = yellowForDay(decodeSalaMonth(schedule.data), selectedDay)
     if (!perSection.size) return map
@@ -595,7 +598,10 @@ export function DeskBoard({
     for (const card of cards) {
       const key = `${card.sectionKey ?? card.title}|${shift}`
       const entries = perSection.get(key)
-      if (entries?.length) map.set(card.id, entries)
+      if (!entries?.length) continue
+      const byNorm = new Map<string, YellowEntry>()
+      for (const y of entries) byNorm.set(normName(y.name), y)
+      map.set(card.id, byNorm)
     }
     return map
   }, [schedule, selectedDay, selectedShift, cards, isEditing])
@@ -842,7 +848,8 @@ export function DeskBoard({
                           : undefined}
                         theoCompare={theoCompareByCardId.get(card.id)}
                         nameDisplay={nameDisplay}
-                        yellowEntries={yellowByCard.get(card.id)}
+                        yellowByCard={yellowByCard.get(card.id)}
+                        duplicateCognomi={duplicateCognomi}
                       />
                     ))}
                   </DroppableCell>

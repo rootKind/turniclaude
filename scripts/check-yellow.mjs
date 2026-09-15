@@ -99,7 +99,11 @@ try {
   ]
   const y = yellowForDay(people, 1)
   assert.deepEqual([...y.keys()].sort(), ['10|P', '5|M', '5|P', '6|P', 'DCP|M', 'DCP|N'], 'chiavi sezione|turno')
-  assert.deepEqual(y.get('10|P')?.map(e => `${e.name}:${e.role}`), ['SICA:richiedente', 'MUCCI:sostituto'], 'card 10 P = coppia richiesta+sostituto')
+  assert.deepEqual(y.get('10|P')?.map(e => `${e.name}:${e.role}`), ['SICA:richiedente', 'MUCCI:sostituto', 'ESPOSITO:sostituto'], 'card 10 P = coppia richiesta+sostituto + teorico di ESPOSITO')
+  // v2 (24/09/2026): il sostituto che cambia turno viene sparso ANCHE sulla
+  // sua sezione teorica (da dove viene) — ESPOSITO su 5|M (reale) e 10|P (teo).
+  assert.deepEqual(y.get('5|M')?.map(e => e.name), ['ESPOSITO'], 'sostituto nella card dove lavora')
+  assert.deepEqual(y.get('10|P')?.map(e => e.name), ['SICA', 'MUCCI', 'ESPOSITO'], 'ESPOSITO anche sulla sezione teorica 10|P')
   assert.deepEqual(y.get('DCP|N')?.map(e => e.name), ['DI MONDA'], 'richiedente nella colonna teorica (notte)')
   assert.equal(y.get('6|P')?.length, 2, 'CAIAZZO + FATIGATI sulla 6 P')
   assert.ok(![...y.values()].flat().some(e => e.name === 'NON_GIALLO'), 'senza giallo mai incluso')

@@ -1096,11 +1096,22 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   Disponibilità), teorico RC/RM/RI con reale lavorativo (lavora sul PROPRIO
   riposo, es. Caiazzo M. P6S/RI), o cambio TURNO (prima lettera diversa).
   Celle gialle spurie (festività, riposo su riposo, cambio sezione stesso
-  turno) → NON classificate. yellowForDay(people, day) aggrega per chiave
-  «sezione|turno» (richiedente = colonna TEORICA, sostituto = REALE) → pill
-  .cell-tint-yellow «Cong./Sost. Nome CODICE» in fondo alle card della sezione
-  (yellowByCard su card.sectionKey ?? title + chip turno attiva). Analisi DB:
+  turno) → NON classificate. Analisi DB:
   scripts/analyze-yellow.mjs (100 gialli, 23 cluster; g22/03: Sica+Mucci coppia
-  completa sulla 10 P). Test: scripts/check-yellow.mjs. Verificato live mar g22
-  chip M/P. FIX highlight: le pill del blocco Assenti ora hanno il check isMe
+  completa sulla 10 P). Test: scripts/check-yellow.mjs.
+  REWORK v2 (24/09/2026, stessa giornata): NIENTE blocco a fondo card —
+  yellowForDay sparge i gialli DENTRO l'elenco persone della card per token
+  «sezione|turno» (yellowTargetTokens): RICHIEDENTE → card della SEZIONE
+  TEORICA (fallback reale se il teorico non è una sezione); SOSTITUTO → card
+  del turno REALE e, se il teorico lo metteva su una sezione di un ALTRO
+  turno, anche lì (Set per non duplicare). In desk-card: chi è già
+  nell'elenco viene EVIDENZIATO (nome+codice in --cell-yellow-text via
+  yellowForSlot, match tollerante normName/surnameKey/cognomeOf); chi manca
+  viene AGGIUNTO in coda in giallo col codice (yellowAdditions); riga nuda
+  di cognome DUPLICATO in anagrafica → NON aggiunta (ambigua, come nel resto
+  dell'app). Verificato live mar g22 (chip M: Caiazzo I./Nevano P./Senatore/
+  Esposito Al.; chip P: Sica+Mucci su DCO 10°), entrambi i temi.
+  NOTA DEV: dopo un commit, il watcher CSS del dev server può restare su un
+  chunk vecchio (variabili nuove assenti) → touch app/globals.css o restart
+  del server. FIX highlight: le pill del blocco Assenti ora hanno il check isMe
   (desk-own-badge) come i gruppi.
