@@ -159,6 +159,18 @@ function displayToken(token: string): string {
   return isWorkToken(token) ? tokenLabel(token) : token
 }
 
+/**
+ * Misura ADATTIVA del codice nella griglia personale (richiesta 15/09/2026).
+ * La colonna dei giorni è fissa (7 in max-w-lg: 65px su desktop, 37px a 320px)
+ * ma i codici arrivano a 7 caratteri (MM3M40, NDisSal, MDCCM): la lunghezza
+ * dice in quante parti dividere lo spazio della cella, il resto lo fa
+ * `.cell-fit-text` (globals.css) con una container query. La misura si aggiorna
+ * da sola al resize, senza JS e senza ricalcolare le 30 card.
+ */
+function codeFit(label: string, maxPx: number, minPx = 8): CSSProperties {
+  return { '--fit-chars': label.length, '--fit-max': `${maxPx}px`, '--fit-min': `${minPx}px` } as CSSProperties
+}
+
 /** ─── Card turno CONDIVISA: un solo codice per la griglia personale E il confronto ───
  * Stessa struttura, stesse classi, stessa logica split/strike/pending/today:
  * ciò che cambiano sono le dimensioni (scala «sm» per le celle del confronto)
@@ -203,10 +215,11 @@ function ShiftDayCard({
   const showPending = !!real?.pending
   const theoKind: SalaCodeKind = theo ? salaCodeInfo(theo).kind : 'empty'
   const split = mismatch && mismatchStyle === 'split'
-  // truncate anche su lg: a 320px le card scendono a ~37px e codici a 4 lettere
-  // (SPCA…) escono dalla card; sotto ~375px l'ellipsis subentra solo lì.
-  const codeSize = size === 'lg' ? 'text-[14px] font-extrabold leading-tight max-w-full truncate' : 'text-[11px] font-bold leading-none max-w-full truncate'
-  const theoSize = size === 'lg' ? 'text-[11px] font-bold leading-none max-w-full truncate' : 'text-[9px] font-bold leading-none max-w-full truncate'
+  // Nel CONFRONTO (sm) le misure restano FISSE: lì le celle si allargano sulla
+  // misura canvas del testo (compareCellWidth) e non tagliano mai. Nella GRIGLIA
+  // personale (lg) il codice si adatta alla cella: vedi codeFit qui sopra.
+  const codeSize = size === 'lg' ? 'cell-fit-text font-extrabold leading-tight max-w-full truncate' : 'text-[11px] font-bold leading-none max-w-full truncate'
+  const theoSize = size === 'lg' ? 'cell-fit-text font-bold leading-none max-w-full truncate' : 'text-[9px] font-bold leading-none max-w-full truncate'
   // CONFRONTO (15/09/2026): turno sopra (P/M/N) e sezione sotto (4/5/6/DCIF…).
   // Il chip della data è STATO RIMOSSO: i giorni vivono nelle teste di colonna
   // della tabella, la card guadagna il loro spazio orizzontale.
@@ -217,7 +230,7 @@ function ShiftDayCard({
       className={cn(
         'cell-day relative text-center flex',
         size === 'lg'
-          ? cn('rounded-xl min-h-[76px]', split ? 'cell-split px-0 py-0' : 'px-0.5 pt-3 pb-1.5 flex-col items-center justify-center gap-1')
+          ? cn('rounded-xl min-h-[76px] cell-fit', split ? 'cell-split px-0 py-0' : 'px-0.5 pt-3 pb-1.5 flex-col items-center justify-center gap-1')
           : cn('rounded-lg h-[44px]', split ? 'cell-split px-0 py-0' : 'px-0.5 pt-0.5 pb-0.5 flex-col items-center justify-center gap-0'),
         cellTintClass(primaryKind, primaryToken),
         showPending && 'is-pend',
@@ -233,13 +246,15 @@ function ShiftDayCard({
             className={cn('cell-half cell-half-theo cell-barred', cellTintClass(theoKind, theo || ''))}
             style={cardOverride(theoKind, theo || '', palette)}
           >
-            <span className={theoSize}>{theo ? displayToken(theo) : '—'}</span>
+            <span className={theoSize} style={size === 'lg' ? codeFit(theo ? displayToken(theo) : '—', 11) : undefined}>
+              {theo ? displayToken(theo) : '—'}
+            </span>
           </span>
           <span
             className={cn('cell-half', cellTintClass(primaryKind, primaryToken))}
             style={cardOverride(primaryKind, primaryToken, palette)}
           >
-            <span className={codeSize}>{primaryLabel}</span>
+            <span className={codeSize} style={size === 'lg' ? codeFit(primaryLabel, 14) : undefined}>{primaryLabel}</span>
           </span>
         </>
       ) : cmpParts ? (
@@ -261,11 +276,14 @@ function ShiftDayCard({
       ) : (
         <>
           {mismatch && theo && (
-            <span className={cn('font-semibold leading-none line-through opacity-60 max-w-full truncate', size === 'lg' ? 'text-[12px]' : 'text-[8px]')}>
+            <span
+              className={cn('font-semibold leading-none line-through opacity-60 max-w-full truncate', size === 'lg' ? 'cell-fit-text' : 'text-[8px]')}
+              style={size === 'lg' ? codeFit(displayToken(theo), 12) : undefined}
+            >
               {displayToken(theo)}
             </span>
           )}
-          <span className={codeSize}>{primaryLabel}</span>
+          <span className={codeSize} style={size === 'lg' ? codeFit(primaryLabel, 14) : undefined}>{primaryLabel}</span>
         </>
       )}
     </div>

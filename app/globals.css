@@ -691,6 +691,27 @@
      se la riga non ha reali), quindi lì non esistono più celle split. */
   .cell-day.is-today { outline: 2px solid var(--primary); outline-offset: -2px; }
 
+  /* ─── CODICI LUNGHI nella griglia personale (richiesta 15/09/2026) ───
+     La colonna dei giorni è FISSA (7 colonne in max-w-lg = 65px anche su
+     desktop, 37px a 320px) mentre i codici del PDF arrivano a 7 caratteri
+     (MM3M40, NDisSal, MDCCM): a 14px «MM3M40» misura 67px e finiva SEMPRE con
+     l'ellipsis — anche su desktop. Qui il codice si adatta alla cella: la card
+     è il container (100cqw = spazio del testo), la lunghezza del codice arriva
+     da --fit-chars, il risultato è min(14px, spazio / caratteri).
+
+     0.83 em/carattere è la misura reale dei codici in Geist extrabold (MDCCM
+     0.81, MM3M40 0.80, MTUTOR 0.72, NDisSal 0.57) arrotondata per ECCESSO: il
+     font può risultare un filo più piccolo del necessario (sui codici a 5
+     caratteri 13,6px invece di 14: invisibile), mai tagliato. I 2px tolti allo
+     spazio coprono i bordi delle metà sulle card SPLIT (lì cqw è la card, ma il
+     testo vive dentro .cell-half, che ha 1px di bordo per lato).
+     Il confronto (.cmp-cell) NON è cell-fit: lì le celle si allargano sulla
+     misura canvas del testo e non tagliano mai. */
+  .cell-day.cell-fit { container-type: inline-size; }
+  .cell-day.cell-fit .cell-fit-text {
+    font-size: clamp(var(--fit-min, 8px), calc((100cqw - 2px) / (var(--fit-chars, 4) * 0.83)), var(--fit-max, 14px));
+  }
+
   /* Safe area for bottom nav */
   .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
@@ -968,6 +989,21 @@
    regole qui sopra): la classe Tailwind «flex» sulla caption vive nel layer
    utilities e batterebbe comunque una regola dentro @layer components. */
 .cal-panel .rdp-month_caption { display: none !important; }
+
+/* Ultima risorsa per i codici lunghi (richiesta 15/09/2026) — FUORI DAI LAYER,
+   come le regole qui sotto: la classe Tailwind «truncate» dei codici vive nel
+   layer utilities e batterebbe qualunque regola dentro @layer components.
+   Sotto i 44px di cella (≈ schermi ≤345px, dove «MM3M40» a 8px ne serve 38 su
+   35 disponibili) il codice invece di sparire dietro l'ellipsis VA A CAPO: la
+   riga della griglia cresce di ~8px, ma il turno si legge per intero.
+   L'altezza resta minima: solo le celle coi codici più lunghi crescono. */
+@container (max-width: 44px) {
+  .cell-day.cell-fit .cell-fit-text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+  }
+}
 
 /* Sigla del turno reale sopra la cifra dei giorni del datepicker usato per
    inserire una richiesta cambio turno (richiesta 13/09/2026): mini-pillola M/P/N
