@@ -90,13 +90,6 @@ try {
   assert.equal(classifyYellowCell('P5S', 'P5S') === undefined, false, 'sanity: chiamata valida')
   assert.equal(classifyYellowCell('', ''), null, 'cella vuota')
 
-  // ── v8 (26/09/2026): divergenze NON evidenziate (cambi definitivi) ───────
-  assert.equal(classifyYellowCell('MDCP', 'PDCIF', false)?.role, 'sostituto', 'lavoro→lavoro senza giallo (DI MEO 24/9) → sostituto')
-  assert.equal(classifyYellowCell('NDCP', 'MDCIF', false)?.role, 'sostituto', 'cambio turno senza giallo → sostituto')
-  assert.equal(classifyYellowCell('A', 'NDCP', false), null, 'assenza NON evidenziata → dato normale, niente chip')
-  assert.equal(classifyYellowCell('P6S', 'P6S', false), null, 'reale = teorico senza giallo → niente chip')
-  assert.equal(classifyYellowCell('SpCA', 'P7S', false), null, 'corso non evidenziato → niente chip')
-
   // ── yellowForDay: aggregazione per card ───────────────────────────────────
   const P = (name, days, teorico, yellow) => ({ name, days, teorico, yellow })
   const people = [
@@ -109,34 +102,30 @@ try {
     P('ESPOSITO', ['M5T'], ['P10T'], [1]),    // sostituto cambio turno → SOLO 5|M (v8)
     P('NERI', ['SpCA'], ['P7S'], [1]),        // v3: corso con teorico di sezione → 7|P (teo)
     P('SPURIA', ['P5S'], ['P5S'], [1]),       // richiedente (reale=teo) → 5|P
-    P('DI MEO 24', ['MDCP'], ['PDCIF'], []),  // v8: definitivo NON giallo → chip solo con includeUnhighlighted
+    P('DI MEO 24', ['MDCP'], ['PDCIF'], []),  // v8: definitivo NON giallo → MAI segnalato
     P('NON_GIALLO', ['A'], ['M3S'], []),      // assenza non evidenziata → fuori sempre
   ]
-  // Default (solo gialli): i definitivi NON gialli sono fuori.
-  const y = yellowForDay(people, 1)
-  assert.ok(![...y.values()].flat().some(e => e.name === 'DI MEO 24'), 'v8: definitivo non giallo escluso di default')
-  // Con includeUnhighlighted: anche i cambi definitivi generano chip.
-  const y8 = yellowForDay(people, 1, true)
-  assert.ok([...y8.values()].flat().some(e => e.name === 'DI MEO 24'), 'v8: definitivo incluso con includeUnhighlighted')
-  assert.ok(![...y8.values()].flat().some(e => e.name === 'NON_GIALLO'), 'v8: assenza non evidenziata SEMPRE fuori')
+  // v8 (26/09): SOLO le celle gialle generano la chip — un definitivo non
+  // giallo (DI MEO 24) non è mai segnalato; la destinazione unica resta.
+  const y8 = yellowForDay(people, 1)
+  assert.ok(![...y8.values()].flat().some(e => e.name === 'DI MEO 24'), 'v8: definitivo non giallo MAI segnalato')
+  assert.ok(![...y8.values()].flat().some(e => e.name === 'NON_GIALLO'), 'assenza non evidenziata SEMPRE fuori')
   // v7: showCode = sigla del reale DENTRO la chip SOLO per assenze/corsi —
   // v8: la chip sta su UNA sola card (teorica per il richiedente,
   // di DESTINAZIONE per il sostituto — ESPOSITO M5T→P10T: solo 5|M).
   const fmt = e => `${e.name}:${e.role}:${e.target}:${e.showCode}`
   assert.deepEqual(y8.get('10|P')?.map(fmt), ['SICA:richiedente:teo:false', 'MUCCI:sostituto:real:false'], 'card 10 P: richiesta pendente + sostituto da D (destinazione)')
   assert.deepEqual(y8.get('5|M')?.map(fmt), ['ESPOSITO:sostituto:real:false'], 'v8: sostituto SOLO sulla destinazione (5|M)')
-  assert.deepEqual(y8.get('DCP|M')?.map(fmt), ['SENATORE:sostituto:real:false', 'DI MEO 24:sostituto:real:false'], 'v8: DI MEO 24 (MDCP, definitivo non giallo) sulla destinazione DCP|M')
   assert.ok(!y8.get('10|P')?.some(e => e.name === 'ESPOSITO'), 'v8: niente chip sulla card di ORIGINE del sostituto')
   assert.deepEqual(y8.get('7|P')?.map(fmt), ['NERI:richiedente:teo:true'], 'corso SpCA con teorico di sezione → card teorica CON sigla (corso)')
   assert.deepEqual(y8.get('DCP|N')?.map(fmt), ['DI MONDA:richiedente:teo:true'], 'richiedente assente nella colonna teorica, sigla A (assenza → in chip)')
+  assert.deepEqual(y8.get('DCP|M')?.map(fmt), ['SENATORE:sostituto:real:false'], 'sostituto da D sulla destinazione DCP|M')
   assert.equal(y8.get('6|P')?.length, 2, 'CAIAZZO + FATIGATI sulla 6 P')
-  assert.ok(![...y8.values()].flat().some(e => e.name === 'NON_GIALLO'), 'senza giallo mai incluso')
 
   // Giorno diverso: nessuna voce.
   assert.equal(yellowForDay(people, 2).size, 0, 'giorno senza gialli → mappa vuota')
-  assert.equal(yellowForDay(people, 2, true).size, 0, 'v8: giorno senza divergenze → vuoto anche con includeUnhighlighted')
 
-  console.log('PASS — gialli v8: chip su UNA sola card (destinazione per i sostituti), inclusi i cambi definitivi non gialli (solo lavoro→lavoro)')
+  console.log('PASS — gialli v8: SOLO celle gialle (i definitivi non gialli non si segnalano), chip su UNA sola card (destinazione per i sostituti)')
 } finally {
   rmSync(dir, { recursive: true, force: true })
 }
