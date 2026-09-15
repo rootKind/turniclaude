@@ -1,5 +1,5 @@
 import type { DaySchedule, SalaMonthData } from '@/types/database'
-import { applyTokenToDay, isShiftWorkCode, parseShiftCode } from '@/lib/shift-tokens'
+import { NON_SECTION_DUTIES, applyTokenToDay, isPresentNoSection, isShiftWorkCode, parseShiftCode } from '@/lib/shift-tokens'
 import { matchesCognome } from '@/lib/utils'
 import { personNameMatches, type PersonRef } from '@/lib/person-shift'
 import type { BareOwnerMap } from '@/lib/shift-teams-matching'
@@ -258,18 +258,27 @@ export function classifyYellowCell(
   if (r && r.toUpperCase() === t.toUpperCase() && isShiftWorkCode(r)) return { role: 'richiedente' }
   // Cambio TURNO: reale e teorico lavorano, ma in turni diversi.
   if (isShiftWorkCode(r) && isShiftWorkCode(t) && r[0].toUpperCase() !== t[0].toUpperCase()) return { role: 'sostituto' }
+  // Cambio SEZIONE a stesso turno (P7S→P4S): la persona si sposta di sezione
+  // restando nel turno — il giallo la segue su entrambe le card (v3, 25/09).
+  if (isShiftWorkCode(r) && isShiftWorkCode(t)) return { role: 'sostituto' }
+  // Attività SENZA sezione (corso/trasferta/istruttore: SpCA, SpN, ISp*,
+  // Dis*, Trasf, TUTOR…) con teorico di SEZIONE: il PDF sposta la persona
+  // fuori scheda ma la cella gialla la lega ancora alla sua sezione teorica
+  // (i corsi SPCA del 23/9) → pallino giallo sulla card teorica, fuori dai
+  // sottogruppi (richiesta 25/09/2026 v3).
+  if (isPresentNoSection(r) && isShiftWorkCode(t)) return { role: 'richiedente' }
   return null
 }
 
 /**
- * Il contenuto GIALLO del PDF per un giorno (richiesta 24/09/2026 v2):
- * NESSUN blocco a fondo card — i nomi gialli vivono DENTRO l'elenco delle
- * sezioni. Per ogni persona gialla ritorna le card su cui evidenziarla:
- *  - RICHIEDENTE (assenza in giallo o richiesta pendente): la card della
- *    sua SEZIONE TEORICA (turno teorico) — «doveva stare qui quel giorno».
- *  - SOSTITUTO (chiamato da D / dal proprio riposo / cambio turno): la card
- *    del turno REALE (dove lavora davvero) e, se il teorico lo metteva su
- *    una sezione di un ALTRO turno, anche quella (da dove viene).
+ * Il contenuto GIALLO del PDF per un giorno (richiesta 24/09/2026 v3):
+ * NESSUN blocco a fondo card e NESSUN testo giallo: per ogni persona gialla
+ * ritorna le card su cui mettere il PALLINO giallo:
+ *  - la SEZIONE TEORICA, se è una sezione di turno M/P/N: lì la persona resta
+ *    «in servizio» col pallino — il PDF la colloca ancora lì (i corsi SPCA
+ *    del 23/9 con teorico P7S/P8/…) o l'assenza è del suo turno;
+ *  - la sezione REALE, se diversa: il sostituto/cambiato compare anche sulla
+ *    card dove lavora davvero quel giorno.
  */
 export function yellowForDay(
   people: MonthPersonShifts[],
@@ -294,28 +303,29 @@ export function yellowForDay(
 }
 
 /**
- * Card su cui spargere il giallo di una cella, come TOKEN «sezione+turno»
- * (vedi yellowForDay). Set per non duplicare la card teorica quando coincide
- * con quella reale (es. richiedente pendente) o il doppio spruzzo del
- * sostituto (es. teorico D, nessuna sezione teorica da mostrare).
+ * Card su cui mostrare il giallo di una cella, come TOKEN «sezione+turno»
+ * (vedi yellowForDay). Set per non duplicare la card quando teorico e reale
+ * coincidono. SOLO sezioni di turno M/P/N: le attività SENZA sezione (SpCA,
+ * SpN, Trasf, NDis*, TUTOR…) NON generano card — la persona resta nei suoi
+ * sottogruppi (Corsi/Trasferte/…), i quali NON la elencano quando è gialla
+ * (richiesta 24/09/2026 v3: il pallino giallo sulla card teorica parla già
+ * di lei). Il ruolo NON cambia più i target: la sezione teorica è sempre la
+ * prima card (il PDF la colloca lì), il reale aggiunge solo se diverso.
  */
 function yellowTargetTokens(real: string, teo: string, role: 'richiedente' | 'sostituto'): string[] {
+  void role
   const targets = new Set<string>()
-  // Solo codici CON SEZIONE producono una card (D/RC/RI/RM/assenze no).
-  const isSection = (t: string) => isShiftWorkCode(t)
-  if (role === 'richiedente') {
-    // La card della SEZIONE TEORICA (dove sarebbe stato quel giorno);
-    // fallback sul reale solo se il teorico non è una sezione.
-    if (isSection(teo)) targets.add(teo)
-    else if (isSection(real)) targets.add(real)
-  } else {
-    // La card dove lavora davvero (sempre: il classificatore garantisce
-    // che il reale del sostituto è un turno lavorativo).
-    if (isSection(real)) targets.add(real)
-    // Se il teorico lo collocava su una sezione di un ALTRO turno (es. era
-    // P10S ed è chiamato in M), giallo anche LÀ: la sua sezione teorica.
-    // Un teorico D/riposo invece non ha sezione → nessuna seconda card.
-    if (isSection(teo) && parseShiftCode(teo).shift !== parseShiftCode(real || teo).shift) targets.add(teo)
+  const sectionToken = (t: string) => {
+    if (!isShiftWorkCode(t)) return null
+    // Attività SENZA sezione (SpCA/SpN/ISp*/N?Dis*/TUTOR/nudi M|N|P): non
+    // generano card — la persona resta nei sottogruppi (fuori se gialla).
+    if (isPresentNoSection(t)) return null
+    const p = parseShiftCode(t)
+    return NON_SECTION_DUTIES.has(p.section.toUpperCase()) ? null : t
   }
+  const teoSection = sectionToken(teo)
+  if (teoSection) targets.add(teoSection)
+  const realSection = role === 'sostituto' ? sectionToken(real) : null
+  if (realSection) targets.add(realSection)
   return [...targets]
 }

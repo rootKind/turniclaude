@@ -547,11 +547,26 @@ export function DeskBoard({
     }
     return map
   }, [schedule, selectedDay])
+  // Persone con CELLA GIALLA del PDF quel giorno (v3, 25/09/2026): set di
+  // nomi normalizzati per ESCLUDERE i gialli da righe rosse del teorico≠reale,
+  // extra di gruppo e blocco Assenti — il pallino giallo sulla card teorica
+  // li rappresenta già. Definita PRIMA dei suoi consumatori.
+  const yellowPeople = useMemo(() => {
+    const set = new Set<string>()
+    if (isEditing || !schedule?.data) return set
+    // TUTTI i gialli del giorno (non solo quelli classificati): l'esclusione
+    // da gruppi/Assenti/teorico≠reale riguarda la CELLA del PDF, che esiste
+    // anche quando il classificatore non ne deduce un ruolo.
+    for (const p of decodeSalaMonth(schedule.data)) {
+      if (p.yellow.includes(selectedDay)) set.add(normName(p.name))
+    }
+    return set
+  }, [schedule, selectedDay, isEditing])
   const theoCompareBySection = useMemo(() => {
     if (!theoDiffEnabled || !shiftTree || !schedule) return new Map<string, TheoRealSectionCompare>()
     const day = schedule.schedule[selectedDay]
-    return theoRealSectionCompare(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day, realCodesForDay, bareOwners, duplicateCognomi)
-  }, [theoDiffEnabled, shiftTree, schedule, selectedDay, currentMonth, realCodesForDay, bareOwners, duplicateCognomi])
+    return theoRealSectionCompare(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, day, realCodesForDay, bareOwners, duplicateCognomi, yellowPeople)
+  }, [theoDiffEnabled, shiftTree, schedule, selectedDay, currentMonth, realCodesForDay, bareOwners, duplicateCognomi, yellowPeople])
   // Confronto per CARD: la card guarda la sua sezione collegata (sectionKey o titolo).
   const theoCompareByCardId = useMemo(() => {
     const map = new Map<string, TheoRealSectionCompare>()
@@ -613,8 +628,8 @@ export function DeskBoard({
   // sono fatti reali del PDF, non confronti.
   const assenti: Map<string, AssenteDelTurno[]> = useMemo(() => {
     if (!shiftTree) return new Map()
-    return assentiPerTurno(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, realCodesForDay, bareOwners, duplicateCognomi)
-  }, [shiftTree, currentMonth, selectedDay, realCodesForDay, bareOwners, duplicateCognomi])
+    return assentiPerTurno(currentMonth, selectedDay, shiftTree, shiftTree.adjustments, realCodesForDay, bareOwners, duplicateCognomi, yellowPeople)
+  }, [shiftTree, currentMonth, selectedDay, realCodesForDay, bareOwners, duplicateCognomi, yellowPeople])
 
   const scheduleSections: string[] = schedule
     ? [...new Set([
@@ -665,8 +680,13 @@ export function DeskBoard({
     // I mesi v2 portano già altriPresentiTokens (name → token PDF): la entry
     // del gruppo mostra il codice accanto al nome (richiesta 24/09). I mesi v1
     // non hanno token → entry senza codice, gruppo «Altre attività».
+    // Persona GIALLA (v3, 25/09/2026): resta FUORI dai sottogruppi — il pallino
+    // giallo sulla sua card teorica la rappresenta già (vale per tutti i
+    // gruppi: SPCA giallo non finisce nei «Corsi», ecc.).
     return groupAltriPresenti(day)
-  }, [schedule, selectedDay, isEditing])
+      .map(g => ({ ...g, entries: g.entries.filter(e => !yellowPeople.has(normName(e.name))) }))
+      .filter(g => g.entries.length > 0)
+  }, [schedule, selectedDay, isEditing, yellowPeople])
 
   // Build grid: rows 1-4, cols left/center/right
   const usedRows: number[] = isEditing

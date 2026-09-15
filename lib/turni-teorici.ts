@@ -244,6 +244,10 @@ export function theoRealSectionCompare(
   realCodes?: Map<string, string>,
   bareOwners?: BareOwnerMap | null,
   duplicateCognomi?: Set<string>,
+  /** Nomi (normalizzati) delle persone GIALLE quel giorno: la card le mostra
+   *  già col PALLINO giallo nella sezione teorica → nessuna riga rossa del
+   *  teorico≠reale e nessun «extra» nei sottogruppi (richiesta 24/09/2026 v3). */
+  yellowPeople?: Set<string>,
 ): Map<string, TheoRealSectionCompare> {
   const dateISO = `${month}-${String(day).padStart(2, '0')}`
   // 1) teorico: token per MEMBRO (non collassato per cognome: gli omonimi
@@ -358,6 +362,9 @@ export function theoRealSectionCompare(
       // legato): attribuibile SOLO via bare owner, altrimenti salta.
       if (norm === key && ((theoCognomeCount.get(key) ?? 0) > 1 || dupCognomi.has(key)) && !bareOwnerOf.has(key)) continue
       grSeen.add(norm)
+      // Persona gialla: resta FUORI dai sottogruppi (il pallino giallo sulla
+      // sua card teorica la rappresenta — richiesta 24/09/2026 v3).
+      if (yellowPeople?.has(norm)) continue
       const theo = theoByExact.get(norm) ?? (norm === key && (theoCognomeCount.get(key) ?? 0) === 1 ? theoByCognome.get(key) : undefined)
       grExtras.push({
         name: n,
@@ -393,6 +400,11 @@ export function theoRealSectionCompare(
     const isOwner = !ownerNorm || norm === ownerNorm
     const cognomeCode = isOwner ? realCodes?.get(cognomeKey) : undefined
     const exactCode = realCodes?.get(norm)
+    // Persona GIALLA (cella «da confermare» del PDF): la sua card la mostra
+    // già col PALLINO giallo nella sezione teorica → niente riga rossa.
+    // Match su nome esatto o COGNOME (surnameKey gestisce le forme con
+    // iniziale/nome: «Caiazzo M.» = «Caiazzo Mario» nel giallo).
+    if (yellowPeople?.has(norm) || yellowPeople?.has(cognomeKey)) continue
     // Omonimi: le posizioni reali della STESSA persona (nome esatto) se il PDF
     // le distingue («DI NAPOLI A.»), altrimenti tutte quelle del cognome — ma i
     // NON proprietari del bare vedono SOLO le posizioni con la loro iniziale.
@@ -432,6 +444,9 @@ export function theoRealSectionCompare(
           const dedup = `${key}|${shift}|${section}`
           if (!key || seenExtras.has(dedup)) continue
           seenExtras.add(dedup)
+          // Persona gialla: il pallino giallo sulla sua card la rappresenta
+          // già → nessuna riga rossa «extra» (v3, 24/09/2026).
+          if (yellowPeople?.has(normName(name))) continue
           const theoToken = theoByExact.get(normName(name)) ?? theoByCognome.get(key)
           // Non è un «Nuovi» se una posizione reale di questo cognome con lo
           // stesso turno+sezione è stata CONSUMATA da un teorico confermato
@@ -494,6 +509,9 @@ export function assentiPerTurno(
   realCodes?: Map<string, string>,
   bareOwners?: BareOwnerMap | null,
   duplicateCognomi?: Set<string>,
+  /** Nomi (normalizzati) GIALLI quel giorno: la card li mostra col pallino
+   *  giallo nella sezione teorica → fuori dal blocco Assenti (v3, 24/09). */
+  yellowPeople?: Set<string>,
 ): Map<string, AssenteDelTurno[]> {
   const dateISO = `${month}-${String(day).padStart(2, '0')}`
   const dupCognomi = new Set([...(duplicateCognomi ?? [])].map(normName))
@@ -529,11 +547,26 @@ export function assentiPerTurno(
   }
   const out = new Map<string, AssenteDelTurno[]>()
   if (!realCodes?.size) return out
+  // Chiavi dei GIALLI per l'esclusione: nome normalizzato + COGNOME base
+  // (surnameKey gestisce «CAIAZZO M.» → «caiazzo» e «DI NAPOLI M.» →
+  // «di napoli» senza collassare i DI* su «di»).
+  const yellowKeys = new Set<string>()
+  if (yellowPeople?.size) {
+    for (const y of yellowPeople) {
+      yellowKeys.add(y)
+      yellowKeys.add(surnameKey(y))
+    }
+  }
   // realCodes ha DUE chiavi per persona (cognome + nome normalizzato, stessa
   // sigla): una persona risolta va contata una volta sola.
   const seenPersons = new Set<string>()
   for (const [key, code] of realCodes) {
     if (!isAbsenceCode(code)) continue
+    // Giallo: rappresentato dal pallino sulla card teorica, non qui. La chiave
+    // di realCodes è nome/cognome (non il codice): il controllo va sulla
+    // PERSONA, per nome esatto o cognome base.
+    const kPre = normName(key)
+    if (yellowKeys.has(kPre) || yellowKeys.has(surnameKey(key))) continue
     const k = normName(key)
     const bare = k === key
     const ownerNorm = bareOwnerOf.get(k)

@@ -113,6 +113,15 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
   const getColor = (name: string) => card.surnameColors?.[name]
 
   const renderDot = (name: string) => {
+    // Pallino GIALLA del PDF (v3, 25/09/2026): cella gialla = persona
+    // «da confermare» che il PDF colloca ancora qui → pallino giallo accanto
+    // al nome (niente testo/codice giallo, niente sezione: la card è già
+    // quella giusta). Stessa tinta del testo giallo, leggibile su entrambi i
+    // temi. I pallini dei colori scelti dall'admin hanno la precedenza SOLO
+    // se la persona è anche colorata — il giallo vince (è un fatto del PDF).
+    if (yellowForSlot.has(normName(name))) {
+      return <span style={{ color: 'var(--cell-yellow-text)' }} className="select-none">●</span>
+    }
     const col = getColor(name)
     if (!col) return null
     if (col === 'green') return <span className="text-emerald-500 select-none">●</span>
@@ -127,18 +136,14 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     const slotClass = getSlotClass(i)
     const resolved = lookupNameDisplay(surname, nameDisplay)
     const label = resolved ?? toTitleCase(surname)
-    // GIALLO del PDF (24/09/2026 v2): persona di questa card con cella gialla
-    // quel giorno → nome (e codice) in giallo DENTRO l'elenco.
-    const y = yellowForSlot.get(normName(surname))
     return (
       <span className={`text-sm whitespace-nowrap leading-tight flex items-center gap-0.5 ${slotClass}`}>
         {dot}
         {surname ? (
-          <span className={y ? 'font-semibold text-[var(--cell-yellow-text)]' : undefined}>{label}</span>
+          <span>{label}</span>
         ) : (
           <span className="text-muted-foreground/40">—</span>
         )}
-        {y && y.code && <span className="text-xs tabular-nums font-semibold text-[var(--cell-yellow-text)]">{y.code}</span>}
         {dot}
       </span>
     )
@@ -372,15 +377,17 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
         )}
       </div>
 
-      {/* GIALLI non presenti nell'elenco (24/09/2026 v2): righe aggiunte in
-          coda, in giallo, con il codice reale — il richiedente sta nella
-          colonna teorica, il sostituto dove lavora davvero. */}
+      {/* GIALLI non presenti nell'elenco (v3, 25/09/2026): in fondo alla card,
+          righe in giallo col PALLINO — «Sost.» quando lavora qui senza esservi
+          previsto, «Cong.» per il richiedente assente. Niente codici né sezioni:
+          la posizione parla già (richiesta 25/09/2026). */}
       {!isEditing && yellowAdditions.length > 0 && (
         <div className="border-t sala-card-title-sep shrink-0 flex flex-col items-center gap-0.5 px-2 py-1">
           {yellowAdditions.map((y, i) => (
             <span key={i} className="flex items-center gap-1 text-sm leading-tight whitespace-nowrap font-semibold text-[var(--cell-yellow-text)]">
+              <span style={{ color: 'var(--cell-yellow-text)' }} className="select-none">●</span>
+              {y.role === 'sostituto' ? 'Sost.' : 'Cong.'}
               {rowLabel(y.name, nameDisplay)}
-              {y.code && <span className="text-xs tabular-nums">{y.code}</span>}
             </span>
           ))}
         </div>

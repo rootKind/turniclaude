@@ -1107,10 +1107,27 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   turno, anche lì (Set per non duplicare). In desk-card: chi è già
   nell'elenco viene EVIDENZIATO (nome+codice in --cell-yellow-text via
   yellowForSlot, match tollerante normName/surnameKey/cognomeOf); chi manca
-  viene AGGIUNTO in coda in giallo col codice (yellowAdditions); riga nuda
-  di cognome DUPLICATO in anagrafica → NON aggiunta (ambigua, come nel resto
-  dell'app). Verificato live mar g22 (chip M: Caiazzo I./Nevano P./Senatore/
-  Esposito Al.; chip P: Sica+Mucci su DCO 10°), entrambi i temi.
+  viene AGGIUNTO in coda (blocco in fondo). Verificato live mar g22, entrambi
+  i temi.
+  REWORK v3 (25/09/2026): NIENTE testo/codice giallo — PALLINO giallo.
+  yellowTargetTokens: card della SEZIONE TEORICA sempre (il PDF colloca lì
+  la persona: i corsi SPCA del 23/9 con teorico P7S/P8 restano sulla LORO
+  card) + card del turno REALE per il sostituto (cambio turno/sezione, da D,
+  da riposo). Classificatore esteso: cambio SEZIONE a stesso turno (P7S→P4S)
+  e attività SENZA sezione (SpCA/SpN/ISp*/Dis*/Trasf/TUTOR) con teorico di
+  sezione → classificati (prima scartati); teorico «D» con reale senza
+  sezione → null (nessuna card). In desk-card: renderDot mette il PALLINO
+  giallo (var(--cell-yellow-text), precede i dot admin) accanto al nome;
+  chi manca dall'elenco → blocco in fondo «● Sost. Nome» / «● Cong. Nome»
+  (niente codici né sezioni: la posizione parla già). EXCLUSIONI (v3): i
+  gialli escono da righe rosse del teorico≠reale, extra di sezione e di
+  gruppo, blocco Assenti e SOTTOGRUPI della board (filter su entries;
+  23/9: Corsi sparisce, resta solo Stringile/Spagnulo in Trasferte) —
+  yellowPeople in desk-board è TUTTI i gialli del giorno (yellow.includes),
+  il match è per nome E cognome (surnameKey, forme «Caiazzo M.»).
+  Verificato live: mar g22 chip M (9 pallini su DCCM/DCO 10°/DCP/DCO 7°),
+  set g23 chip P (Cong.Minino DCO 8°, Cong.Lucignano DCO 4°, Cong.Neri
+  DCO 7° + pallini nelle card reali).
   NOTA DEV: dopo un commit, il watcher CSS del dev server può restare su un
   chunk vecchio (variabili nuove assenti) → touch app/globals.css o restart
   del server. FIX highlight: le pill del blocco Assenti ora hanno il check isMe

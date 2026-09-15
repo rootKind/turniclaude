@@ -1,10 +1,11 @@
-// Contratto delle CELLE GIALLE del PDF (richiesta 24/09/2026): per ogni cella
+// Contratto delle CELLE GIALLE del PDF (v3, 25/09/2026): per ogni cella
 // gialla, classifyYellowCell distingue RICHIEDENTE (congedo accordato: assenza
-// A/AG7/F.E./VS o reale = teorico di sezione) da SOSTITUTO (lavora sul riposo
-// RC/RM/RI, arriva dalla Disponibilità «D», o cambia turno). yellowForDay
-// aggrega sotto la chiave «sezione|turno» della card (richiedente = colonna
-// teorica, sostituto = reale). I gialli NON compatibili con un congedo restano
-// fuori (nessun falso positivo su celle gialle spurie).
+// A/AG7/F.E./VS, reale = teorico di sezione, o attività SENZA sezione tipo
+// SpCA con teorico di sezione) da SOSTITUTO (lavora sul riposo RC/RM/RI,
+// arriva dalla Disponibilità «D», cambia turno O sezione). yellowForDay
+// aggrega sotto la chiave «sezione|turno» delle card: SEZIONE TEORICA sempre
+// (il PDF colloca lì la persona), + sezione REALE per il sostituto. I gialli
+// spurî restano fuori (nessun falso positivo).
 import assert from 'node:assert/strict'
 import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -73,11 +74,16 @@ try {
   assert.equal(classifyYellowCell('P10T', 'D')?.role, 'sostituto', 'da Disponibilità → sostituto')
   assert.equal(classifyYellowCell('MDCP', 'D')?.role, 'sostituto', 'sezione alfabetica da D → sostituto')
   assert.equal(classifyYellowCell('P6S', 'RI')?.role, 'sostituto', 'lavora sul proprio riposo → sostituto')
-  // NB: P4S/P7S è stesso TURNO (cambia solo la sezione) → NON è cambio turno.
-  // La cella gialla con reale lavorativo ≠ teorico, teorico NON «D»/riposo è
-  // ambigua: il classificatore NON la marca (niente falsi positivi).
-  assert.equal(classifyYellowCell('P4S', 'P7S'), null, 'stesso turno, sezione diversa: NON classificato')
+  // NB: P4S/P7S è stesso TURNO con cambio SEZIONE → sostituto (v3): il giallo
+  // segue la persona sulla card reale oltre alla teorica.
+  assert.equal(classifyYellowCell('P4S', 'P7S')?.role, 'sostituto', 'cambio sezione a stesso turno → sostituto')
   assert.equal(classifyYellowCell('M5T', 'P10T')?.role, 'sostituto', 'cambio turno M→P → sostituto')
+  // v3: attività SENZA sezione (SpCA/SpN/Dis*/TUTOR…) con teorico di sezione →
+  // richiedente: pallino sulla card teorica, fuori dai sottogruppi.
+  assert.equal(classifyYellowCell('SpCA', 'P7S')?.role, 'richiedente', 'corso SpCA con teorico di sezione → richiedente')
+  assert.equal(classifyYellowCell('ISpN', 'M3S')?.role, 'richiedente', 'istruttore ISpN con teorico di sezione → richiedente')
+  assert.equal(classifyYellowCell('DisNa', 'N5S')?.role, 'richiedente', 'trasferta con teorico di sezione → richiedente')
+  assert.equal(classifyYellowCell('SpCA', 'D'), null, 'corso con teorico Disponibilità: NON classificato (nessuna card)')
 
   // Casi FUORI (nessun falso positivo).
   assert.equal(classifyYellowCell('RC', 'RC'), null, 'riposo su riposo: non è né richiesta né sostituzione')
@@ -93,17 +99,19 @@ try {
     P('SENATORE', ['MDCP'], ['D'], [1]),      // sostituto → DCP|M (sezione DCP, mattina)
     P('DI MONDA', ['A'], ['NDCP'], [1]),      // richiedente → DCP|N (colonna teorica, notte)
     P('FATIGATI', ['P6S'], ['P6S'], [1]),     // richiedente → 6|P
-    P('ESPOSITO', ['M5T'], ['P10T'], [1]),    // sostituto cambio turno → 5|M
+    P('ESPOSITO', ['M5T'], ['P10T'], [1]),    // sostituto cambio turno → 5|M + teo 10|P
+    P('NERI', ['SpCA'], ['P7S'], [1]),        // v3: corso con teorico di sezione → 7|P (richiedente)
     P('SPURIA', ['P5S'], ['P5S'], [1]),       // richiedente (reale=teo) → 5|P
     P('NON_GIALLO', ['A'], ['M3S'], []),      // senza giallo → fuori sempre
   ]
   const y = yellowForDay(people, 1)
-  assert.deepEqual([...y.keys()].sort(), ['10|P', '5|M', '5|P', '6|P', 'DCP|M', 'DCP|N'], 'chiavi sezione|turno')
+  assert.deepEqual([...y.keys()].sort(), ['10|P', '5|M', '5|P', '6|P', '7|P', 'DCP|M', 'DCP|N'], 'chiavi sezione|turno')
   assert.deepEqual(y.get('10|P')?.map(e => `${e.name}:${e.role}`), ['SICA:richiedente', 'MUCCI:sostituto', 'ESPOSITO:sostituto'], 'card 10 P = coppia richiesta+sostituto + teorico di ESPOSITO')
   // v2 (24/09/2026): il sostituto che cambia turno viene sparso ANCHE sulla
   // sua sezione teorica (da dove viene) — ESPOSITO su 5|M (reale) e 10|P (teo).
   assert.deepEqual(y.get('5|M')?.map(e => e.name), ['ESPOSITO'], 'sostituto nella card dove lavora')
   assert.deepEqual(y.get('10|P')?.map(e => e.name), ['SICA', 'MUCCI', 'ESPOSITO'], 'ESPOSITO anche sulla sezione teorica 10|P')
+  assert.deepEqual(y.get('7|P')?.map(e => `${e.name}:${e.role}`), ['NERI:richiedente'], 'v3: corso SpCA con teorico di sezione → pallino sulla card teorica')
   assert.deepEqual(y.get('DCP|N')?.map(e => e.name), ['DI MONDA'], 'richiedente nella colonna teorica (notte)')
   assert.equal(y.get('6|P')?.length, 2, 'CAIAZZO + FATIGATI sulla 6 P')
   assert.ok(![...y.values()].flat().some(e => e.name === 'NON_GIALLO'), 'senza giallo mai incluso')
@@ -111,7 +119,7 @@ try {
   // Giorno diverso: nessun giallo.
   assert.equal(yellowForDay(people, 2).size, 0, 'giorno senza gialli → mappa vuota')
 
-  console.log('PASS — gialli: richiedente/sostituto, chiavi per card, falsi positivi esclusi')
+  console.log('PASS — gialli v3: richiedente/sostituto, corsi senza sezione sulla card teorica, chiavi per card, falsi positivi esclusi')
 } finally {
   rmSync(dir, { recursive: true, force: true })
 }
