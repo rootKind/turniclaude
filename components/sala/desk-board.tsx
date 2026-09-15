@@ -11,7 +11,7 @@ import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
-import { decodeSalaMonth } from '@/lib/sala-month'
+import { decodeSalaMonth, yellowForDay, type YellowEntry } from '@/lib/sala-month'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName, matchesCognome } from '@/lib/utils'
 import { buildBareOwners, lookupNameDisplay, type BareOwnerMap } from '@/lib/shift-teams-matching'
@@ -583,6 +583,23 @@ export function DeskBoard({
     return m
   }, [theoCompareBySection])
 
+  // CELLE GIALLE del PDF (richiesta 24/09/2026): richiedenti congedo + presunti
+  // sostituti del giorno, aggregati per chiave «sezione|turno» delle card.
+  // Solo mesi v2 (le gialle stanno nei dati compatti); teorico≠reale non serve.
+  const yellowByCard = useMemo(() => {
+    const map = new Map<string, YellowEntry[]>()
+    if (isEditing || !schedule?.data) return map
+    const perSection = yellowForDay(decodeSalaMonth(schedule.data), selectedDay)
+    if (!perSection.size) return map
+    const shift = selectedShift
+    for (const card of cards) {
+      const key = `${card.sectionKey ?? card.title}|${shift}`
+      const entries = perSection.get(key)
+      if (entries?.length) map.set(card.id, entries)
+    }
+    return map
+  }, [schedule, selectedDay, selectedShift, cards, isEditing])
+
   // BLOCCO «ASSENTI» (richiesta 23/09/2026): chi nel PDF del giorno ha una
   // sigla di assenza (A/AG7/F.E./VS…), attribuito al SOLO turno teorico della
   // persona — mai in tutti e tre. Righe con tinta assenza (come le celle
@@ -825,6 +842,7 @@ export function DeskBoard({
                           : undefined}
                         theoCompare={theoCompareByCardId.get(card.id)}
                         nameDisplay={nameDisplay}
+                        yellowEntries={yellowByCard.get(card.id)}
                       />
                     ))}
                   </DroppableCell>
@@ -888,15 +906,18 @@ export function DeskBoard({
           {(assenti.get(selectedShift)?.length ?? 0) > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-muted-foreground shrink-0">Assenti:</span>
-              {assenti.get(selectedShift)!.map((a, i) => (
-                <span
-                  key={i}
-                  className="text-xs px-2 py-0.5 rounded-full cell-tint-abs"
-                >
-                  {displayForPdfName(a.name)}
-                  <span className="tabular-nums font-semibold opacity-80"> {a.code}</span>
-                </span>
-              ))}
+              {assenti.get(selectedShift)!.map((a, i) => {
+                const isMe = matchesCognome([a.name], userCognome, userNome, duplicateCognomi, bareOwners)
+                return (
+                  <span
+                    key={i}
+                    className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : 'cell-tint-abs'}`}
+                  >
+                    {displayForPdfName(a.name)}
+                    <span className="tabular-nums font-semibold opacity-80"> {a.code}</span>
+                  </span>
+                )
+              })}
             </div>
           )}
         </div>

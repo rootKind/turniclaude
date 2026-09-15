@@ -1,5 +1,5 @@
 import type { DaySchedule, SalaMonthData } from '@/types/database'
-import { applyTokenToDay, isShiftWorkCode } from '@/lib/shift-tokens'
+import { applyTokenToDay, isShiftWorkCode, parseShiftCode } from '@/lib/shift-tokens'
 import { matchesCognome } from '@/lib/utils'
 import { personNameMatches, type PersonRef } from '@/lib/person-shift'
 import type { BareOwnerMap } from '@/lib/shift-teams-matching'
@@ -202,4 +202,93 @@ export function personDayShift(
   const token = person.days[day - 1]
   if (!token) return null
   return { ...salaCodeInfo(token), pending: person.yellow.includes(day) }
+}
+
+// ─── CELLE GIALLE del PDF: congedo + presunto sostituto (richiesta 24/09/2026) ───
+//
+// Sul PDF una cella gialla segnala una RICHIESTA di congedo/ferie e il suo
+// PRESUNTO SOSTITUTO. Dall'analisi dei 5 mesi reali (100 gialli, 23 giorni con
+// cluster) emergono due ruoli:
+//  1. RICHIEDENTE: il congedo è GIÀ ACCETTATO → il codice REALE è un'assenza
+//     (A/AG7/F.E./VS) o rimane quello teorico di sezione; il teorico è spesso
+//     «D» (disponibilità, la cella di partenza della richiesta).
+//  2. SOSTITUTO PRESUNTO: chiamato a coprire → lavora SUL PROPRIO RIPOSO
+//     (RC/RM/RI in reale) o cambia TURNO rispetto al teorico (es. M→P).
+// Non-gialli che soddisfano gli stessi criteri restano FUORI: il giallo è la
+// firma del PDF, il classificatore può solo confermarla.
+
+/** Ruolo della persona in una cella gialla del PDF. */
+export interface YellowEntry {
+  name: string
+  /** Codice reale (già nel codice della cella). */
+  code: string
+  role: 'richiedente' | 'sostituto'
+}
+
+/** true se il token è un'assenza di congedo (A, AG/AG7, F/ferie, F.E., VS). */
+export function isLeaveToken(token: string): boolean {
+  const t = (token ?? '').trim()
+  if (!t) return false
+  if (/^AG\d+$/i.test(t)) return true
+  if (/^F\.?E\.?$/i.test(t)) return true
+  return ['A', 'AG', 'F', 'VS'].includes(t.toUpperCase())
+}
+
+/**
+ * Classifica la cella gialla di una persona (giorno, codice reale, codice
+ * teorico pre-stampato) nel suo ruolo. Ritorna null se i codici NON sono
+ * compatibili con un congedo (giallo spurio: es. festività già gialle).
+ */
+export function classifyYellowCell(
+  real: string,
+  teo: string,
+): { role: 'richiedente' | 'sostituto' } | null {
+  const r = (real ?? '').trim()
+  const t = (teo ?? '').trim()
+  if (isLeaveToken(r)) return { role: 'richiedente' }
+  // Teorico «D» (disponibilità) + reale lavorativo → il chiamato a coprire.
+  if (/^D$/i.test(t) && isShiftWorkCode(r)) return { role: 'sostituto' }
+  // Sostituto sul PROPRIO RIPOSO: il teorico era RC/RM/RI e il reale è un
+  // turno lavorativo — lavora dove era previsto il suo riposo
+  // (es. CAIAZZO M. P6S/RI giallo il 19/03).
+  if (['RC', 'RM', 'RI'].includes(t.toUpperCase()) && isShiftWorkCode(r)) return { role: 'sostituto' }
+  // Richiesta PENDENTE: il PDF mostra ancora la persona nel turno/sezione
+  // previsti (reale = teorico) e la cella gialla segnala la richiesta in attesa
+  // (es. FATIGATI P6S/P6S giallo nel cluster congedi del 15/03).
+  if (r && r.toUpperCase() === t.toUpperCase() && isShiftWorkCode(r)) return { role: 'richiedente' }
+  // Cambio TURNO: reale e teorico lavorano, ma in turni diversi.
+  if (isShiftWorkCode(r) && isShiftWorkCode(t) && r[0].toUpperCase() !== t[0].toUpperCase()) return { role: 'sostituto' }
+  return null
+}
+
+/**
+ * Il contenuto GIALLO del PDF per un giorno: richiedenti il congedo e presunti
+ * sostituti, ciascuno aggregato sotto la chiave «sezione|turno» della card in
+ * cui il PDF colloca la cella (per il richiedente la colonna TEORICA = dove
+ * sarebbe stato; per il sostituto che cambia turno il REALE = dove va davvero).
+ */
+export function yellowForDay(
+  people: MonthPersonShifts[],
+  day: number,
+): Map<string, YellowEntry[]> {
+  const out = new Map<string, YellowEntry[]>()
+  for (const p of people) {
+    if (!p.yellow.includes(day)) continue
+    const real = p.days[day - 1] ?? ''
+    const teo = p.teorico[day - 1] ?? ''
+    const cls = classifyYellowCell(real, teo)
+    if (!cls) continue
+    const key = yellowSectionKey(real, teo, cls.role)
+    const arr = out.get(key) ?? []
+    arr.push({ name: p.name, code: real, role: cls.role })
+    out.set(key, arr)
+  }
+  return out
+}
+
+/** Chiave «sezione|turno» di una cella gialla (vedi yellowForDay). */
+function yellowSectionKey(real: string, teo: string, role: 'richiedente' | 'sostituto'): string {
+  const token = role === 'richiedente' ? (teo || real) : (real || teo)
+  const parsed = parseShiftCode(token)
+  return `${parsed.section}|${parsed.shift}`
 }

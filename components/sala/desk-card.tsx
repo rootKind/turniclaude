@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import type { DeskCard as DeskCardType } from '@/types/database'
 import type { TheoRealSectionCompare } from '@/lib/turni-teorici'
 import { lookupNameDisplay } from '@/lib/shift-teams-matching'
+import type { YellowEntry } from '@/lib/sala-month'
 
 interface Props {
   card: DeskCardType
@@ -27,6 +28,10 @@ interface Props {
    *  dal PDF («nevano pietro»), valore = «Nevano P.». Dove appare il solo
    *  cognome evita gli equivoci fra persone con lo stesso cognome. */
   nameDisplay?: Map<string, string>
+  /** CELLE GIALLE del PDF (richiesta 24/09/2026): richiedenti il congedo e
+   *  presunti sostituti di QUESTA card (chiave «sezione|turno»), pill gialla
+   *  con ruolo. Undefined se non ci sono gialli nel giorno. */
+  yellowEntries?: YellowEntry[]
 }
 
 const toTitleCase = (s: string) =>
@@ -59,7 +64,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowEntries }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -320,6 +325,25 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
           </div>
         )}
       </div>
+
+      {/* CELLE GIALLE del PDF (richiesta 24/09/2026): richiedente il congedo
+          («Cong.») e presunto sostituto («Sost.»), pill gialla come la cella
+          del PDF. Sempre visibili (non solo in teorico≠reale): il giallo è
+          informazione operativa del giorno. */}
+      {!isEditing && yellowEntries && yellowEntries.length > 0 && (
+        <div className="border-t sala-card-title-sep shrink-0 flex flex-wrap items-center justify-center gap-1 px-2 py-1">
+          {yellowEntries.map((y, i) => (
+            <span
+              key={i}
+              className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cell-tint-yellow"
+            >
+              <span className="tabular-nums font-bold opacity-80">{y.role === 'richiedente' ? 'Cong.' : 'Sost.'}</span>
+              <span className="font-medium">{rowLabel(y.name, nameDisplay)}</span>
+              {y.code && <span className="tabular-nums font-semibold opacity-80">{y.code}</span>}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Vista «Teorico ≠ reale» COMPATTA (solo admin): sotto i nomi reali della
           sezione. Righe teoriche NON confermate: «Cognome N6» — SOLO lo stato

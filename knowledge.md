@@ -1087,3 +1087,20 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   teorico≠reale attivo); i «Nuovi» di SEZIONE nelle card restano invariati.
   (b) Le classi .altri-pill-* hanno il BORDO color-mix(currentColor 30%)
   come .cell-tint-abs (classe .altri-pill-tutor rimossa, orfana).
+
+- **CELLE GIALLE del PDF: congedo + sostituto (24/09/2026)**: il PDF segna in
+  giallo una RICHIESTA di congedo e il PRESUNTO SOSTITUTO. Classificatore
+  lib/sala-month.ts (classifyYellowCell su real/teo della cella): RICHIEDENTE =
+  assenza congedo (isLeaveToken: A/AG/AG7/F/F.E./VS) oppure reale=teorico di
+  sezione (richiesta pendente); SOSTITUTO = teorico «D» (chiamato dalla
+  Disponibilità), teorico RC/RM/RI con reale lavorativo (lavora sul PROPRIO
+  riposo, es. Caiazzo M. P6S/RI), o cambio TURNO (prima lettera diversa).
+  Celle gialle spurie (festività, riposo su riposo, cambio sezione stesso
+  turno) → NON classificate. yellowForDay(people, day) aggrega per chiave
+  «sezione|turno» (richiedente = colonna TEORICA, sostituto = REALE) → pill
+  .cell-tint-yellow «Cong./Sost. Nome CODICE» in fondo alle card della sezione
+  (yellowByCard su card.sectionKey ?? title + chip turno attiva). Analisi DB:
+  scripts/analyze-yellow.mjs (100 gialli, 23 cluster; g22/03: Sica+Mucci coppia
+  completa sulla 10 P). Test: scripts/check-yellow.mjs. Verificato live mar g22
+  chip M/P. FIX highlight: le pill del blocco Assenti ora hanno il check isMe
+  (desk-own-badge) come i gruppi.
