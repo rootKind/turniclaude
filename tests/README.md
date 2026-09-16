@@ -29,6 +29,7 @@ npx playwright test
 | chip gialle + scroll | `http://localhost:3000/turnisala` | `chip-gialle.spec.ts`: le chip non escono dalla card (320→1280px) e la pagina scorre sui display bassi |
 | card scoperte (regola) | nessuno — logica pura | `sala-scoperto.spec.ts`: sotto il minimo è scoperta, il giallo non si somma al minimo, storia datata dei minimi (1 s, nessun DB) |
 | minimi per card (admin) | `http://localhost:3000/turnisala` | `minimi.spec.ts`: dal mini-Fab admin al salvataggio fino alla chip «— scoperto»; SCRIVE e RIPRISTINA la piantina |
+| rotazione della squadra | nessuno — dati veri (service-role) | `squadra-rosa.spec.ts`: ROTONDO gira come i compagni (56 turni su 84, zero «G», riposi allineati), la griglia copre 4/6/7/10 e il pattern riproduce il teorico dei PDF 71/71 |
 
 ## Autenticazione del test «app reale»
 
@@ -180,6 +181,38 @@ attesa ricavata dal DOM, non scritta a mano) e che il pannello stesso lo dica:
 cui la regola dei minimi, se valesse da tutta la giornata, segnalerebbe una card
 in mattina. Controllo negativo fatto: ignorando `fromShift` nella risoluzione, il
 test diventa rosso (la mattina cambia).
+
+## La rotazione della squadra: il caso ROTONDO (`tests/squadra-rosa.spec.ts`)
+
+```bash
+npx playwright test tests/squadra-rosa.spec.ts
+```
+
+Tre test che leggono il DATABASE VERO (service-role via `tests/supabase-admin.ts`;
+si saltano se le chiavi non ci sono) e difendono la rotazione teorica della
+Squadra rosa. Servono perché la regressione che li ha motivati — ROTONDO con un
+pattern di 84 giorni fatto di **46 «G»** e un solo passaggio sulle sezioni,
+mentre i compagni girano regolarmente su 4/6/7/10 — **non stava nel codice
+dell'app**: era un dato, prodotto da una passata di
+`scripts/apply-super-cycle.mjs` che derivava i pattern per maggioranza contando
+anche i codici che non sono turni. Una classe di bug che nessun test sulla UI
+può vedere, e che il prossimo `--apply` può rifare.
+
+| caso | cosa pretende |
+|---|---|
+| 84 giorni di rotazione | 56 turni di sezione su 84, **zero** «G», nessuna classe vuota, e i giorni di riposo negli STESSI indici dei compagni che ruotano |
+| la griglia di 12 giorni | in ognuno dei 56 giorni di lavoro del ciclo le quattro sezioni 4/6/7/10 coperte una volta sola (le quattro persone che ruotano) |
+| il teorico dei PDF | il pattern riproduce il teorico del PDF **giorno per giorno, 71/71, dal 1/3 al 10/5/2026** (dall'11/5 l'ufficio non lo pianifica più a rotazione: lì il confronto si ferma) |
+
+Il terzo è il più importante: dice che il pattern non è un'invenzione dell'app
+ma la rotazione che l'ufficio pianificava davvero. Il secondo esclude il caso
+degenerato «tutti nella stessa sezione». Il primo cattura il sintomo originale
+(i «G»).
+
+CONTROLLO NEGATIVO fatto: rimettendo il pattern rotto nel DB i tre test diventano
+ROSSI e il ripristino torna verde — sonda
+`scripts/.dbg-controllo-negativo-rotondo.mjs` (scrive con try/finally, quindi
+ripristina anche se qualcosa va storto).
 
 ## La regola delle card scoperte (`tests/sala-scoperto.spec.ts`)
 

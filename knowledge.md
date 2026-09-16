@@ -490,7 +490,15 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   212/214 giorni (98,6%), BORRELLI 214/214, CETRANCOLO 210/214 — gli scarti restanti sono ritocchi
   di piano. ATTENZIONE BUG script: il match membro→utente deve iterare i membri DENTRO il proprio
   team (come findMemberForUser), un loop piatto abbinava MININO alla tipologia inattiva IAP. Lo
-  strato (2) rimane per robustezza e per gli utenti senza storia. - **Mockup data/turno nella card (12/09/2026, NON parte dell'app):** `mockups/celle-data-turno.html`, 3 varianti per separare numero del giorno e codice turno nella card «variante E» (A oggi centrato-attaccato come riferimento, B distanziati alto/basso, C data piccola nell'angolo alto-sinistra stile Google Calendar, D data in badge chiaro nell'angolo) su dati reali MININO luglio 2026, con zoom delle card chiave e verifica tema scuro. **SCELTA (12/09/2026): la variante D** — implementata nella pagina vera: numero del giorno in badge chiaro nell'angolo alto-sinistra (`.cell-day .day-badge`: bianco al 78% nel chiaro, bianco traslucido al 16% nello scuro, radius 6px, padding 2×6px, position absolute con `relative` sulla card), testo centrale INGRANDITO per leggibilità (griglia: codice 11→14px extrabold, teorico barrato 10→12px; confronto: codice 10→12px, teorico 8→9px) e contenuto leggermente abbassato (pt-3/pt-1.5) per non finire sotto il badge. Il badge è negli override del pannello Colori? NO: resta su ogni tinta, anche personalizzata — è la sua funzione (contrasto garantito). **Stile definitivo (12/09/2026, variante D del mockup `mockups/bordi-badge-data.html`):** il badge veste i colori dei BOTTONI NAV (freccette) — nel chiaro superficie pagina `--background` + bordo `--border/60` + testo `--foreground`; nello scuro superficie rialzata `--card` + bordo bianco 16% (stessa ricetta dei bottoni). Sostituisce il bordo nero/bianco pieno della stessa mattina. Il bordo ambra «da confermare» e l'outline «oggi» non vengono coperti dal badge (padding interno, non toccano il bordo).
+  strato (2) rimane per robustezza e per gli utenti senza storia. **AGGIORNAMENTO 16/09/2026 (i «G» e la fase di squadra):** quella «maggioranza per classe»
+  aveva un difetto grave — contava QUALSIASI token non vuoto, quindi un mese di teorico
+  scritto con codici che non sono turni (la famiglia «G», invisibile per decisione
+  dell'utente) poteva vincere la maggioranza e cancellare la rotazione. È il caso ROTONDO
+  (vedi l'entry in fondo): ora lo script conta solo i token INFORMATIVI (turni M/P/N con/senza
+  sezione, riposi RI/RC/RM, disponibilità D, assenze) e, per chi nella propria storia non ha
+  PIÙ una rotazione, RICOSTRUISCE il pattern dalla griglia comune della squadra (fase + riposi
+  di squadra) invece di lasciargli un pattern incoerente. Vedi `--only=<nome>` per applicarlo a
+  un solo membro. - **Mockup data/turno nella card (12/09/2026, NON parte dell'app):** `mockups/celle-data-turno.html`, 3 varianti per separare numero del giorno e codice turno nella card «variante E» (A oggi centrato-attaccato come riferimento, B distanziati alto/basso, C data piccola nell'angolo alto-sinistra stile Google Calendar, D data in badge chiaro nell'angolo) su dati reali MININO luglio 2026, con zoom delle card chiave e verifica tema scuro. **SCELTA (12/09/2026): la variante D** — implementata nella pagina vera: numero del giorno in badge chiaro nell'angolo alto-sinistra (`.cell-day .day-badge`: bianco al 78% nel chiaro, bianco traslucido al 16% nello scuro, radius 6px, padding 2×6px, position absolute con `relative` sulla card), testo centrale INGRANDITO per leggibilità (griglia: codice 11→14px extrabold, teorico barrato 10→12px; confronto: codice 10→12px, teorico 8→9px) e contenuto leggermente abbassato (pt-3/pt-1.5) per non finire sotto il badge. Il badge è negli override del pannello Colori? NO: resta su ogni tinta, anche personalizzata — è la sua funzione (contrasto garantito). **Stile definitivo (12/09/2026, variante D del mockup `mockups/bordi-badge-data.html`):** il badge veste i colori dei BOTTONI NAV (freccette) — nel chiaro superficie pagina `--background` + bordo `--border/60` + testo `--foreground`; nello scuro superficie rialzata `--card` + bordo bianco 16% (stessa ricetta dei bottoni). Sostituisce il bordo nero/bianco pieno della stessa mattina. Il bordo ambra «da confermare» e l'outline «oggi» non vengono coperti dal badge (padding interno, non toccano il bordo).
  - **Tabella di CONFRONTO de «Il tuo turno» (12/09/2026):** celle 44px di ALTEZZA, larghezza FLESSIBLE (`flex-1 basis-[34px] min-w-0`): i blocchi riempiono tutta la larghezza pagina. **SOLO turni REALI** (richiesta 12/09/2026: meno info, più chiarezza e spazio): il teorico NON si mostra più nel confronto (niente split/strike lì — le card split restano solo nella griglia personale); fallback: se la riga persona NON ha turni reali nel mese (o il mese è teorico) si mostrano i TEORICI (caption «turni teorici»). Chunking ADATTIVO: il numero di blocchi lo dettano larghezza E ALTEZZA reali — chrome MISURATO nel DOM (ref sulla nav mese + bottom nav via rAF, niente setState sincrono in effect; `CMP_CHROME_FALLBACK` 300 solo pre-misura) e NIENTE cap fisso a 4 blocchi: su schermi lunghi il mese si espande in vertica (settembre 2026, 2 persone, 756px → 4 blocchi 9/9/9/7 giorni, zero scroll né verticale né orizzontale). Min 5 giorni/colonna (sotto, MDCIF non ci sta).
  - **Mockup BORDO del badge data (12/09/2026, NON parte dell'app):** `mockups/bordi-badge-data.html`, 4 varianti del bordo/riempimento del badge della data nelle card de «Il tuo turno», su dati reali Minino luglio 2026 (split RC→P6T/RC→M10S, «da confermare» il 14) in entrambi i temi: **A** com'era prima (bianco 78%/16% senza bordo), **B** stato attuale (bordo nero chiaro / bianco+fill #171717 scuro), **C** come la selezione mese/anno (#dfe8f2+#b8c8dc / #454545+#5a5a5a), **D** come le freccette nav (superficie pagina+bordo --border/60 / rialzata+bordo bianco 16%). Con pro/contro per ciascuna. In attesa della scelta.
  - **Mockup card SPLIT teorico/reale (12/09/2026, NON parte dell'app):** `mockups/celle-split-teorico-reale.html`, anteprima della struttura richiesta: card divisa in due metà SOLO quando il reale differisce dal teorico — teorico sopra con tinta del proprio turno e SBARRATA diagonale, reale sotto con tinta del proprio colore; giorni normali invariati (card intera). Sei casi chiave (riposo lavorato, assenza, split+«da confermare» come il 23/9 di Minino, giallo senza variazioni), zoom barra singola vs tratteggio diagonale ripetuto, tema scuro. In attesa della scelta.
@@ -1487,3 +1495,61 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `boldTexts` guarda tutta la card e non solo il corpo. Suite completa
   46 passed / 3 skipped (gli skip sono preesistenti), tsc + eslint ok (2 warning
   preesistenti).
+- **LA CAUSA A MONTE DI ROTONDO: la rotazione della squadra (16/09/2026)**: il
+  lavoro sui MINIMI aveva *curato il sintomo* (la card «scoperta»), qui si è
+  riparata la causa — il pattern teorico di ROTONDO nel DB. Era «46 G su 84 con
+  un solo passaggio sulle sezioni»: ora è la rotazione regolare della squadra,
+  **56 turni di sezione su 84 e zero G**, con i riposi negli stessi giorni dei
+  compagni (gli indici ≡ 1 mod 3, 28 riposi come TURCO/D'AURIA/LUCIGNANO).
+  CHANGE SET: (1) `shift_team_members.pattern` di ROTONDO e (2) il ciclo di
+  catalogo «LANGIONE · ROTONDO» di `shift_cycle_templates` — era la COPIA esatta
+  del pattern rotto, quindi dal pannello si sarebbe potuto riapplicare il guasto
+  con un tap. La stessa cosa in migration `032_fix_rotondo_rotation.sql` per un
+  progetto ricreato da zero. Backup JSON in `scripts/backup-rotation-*.json`.
+  LA CAUSA VERA, e la sua riparazione: `scripts/apply-super-cycle.mjs` derivava
+  ogni pattern per MAGGIORANZA per classe di resto su tutta la storia dei PDF,
+  contando QUALSIASI token non vuoto. Il teorico di ROTONDO da maggio è una serie
+  di «G» (5 mesi su 7), un codice che l'app considera INVISIBILE (non turno, non
+  riposo, non assenza): il G ha vinto la maggioranza in 46 classi su 84 e la
+  rotazione è sparita. Due correzioni nello script: (a) nella logica di
+  derivazione (`informative`) contano solo i token che dicono qualcosa sulla
+  rotazione — turni M/P/N con o senza sezione (anche a maiuscole miste) e i
+  codici visibili RI/RC/RM/D/A/F/VS/AG*/F.E.; (b) nuova passata di ALLINEAMENTO
+  DI SQUADRA (`alignTeam`, `gridPhase`): la rotazione è della SQUADRA, non del
+  singolo — i compagni coprono le 4 sezioni sulla STESSA griglia a fasi diverse
+  (12 giorni, fase +0 TURCO, +3 ROTONDO, +6 D'AURIA, +9 LUCIGNANO). Chi nella
+  propria storia non ha più una rotazione la ricostruisce dai compagni: griglia
+  alla SUA fase per i turni, e sui giorni di RIPOSO (che sono di tutti, sempre
+  gli indici ≡ 1 mod 3 qualunque sia la fase) il token che la maggioranza dei
+  rotanti mostra davvero (RM mensile, D disponibilità). Chi invece gira già bene
+  NON si tocca, e chi non è ricostruibile (storia troppo corta o fuori griglia)
+  resta com'è con un avviso nel report. Con `--apply --only=ROTONDO` si applica a
+  UN SOLO membro: la stessa passata, oggi, proporrebbe anche 4 cambi su altri
+  (CAVANNA, DE ROSA, DONNARUMMA, NEVANO P. del gruppo Scorte) che NON sono stati
+  applicati perché non validati.
+  LA PROVA CHE NON È UN'INVENZIONE: il pattern ricostruito riproduce il teorico
+  dei PDF di ROTONDO **giorno per giorno, 71/71, dal 1/3 al 10/5/2026** (il 11/5
+  compare il primo «G»: da lì l'ufficio non lo pianifica più a rotazione, quindi
+  non fa testo), e la griglia torna a coprire 4/6/7/10 una volta sola in ognuno
+  dei 56 giorni di lavoro del ciclo. Validazione: `scripts/.dbg-rotondo-valida.mjs`
+  (confronto col teorico dei PDF + copertura + giorni di riposo).
+  PERCHÉ /tuoturno «girava già bene»: la pagina personale NON legge il pattern
+  del DB — ha tre sorgenti in ordine di priorità (vedi l'entry del 12/09 più
+  sopra): la riga base del PDF del mese, la predizione dalla STORIA dei PDF
+  (lib/person-cycle.ts), e SOLO come ultimo fallback la rotazione del DB. Nei
+  mesi senza PDF (da ottobre in poi) la macchina a stati ignora i «G» (non sono
+  token di lavoro e non spezzano i blocchi), quindi la predizione usciva già
+  come rotazione regolare: il difetto si vedeva solo dove il teorico si prende
+  dal DB, cioè la board teorica di /turnisala. Ecco perché la sua card era
+  «scoperta» mentre il suo calendario personale sembrava a posto.
+  TEST: `tests/squadra-rosa.spec.ts` (3 casi sui dati veri, service-role: 84
+  giorni senza G e 56 turni + riposi allineati ai compagni; la griglia di 12
+  giorni che copre 4/6/7/10 una volta sola per giorno di lavoro; il teorico dei
+  PDF riprodotto 71/71). È l'unico modo di accorgersi se un'altra passata di
+  `apply-super-cycle.mjs --apply` rifà il danno: è una classe di bug che NON sta
+  nel codice dell'app. Nuovo helper `tests/supabase-admin.ts` (client
+  service-role per i test sui dati; senza chiavi si saltano). CONTROLLO NEGATIVO
+  fatto: rimettendo il pattern rotto (46 G) nel DB i 3 test diventano ROSSI, e
+  il ripristino torna verde — sonda
+  `scripts/.dbg-controllo-negativo-rotondo.mjs` (try/finally: ripristina anche
+  se qualcosa va storto).
