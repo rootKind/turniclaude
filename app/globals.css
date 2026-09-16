@@ -792,7 +792,10 @@
     color: var(--chip-selected-bg);
   }
 
-  .offered-box       { background: var(--offered-box-bg); border-color: var(--offered-box-border); }
+  /* Bordo COMPLETO (16/09/2026): prima solo border-color, ma senza spessore il
+     bordo non si disegna — le p-pill invece ce l'hanno (1px currentColor 30%):
+     «qualsiasi periodo» era l'unica pastiglia senza contorno. */
+  .offered-box       { background: var(--offered-box-bg); border: 1px solid var(--offered-box-border); }
   .text-offered-label{ color: var(--offered-box-label); }
   .text-offered-value{ color: var(--offered-box-value); }
 

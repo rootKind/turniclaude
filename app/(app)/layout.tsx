@@ -5,6 +5,7 @@ import { NotificationBell } from '@/components/notifications/notification-bell'
 import { isAdmin } from '@/types/database'
 import { PageTransitionWrapper } from '@/components/providers/page-transition'
 import { ChangelogDialog } from '@/components/providers/changelog-dialog'
+import { PushPermissionPrompt } from '@/components/providers/push-permission-prompt'
 import { RealtimeInvalidation } from '@/components/providers/realtime-invalidation'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -39,6 +40,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <PageTransitionWrapper>{children}</PageTransitionWrapper>
       <NotificationBell />
       <ChangelogDialog />
+      {/* Promemoria permessi notifica (richiesta 16/09/2026): fuori dal server
+          component (ha bisogno di Notification API) ma nel layout, così vale per
+          tutte le pagine autenticate. */}
+      <PushPermissionPrompt />
       <BottomNav feedbackUnread={feedbackUnread} isAdmin={admin} isManager={manager} />
     </div>
   )

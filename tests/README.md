@@ -27,7 +27,7 @@ npx playwright test
 | gialli + evidenzia | `http://localhost:3000/turnisala` | `dipendente.spec.ts`: entrando COME il dipendente, la sua card si evidenzia (giallo richiedente e sostituto) e niente falsi positivi |
 | codici lunghi | `http://localhost:3000/tuoturno` | `tuoturno.spec.ts`: MM3M40/MDCCM… non tagliati nella griglia dei giorni, da 320px a 1280px |
 | chip gialle + scroll | `http://localhost:3000/turnisala` | `chip-gialle.spec.ts`: le chip non escono dalla card (320→1280px) e la pagina scorre sui display bassi |
-| pannello notifiche | `http://localhost:3000/admin` | `notifiche.spec.ts`: il registry mostra anche i messaggi ferie decisi dal manager (etichette, variabili e anteprima). Sola lettura |
+| pannello notifiche | `http://localhost:3000/admin` | `notifiche.spec.ts`: il registry mostra anche i messaggi ferie decisi dal manager (etichette, variabili e anteprima). Sola lettura. Il contratto (`scripts/check-notif-templates.mjs`) copre anche il push «novità» del changelog e l'interesse compatibile (23 messaggi) |
 | card scoperte (regola) | nessuno — logica pura | `sala-scoperto.spec.ts`: sotto il minimo è scoperta, il giallo non si somma al minimo, storia datata dei minimi (1 s, nessun DB) |
 | minimi per card (admin) | `http://localhost:3000/turnisala` | `minimi.spec.ts`: dal mini-Fab admin al salvataggio fino alla segnalazione «— scoperto» (chip o testo); include il caso PERIODO per casella (a 0 = scoperta da programma). SCRIVE e RIPRISTINA la piantina |
 | card scoperte (logica T/S) | nessuno — logica pura | `sala-scoperto.spec.ts` (sezione «titolare o sussidio» e «periodi per casella»): quale POSTO manca, confini dei periodi (inizio dal proprio turno, fine inclusa), precedenza periodo > voce > default |

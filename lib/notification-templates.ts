@@ -35,6 +35,7 @@ export const NOTIF_VARS: TemplateVar[] = [
   { name: 'turno_effettivo', description: 'Turno realmente trovato nel calendario (pulizia cambi)', sample: 'Pomeriggio' },
   { name: 'dettaglio', description: 'Spiegazione specifica del messaggio (pulizia cambi)', sample: 'nel turno caricato risulti già in Pomeriggio' },
   { name: 'extra', description: 'Aggiunta testuale facoltativa (es. «e altre 2 richieste»)', sample: ' (e altre 2 richieste)' },
+  { name: 'versione', description: 'Numero della nuova versione del changelog', sample: '5' },
 ]
 
 /** Sostituisce {var} con i valori del contesto; le sconosciute restano invariate. */
@@ -111,6 +112,15 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
     body: '{cognome_attore} è interessato al tuo cambio',
     label: 'Interesse (senza dettagli)', type: 'interest', source: 'Pulsante «Mi interessa»',
     context: 'Quando data/turni non sono noti',
+  },
+  // Variante FILTRATA (richiesta 16/09/2026): per chi ha «Solo se posso coprirlo»
+  // (notify_shift_filter), l'interesse arriva solo se il turno del destinatario
+  // nel giorno offerto è fra i turni cercati — e il messaggio lo dice.
+  {
+    key: 'interest.compatible.title', title: 'Interesse su un cambio che puoi coprire',
+    body: '{cognome_attore} è interessato al tuo {turno} del {data}: il {data} sei in {turno_effettivo}, uno dei turni che cerca ({turno_cercati})',
+    label: 'Interesse compatibile col tuo turno', type: 'interest', source: 'Pulsante «Mi interessa» (filtro attivo)',
+    context: 'Al creatore con «Solo se posso coprirlo» attivo, quando la sua compatibilità è vera',
   },
   {
     key: 'pending.title', title: 'Cambio in attesa di conferma',
@@ -221,6 +231,15 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
     body: 'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.',
     label: 'Cambio ferie assegnato ad altri', type: 'system', source: 'Conferma manager ferie',
     context: 'Agli altri interessati non vincitori',
+  },
+  // ── Changelog (app/api/admin/changelog) ──────────────────────────────────
+  // Parte quando l'admin crea una NUOVA versione: tutti con le notifiche
+  // attive ricevono l'avviso «novità», il popup completo arriva all'avvio dell'app.
+  {
+    key: 'changelog_new.title', title: 'Novità nell\'app',
+    body: 'Pubblicata la versione {versione} del changelog: guarda cosa è cambiato.',
+    label: 'Nuova versione del changelog', type: 'system', source: 'Changelog (admin)',
+    context: 'A tutti con le notifiche attive, alla creazione di una nuova versione',
   },
 ]
 

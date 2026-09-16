@@ -131,7 +131,10 @@ try {
   const used = new Set()
   for (const f of routeFiles) {
     const src = readFileSync(f, 'utf8')
-    for (const m of src.matchAll(/messageFor\(\s*[A-Za-z_$][\w$]*\s*,\s*'([^']+)'/g)) {
+    // Le chiavi si leggono da ENTRAMBE le funzioni d'invio: messageFor (testo
+    // risolto, poi inviato a mano) e pushTemplateToUser(s) (invio diretto, es.
+    // il push «novità» del changelog).
+    for (const m of src.matchAll(/\b(?:messageFor|pushTemplateToUsers?)\(\s*[A-Za-z_$][\w$]*\s*,\s*'([^']+)'/g)) {
       assert.ok(NOTIF_TEMPLATE_BY_KEY.has(m[1]), `${f}: «${m[1]}» esiste nel registro`)
       used.add(m[1])
     }

@@ -124,7 +124,7 @@ export async function POST(req: Request) {
 
     const { data: owner } = await supabase
       .from('users')
-      .select('id, notify_on_interest, notification_enabled')
+      .select('id, notify_on_interest, notification_enabled, notify_shift_filter')
       .eq('id', shift.user_id)
       .single()
 
@@ -136,11 +136,38 @@ export async function POST(req: Request) {
     const requestedLabel = Array.isArray(shift.requested_shifts) ? (shift.requested_shifts as string[]).join('/') : ''
     // Testo da registry (override admin → default), con caduta «senza dettagli».
     const overrides = await loadNotifOverrides()
+    const actor = typeof actorName === 'string' ? actorName : ''
+    const offered = (shift.offered_shift as string) ?? ''
+
+    // FILTRO «solo se posso coprirlo» anche sull'INTERESSE (richiesta 16/09/2026):
+    // il proprietario con notify_shift_filter riceve l'avviso solo se il SUO turno
+    // del giorno offerto (reale dal PDF, altrimenti teorico) è fra i turni cercati
+    // — la stessa nozione di compatibilità del filtro sui nuovi turni. Il messaggio
+    // dedicato dice ANCHE il turno che il proprietario ha quel giorno.
+    if (owner.notify_shift_filter === true && shift.shift_date && typeof shift.shift_date === 'string' && Array.isArray(shift.requested_shifts) && shift.requested_shifts.length) {
+      const mine = await getUserShiftOnDate(supabase, owner.id, shift.shift_date)
+      const copre = userCoversRequest(mine.shift, shift.requested_shifts as ShiftType[])
+      if (!copre) return NextResponse.json({ sent: 0, filtered: true })
+      const msg = dateLabel
+        ? messageFor(overrides, 'interest.compatible.title', {
+            cognome_attore: actor, turno: offered, data: dateLabel,
+            turno_effettivo: mine.shift ?? '', turno_cercati: requestedLabel,
+          })
+        : messageFor(overrides, 'interest.fallback.title', { cognome_attore: actor })
+      await pushToUser(owner.id, {
+        title: msg.title,
+        body: msg.body,
+        type: 'interest',
+        shiftId: Number(shiftId),
+      })
+      return NextResponse.json({ ok: true, filtered: true })
+    }
+
     const msg = dateLabel
       ? messageFor(overrides, 'interest.title', {
-          cognome_attore: typeof actorName === 'string' ? actorName : '', turno: (shift.offered_shift as string) ?? '', data: dateLabel, turno_cercati: requestedLabel,
+          cognome_attore: actor, turno: offered, data: dateLabel, turno_cercati: requestedLabel,
         })
-      : messageFor(overrides, 'interest.fallback.title', { cognome_attore: typeof actorName === 'string' ? actorName : '' })
+      : messageFor(overrides, 'interest.fallback.title', { cognome_attore: actor })
     await pushToUser(owner.id, {
       title: msg.title,
       body: msg.body,

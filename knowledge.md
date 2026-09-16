@@ -1467,8 +1467,38 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   quella data non cambia niente sulla board. La PRIMA è stata scritta dal 1/9/2026
   (39 valori, tutti i default) — sonda: `node scripts/.dbg-minimi-seed.mjs`
   (prova a vuoto; `--scrivi` per salvare).
-- **MINIMI: turno di partenza + chip gialle in una sola famiglia + il mio nome
-  in grassetto (16/09/2026)**: tre richieste in un colpo.
+- **NOTIFICHE: changelog + interesse filtrato + promemoria permessi + bordo «qualsiasi periodo» (16/09/2026, sera II):** quattro cose in fila.
+  (1) NUOVA VERSIONE DEL CHANGELOG → PUSH: la POST admin con `forceNew` (crea la
+  entry `version = max+1`) ora manda `changelog_new.title` («Novità nell'app»,
+  corpo con `{versione}`) a TUTTI i `notification_enabled` via
+  `pushTemplateToUsers` (admin/changelog/route.ts). Solo la CREAZIONE: l'update di
+  una entry esistente non spammà. Il fallimento push non invalida la entry. NB
+  contratto: la regex del check-notif-templates ora pesca le chiavi da
+  `pushTemplateToUsers?` oltre che da `messageFor` (il changelog non usa
+  `messageFor`); il titolo di default della ENTRY del DB è una costante
+  (`DEFAULT_ENTRY_TITLE`) per non far sembrare che sia un template push.
+  (2) INTERESSE FILTRATO SUL TURNO: il proprietario con `notify_shift_filter`
+  («Solo se posso coprirlo») riceve l'interesse al suo cambio SOLO se il SUO
+  turno del giorno offerto (reale dal PDF, altrimenti teorico via
+  `getUserShiftOnDate`) è fra i turni cercati — la stessa nozione del filtro sui
+  nuovi turni — e riceve il messaggio DEDICATO `interest.compatible.title`, che
+  dice anche il turno effettivo: «il 23/09 sei in Pomeriggio». Messaggi in
+  registry: 23. Nota: `filtered: true` nella risposta quando il filtro scarta.
+  (3) PROMEMORIA PERMESSI: `components/providers/push-permission-prompt.tsx`,
+  montato nel layout (app): a 2,5 s dall'avvio, se `Notification.permission` è
+  `default` o `denied` (con snooze 7 giorni via localStorage
+  `push-reminder-dismissed`), popup con due bottoni. «Attiva» chiama
+  `requestPermission()` (solo per default: con denied il dialog del browser non
+  parte, il testo lo dice e indica l'icona 🔒/ⓘ). Rimando a Impostazioni →
+  Notifiche per disattivarle dall'app. NON appare con granted, e riprova se il
+  dialog del changelog è ancora aperto (il suo overlay intercetta). Verificato
+  via E2E (sonda rimossa: popup visibile + rimando presente con permesso
+  simulato denied e snooze pulito).
+  (4) IL BORDO DI «qualsiasi periodo»: la classe di ricaduta `.offered-box`
+  (globals.css) impostava solo `border-color` — senza spessore il bordo NON si
+  disegna, diversamente dalle p1..p6-pill (1px currentColor 30%). Ora
+  `border: 1px solid var(--offered-box-border)` e la pill è come le sorelle
+  (tema scuro compreso, variabili già presenti).
   (1) TURNO DI PARTENZA dei minimi: `SalaMinimoEntry` ha `fromShift?` («M»
   assente = tutta la giornata, come le voci scritte prima) e il minimo di un
   giorno+turno è l'ultima voce che li copre — la voce del giorno `from` vale solo
