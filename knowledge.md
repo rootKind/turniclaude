@@ -1467,6 +1467,13 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   del testo in entrambi i temi (chiaro: fill `#fef3c7`, bordo `#e7b494`, testo
   `#b3261e`); il bordo si compone col riempimento della chip (trasparente al
   70%), per questo la tinta resa non è il puro 30%.
+  **AGGIORNAMENTO (16/09/2026, sera): il bordo è il rosso PIENO della scritta.**
+  Il 30% era a metà strada fra il riempimento (giallo) e il testo, e si leggeva
+  come un TERZO colore; ora è `1px solid var(--sala-yellow-chip-text)` — chiaro
+  `rgb(179,38,30)`, scuro `rgb(251,217,214)`, gli STESSI valori del testo (prima
+  in scuro il bordo usciva `color(srgb 0.984 0.851 0.839 / 0.3)`). Nella spec
+  l'asserto sui canali resta, con in più che il colore del bordo NON deve portare
+  alpha (`/ 0.3` o `rgba(`).
   (3) EVIDENZIA dell'utente loggato: dove la board nomina l'utente il testo va in
   GRASSETTO — nomi in card, chip gialle (nome E sigla), tirocinanti, righe
   teorico≠reale — e nelle «altre presenze»/assenti la sua pill (già
@@ -1492,7 +1499,21 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   la voce verrebbe applicata mezza giornata prima).
   NB posizionale: le chip di CODA delle card a riga vivono FUORI da
   `.sala-card-body` (stanno sul fondo card, non sul corpo) — per questo
-  `boldTexts` guarda tutta la card e non solo il corpo. Suite completa
+  `boldTexts` guarda tutta la card e non solo il corpo.
+  **LA CARD HA UNA TINTA SOLA SOTTO IL TITOLO (16/09/2026, sera):** proprio per
+  quella posizione, nelle card a RIGA con chip in coda (gialle o «scoperto») la
+  card mostrava DUE tinte — il corpo `#171717` e, sotto, il FONDO card `#262626`
+  (in tema scuro ben visibile, nel chiaro le due tinte differiscono di 3 unità su
+  255 e non si vedeva). Fix: la coda porta anche lei `sala-card-body` (una riga in
+  `desk-card.tsx`). MISURATO, non a occhio: la DCCM del 23/9 P rendeva corpo
+  `rgb(23,23,23)` per 34px e poi fondo `rgb(38,38,38)` per 41px; ora le due fasce
+  sono entrambe `rgb(23,23,23)`. Il test è STRUTTURALE e sta in `chip-gialle.spec.ts`
+  in entrambi i temi: `cardBodyGaps` (helper in `tests/sala-board.ts`) pretende che
+  sotto il titolo ogni riga di pixel sia coperta da una fascia a tutta larghezza
+  (corpo, coda, tir, teorico≠reale) — nessuna riga lasciata al fondo card. Così la
+  regressione non può tornare nemmeno cambiando le tinte. Controllo negativo fatto:
+  prima del fix il test è ROSSO in ENTRAMBI i temi indicando le card giuste (DCO 8°
+  a 110-148px, DCCM, DCP, DCO 9°/11°). Suite completa
   46 passed / 3 skipped (gli skip sono preesistenti), tsc + eslint ok (2 warning
   preesistenti).
 - **LA CAUSA A MONTE DI ROTONDO: la rotazione della squadra (16/09/2026)**: il

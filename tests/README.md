@@ -116,6 +116,22 @@ dell'utente (richiesta 16/09/2026), confrontando i canali RESI dal browser
 Controllo negativo fatto: rimettendo il bordo sulla tinta trasferte, ENTRAMBI i
 temi vanno rossi — la prova non passa a vuoto.
 
+Dalla sera del 16/09/2026 lo stesso test pretende anche che il bordo sia il
+colore **pieno** della scritta e non il 30% (a metà strada fra il riempimento
+giallo e il testo si leggeva come un terzo colore): basta che la stringa del
+colore reso non porti alpha (`/ 0.3`, `rgba(`).
+
+Altri due test dello spec (uno per tema) difendono che la card abbia UNA SOLA
+tinta sotto il titolo: la coda delle chip vive fuori da `.sala-card-body`, quindi
+senza la classe la card mostrava il proprio FONDO sotto il corpo — due tinte
+diverse nella stessa card, visibili solo in scuro (#171717 contro #262626).
+La verifica è **strutturale**, non sui colori: `cardBodyGaps` (`tests/sala-board.ts`)
+scorre le fasce a tutta larghezza della card e pretende che dalla fine del titolo
+all'ultimo pixel non resti scoperta nessuna riga. Vale nei due temi, quindi non
+può tornare nemmeno cambiando le tinte. Controllo negativo fatto: prima del fix
+il test è rosso in entrambi i temi, elencando le card col buco (DCO 8°, DCCM,
+DCP, DCO 9°/11°).
+
 Il secondo test risponde a una domanda diversa: su un display verticalmente
 piccolo /turnisala **scorre**. A 380px e 500px di altezza il documento è più alto
 del viewport e lo scroll arriva in fondo; nessun antenato ha `overflow-y: hidden`

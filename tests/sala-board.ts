@@ -195,6 +195,47 @@ export async function boardChips(page: Page): Promise<BoardChip[]> {
   }, CHIP_SELECTOR)
 }
 
+/**
+ * Righe di pixel del CORPO della card che lasciano scoperto il FONDO CARD.
+ *
+ * La card ha due tinte: il fondo (`.sala-card-bg`, in scuro #262626) e la
+ * SUPERFICIE del corpo (`.sala-card-body`, #171717). Sotto il titolo la card
+ * deve essere coperta da fasce a tutta larghezza (corpo, righe di coda, tir,
+ * teorico≠reale): se una fascia manca, il fondo card si vede come una SECONDA
+ * tinta dentro la stessa card — il difetto segnalato sulla board in tema scuro
+ * (richiesta 16/09/2026: le card a riga con le chip in coda).
+ *
+ * Ritorna l'elenco (card, y) delle righe coperte soltanto dal fondo card: vuoto
+ * = nessuna. I bordi (1px in alto sotto il titolo e in basso) sono esclusi.
+ */
+export async function cardBodyGaps(page: Page): Promise<Array<{ card: string; y: number }>> {
+  return page.evaluate(() => {
+    const out: Array<{ card: string; y: number }> = []
+    for (const card of document.querySelectorAll('.sala-card-bg')) {
+      const title = card.querySelector('.sala-card-title')
+      if (!title) continue
+      const cr = card.getBoundingClientRect()
+      const tr = title.getBoundingClientRect()
+      // Fasce = discendenti con uno sfondo NON trasparente e a tutta larghezza:
+      // le chip (stretta, è la loro tinta) e i bordi non contano.
+      const fasce: Array<[number, number]> = []
+      for (const el of card.querySelectorAll('*')) {
+        const cs = getComputedStyle(el)
+        if (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.visibility === 'hidden' || cs.display === 'none') continue
+        const r = el.getBoundingClientRect()
+        if (r.height < 2 || r.width < cr.width - 4) continue
+        fasce.push([r.top - 0.5, r.bottom + 0.5])
+      }
+      for (let y = tr.bottom + 1; y < cr.bottom - 1; y += 2) {
+        if (!fasce.some(([t, b]) => t <= y && y <= b)) {
+          out.push({ card: title.textContent?.trim() ?? '', y: Math.round(y - cr.top) })
+        }
+      }
+    }
+    return out.slice(0, 40)
+  })
+}
+
 export interface BoardChipColor {
   /** Titolo della card che la contiene. */
   card: string

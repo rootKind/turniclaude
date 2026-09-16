@@ -1,5 +1,5 @@
 import { test, expect, E2E_BASE_URL, findEmployee } from './fixtures'
-import { boardChipColors, boardChips, openBoard, selectShift } from './sala-board'
+import { boardChipColors, boardChips, cardBodyGaps, openBoard, selectShift } from './sala-board'
 
 /**
  * CHIP GIALLE DENTRO LA CARD + SCORRIMENTO VERTICALE (richiesta 15/09/2026).
@@ -92,6 +92,14 @@ for (const tema of ['light', 'dark'] as const) {
           bordo.map((v, i) => Math.abs(v - testo[i])),
           `«${c.text}» su ${c.card}: il bordo (${bordo.join(',')}) deve essere della stessa famiglia del testo (${testo.join(',')})`,
         ).toEqual([0, 0, 0])
+        // …e alla stessa INTENSITÀ (richiesta 16/09/2026): il bordo è il colore
+        // PIENO della scritta, non il 30% — a metà strada fra le due tinte della
+        // chip si leggeva come un terzo colore. `color(srgb r g b / 0.3)` e
+        // `rgba(…)` portano l'alpha: qui non deve esserci.
+        expect(
+          /\/|rgba\(/.test(c.borderColor),
+          `«${c.text}» su ${c.card}: il bordo deve essere il rosso PIENO del testo, non una sua trasparenza (${c.borderColor})`,
+        ).toBe(false)
         // Il cognome e la sigla DENTRO la chip ereditano lo stesso colore.
         for (const f of c.children) {
           expect(canali(f.color), `«${f.text}» dentro «${c.text}»`).toEqual(testo)
@@ -119,6 +127,42 @@ test('nel tema chiaro il testo della chip è rosso, non marrone', async ({ asEmp
     expect(g, `«${c.text}»: componente verde`).toBeLessThan(60)
   }
 })
+
+/**
+ * IL CORPO DELLA CARD NON MOSTRA IL FONDO CARD (richiesta 16/09/2026).
+ *
+ * La card ha due tinte: il fondo (in scuro #262626) e la superficie del corpo
+ * (#171717). Nelle card a RIGA le chip di coda (gialle e «scoperto») stavano
+ * fuori da `.sala-card-body`, quindi sotto il titolo la card mostrava DUE tinte:
+ * il corpo scuro e, più in basso, il fondo più chiaro — visibile solo in tema
+ * scuro, perché nel chiaro le due tinte differiscono di 3 unità su 255.
+ *
+ * La prova è STRUTTURALE (non guarda i colori): sotto il titolo ogni riga di
+ * pixel deve essere coperta da una fascia a tutta larghezza (corpo, coda, tir,
+ * teorico≠reale). Vale nei due temi, quindi la regressione non può tornare
+ * nemmeno cambiando le tinte.
+ */
+for (const tema of ['light', 'dark'] as const) {
+  test(`il corpo della card non lascia scoperto il fondo card (tema ${tema})`, async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Di Monda')), 'serve un dipendente (service-role in .env.local)')
+    const page = await asEmployee('Di Monda')
+    await page.addInitScript(t => window.localStorage.setItem('ui-theme', t), tema)
+    await page.emulateMedia({ colorScheme: tema })
+
+    for (const w of [390, 1280]) {
+      await page.setViewportSize({ width: w, height: 900 })
+      expect(await openBoard(page, { month: 9, day: 23 }, E2E_BASE_URL), 'board non aperta').toBe(true)
+      for (const turno of ['M', 'P', 'N'] as const) {
+        await selectShift(page, turno)
+        const buchi = await cardBodyGaps(page)
+        expect(
+          buchi.map(b => `${b.card} a ${b.y}px dal bordo alto`),
+          `a ${w}px, turno ${turno}: sotto il titolo la card non deve mai mostrare il proprio fondo`,
+        ).toEqual([])
+      }
+    }
+  })
+}
 
 test('/turnisala scorre in verticale sui display bassi', async ({ asEmployee }) => {
   test.skip(!(await findEmployee('Di Monda')), 'serve un dipendente (service-role in .env.local)')
