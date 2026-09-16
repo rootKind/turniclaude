@@ -11,8 +11,9 @@ import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
-import { decodeSalaMonth, scopertiForDay, yellowForDay, type YellowEntry } from '@/lib/sala-month'
+import { decodeSalaMonth, scopertiDetailForDay, yellowForDay, type SalaSlotKind, type ScopertoInfo, type YellowEntry } from '@/lib/sala-month'
 import { SALA_SHIFTS, minValuesForDay, withMinimoEntry } from '@/lib/sala-minimi'
+import type { SalaMinimoPeriod } from '@/types/database'
 import { NON_SECTION_DUTIES, isPresentNoSection, isShiftWorkCode, parseShiftCode } from '@/lib/shift-tokens'
 import { MinimiPanel } from './minimi-panel'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
@@ -176,6 +177,10 @@ export function DeskBoard({
   // stesso documento della piantina — una sola scrittura, nessun rischio di
   // sovrascrivere le card mentre si salva il minimo.
   const [minimums, setMinimums] = useState<SalaMinimoEntry[]>(() => initialLayout.minimums ?? [])
+  // PERIODI per singola casella (richiesta 16/09/2026, sera): «questa sezione,
+  // in questo periodo, prevede N persone». Vivono nella piantina come i minimi
+  // (un solo documento da salvare) e vincono sulla voce in vigore.
+  const [minimumPeriods, setMinimumPeriods] = useState<SalaMinimoPeriod[]>(() => initialLayout.minimumPeriods ?? [])
   const [minPanelOpen, setMinPanelOpen] = useState(false)
   const [savedCards, setSavedCards] = useState<DeskCardType[]>(() => initCards(initialLayout.cards))
   const [savedDefaults, setSavedDefaults] = useState<SalaLayoutDefaults>(
@@ -367,7 +372,9 @@ export function DeskBoard({
   const handleSave = async () => {
     setSaving(true)
     try {
-      await onSave({ cards, defaults, minimums })
+      // I periodi per casella vanno SEMPRE insieme alla piantina: il salvataggio
+      // sostituisce l'intero jsonb, quindi ometterli li cancellerebbe.
+      await onSave({ cards, defaults, minimums, minimumPeriods })
       setSavedCards(cards)
       setSavedDefaults(defaults)
       setDirty(false)
@@ -384,7 +391,12 @@ export function DeskBoard({
    * l'admin ha in corso una modifica della piantina non ancora confermata, aprire
    * i minimi e salvare non deve pubblicarla di nascosto.
    */
-  const handleSaveMinimums = useCallback(async (values: Record<string, number>, from: string, fromShift: SalaShiftType) => {
+  const handleSaveMinimums = useCallback(async (
+    values: Record<string, number>,
+    from: string,
+    fromShift: SalaShiftType,
+    periods: SalaMinimoPeriod[],
+  ) => {
     const next = withMinimoEntry(minimums, {
       from,
       fromShift,
@@ -392,8 +404,9 @@ export function DeskBoard({
       updated_at: new Date().toISOString(),
       updated_by: userId,
     })
-    await onSave({ cards: savedCards, defaults: savedDefaults, minimums: next })
+    await onSave({ cards: savedCards, defaults: savedDefaults, minimums: next, minimumPeriods: periods })
     setMinimums(next)
+    setMinimumPeriods(periods)
     setMinPanelOpen(false)
     toast.success(fromShift === 'M'
       ? `Minimi aggiornati dal ${from}`
@@ -696,9 +709,31 @@ export function DeskBoard({
   // MINIMI in vigore nel giorno a schermo, per il turno scelto: chiave
   // «cardKey|TURNO». `null` = non configurati → vale solo la causa gialla.
   const minByKey = useMemo(
-    () => minValuesForDay({ minimums }, cards, dayISO, selectedShift),
-    [minimums, cards, dayISO, selectedShift],
+    () => minValuesForDay({ minimums, minimumPeriods }, cards, dayISO, selectedShift),
+    [minimums, minimumPeriods, cards, dayISO, selectedShift],
   )
+
+  // OGGI in ISO locale: separa il PASSATO (una card scoperta è un fatto, non un
+  // allarme) dal presente/futuro.
+  const todayISO = useMemo(() => {
+    const n = new Date()
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+  }, [])
+  const giornoPassato = dayISO < todayISO
+
+  // POSTI previsti dalla PIANTINA su ogni card, chiave «sezione|TURNO»: servono a
+  // dire QUALE posto è vuoto (titolare o sussidio) quando la causa è il minimo e
+  // il teorico non nomina nessuno (caso ROTONDO, teorico di soli G).
+  const expectedSlots = useMemo(() => {
+    const out = new Map<string, SalaSlotKind[]>()
+    for (const card of cards) {
+      // Doppia → titolare + sussidio; singola → posto SENZA slot (nel PDF le
+      // singole sono codici nudi: «M8», «PDCIF»), che si scrive come un nome.
+      const slots: SalaSlotKind[] = card.type === 'double' ? ['T', 'S'] : ['noSlot']
+      for (const s of SALA_SHIFTS) out.set(`${card.sectionKey ?? card.title}|${s}`, slots)
+    }
+    return out
+  }, [cards])
 
   // CARD SCOPERTE (richieste 27/09 e 15/09/2026): quante PERSONE MANCANO su ogni
   // card → una chip gialla «— scoperto» ciascuna. Due cause che si sommano:
@@ -709,16 +744,30 @@ export function DeskBoard({
   // chip sta sulla card di DESTINAZIONE). Il numero non somma le due letture: la
   // stessa persona verrebbe contata due volte — si prende il massimo.
   const scoperti = useMemo(() => {
-    const out = new Map<string, number>()
+    const out = new Map<string, ScopertoInfo>()
     if (isEditing || !schedule?.data) return out
-    const perKey = scopertiForDay(decodeSalaMonth(schedule.data), selectedDay, minByKey)
+    const perKey = scopertiDetailForDay(decodeSalaMonth(schedule.data), selectedDay, minByKey, expectedSlots)
     if (!perKey.size) return out
     for (const card of cards) {
-      const n = perKey.get(`${card.sectionKey ?? card.title}|${selectedShift}`)
-      if (n) out.set(card.id, n)
+      const info = perKey.get(`${card.sectionKey ?? card.title}|${selectedShift}`)
+      if (info) out.set(card.id, info)
     }
     return out
-  }, [schedule, selectedDay, selectedShift, cards, isEditing, minByKey])
+  }, [schedule, selectedDay, selectedShift, cards, isEditing, minByKey, expectedSlots])
+
+  // CARD in cui lo SCOPERTO si scrive come un nome invece che con la chip gialla
+  // (richiesta 16/09/2026, sera): nei GIORNI PASSATI — quando l'assenza è ormai
+  // un fatto — e dove il minimo in vigore per quella casella è 0, cioè la
+  // sezione è scoperta DA PROGRAMMA. Con minimo 0 e nessuno mancante non compare
+  // niente: il testo esce solo quando una persona manca davvero.
+  const scopertoAsText = useMemo(() => {
+    const out = new Set<string>()
+    for (const card of cards) {
+      const key = `${card.sectionKey ?? card.title}|${selectedShift}`
+      if (giornoPassato || minByKey?.get(key) === 0) out.add(card.id)
+    }
+    return out
+  }, [cards, selectedShift, minByKey, giornoPassato])
 
   // PRESENZE REALI per card, sui TRE turni del giorno a schermo: il pannello dei
   // minimi le mostra accanto a ogni valore, così si vede subito dove si buca.
@@ -996,7 +1045,9 @@ export function DeskBoard({
                         theoCompare={theoCompareByCardId.get(card.id)}
                         nameDisplay={nameDisplay}
                         yellowByCard={yellowByCard.get(card.id)}
-                        scoperti={scoperti.get(card.id) ?? 0}
+                        scoperti={scoperti.get(card.id)?.count ?? 0}
+                        scopertoSlots={scoperti.get(card.id)?.slots}
+                        scopertoAsText={scopertoAsText.has(card.id)}
                         duplicateCognomi={duplicateCognomi}
                         isOwn={isOwn}
                       />
@@ -1176,7 +1227,7 @@ export function DeskBoard({
       {minPanelOpen && isAdmin && (
         <MinimiPanel
           cards={cards}
-          layout={{ minimums }}
+          layout={{ minimums, minimumPeriods }}
           dayISO={dayISO}
           day={selectedDay}
           shift={selectedShift}

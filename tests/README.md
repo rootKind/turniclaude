@@ -27,8 +27,10 @@ npx playwright test
 | gialli + evidenzia | `http://localhost:3000/turnisala` | `dipendente.spec.ts`: entrando COME il dipendente, la sua card si evidenzia (giallo richiedente e sostituto) e niente falsi positivi |
 | codici lunghi | `http://localhost:3000/tuoturno` | `tuoturno.spec.ts`: MM3M40/MDCCM… non tagliati nella griglia dei giorni, da 320px a 1280px |
 | chip gialle + scroll | `http://localhost:3000/turnisala` | `chip-gialle.spec.ts`: le chip non escono dalla card (320→1280px) e la pagina scorre sui display bassi |
+| pannello notifiche | `http://localhost:3000/admin` | `notifiche.spec.ts`: il registry mostra anche i messaggi ferie decisi dal manager (etichette, variabili e anteprima). Sola lettura |
 | card scoperte (regola) | nessuno — logica pura | `sala-scoperto.spec.ts`: sotto il minimo è scoperta, il giallo non si somma al minimo, storia datata dei minimi (1 s, nessun DB) |
-| minimi per card (admin) | `http://localhost:3000/turnisala` | `minimi.spec.ts`: dal mini-Fab admin al salvataggio fino alla chip «— scoperto»; SCRIVE e RIPRISTINA la piantina |
+| minimi per card (admin) | `http://localhost:3000/turnisala` | `minimi.spec.ts`: dal mini-Fab admin al salvataggio fino alla segnalazione «— scoperto» (chip o testo); include il caso PERIODO per casella (a 0 = scoperta da programma). SCRIVE e RIPRISTINA la piantina |
+| card scoperte (logica T/S) | nessuno — logica pura | `sala-scoperto.spec.ts` (sezione «titolare o sussidio» e «periodi per casella»): quale POSTO manca, confini dei periodi (inizio dal proprio turno, fine inclusa), precedenza periodo > voce > default |
 | rotazione della squadra | nessuno — dati veri (service-role) | `squadra-rosa.spec.ts`: ROTONDO gira come i compagni (56 turni su 84, zero «G», riposi allineati), la griglia copre 4/6/7/10 e il pattern riproduce il teorico dei PDF 71/71 |
 
 ## Autenticazione del test «app reale»
@@ -303,7 +305,30 @@ desktop, 37px a 320px) mentre i codici del PDF arrivano a 6-7 caratteri
 nemmeno a schermo intero. La classe `.cell-fit` (globals.css) adatta il font
 alla cella con una container query e sotto i 44px di cella manda a capo.
 
+## Pannello notifiche (`tests/notifiche.spec.ts`)
+
+Il contratto del registry vive in `scripts/check-notif-templates.mjs`
+(`node scripts/check-notif-templates.mjs`, secondi, nessun browser): chiavi uniche,
+override applicati/ripristinati, variabili, e il **legame registry ↔ route** —
+ogni chiave usata dai route esiste nel registry, ogni voce del registry è usata da un
+route, e chi importa `send-with-template` non ha titoli scritti a mano (era il caso
+dei 4 messaggi ferie lato manager, invisibili al pannello).
+
+Lo spec E2E guarda quello che il contratto non può vedere perché serve il browser:
+l'intestazione («21 messaggi push dell'app · N modificati»: il conteggio è un intero,
+non la metà delle chiavi di override) e l'editor di un messaggio ferie con le sue
+variabili (`{periodo} {anno}`, mai `{turno}`) e l'anteprima coi valori d'esempio.
+È in **sola lettura**: non salva override (sarebbero globali per tutti gli utenti).
+
 ## Limitazioni note
+
+- **I test dei gialli NON hanno più giorni fissi (16/09/2026, sera).** Dopo la
+  ricarica del PDF vero di settembre (23/9 passato da ~30 chip a 1, i candidati
+  dell'evidenzia nei Corsi) i giorni si scelgono dal DATO: `tests/sala-gialli.ts`
+  legge `sala_schedule` e restituisce i giorni più ricchi di celle gialle
+  (`giorniGialli`) e i giorni in cui una persona sta su una card
+  (`giorniSuCard`, turno di sezione o cella gialla). `scripts/sala-gialli-mese.mjs`
+  resta la sonda manuale d'emergenza.
 
 - La sessione esportata SCENDE (exp di ~1h, standard Supabase): se il test
   «app reale» salta improvvisamente, rigenera `tests/.auth-state.json`.

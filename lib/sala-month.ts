@@ -402,34 +402,116 @@ export function scopertiForDay(
   people: MonthPersonShifts[],
   day: number,
   mins?: Map<string, number> | null,
+  expectedSlots?: Map<string, SalaSlotKind[]>,
 ): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const [key, info] of scopertiDetailForDay(people, day, mins, expectedSlots)) out.set(key, info.count)
+  return out
+}
+
+/** Posto (slot) della sezione che una persona occupa sulla card. */
+export type SalaSlotKind = 'T' | 'S' | 'noSlot'
+
+/** Che cosa manca su una card: quante persone e DI QUALE POSTO (per lo stile). */
+export interface ScopertoInfo {
+  /** Persone mancanti: una riga in card per ognuna. */
+  count: number
+  /** Il posto che manca, nell'ordine in cui disegnare le righe: «T» (titolare) e
+   *  «noSlot» si scrivono come un nome, «S» (sussidio) in corsivo attenuato —
+   *  richiesta 16/09/2026. */
+  slots: SalaSlotKind[]
+}
+
+/** Il posto di una persona nella propria sezione, dal codice («M6T» → T). */
+function slotKindOf(token: string): SalaSlotKind {
+  if (!token) return 'noSlot'
+  return parseShiftCode(token).slot ?? 'noSlot'
+}
+
+/**
+ * Quanti e QUALI posti mancano su una card. `expectedSlots` (dalla piantina,
+ * «T»/«S»/«noSlot» della sezione) serve a dire che cosa è vuoto quando la causa è
+ * il minimo: dalla lista prevista si tolgono i posti già occupati, nell'ordine, e
+ * quel che resta sono i buchi. La causa gialla invece SA chi è partito: il posto
+ * è quello che la persona aveva nel proprio teorico.
+ */
+export function scopertiDetailForDay(
+  people: MonthPersonShifts[],
+  day: number,
+  mins?: Map<string, number> | null,
+  expectedSlots?: Map<string, SalaSlotKind[]>,
+): Map<string, ScopertoInfo> {
   const attese = new Map<string, number>()
   const reali = new Map<string, number>()
   const spostate = new Map<string, number>()
+  const realiSlots = new Map<string, SalaSlotKind[]>()
+  const atteseSlots = new Map<string, SalaSlotKind[]>()
+  const spostateSlots = new Map<string, SalaSlotKind[]>()
   const bump = (m: Map<string, number>, key: string) => m.set(key, (m.get(key) ?? 0) + 1)
+  const push = (m: Map<string, SalaSlotKind[]>, key: string, kind: SalaSlotKind) => {
+    const list = m.get(key) ?? []
+    list.push(kind)
+    m.set(key, list)
+  }
   for (const p of people) {
     const real = p.days[day - 1] ?? ''
     const teo = p.teorico[day - 1] ?? ''
     const teoKey = yellowCardKey(teo)
     const realKey = yellowCardKey(real)
-    if (teoKey) bump(attese, teoKey)
-    if (realKey) bump(reali, realKey)
+    if (teoKey) {
+      bump(attese, teoKey)
+      push(atteseSlots, teoKey, slotKindOf(teo))
+    }
+    if (realKey) {
+      bump(reali, realKey)
+      push(realiSlots, realKey, slotKindOf(real))
+    }
     if (!teoKey || !p.yellow.includes(day)) continue
     // Solo il SOSTITUTO lascia la card teorica: il richiedente ci resta in
     // elenco con la chip (target 'teo', vedi yellowForDay).
     if (classifyYellowCell(real, teo)?.role !== 'sostituto') continue
     if (realKey === teoKey) continue
     bump(spostate, teoKey)
+    push(spostateSlots, teoKey, slotKindOf(teo))
   }
-  const chiavi = new Set<string>([...spostate.keys(), ...(mins?.keys() ?? [])])
-  const out = new Map<string, number>()
+  const chiavi = new Set<string>([...spostate.keys(), ...(mins?.keys() ?? []), ...realiSlots.keys()])
+  const out = new Map<string, ScopertoInfo>()
   for (const key of chiavi) {
     const n = reali.get(key) ?? 0
     const sottoMinimo = Math.max(0, (mins?.get(key) ?? 0) - n)
     const daGiallo = spostate.has(key) ? Math.max(0, (attese.get(key) ?? 0) - n) : 0
     const mancanti = Math.max(sottoMinimo, daGiallo)
-    if (mancanti > 0) out.set(key, mancanti)
+    if (mancanti <= 0) continue
+    const daSpostamento = daGiallo >= sottoMinimo && daGiallo > 0
+    // Il posto che manca esce dalla FORMA della card nella piantina (doppia →
+    // titolare + sussidio, singola → posto senza slot), che è il piano; se la
+    // board non la fornisce si ripiega sul teorico, che dice comunque chi ci
+    // dovrebbe essere («M6T» + «M6S»).
+    const previsti = expectedSlots?.get(key)?.length ? expectedSlots.get(key)! : atteseSlots.get(key) ?? []
+    const kinds = daSpostamento
+      ? spostateSlots.get(key) ?? []
+      : postiMancanti(previsti, realiSlots.get(key) ?? [], mancanti)
+    out.set(key, { count: mancanti, slots: kinds.slice(0, mancanti) })
   }
+  return out
+}
+
+/** Posti vuoti di una card: dai previsti tolgo gli occupati, nell'ordine. */
+function postiMancanti(
+  previsti: SalaSlotKind[],
+  occupati: SalaSlotKind[],
+  n: number,
+): SalaSlotKind[] {
+  const pool = [...previsti]
+  for (const k of occupati) {
+    const i = pool.indexOf(k)
+    if (i >= 0) pool.splice(i, 1)
+  }
+  const out = pool.slice(0, n)
+  // Il minimo può chiedere più persone di quante ne preveda la piantina: le righe
+  // in più prendono l'ultimo posto previsto.
+  const ultimo = pool[pool.length - 1] ?? previsti[previsti.length - 1] ?? 'T'
+  while (out.length < n) out.push(ultimo)
   return out
 }
 

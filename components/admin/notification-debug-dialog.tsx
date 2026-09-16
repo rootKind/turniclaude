@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { saveNotificationEntry } from '@/lib/notification-storage'
 import {
   NOTIF_VARS,
+  countModifiedTemplates,
   extractTemplateVars,
   renderNotifTemplate,
   varsForTemplate,
@@ -141,6 +142,10 @@ function MessagesTab({ data, refresh, editing, setEditing }: {
   setEditing: (t: NotifTemplateDef | null) => void
 }) {
   const overrides = data.overrides ?? {}
+  // Una chiave di `overrides` = UN messaggio (title+body dentro), quindi il
+  // conteggio si fa sui template che differiscono dal default — non sul numero
+  // di chiavi (né, peggio, sulla sua metà).
+  const modifiedCount = countModifiedTemplates(data.templates, data.defaults)
 
   if (editing) return <TemplateEditor data={data} refresh={refresh} template={editing} onBack={() => setEditing(null)} />
 
@@ -148,10 +153,11 @@ function MessagesTab({ data, refresh, editing, setEditing }: {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {data.templates.length} messaggi push dell&apos;app
-          {Object.keys(overrides).length > 0 && ` · ${Object.keys(overrides).length / 2} modificati`}
+          {/* una stringa sola: così il testo reso è esattamente questo (lo spazio
+              fra il numero e «messaggi» compreso) */}
+          {`${data.templates.length} messaggi push dell'app${modifiedCount > 0 ? ` · ${modifiedCount} ${modifiedCount === 1 ? 'modificato' : 'modificati'}` : ''}`}
         </p>
-        {Object.keys(overrides).length > 0 && (
+        {modifiedCount > 0 && (
           <Button
             size="sm"
             variant="outline"

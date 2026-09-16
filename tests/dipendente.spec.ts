@@ -1,5 +1,6 @@
 import { test, expect, employeeLoginEnabled, findEmployee } from './fixtures'
 import { openBoard, boardCards, boldTexts, ownPills } from './sala-board'
+import { giorniSuCard, giorniGialli } from './sala-gialli'
 
 /**
  * E2E «come la vedrebbe quella persona» su /turnisala (richiesta 27/09/2026).
@@ -29,8 +30,11 @@ test.describe('turnisala: evidenzia della card del dipendente', () => {
   test.use({ viewport: { width: 1280, height: 800 } })
   test.setTimeout(180_000)
 
-  // Il 23/9 è il giorno con più gialli del mese (30 chip su 12 card): è il caso
-  // peggiore per l'evidenzia, non un campione comodo. Serve gente con account.
+  // Il giorno NON è scritto a mano (16/09/2026, sera): il PDF del mese si
+  // ricarica e i candidati cambiano posto — quel giorno il 23/9 tutti e tre i
+  // candidati erano nei Corsi (SPCA), fuori dalle card, e la prova passava a
+  // vuoto. Qui si scelgono i giorni in cui la persona sta DAVVERO su una card
+  // (turno di sezione o cella gialla, tests/sala-gialli.ts).
   const CANDIDATI = ['Smeragliuolo', 'Di Monda']
   const TURNI = ['M', 'P', 'N'] as const
 
@@ -42,10 +46,13 @@ test.describe('turnisala: evidenzia della card del dipendente', () => {
       const dip = await findEmployee(who)
       test.skip(!dip, `dipendente «${who}» non presente in anagrafica`)
       const cognome = (dip!.cognome ?? who).toUpperCase()
+      const giorni = (await giorniSuCard('2026-09', [cognome])).get(cognome) ?? []
+      test.skip(!giorni.length, `${who} non sta su nessuna card nel mese caricato`)
+      const giorno = giorni[Math.floor(giorni.length / 2)]   // uno di mezzo, non di bordo
       const page = await asEmployee(who)
 
       for (const turno of TURNI) {
-        expect(await openBoard(page, { month: 9, day: 23, shift: turno }), 'board non aperta').toBe(true)
+        expect(await openBoard(page, { month: 9, day: giorno, shift: turno }), 'board non aperta').toBe(true)
         const cards = await boardCards(page)
 
         const nominata = (t: string) => t.toUpperCase().includes(cognome)
@@ -54,7 +61,7 @@ test.describe('turnisala: evidenzia della card del dipendente', () => {
 
         expect(
           evidenziate,
-          `${who} il 23/9 turno ${turno}: evidenziate ${evidenziate.join(', ') || '—'} ma la board la mostra su ${attese.join(', ') || '—'}`,
+          `${who} il ${giorno}/9 turno ${turno}: evidenziate ${evidenziate.join(', ') || '—'} ma la board la mostra su ${attese.join(', ') || '—'}`,
         ).toEqual(attese)
 
         // Il caso delicato: la persona c'è SOLO come chip gialla (reale di
@@ -110,6 +117,11 @@ test.describe('turnisala: il mio nome si riconosce', () => {
     const dip = await findEmployee('Minino')
     test.skip(!dip, 'admin non in anagrafica')
     const mio = (dip!.cognome ?? 'Minino').toUpperCase()
+    // Il giorno lo decide il DATO (vedi il describe sopra): deve essere uno in
+    // cui Minino sta su una card, altrimenti la prova passerebbe a vuoto.
+    const giorni = (await giorniSuCard('2026-09', [mio])).get(mio) ?? []
+    test.skip(!giorni.length, `${mio} non sta su nessuna card nel mese caricato`)
+    const giorno = giorni[Math.floor(giorni.length / 2)]
     const page = await asEmployee('Minino')
 
     // Il grassetto è MIO se porta il mio cognome oppure se sta dentro la mia
@@ -119,7 +131,7 @@ test.describe('turnisala: il mio nome si riconosce', () => {
 
     let casi = 0
     for (const turno of ['M', 'P', 'N'] as const) {
-      expect(await openBoard(page, { month: 9, day: 23, shift: turno }), 'board non aperta').toBe(true)
+      expect(await openBoard(page, { month: 9, day: giorno, shift: turno }), 'board non aperta').toBe(true)
       const grassetti = await boldTexts(page)
       if (!grassetti.length) continue
       casi++
@@ -128,7 +140,7 @@ test.describe('turnisala: il mio nome si riconosce', () => {
         'nessun altro nome deve andare in grassetto',
       ).toEqual([])
     }
-    expect(casi, `il 23/9 la board non nomina ${mio}: la prova passerebbe a vuoto`).toBeGreaterThan(0)
+    expect(casi, `il ${giorno}/9 la board non nomina ${mio}: la prova passerebbe a vuoto`).toBeGreaterThan(0)
   })
 
   test('nelle «altre presenze» la mia pill ha grassetto e bordo spesso', async ({ asEmployee }) => {
@@ -163,7 +175,8 @@ test.describe('turnisala: il mio nome si riconosce', () => {
 })
 
 /**
- * La chip «— scoperto» resta la stessa anche dopo il cambio di PDF.
+ * La segnalazione «— scoperto» porta il trattino DENTRO di sé, chip o testo che
+ * sia (richiesta 27/09/2026 e 16/09/2026, sera).
  *
  * È un `describe` a sé perché il viewport si dichiara con `test.use`, che vale a
  * livello di file o di describe — dentro il corpo di un test Playwright lo
@@ -173,22 +186,38 @@ test.describe('turnisala: il posto libero delle card scoperte', () => {
   test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local')
   test.use({ viewport: { width: 1280, height: 800 } })
 
-  test('sta dentro la chip', async ({ asEmployee }) => {
+  test('sta dentro la chip (o la riga di testo)', async ({ asEmployee }) => {
     test.skip(!(await findEmployee('Smeragliuolo')), 'dipendente non in anagrafica')
+    test.setTimeout(300_000)
 
     const page = await asEmployee('Smeragliuolo')
-    expect(await openBoard(page, { month: 9, day: 23, shift: 'P' })).toBe(true)
-    const cards = await boardCards(page)
-    const conScoperto = cards.filter(c => c.chips.some(t => t === '— scoperto'))
-    if (!conScoperto.length) {
-      console.log('nessuna card scoperta il 23/9: niente da verificare')
+    // NIENTE giorno fisso: le scoperte cadono dove cadono le CELLE GIALLUE (il
+    // sostituto lascia la card) o dove i minimi non sono coperti. Si prendono i
+    // giorni gialli del mese corrente e del successivo, più ricchi prima: su
+    // quelli la probabilità di una card scoperta è massima e la ricerca resta in
+    // poche board invece di forzare 112 navigazioni.
+    const candidati = [...(await giorniGialli('2026-09')).slice(0, 4).map(g => ({ m: 9, d: g.day })),
+      ...(await giorniGialli('2026-10')).slice(0, 4).map(g => ({ m: 10, d: g.day }))]
+    test.skip(!candidati.length, 'nessuna cella gialla nei due mesi: niente da verificare')
+    for (const { m, d } of candidati) {
+      expect(await openBoard(page, { month: m, day: d, shift: 'P' }), 'board non aperta').toBe(true)
+      const cards = await boardCards(page)
+      // Chip gialla (allarme, presente/futuro) OPPURE riga di testo «— scoperto»
+      // (giorno passato o sezione scoperta da programma): entrambe portano il
+      // trattino dentro.
+      const conScoperto = cards.filter(
+        c => c.chips.some(t => t.includes('scoperto')) || /—\s*scoperto/.test(c.names),
+      )
+      if (!conScoperto.length) continue
+      for (const c of conScoperto) {
+        expect(
+          c.names.replace(/\s+/g, ' ').trim(),
+          `card ${c.title} il ${d}/${m}: il posto libero non deve restare fuori dalla segnalazione`,
+        ).not.toMatch(/(^|\|)\s*—\s*(\||$)/)
+      }
+      console.log(`card scoperte verificate il ${d}/${m}: ${conScoperto.map(c => c.title).join(', ')}`)
       return
     }
-    for (const c of conScoperto) {
-      // La chip porta il trattino DENTRO («— scoperto», richiesta 27/09/2026):
-      // sulla card scoperta il posto libero «—» non si disegna più a parte.
-      expect(c.names.replace(/\s+/g, ' ').trim(), `card ${c.title}: il posto libero non deve restare fuori dalla chip`).not.toMatch(/(^|\|)\s*—\s*(\||$)/)
-    }
-    console.log(`card scoperte verificate: ${conScoperto.map(c => c.title).join(', ')}`)
+    console.log('nessuna card scoperta nei giorni gialli dei due mesi: niente da verificare')
   })
 })

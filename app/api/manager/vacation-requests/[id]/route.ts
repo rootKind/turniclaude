@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { pushToUser } from '@/lib/push/send-to-user'
+import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import { VACATION_PERIOD_LABELS_SHORT } from '@/lib/vacations'
 import type { VacationPeriod } from '@/types/database'
 
@@ -44,6 +45,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (!vacReq) return NextResponse.json({ error: 'Request not found' }, { status: 404 })
 
+  // Testi dei messaggi da registry (override admin in app_settings → default
+  // del codice): gli stessi casi dei cambi turno, ma per le richieste ferie.
+  const overrides = await loadNotifOverrides()
+
   const { data: interested } = await adminSupabase
     .from('vacation_request_interests')
     .select('user_id')
@@ -65,10 +70,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         : 'un collega'
       const periodLabel = VACATION_PERIOD_LABELS_SHORT[vacReq.offered_period as VacationPeriod] ?? `Periodo ${vacReq.offered_period}`
       const yearLabel = vacReq.year ? ` (${vacReq.year})` : ''
-      const notifBody = `Il cambio ${periodLabel}${yearLabel} con ${winnerName} non può essere ancora accettato perché ci sono scorte disponibili`
+      // Testo da registry, identico per creatore e vincitore.
+      const msg = messageFor(overrides, 'vacation_pending.title', {
+        periodo: periodLabel, anno: yearLabel, cognome_attore: winnerName,
+      })
       await Promise.allSettled([
-        pushToUser(vacReq.user_id as string, { title: 'Cambio ferie in attesa di conferma', body: notifBody, type: 'system' }),
-        pushToUser(winnerId, { title: 'Cambio ferie in attesa di conferma', body: notifBody, type: 'system' }),
+        pushToUser(vacReq.user_id as string, { title: msg.title, body: msg.body, type: 'system' }),
+        pushToUser(winnerId, { title: msg.title, body: msg.body, type: 'system' }),
       ])
     }
     await adminSupabase.from('vacation_requests').update({ is_pending: true }).eq('id', requestId)
@@ -87,9 +95,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   if (action === 'reject') {
     const reasonStr = typeof reason === 'string' && reason.trim() ? reason.trim() : null
+    // {motivo} include il prefisso « per: …» solo se il manager lo scrive.
+    const msg = messageFor(overrides, 'vacation_rejected.title', {
+      periodo: periodLabel, anno: yearLabel, motivo: reasonStr ? ` per: ${reasonStr}` : '',
+    })
     await pushToUser(vacReq.user_id as string, {
-      title: 'Richiesta di cambio ferie cancellata',
-      body: `Il turnista ha cancellato la tua richiesta di cambio ferie ${periodLabel}${yearLabel}${reasonStr ? ` per: ${reasonStr}` : ''}`,
+      title: msg.title,
+      body: msg.body,
       type: 'system',
     }).catch(() => {})
   } else {
@@ -109,25 +121,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         ? `${creatorProfile.cognome ?? ''} ${creatorProfile.nome ?? ''}`.trim()
         : 'un collega'
 
+      // Testi dal registry, uno per destinatario (chi offre e chi prende).
+      const msgCreator = messageFor(overrides, 'vacation_approved.creator.title', {
+        periodo: periodLabel, anno: yearLabel, cognome_attore: winnerName,
+      })
+      const msgWinner = messageFor(overrides, 'vacation_approved.winner.title', {
+        periodo: periodLabel, anno: yearLabel, cognome_attore: creatorName,
+      })
+
       await Promise.allSettled([
         pushToUser(vacReq.user_id as string, {
-          title: 'Cambio ferie approvato',
-          body: `Il turnista ha approvato la tua richiesta di cambio ferie ${periodLabel}${yearLabel} con ${winnerName}`,
+          title: msgCreator.title,
+          body: msgCreator.body,
           type: 'system',
         }),
         pushToUser(winnerId, {
-          title: 'Cambio ferie approvato',
-          body: `Il turnista ha approvato il cambio ferie ${periodLabel}${yearLabel} con ${creatorName}`,
+          title: msgWinner.title,
+          body: msgWinner.body,
           type: 'system',
         }),
       ])
     }
 
     if (otherIds.length) {
+      const msgOthers = messageFor(overrides, 'vacation_others.title', {})
       await Promise.allSettled(otherIds.map((id: string) =>
         pushToUser(id, {
-          title: 'Cambio ferie assegnato ad altri',
-          body: 'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.',
+          title: msgOthers.title,
+          body: msgOthers.body,
           type: 'system',
         })
       ))

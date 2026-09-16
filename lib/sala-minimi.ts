@@ -1,4 +1,4 @@
-import type { DeskCard, SalaLayout, SalaMinimoEntry, SalaShiftType } from '@/types/database'
+import type { DeskCard, SalaLayout, SalaMinimoEntry, SalaMinimoPeriod, SalaShiftType } from '@/types/database'
 
 /**
  * MINIMO DI PERSONE PER CARD — richiesta 15/09/2026.
@@ -32,6 +32,12 @@ import type { DeskCard, SalaLayout, SalaMinimoEntry, SalaShiftType } from '@/typ
  * NON si applica (resta solo quella sui gialli): così i mesi vecchi non si
  * riempiono di «scoperto» calcolati con la fotografia di oggi — è il senso di «a
  * partire dal giorno in cui lo modifico in poi».
+ *
+ * Dal 16/09/2026 (sera) c'è anche il livello più fine, `SalaLayout.minimumPeriods`:
+ * il PERIODO di una singola casella (sezione × turno), con data e turno d'inizio e
+ * di fine (fine INCLUSA). Ha la precedenza sulla voce; fuori dai periodi di una
+ * casella vale il DEFAULT della piantina. Serve a dichiarare «questa sezione, in
+ * questo periodo, è scoperta da programma» senza toccare la regola generale.
  */
 
 export const SALA_SHIFTS: SalaShiftType[] = ['M', 'P', 'N']
@@ -146,23 +152,123 @@ export function nextEntry(
   return best
 }
 
+// ─── PERIODI PER CASELLA (richiesta 16/09/2026, sera) ───────────────────────
+
+/** Periodi salvati di UNA casella (sezione × turno), ordinati per inizio. */
+export function periodsForCell(
+  periods: SalaMinimoPeriod[] | undefined,
+  cardKey: string,
+  shift: SalaShiftType,
+): SalaMinimoPeriod[] {
+  return (periods ?? [])
+    .filter(p => p?.card === cardKey && p.shift === shift)
+    .sort((a, b) => confrontoPeriodi(a, b))
+}
+
+/**
+ * True se il punto (giorno, turno) della CASELLA cade dentro il periodo.
+ * L'inizio è incluso dal turno `fromShift` (assente = «M», tutta la giornata),
+ * la fine è inclusa fino al turno `toShift` (assente = «N», tutto il giorno di
+ * fine) — «dal 15/10 turno P al 20/10» copre anche il pomeriggio del 20.
+ */
+export function periodCovers(
+  p: SalaMinimoPeriod,
+  dayISO: string,
+  shift: SalaShiftType,
+): boolean {
+  if (!p?.from || dayISO < p.from) return false
+  if (dayISO === p.from && shiftIndex(shift) < shiftIndex(p.fromShift ?? 'M')) return false
+  if (!p.to) return true
+  if (dayISO > p.to) return false
+  if (dayISO === p.to && shiftIndex(shift) > shiftIndex(p.toShift ?? 'N')) return false
+  return true
+}
+
+/** Ordina due periodi: prima la data d'inizio, a parità il turno d'inizio. */
+function confrontoPeriodi(a: SalaMinimoPeriod, b: SalaMinimoPeriod): number {
+  if (a.from !== b.from) return a.from.localeCompare(b.from)
+  return shiftIndex(a.fromShift ?? 'M') - shiftIndex(b.fromShift ?? 'M')
+}
+
+/** Stessa casella E stesso inizio = stesso periodo (salvarlo lo sostituisce). */
+function stessoPeriodo(a: SalaMinimoPeriod, b: SalaMinimoPeriod): boolean {
+  return a.card === b.card && a.shift === b.shift && a.from === b.from
+    && shiftIndex(a.fromShift ?? 'M') === shiftIndex(b.fromShift ?? 'M')
+}
+
+/** Aggiunge un periodo, o sostituisce quello con lo stesso inizio. Ordinata per data. */
+export function withMinimoPeriod(
+  periods: SalaMinimoPeriod[] | undefined,
+  period: SalaMinimoPeriod,
+): SalaMinimoPeriod[] {
+  const out = (periods ?? []).filter(p => !stessoPeriodo(p, period))
+  out.push(period)
+  return out.sort(confrontoPeriodi)
+}
+
+/** Toglie un periodo (identità: casella + inizio). */
+export function withoutMinimoPeriod(
+  periods: SalaMinimoPeriod[] | undefined,
+  card: string,
+  shift: SalaShiftType,
+  from: string,
+  fromShift?: SalaShiftType,
+): SalaMinimoPeriod[] {
+  return (periods ?? []).filter(p => !(
+    p.card === card && p.shift === shift && p.from === from
+    && shiftIndex(p.fromShift ?? 'M') === shiftIndex(fromShift ?? 'M')
+  ))
+}
+
+/** Il periodo che COPRE quel giorno e turno (il più recente, se si sovrappongono). */
+export function coveringPeriod(
+  periods: SalaMinimoPeriod[] | undefined,
+  cardKey: string,
+  shift: SalaShiftType,
+  dayISO: string,
+): SalaMinimoPeriod | null {
+  const dentro = periodsForCell(periods, cardKey, shift).filter(p => periodCovers(p, dayISO, shift))
+  return dentro.length ? dentro[dentro.length - 1] : null
+}
+
 /**
  * Minimi in vigore nel giorno indicato per il TURNO indicato, chiave
  * «cardKey|TURNO» (stessa forma delle chiavi di `scopertiForDay`).
  * `null` = nessun minimo configurato per quel giorno → la regola non si applica.
+ *
+ * PRECEDENZA (richiesta 16/09/2026, sera):
+ *  1. il PERIODO della casella che copre giorno e turno → il suo valore;
+ *  2. una casella che ha periodi ma nessuno in vigore → il DEFAULT della piantina
+ *     (il periodo è l'eccezione: «fuori dal periodo vale la piantina»);
+ *  3. altrimenti la voce di storia in vigore (`minimums`), come prima del 16/09;
+ *     nelle caselle che la voce non nomina, il default della piantina.
+ * La regola si accende se una voce copre il giorno OPPURE esiste almeno un
+ * periodo per quel turno: senza nessuno dei due resta spenta (i mesi vecchi non
+ * si riempiono di «scoperto»).
  */
 export function minValuesForDay(
-  layout: Pick<SalaLayout, 'minimums'>,
+  layout: Pick<SalaLayout, 'minimums' | 'minimumPeriods'>,
   cards: Array<Pick<DeskCard, 'sectionKey' | 'title' | 'type'>>,
   dayISO: string,
   shift: SalaShiftType,
 ): Map<string, number> | null {
   const entry = effectiveEntry(layout.minimums, dayISO, shift)
-  if (!entry) return null
+  const periodi = (layout.minimumPeriods ?? []).filter(p => p?.shift === shift)
+  if (!entry && !periodi.length) return null
+  const keysConPeriodi = new Set(periodi.map(p => p.card))
   const out = new Map<string, number>()
   for (const card of cards) {
     const key = `${cardKeyOf(card)}|${shift}`
-    const v = entry.values?.[key]
+    const periodo = coveringPeriod(layout.minimumPeriods, cardKeyOf(card), shift, dayISO)
+    if (periodo) {
+      out.set(key, Math.max(0, Math.round(periodo.value)))
+      continue
+    }
+    if (keysConPeriodi.has(cardKeyOf(card))) {
+      out.set(key, defaultMinFor(card, shift))
+      continue
+    }
+    const v = entry?.values?.[key]
     out.set(key, Number.isFinite(v) ? Math.max(0, Math.round(v as number)) : defaultMinFor(card, shift))
   }
   return out
@@ -174,7 +280,7 @@ export function minValuesForDay(
  * `from`/`fromShift` dicono da quando la fotografia È quella mostrata.
  */
 export function snapshotForDay(
-  layout: Pick<SalaLayout, 'minimums'>,
+  layout: Pick<SalaLayout, 'minimums' | 'minimumPeriods'>,
   cards: Array<Pick<DeskCard, 'sectionKey' | 'title' | 'type'>>,
   dayISO: string,
   shift: SalaShiftType = 'M',
@@ -184,6 +290,13 @@ export function snapshotForDay(
   for (const card of cards) {
     for (const s of SALA_SHIFTS) {
       const key = `${cardKeyOf(card)}|${s}`
+      // I PERIODI della casella vincono sulla fotografia: se uno è in vigore, il
+      // numero mostrato (e risalvato come base) è il suo.
+      const periodo = coveringPeriod(layout.minimumPeriods, cardKeyOf(card), s, dayISO)
+      if (periodo) {
+        out[key] = Math.max(0, Math.round(periodo.value))
+        continue
+      }
       const v = entry?.values?.[key]
       out[key] = Number.isFinite(v) ? Math.max(0, Math.round(v as number)) : defaultMinFor(card, s)
     }

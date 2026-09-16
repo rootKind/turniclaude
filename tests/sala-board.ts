@@ -58,6 +58,21 @@ export async function boardCards(page: Page): Promise<BoardCard[]> {
 }
 
 /**
+ * Quante volte la card dice «— scoperto»: chip gialla OPPURE riga di TESTO.
+ *
+ * Dal 16/09/2026 (sera) la scopertura si scrive in due modi: con la chip gialla
+ * dove è un allarme (presente/futuro, minimo > 0) e come un NOME della card nei
+ * giorni passati e dove il minimo in vigore è 0 (sezione scoperta da programma).
+ * Le due forme non convivono sulla stessa riga, quindi si sommano: chi legge il
+ * conteggio non deve sapere in che modalità è la board.
+ */
+export function scopertiIn(card: BoardCard): number {
+  const testuali = (card.names.match(/—\s*scoperto/g) ?? []).length
+  const chips = card.chips.filter(t => t.includes('scoperto')).length
+  return testuali + chips
+}
+
+/**
  * Chiude il dialog «Novità di questa versione» (components/providers/
  * changelog-dialog.tsx): si apre ~1,5 s dopo l'avvio per gli utenti che non
  * l'hanno mai visto e rende INERTE la pagina sottostante (i click su trigger e

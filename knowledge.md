@@ -926,6 +926,34 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   - **Migration 029 APPLICATA al progetto dev (turniclaude-dev)** via `supabase db query
     --linked`; persistenza verificata con scripts/check-notif-overrides-persist.mjs
     (PATCH → read-back → reset). apply-migration-029.mjs automatizza il controllo.
+- **Ferie: i messaggi del manager entrano nel registry (16/09/2026):** i 4 casi di
+  `app/api/manager/vacation-requests/[id]` erano testo HARDCODED nel route — gli stessi casi
+  dei cambi turno (pending/approvata/rifiutata/superata), ma invisibili al pannello: non
+  modificabili, non testabili, non censiti. Ora sono 5 voci del registry
+  (`vacation_pending`, `vacation_approved.creator`, `vacation_approved.winner`,
+  `vacation_rejected`, `vacation_others`) e il route usa `messageFor(overrides, key, …)`:
+  **testo inviato identico a prima** (provato dal contratto con le stesse variabili).
+  Dettagli che contano:
+  - `varsForTemplate` sceglie il vocabolario dal TESTO, non dal `type` (queste voci sono
+    `type: 'system'` come i messaggi dei cambi turno): con {periodo} nel corpo suggerisce
+    {periodo}/{anno}/{periodo_cercati}, non {turno}/{data}.
+  - I corpi usano «{periodo} {anno}» con uno spazio: nel flusso reale {anno} arriva già fra
+    parentesi (« (2026)») e il valore d'esempio del pannello è il solo numero — lo spazio in
+    più fa leggere bene l'anteprima e `renderFlowTemplate` comprime gli spazi, quindi il
+    testo spedito non cambia.
+  - **Contratto registry ↔ route** in scripts/check-notif-templates.mjs: ogni chiave usata dai
+    route (regex `messageFor(…)`) deve esistere nel registry, ogni voce del registry deve
+    essere usata da un route, e i file che importano send-with-template **non** devono avere
+    titoli letterali (`title: '…'`) — è proprio il modo in cui un messaggio resta invisibile
+    al pannello. Controllo negativo fatto: un titolo hardcoded rimesso nel route → script rosso
+    con il nome del file.
+- **Pannello notifiche: intestazione corretta (16/09/2026):** diceva
+  `Object.keys(overrides).length / 2` modificati, ma gli override sono UNA chiave per template
+  (con {title, body} dentro): un solo testo modificato mostrava «0.5 modificati». Ora
+  `countModifiedTemplates(templates, defaults)` (lib/notification-templates.ts) conta i
+  template che differiscono davvero dal default e la stringa è unica
+  (`21 messaggi push dell'app · 2 modificati`) — il testo reso era anche senza spazio
+  («21messaggi»), sistemato con la stringa singola. Test E2E `tests/notifiche.spec.ts`.
 - **Selettore utente /tuoturno = menu Confronta (19/09/2026):** «Turni di chi?» riusa la STESSA
   struttura del selettore multipto di confronto (compareVisibleGroups → buildCompareGroups):
   gruppi Noni/DCO, sezione per squadra dei turni teorici (terza → seconda → rilievo → semplici
@@ -1516,6 +1544,48 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   a 110-148px, DCCM, DCP, DCO 9°/11°). Suite completa
   46 passed / 3 skipped (gli skip sono preesistenti), tsc + eslint ok (2 warning
   preesistenti).
+- **SCOPERTO A TESTO + PERIODI PER CASELLA (16/09/2026, sera):** due richieste
+  sul filo dei minimi.
+  (1) LA RIGA «— SCOPERTO» PUÒ ESSERE TESTO invece di chip gialla: nei GIORNI
+  PASSATI (l'assenza è un fatto, non un allarme) e dove il minimo in vigore è 0
+  (sezione scoperta DA PROGRAMMA — è il senso dei periodi al punto (2)). Lo stile
+  segue lo SLOT che manca: titolare = nome normale, sussidio = corsivo
+  attenuato (`italic text-muted-foreground`), come i nomi veri della card; le
+  misure sono quelle dei nomi (`.sala-fit-text`, 16px). Quale posto manca esce da
+  `scopertiDetailForDay` (lib/sala-month.ts, al posto di `scopertiForDay` che
+  resta per compat): dai posti PREVISTI dalla piantina (doppia → T+S, singola →
+  noSlot; `expectedSlots` costruito in desk-board) si tolgono gli occupati
+  nell'ordine, e la causa gialla sa di suo il posto del teorico (`parseShiftCode().slot`,
+  «M6S» → S). La decisione è in desk-board (`giornoPassato = dayISO < today`,
+  `minByKey.get(key) === 0`), la resa in `desk-card.tsx` (`scopertoAsText`,
+  `scopertoSlots`). Con minimo 0 e nessuno mancante NON compare niente.
+  (2) PERIODI per singola CASELLA (sezione × turno): `SalaLayout.minimumPeriods`
+  (`SalaMinimoPeriod`: card, shift, from, fromShift?, to?, toShift?, value).
+  L'inizio vale DAL PROPRIO turno, la FINE è INCLUSA fino al turno `toShift`
+  (assente = «N», tutto il giorno): «dal 15/10 turno P al 20/10» copre anche il
+  pomeriggio del 20. PRECEDENZA in `minValuesForDay`: periodo in vigore → suo
+  valore; casella con periodi ma nessuno in vigore → DEFAULT della piantina (il
+  periodo è l'eccezione); altrimenti la voce di storia come prima. La regola si
+  accende se copre una voce OPPURE esiste almeno un periodo per il turno. Nel
+  pannello (minimi-panel.tsx) si apre dal TITOLO della sezione (▾): tre caselle
+  M/P/N con i loro periodi (valore + «dal … al …»), «+ periodo» con data e
+  pastiglie M/P/N per inizio e fine, la casella in vigore oggi ha il bordo
+  evidenziato; il salvataggio passa da `onSave(values, from, fromShift, periods)`
+  e desk-board salva i periodi SEMPRE insieme alla piantina (il salvataggio
+  sostituisce l'intero jsonb: ometterli li cancellerebbe).
+  TEST: `tests/sala-scoperto.spec.ts` (+13: posti mancanti T/S/noSlot, confini
+  dei periodi, precedenza, storia, sostituzione per stessa coppia inizio),
+  `tests/minimi.spec.ts` (+1 end-to-end: periodo a 0 su DCIF|P il 24/9 → la
+  scopertura passa da chip a testo). Helper `scopertiIn` in `tests/sala-board.ts`
+  (chip OPPURE testo, per i test che contano le scoperte).
+  **I TEST DEI GIALLI NON HANNO PIÙ GIORNI FISSI:** la ricarica del PDF vero
+  (23/9 da ~30 chip a 1, i candidati dell'evidenzia finiti nei Corsi) aveva
+  reso rossi i test tarati sul dato vecchio. `tests/sala-gialli.ts` legge
+  `sala_schedule` e fornisce `giorniGialli` (i giorni più ricchi di celle) e
+  `giorniSuCard` (i giorni in cui una persona ha turno di sezione o cella
+  gialla): `chip-gialle.spec.ts` e `dipendente.spec.ts` scelgono i giorni dal
+  DATO e sopravvivono a ogni ricarica. Suite completa 62 passed / 5 skipped,
+  tsc + eslint puliti.
 - **LA CAUSA A MONTE DI ROTONDO: la rotazione della squadra (16/09/2026)**: il
   lavoro sui MINIMI aveva *curato il sintomo* (la card «scoperta»), qui si è
   riparata la causa — il pattern teorico di ROTONDO nel DB. Era «46 G su 84 con

@@ -1,15 +1,20 @@
 import { test, expect } from '@playwright/test'
-import { scopertiForDay, type MonthPersonShifts } from '../lib/sala-month'
+import { scopertiDetailForDay, scopertiForDay, type MonthPersonShifts, type SalaSlotKind } from '../lib/sala-month'
 import {
   NIGHT_MIN_DEFAULTS,
+  coveringPeriod,
   defaultMinFor,
   defaultSnapshot,
   effectiveEntry,
   minValuesForDay,
+  periodCovers,
+  periodsForCell,
   snapshotForDay,
   withMinimoEntry,
+  withMinimoPeriod,
+  withoutMinimoPeriod,
 } from '../lib/sala-minimi'
-import type { SalaMinimoEntry } from '../types/database'
+import type { SalaMinimoEntry, SalaMinimoPeriod } from '../types/database'
 
 /**
  * LE CARD SCOPERTE, provate sulla LOGICA e non sui dati (richieste 27/09 e
@@ -265,5 +270,146 @@ test.describe('lib/sala-minimi: default, storia datata e turni', () => {
     expect(effectiveEntry(dopo, '2026-09-20', 'M')?.fromShift).toBe('M')
     expect(effectiveEntry(dopo, '2026-09-20', 'P')?.fromShift).toBe('P')
     expect(effectiveEntry(dopo, '2026-09-20', 'N')?.fromShift).toBe('P')
+  })
+})
+
+/**
+ * QUALE POSTO MANCA (richiesta 16/09/2026, sera).
+ *
+ * La riga «— scoperto» si scrive come un NOME, con lo stile dello slot che manca:
+ * titolare dritto, sussidio in corsivo attenuato. Qui si difende la lettura del
+ * posto, con i codici veri del PDF («M6T» = sezione 6 titolare, «M6S» = sussidio).
+ */
+test.describe('scoperti: titolare o sussidio', () => {
+  // La forma delle card nella piantina: doppia → T + S, singola → senza slot.
+  const previsti = new Map<string, SalaSlotKind[]>([['6|M', ['T', 'S']], ['RIC|M', ['noSlot']]])
+
+  test('doppia con un solo titolare: manca il SUSSIDIO', () => {
+    const persone = [persona('T1', 'M6T', 'M6T')]
+    const info = scopertiDetailForDay(persone, GIORNO, mins({ '6|M': 2 }), previsti).get('6|M')!
+    expect(info.count).toBe(1)
+    expect(info.slots).toEqual(['S'])
+  })
+
+  test('doppia vuota: prima il titolare, poi il sussidio', () => {
+    const info = scopertiDetailForDay([], GIORNO, mins({ '6|M': 2 }), previsti).get('6|M')!
+    expect(info.count).toBe(2)
+    expect(info.slots).toEqual(['T', 'S'])
+  })
+
+  test('il giallo che sposta un sussidio lascia il posto del sussidio', () => {
+    // X aveva il teorico «M6S» (sussidio della 6°) ed è stato chiamato sulla DCP.
+    const persone = [persona('X', 'MDCP', 'M6S', [GIORNO])]
+    const info = scopertiDetailForDay(persone, GIORNO, mins({ '6|M': 1 }), previsti).get('6|M')!
+    expect(info.count).toBe(1)
+    expect(info.slots).toEqual(['S'])
+  })
+
+  test('sezione alfabetica (RIC): posto senza slot, si scrive come un nome', () => {
+    const info = scopertiDetailForDay([], GIORNO, mins({ 'RIC|M': 1 }), previsti).get('RIC|M')!
+    expect(info.slots).toEqual(['noSlot'])
+  })
+
+  test('minimo più alto della piantina: le righe in più prendono l’ultimo posto', () => {
+    const info = scopertiDetailForDay([], GIORNO, mins({ '6|M': 3 }), previsti).get('6|M')!
+    expect(info.count).toBe(3)
+    expect(info.slots).toEqual(['T', 'S', 'S'])
+  })
+})
+
+/**
+ * PERIODI PER CASELLA (richiesta 16/09/2026, sera): «questa sezione, in questo
+ * periodo, prevede N persone».
+ *
+ * Precedenza: il periodo che copre giorno e turno vince sulla voce in vigore;
+ * fuori dai periodi di una casella vale il DEFAULT della piantina (doppia → 2,
+ * singola → 1, tabella della notte); se non c'è né voce né periodo, la regola
+ * resta spenta. La fine è INCLUSA.
+ */
+test.describe('minimi: periodi per casella', () => {
+  /** Le stesse card dei test sopra: la 6° è DOPPIA, la 8° singola. */
+  const CARDS = [card('6', 'DCO 6°', 'double'), card('8', 'DCO  8°', 'single')]
+  const periodo = (p: Partial<SalaMinimoPeriod>): SalaMinimoPeriod =>
+    ({ card: '6', shift: 'P', from: '2026-10-01', to: '2026-10-31', value: 0, ...p })
+
+  test('dentro il periodo vale il valore del periodo', () => {
+    const layout = {
+      minimums: [{ from: '2026-09-01', values: { '6|P': 2 } }],
+      minimumPeriods: [periodo({ from: '2026-10-15', to: '2026-10-20' })],
+    }
+    expect(minValuesForDay(layout, CARDS, '2026-10-16', 'P')?.get('6|P')).toBe(0)
+    // …e il pannello mostra il numero in vigore, non quello della voce.
+    expect(snapshotForDay(layout, CARDS, '2026-10-16', 'P').values['6|P']).toBe(0)
+  })
+
+  test('fuori dal periodo torna il default della piantina (non la voce)', () => {
+    const layout = {
+      minimums: [{ from: '2026-09-01', values: { '6|P': 3 } }],
+      minimumPeriods: [periodo({ from: '2026-10-15', to: '2026-10-20', value: 0 })],
+    }
+    // La 6° è DOPPIA: il default di pomeriggio è 2, non il 3 della voce.
+    expect(minValuesForDay(layout, CARDS, '2026-10-14', 'P')?.get('6|P')).toBe(2)
+    expect(minValuesForDay(layout, CARDS, '2026-10-21', 'P')?.get('6|P')).toBe(2)
+  })
+
+  test('il periodo vale per il turno della sua casella, non per gli altri', () => {
+    const layout = { minimumPeriods: [periodo({ from: '2026-10-15', to: '2026-10-20', value: 0 })] }
+    expect(minValuesForDay(layout, CARDS, '2026-10-16', 'P')?.get('6|P')).toBe(0)
+    // La MATTINA non ha niente configurato (né periodi né voce): resta spenta,
+    // esattamente come quando i minimi non erano ancora configurati per un turno.
+    expect(minValuesForDay(layout, CARDS, '2026-10-16', 'M')).toBeNull()
+    // Un turno senza NESSUNA configurazione (minimo e periodo): regola spenta.
+    expect(minValuesForDay({ minimumPeriods: [] }, CARDS, '2026-10-16', 'P')).toBeNull()
+  })
+
+  test('storia: più periodi della stessa casella, ognuno col valore del suo tempo', () => {
+    const marzo = periodo({ from: '2026-03-01', to: '2026-04-30', value: 0 })
+    const maggio = periodo({ from: '2026-05-01', value: 1 })
+    const periods = withMinimoPeriod(withMinimoPeriod([], marzo), maggio)
+    const layout = { minimumPeriods: periods }
+    expect(minValuesForDay(layout, CARDS, '2026-03-15', 'P')?.get('6|P')).toBe(0)
+    expect(minValuesForDay(layout, CARDS, '2026-04-30', 'P')?.get('6|P')).toBe(0)
+    expect(minValuesForDay(layout, CARDS, '2026-05-01', 'P')?.get('6|P')).toBe(1)
+    // Il periodo senza fine vale ancora oggi.
+    expect(minValuesForDay(layout, CARDS, '2026-09-30', 'P')?.get('6|P')).toBe(1)
+    // Salvarlo di nuovo con lo stesso inizio lo SOSTITUISCE, non lo duplica.
+    const sostituito = withMinimoPeriod(periods, { ...maggio, value: 2 })
+    expect(sostituito).toHaveLength(2)
+    expect(minValuesForDay({ minimumPeriods: sostituito }, CARDS, '2026-06-01', 'P')?.get('6|P')).toBe(2)
+    // …e si può togliere.
+    const senza = withoutMinimoPeriod(sostituito, '6', 'P', '2026-05-01')
+    expect(periodsForCell(senza, '6', 'P')).toHaveLength(1)
+  })
+
+  test('i confini: inizio dal PROPRIO turno, fine INCLUSA', () => {
+    // «Dal 15/10 turno P»: la mattina del 15 è fuori, dal pomeriggio è dentro.
+    const p = periodo({ from: '2026-10-15', fromShift: 'P', to: '2026-10-20', toShift: 'M' })
+    expect(periodCovers(p, '2026-10-15', 'M')).toBe(false)
+    expect(periodCovers(p, '2026-10-15', 'P')).toBe(true)
+    expect(periodCovers(p, '2026-10-15', 'N')).toBe(true)
+    // «Al 20/10 turno M»: solo la mattina del 20, poi si esce.
+    expect(periodCovers(p, '2026-10-20', 'M')).toBe(true)
+    expect(periodCovers(p, '2026-10-20', 'P')).toBe(false)
+    expect(periodCovers(p, '2026-10-21', 'M')).toBe(false)
+    // Senza turni dichiarati: dal primo all'ultimo istante di quei giorni.
+    const tutto = periodo({ from: '2026-10-15', to: '2026-10-15' })
+    for (const s of ['M', 'P', 'N'] as const) expect(periodCovers(tutto, '2026-10-15', s), s).toBe(true)
+  })
+
+  test('il periodo che copre il giorno è quello che decide (anche i reali)', () => {
+    const layout = {
+      minimums: [{ from: '2026-09-01', values: { '6|P': 2 } }],
+      minimumPeriods: [periodo({ from: '2026-10-15', to: '2026-10-20', value: 0 })],
+    }
+    const mins = minValuesForDay(layout, CARDS, '2026-10-16', 'P')!
+    // Con minimo 0 e nessun reale non manca nessuno → nessuna riga in card.
+    expect(scopertiForDay([], GIORNO, mins).has('6|P'), 'minimo 0 non segnala nulla').toBe(false)
+    // Con una persona spostata via da un giallo, invece, la riga c'è: e il posto
+    // è quello del teorico (la sezione era presidiata da un sussidio).
+    const persone = [persona('X', 'MDCP', 'P6S', [GIORNO])]
+    const info = scopertiDetailForDay(persone, GIORNO, mins)
+    expect(info.get('6|P')?.count).toBe(1)
+    expect(info.get('6|P')?.slots).toEqual(['S'])
+    expect(coveringPeriod(layout.minimumPeriods, '6', 'P', '2026-10-16')?.value).toBe(0)
   })
 })

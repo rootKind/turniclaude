@@ -50,6 +50,14 @@ interface Props {
    *  la sua chip gialla «— scoperto» in coda all'elenco. 0/undefined = la card
    *  è completa. */
   scoperti?: number
+  /** QUALE posto manca, una voce per riga (richiesta 16/09/2026, sera): «T»
+   *  (titolare) e «noSlot» si scrivono come un nome, «S» (sussidio) in corsivo
+   *  attenuato — le stesse regole degli slot veri della card. */
+  scopertoSlots?: Array<'T' | 'S' | 'noSlot'>
+  /** Righe «— scoperto» come TESTO invece che come chip gialla: nei giorni
+   *  passati (l'assenza è un fatto) e dove il minimo in vigore è 0 (sezione
+   *  scoperta da programma). Vedi la decisione in desk-board. */
+  scopertoAsText?: boolean
 }
 
 const toTitleCase = (s: string) =>
@@ -100,7 +108,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowByCard, duplicateCognomi, scoperti = 0, isOwn }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowByCard, duplicateCognomi, scoperti = 0, scopertoSlots, scopertoAsText = false, isOwn }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -319,11 +327,22 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
   // placeholder «—» non si disegna più, altrimenti si leggerebbe due volte.
   // Es. doppia con minimo 2 e nessun reale → due chip; doppia con 1 reale → una.
   const mancanti = isEditing ? 0 : Math.max(0, Math.floor(scoperti))
-  const renderScopertoRow = (i: number) => (
-    <span key={`sc-${i}`} className="flex items-center text-sm leading-tight">
-      <YellowChip name="— scoperto" />
-    </span>
-  )
+  // Il posto vuoto decide lo STILE della riga a testo: sussidio = corsivo e
+  // colore attenuato (come uno slot «S» della card), titolare = nome normale.
+  const renderScopertoRow = (i: number) => {
+    const testoSussidio = scopertoSlots?.[i] === 'S' ? ' italic text-muted-foreground' : ''
+    return (
+      <span key={`sc-${i}`} className="flex items-center text-sm leading-tight">
+        {scopertoAsText ? (
+          <span className={`whitespace-nowrap leading-tight flex items-center gap-0.5${testoSussidio}`}>
+            <span className="sala-fit-text" style={fitText('— scoperto', 16, 0.62)}>— scoperto</span>
+          </span>
+        ) : (
+          <YellowChip name="— scoperto" />
+        )}
+      </span>
+    )
+  }
 
   // Slot di nome da disegnare. Sulla card SCOPERTA gli slot vuoti non rendono
   // il loro «—» (lo portano le chip): restano gli indici ORIGINALI per slot

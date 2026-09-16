@@ -152,11 +152,47 @@ export interface SalaMinimoEntry {
   updated_by?: string
 }
 
+/**
+ * PERIODO di validità del minimo di UNA CASELLA (sezione × turno) — richiesta
+ * 16/09/2026, sera.
+ *
+ * È il modo fino in fondo per dire «in questo periodo la sezione 8° di pomeriggio
+ * prevede 0 persone» senza toccare la regola generale: la casella ha il suo
+ * intervallo, con data E turno di inizio e di fine (la fine è INCLUSA). Fuori dai
+ * periodi di una casella vale il default della piantina (doppia → 2, singola → 1,
+ * tabella della notte): il periodo è l'eccezione, non la regola. Più periodi
+ * convivono nel tempo (storico per casella), così rileggendo marzo si vede il
+ * valore di allora.
+ */
+export interface SalaMinimoPeriod {
+  /** cardKey della sezione (sectionKey della piantina, o titolo). */
+  card: string
+  /** Turno della CASELLA a cui il periodo appartiene (M/P/N). */
+  shift: SalaShiftType
+  /** Data ISO «YYYY-MM-DD» del giorno d'inizio, incluso. */
+  from: string
+  /** Turno del giorno d'inizio da cui il periodo comincia (assente = «M», cioè
+   *  dall'inizio della giornata): la casella è coperta solo da quel turno in poi. */
+  fromShift?: SalaShiftType
+  /** Data ISO del giorno di fine, INCLUSO. Assente = periodo ancora aperto. */
+  to?: string
+  /** Turno del giorno di fine fino a cui il periodo vale (assente = «N», cioè
+   *  tutto il giorno di fine). */
+  toShift?: SalaShiftType
+  /** Persone previste su quella casella dentro il periodo. */
+  value: number
+  updated_at?: string
+  updated_by?: string
+}
+
 export interface SalaLayout {
   cards: DeskCard[]
   defaults?: SalaLayoutDefaults
   /** Storia dei minimi per card/turno (vedi SalaMinimoEntry), in ordine di data. */
   minimums?: SalaMinimoEntry[]
+  /** Periodi per singola casella (vedi SalaMinimoPeriod): hanno la precedenza
+   *  sulla voce in vigore, e fuori da ognuno vale il default della piantina. */
+  minimumPeriods?: SalaMinimoPeriod[]
 }
 
 // ── Sala Schedule (PDF import) ────────────────────────────────────────────────

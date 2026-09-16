@@ -185,6 +185,43 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
     label: 'Catena ferie completata', type: 'new_vacation', source: 'Catena ferie',
     context: 'A chi la nuova richiesta completa la catena',
   },
+  // ── Ferie: decisione del manager (16/09/2026) — gemelli dei cambi turno ──
+  // Erano testo hardcoded nel route: stessi casi dei cambi turno lato manager,
+  // ma invisibili al pannello. Ora hanno chiave, label, source e contesto.
+  // NB: «{periodo} {anno}» — nel flusso reale {anno} arriva già fra parentesi
+  // (« (2026)») e lo spazio in più fa leggere bene l'anteprima del pannello,
+  // dove il valore d'esempio è il solo numero: renderFlowTemplate comprime gli
+  // spazi, quindi il testo inviato è identico a quello di prima.
+  {
+    key: 'vacation_pending.title', title: 'Cambio ferie in attesa di conferma',
+    body: 'Il cambio {periodo} {anno} con {cognome_attore} non può essere ancora accettato perché ci sono scorte disponibili',
+    label: 'Cambio ferie in attesa (scorte)', type: 'system', source: 'Conferma manager ferie',
+    context: 'A creatore e vincitore del cambio ferie',
+  },
+  {
+    key: 'vacation_approved.creator.title', title: 'Cambio ferie approvato',
+    body: 'Il turnista ha approvato la tua richiesta di cambio ferie {periodo} {anno} con {cognome_attore}',
+    label: 'Cambio ferie approvato → richiedente', type: 'system', source: 'Conferma manager ferie',
+    context: 'A chi aveva offerto il periodo',
+  },
+  {
+    key: 'vacation_approved.winner.title', title: 'Cambio ferie approvato',
+    body: 'Il turnista ha approvato il cambio ferie {periodo} {anno} con {cognome_attore}',
+    label: 'Cambio ferie approvato → vincitore', type: 'system', source: 'Conferma manager ferie',
+    context: 'A chi ha preso il periodo',
+  },
+  {
+    key: 'vacation_rejected.title', title: 'Richiesta di cambio ferie cancellata',
+    body: 'Il turnista ha cancellato la tua richiesta di cambio ferie {periodo} {anno}{motivo}',
+    label: 'Cambio ferie cancellato dal turnista', type: 'system', source: 'Rifiuto manager ferie',
+    context: 'Al creatore della richiesta; {motivo} se indicato',
+  },
+  {
+    key: 'vacation_others.title', title: 'Cambio ferie assegnato ad altri',
+    body: 'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.',
+    label: 'Cambio ferie assegnato ad altri', type: 'system', source: 'Conferma manager ferie',
+    context: 'Agli altri interessati non vincitori',
+  },
 ]
 
 export const NOTIF_TEMPLATE_BY_KEY: Map<string, NotifTemplateDef> = new Map(NOTIF_TEMPLATES.map(t => [t.key, t]))
@@ -195,7 +232,11 @@ export function varsForTemplate(def: NotifTemplateDef): TemplateVar[] {
   const explicit = NOTIF_VARS.filter(v => present.has(v.name))
   const common: TemplateVar[] = []
   const wants = (n: string) => !present.has(n) && !common.some(c => c.name === n)
-  if (def.type !== 'new_vacation' && def.type !== 'vacation_interest') {
+  // I messaggi ferie usano {periodo}/{periodo_cercati}/{anno}; gli altri il
+  // vocabolario dei cambi turno ({turno}/{data}/{turno_cercati}).
+  const isVacation = def.type === 'new_vacation' || def.type === 'vacation_interest'
+    || extractTemplateVars(`${def.title} ${def.body}`).some(v => v === 'periodo' || v === 'periodo_cercati')
+  if (!isVacation) {
     if (wants('cognome_attore')) common.push(NOTIF_VARS.find(v => v.name === 'cognome_attore')!)
     if (wants('turno')) common.push(NOTIF_VARS.find(v => v.name === 'turno')!)
     if (wants('data')) common.push(NOTIF_VARS.find(v => v.name === 'data')!)
@@ -232,6 +273,23 @@ export function resolveTemplates(overrides?: NotifOverrides | null): NotifTempla
     const o = overrides[t.key]
     return o ? { ...t, title: o.title, body: o.body } : t
   })
+}
+
+/**
+ * Quanti messaggi si discostano dai testi predefiniti (intestazione del pannello).
+ * Gli override in app_settings sono UNO per template (con {title, body} dentro):
+ * contare le chiavi grezze, o peggio la loro metà, dà un numero sbagliato — qui
+ * si contano i template che differiscono davvero dal default.
+ */
+export function countModifiedTemplates(
+  templates: readonly NotifTemplateDef[],
+  defaults: readonly NotifTemplateDef[],
+): number {
+  const defByKey = new Map(defaults.map(d => [d.key, d]))
+  return templates.filter(t => {
+    const d = defByKey.get(t.key)
+    return !!d && (d.title !== t.title || d.body !== t.body)
+  }).length
 }
 
 /**

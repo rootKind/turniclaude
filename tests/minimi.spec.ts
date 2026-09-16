@@ -1,5 +1,6 @@
 import { test, expect, employeeLoginEnabled, findEmployee } from './fixtures'
-import { boardCards, cardByTitle, openBoard, openSalaAdminFab } from './sala-board'
+import { boardCards, cardByTitle, openBoard, openSalaAdminFab, scopertiIn } from './sala-board'
+import { defaultSnapshot } from '../lib/sala-minimi'
 import { readSalaLayout, writeSalaLayout, writeSalaLayoutValue, type LayoutSnapshot } from './sala-layout'
 
 /**
@@ -60,7 +61,7 @@ test.describe('turnisala: minimi per card', () => {
     await expect(page.getByRole('heading', { name: 'Minimi per card' })).toHaveCount(0)
   })
 
-  test('salvando, la card sotto il minimo prende la chip «— scoperto»', async ({ asEmployee }) => {
+  test('salvando, la card sotto il minimo si segnala (e nel passato si scrive a testo)', async ({ asEmployee }) => {
     test.skip(!prima, 'piantina non leggibile (service-role assente)')
     const admin = await findEmployee('Minino')
     test.skip(!admin, 'admin non in anagrafica')
@@ -91,14 +92,29 @@ test.describe('turnisala: minimi per card', () => {
     const cards = await boardCards(page)
     const c6 = cardByTitle(cards, 'DCO 6°')
     expect(c6, 'card DCO 6° non trovata').toBeTruthy()
-    // Una persona mancante → UNA chip, e il posto libero «—» non si vede più
-    // staccato dalla chip.
-    expect(c6!.chips.filter(t => t === '— scoperto'), 'DCO 6° il 6/9 P è sotto il minimo di 2').toHaveLength(1)
+    // Una persona mancante → UNA riga, e sulla card scoperta il posto libero «—»
+    // non si vede più staccato dalla riga.
+    expect(scopertiIn(c6!), 'DCO 6° il 6/9 P è sotto il minimo di 2').toBe(1)
     expect(c6!.names.replace(/\s+/g, ' ').trim()).not.toMatch(/(^|\|)\s*—\s*(\||$)/)
+    // IL 6/9 È UN GIORNO PASSATO (oggi è il 16/9): la scopertura si scrive come
+    // un nome, non con la chip gialla — è un fatto, non un allarme (richiesta
+    // 16/09/2026, sera). Il posto mancante è il SUSSIDIO, quindi in corsivo.
+    expect(c6!.chips.filter(t => t.includes('scoperto')), 'nel passato niente chip').toEqual([])
+    expect(c6!.names, 'la riga di testo «— scoperto» sta in card').toContain('— scoperto')
+    // Il FONT si legge sullo span del TESTO (`.sala-fit-text`, come i nomi veri),
+    // non sul contenitore: la riga del sussidio porta il corsivo un livello sopra.
+    expect(
+      await page.evaluate(() => {
+        const it = [...document.querySelectorAll('.sala-card-body .sala-fit-text')]
+          .find(el => (el.textContent ?? '').includes('— scoperto'))
+        return it ? getComputedStyle(it).fontStyle : null
+      }),
+      'il posto mancante è il sussidio: la riga va in corsivo come uno slot S',
+    ).toBe('italic')
 
     const altre = cards.filter(c => c.title !== 'DCO 6°')
     expect(
-      altre.flatMap(c => c.chips.filter(t => t.includes('scoperto')).map(t => `${c.title}:${t}`)),
+      altre.flatMap(c => Array.from({ length: scopertiIn(c) }, () => c.title)),
       'il 6/9 turno P è scoperta solo la DCO 6°',
     ).toEqual([])
 
@@ -106,7 +122,7 @@ test.describe('turnisala: minimi per card', () => {
     expect(await openBoard(page, { month: 9, day: 6, shift: 'N' }), 'board non aperta').toBe(true)
     const notte = await boardCards(page)
     expect(
-      notte.flatMap(c => c.chips.filter(t => t.includes('scoperto')).map(t => `${c.title}:${t}`)),
+      notte.flatMap(c => Array.from({ length: scopertiIn(c) }, () => c.title)),
       'di notte il 6/9 non manca nessuno',
     ).toEqual([])
   })
@@ -130,7 +146,7 @@ test.describe('turnisala: minimi per card', () => {
 
     const page = await asEmployee('Minino')
     const scoperti = (cards: Awaited<ReturnType<typeof boardCards>>) =>
-      cards.flatMap(c => c.chips.filter(t => t.includes('scoperto')).map(t => `${c.title}:${t}`))
+      cards.flatMap(c => Array.from({ length: scopertiIn(c) }, () => `${c.title}:— scoperto`))
 
     expect(await openBoard(page, { month: 9, day: 27, shift: 'M' }), 'board non aperta').toBe(true)
     const mattinaPrima = scoperti(await boardCards(page))
@@ -161,6 +177,71 @@ test.describe('turnisala: minimi per card', () => {
     await page.getByLabel('Minimi di persone per card').click()
     await expect(page.getByText(/In vigore da 2026-09-27, turno P/)).toBeVisible()
     await page.getByRole('button', { name: 'Annulla' }).click()
+  })
+
+  /**
+   * PERIODI PER CASELLA (richiesta 16/09/2026, sera).
+   *
+   * Il caso dell'utente, dal vivo: il 24/9 di pomeriggio la DCIF resta scoperta
+   * perché DI MEO è stato chiamato sulla DCP — nel FUTURO è un allarme, quindi la
+   * board lo segnala con la chip. Dichiarando quel posto «scoperto da programma»
+   * (un periodo a 0 sulla casella DCIF|P che copre il 24/9) la stessa scopertura
+   * si scrive come un nome: la sezione è vuota per scelta, non per imprevisto.
+   *
+   * La piantina è messa in uno stato NOTO (card e default dell'utente + una voce
+   * di minimi dal 1/9 coi valori della piantina): senza, la regola non sarebbe
+   * attiva il 24/9 e la chip non ci sarebbe. `afterAll` rimette tutto com'era.
+   */
+  test('un periodo a 0 dichiara la casella scoperta da programma: la riga si scrive a testo', async ({ asEmployee }) => {
+    test.skip(!prima, 'piantina non leggibile (service-role assente)')
+    const admin = await findEmployee('Minino')
+    test.skip(!admin, 'admin non in anagrafica')
+    const { cards: cardsPiantina, defaults: defaultsPiantina } = prima!.layout
+    await writeSalaLayoutValue({
+      cards: cardsPiantina,
+      ...(defaultsPiantina ? { defaults: defaultsPiantina } : {}),
+      minimums: [{ from: '2026-09-01', values: defaultSnapshot(cardsPiantina) }],
+    })
+
+    const page = await asEmployee('Minino')
+    const dcif = async () => (await boardCards(page)).find(c => c.title.toUpperCase().includes('DCIF'))
+
+    expect(await openBoard(page, { month: 9, day: 24, shift: 'P' }), 'board non aperta').toBe(true)
+    const primaDelPeriodo = await dcif()
+    expect(primaDelPeriodo, 'card DCIF non trovata').toBeTruthy()
+    expect(scopertiIn(primaDelPeriodo!), 'il 24/9 P la DCIF è scoperta (DI MEO è sulla DCP)').toBeGreaterThan(0)
+    expect(
+      primaDelPeriodo!.chips.some(t => t.includes('scoperto')),
+      'nel futuro, senza periodi, la segnalazione è la chip gialla',
+    ).toBe(true)
+
+    // Il periodo: la casella DCIF di POMERIGGIO, 0 persone, il solo 24/9.
+    await openSalaAdminFab(page)
+    await page.getByLabel('Minimi di persone per card').click()
+    await expect(page.getByRole('heading', { name: 'Minimi per card' })).toBeVisible()
+    await page.getByLabel('Periodi DCIF').click()
+    await page.getByLabel('Aggiungi periodo DCIF turno P').click()
+    await page.getByLabel('Valore periodo DCIF turno P').fill('0')
+    // `exact`: le pastiglie del turno hanno etichette che CONTENGONO «Inizio/Fine
+    // periodo …» («Turno inizio periodo DCIF turno P»), quindi il match parziale
+    // ne pesca cinque.
+    await page.getByLabel('Inizio periodo DCIF turno P', { exact: true }).fill('2026-09-24')
+    await page.getByLabel('Fine periodo DCIF turno P', { exact: true }).fill('2026-09-24')
+    await page.getByLabel('Conferma periodo DCIF turno P').click()
+    await page.getByRole('button', { name: 'Salva', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Minimi per card' })).toHaveCount(0, { timeout: 15_000 })
+
+    // Il periodo è finito nella piantina, con le date che servono.
+    const salvata = (await readSalaLayout())!.layout as { minimumPeriods?: Array<Record<string, unknown>> }
+    expect(
+      salvata.minimumPeriods?.some(p => p.card === 'DCIF' && p.shift === 'P' && p.value === 0 && p.from === '2026-09-24' && p.to === '2026-09-24'),
+      'periodo salvato nella piantina',
+    ).toBe(true)
+
+    expect(await openBoard(page, { month: 9, day: 24, shift: 'P' }), 'board non aperta').toBe(true)
+    const dopo = await dcif()
+    expect(dopo!.chips.filter(t => t.includes('scoperto')), 'niente più chip: la scopertura è da programma').toEqual([])
+    expect(dopo!.names, 'la scopertura si scrive come un nome').toContain('— scoperto')
   })
 
   // Il pannello ha 13 righe × 3 caselle: su un telefono deve restare usabile e
