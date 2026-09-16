@@ -168,7 +168,10 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       style={{
         background: 'var(--altri-pill-trasferte-bg)',
         color: 'var(--sala-yellow-chip-text)',
-        border: '1px solid color-mix(in srgb, currentColor 30%, transparent)',
+        // Bordo PIENO dello stesso rosso della scritta (richiesta 16/09/2026): era
+        // il 30% del testo e, a metà strada fra la tinta del riempimento e quella
+        // del testo, si leggeva come un TERZO colore.
+        border: '1px solid var(--sala-yellow-chip-text)',
       }}
       className="select-none inline-flex flex-wrap items-center justify-center gap-x-1 max-w-full rounded-full px-1.5 leading-4"
     >
@@ -522,9 +525,14 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
                 </div>
               ))}
             </div>
-            {/* v5: variante RIGA con aggiunte in coda, sotto i nomi. */}
+            {/* v5: variante RIGA con aggiunte in coda, sotto i nomi. Con
+                `sala-card-body` (richiesta 16/09/2026): la coda vive fuori da
+                `.sala-card-body`, quindi senza la classe si vedeva il FONDO della
+                card e la stessa card mostrava DUE tinte — evidente solo in tema
+                scuro (#171717 contro #262626), perché nel chiaro le due tinte
+                differiscono di 3 unità su 255. */}
             {!isEditing && (yellowInList.length > 0 || mancanti > 0) && (
-              <div className="flex flex-col items-center gap-0.5 px-2 pb-1.5">
+              <div className="sala-card-body flex flex-col items-center gap-0.5 px-2 pb-1.5">
                 {yellowInList.map((y, i) => <span key={`yl-${i}`}>{renderYellowRow(y)}</span>)}
                 {/* Card scoperta: una riga gialla per persona mancante. */}
                 {Array.from({ length: mancanti }, (_, i) => <span key={`sc-${i}`}>{renderScopertoRow(i)}</span>)}
