@@ -1337,3 +1337,153 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `NDisSal`, 7 caratteri) non ha un utente in anagrafica → il suo calendario non
   è visibile in /tuoturno; il codice più lungo raggiungibile da un utente è a 6
   caratteri. tsc + eslint ok.
+- **CHIP GIALLE LUNGHE nelle card di /turnisala + SCROLL verticale (15/09/2026)**:
+  la board è a 3 colonne FISSE e la card ha `overflow-hidden`: misura 411px su
+  desktop ma 114px a 390px, 91px a 320px. La chip «cognome + sigla» è la più
+  esposta e il 23/9 turno P (il giorno più giallo del mese: 30 chip su 12 card)
+  ne uscivano 8 su 28 — «SmeragliuoloSPCA» = 142px in 98px di riga utile → 22px
+  di cognome tagliati. Fix (desk-card + globals.css): (1) la SIGLA è un item a sé
+  della chip (`flex-wrap` + `max-w-full`): quando non ci sta scende sotto il
+  nome, che resta a misura piena; (2) se nemmeno il solo cognome entra il testo
+  si RIMPICCIOLISCE — `.sala-card-fit` sulla card = container query,
+  `.sala-fit-text` = `clamp(9px, (100cqw − --fit-pad) / (--fit-chars × --fit-em),
+  14px)` con i parametri da `fitText()` (nome: pad 16 em 0.62; dentro la chip:
+  pad 28 em 0.62/0.72). Le em sono MISURATE in Geist (nomi 0.577, sigle 0.689) e
+  arrotondate per eccesso: il testo può risultare un filo più piccolo, mai
+  tagliato. Misure: desktop INVARIATO (chip da 142px su UNA riga, nessuno shrink),
+  a 390px la sigla va a capo e al massimo il nome si riduce a 11.3px, a 320px
+  9-13px. `container-type` NON va sulla card dell'overlay di trascinamento (lì è
+  shrink-to-fit e collasserebbe). Test: tests/chip-gialle.spec.ts (helper
+  `selectShift`/`boardChips` in tests/sala-board.ts) → da 320 a 1280px nessuna
+  chip esce dalla card, nessun testo dietro l'ellipsis, e a 1280px le chip
+  restano su una riga. Controllo NEGATIVO fatto: senza `sala-card-fit` il test
+  fallisce a 320px su «SmeragliuoloSPCA» (card DCO 6°) — la prima versione
+  dell'helper guardava solo il TESTO e non la pillola, e il controllo passava a
+  vuoto: ora confronta il rettangolo della CHIP col padding box della card.
+  SCROLL VERTICALE: sì, /turnisala scorre sui display bassi — il documento è
+  alto 586px contro un viewport di 380px e lo scroll arriva in fondo, a 1280px
+  come a 390px di larghezza (`html`/`body` non hanno `overflow-y: hidden`;
+  l'app-layout è `min-h-screen`). Il secondo test dello spec lo verifica.
+  TRAPPOLA DEV SERVER (Turbopack): una modifica di app/globals.css può NON
+  comparire nel CSS servito (cache del modulo CSS) e `touch` non basta — serve
+  una modifica di CONTENUTO. Sintomo: le regole nuove assenti dalla pagina mentre
+  quelle di un'ora prima ci sono (`.cell-fit-text` sì, `.sala-card-fit` no);
+  diagnosi: `grep <selettore> .next/dev/static/chunks/*.css`. Documentata in
+  tests/README.md. tsc + eslint ok.
+- **TEST E2E INDIPENDENTI DAL PDF + REGOLA DELLE CARD SCOPERTE (15/09/2026)**:
+  il PDF del mese viene ricaricato spesso, e i test che citavano un caso
+  specifico («BARRA il 24/9») diventano rossi da soli al primo caricamento
+  nuovo. `tests/dipendente.spec.ts` ora ricava l'ATTESA dal DOM: l'invariante è
+  `card evidenziate == card che nominano la persona` (nel suo elenco o in una
+  chip), senza date né nomi scritti a mano.
+  Inoltre le card SCOPERTE non si possono provare dal vivo in modo affidabile:
+  nel mese in archivio NON ce n'è nessuna (0 su tutti i giorni di settembre),
+  quindi il controllo sulla board resta verde senza verificare niente.
+  `tests/sala-scoperto.spec.ts` le prova sulla LOGICA: importa `scopertiForDay`
+  da `lib/sala-month.ts` e usa casi sintetici su 1 giorno (2 attese/1 reale →
+  scoperta anche se la card non è vuota; richiedente → no; senza giallo → no;
+  sostituto che resta nella stessa card → no). Gira in ~1 s, senza dev server
+  né service-role, quindi non si salta mai. Controllo NEGATIVO fatto: togliendo
+  il guard `role !== 'sostituto'` da `scopertiForDay` il caso «richiedente»
+  diventa rosso. NB Playwright: `test.use` vale solo a livello di FILE o di
+  `describe` — dentro il corpo di un test lo rifiuta (`did not expect test.use()`),
+  quindi i test che vogliono un viewport desktop vanno avvolti in un describe.
+- **MINIMI PER CARD: la regola «scoperto» generica (15/09/2026)**: la regola del
+  27/09 vedeva solo le card svuotate da una CELLA GIALLA, quindi non vedeva chi
+  abbandona una sezione per un'altra causa. Il caso che l'ha smascherata è
+  **ROTONDO** (Squadra rosa, tipo «Squadra in seconda», ciclo 84 gg): i compagni
+  girano su 4/6/7/10 (`M4T×7 P4T×7 M6T×7 P6T×7 M7T×7 P7T×7 M10T×7 P10T×7`),
+  il SUO pattern è **46 G su 84** con un solo passaggio sulle sezioni → non è più
+  una cella gialla, non è nemmeno una divergenza teorico↔reale (il teorico è G),
+  ma la card perde una persona lo stesso.
+  REGOLA: una card è scoperta quando le persone REALI sono meno del MINIMO
+  previsto per quella sezione e turno, **oppure** un giallo ha spostato la
+  persona altrove. Le due cause si sommano come segnalazione ma NON nel numero:
+  `mancanti = max(sottoMinimo, daGiallo)` — altrimenti la stessa persona verrebbe
+  contata due volte (`scopertiForDay` ora torna `Map<chiave, mancanti>`, non un
+  Set). In card: UNA CHIP «— scoperto» PER OGNI PERSONA MANCANTE (doppia con 1
+  reale → una, doppia a 0 → due).
+  MINIMI DI DEFAULT (`lib/sala-minimi.ts`): in M/P escono dalla PIANTINA
+  (`type: double` → 2, `single` → 1; le doppie sono esattamente 6/7/10/4/5), di
+  NOTTE da `NIGHT_MIN_DEFAULTS`: RIC/DCIF/8/9/11/ASTER M3M40 a 0, il 4° a 1,
+  DCCM e DCP a 1, le altre doppie a 2. NB: la tabella data dell'utente dava DCP
+  a 0 di notte, ma su 7 mesi di PDF (214 notti) è la **DCP** a essere presidiata
+  (codice NDCP: D'Elia, Senatore, Coppeta) ed è la **DCIF** a restare vuota in
+  tutte — corretto con l'utente prima di implementare.
+  STORIA DATATA: sta in `SalaLayout.minimums` (`SalaMinimoEntry[]`, chiave
+  «cardKey|TURNO»), NON in una tabella nuova — scelta deliberata per non dover
+  applicare una migration al progetto di produzione; il documento della piantina
+  è già quello che l'admin modifica e `onSave` lo scrive in una volta sola (la
+  piantina non modificata non viene pubblicata: si salvano `savedCards`). Il
+  minimo di un giorno è l'ultima voce con `from <= giorno`; **finché nessuna voce
+  lo copre la regola NON si applica** (resta solo quella sui gialli): è il senso
+  di «dal giorno in cui lo modifico in poi», e serve perché i minimi cambiano nel
+  tempo — verificato sui PDF: l'8° è a 0 in TUTTE le 122 giornate di marzo-aprile
+  e presidiata da maggio, il 9° a 0 nella prima metà di agosto, il 4° a 0 tutto
+  giugno. Il pannello admin (mini-Fab «Minimi per card», evento
+  `sala-admin-minimi` → `components/sala/minimi-panel.tsx`) è per card × TURNO
+  (39 valori) con la data di efficacia, e accanto a ogni casella mostra le
+  presenze reali del giorno (in rosso se sotto).
+  Effetto a settembre 2026: la vecchia regola segnala 0 card, con i minimi 11
+  (6/P 6°; 10/P 6°+5°; 13/P 5°; 24/M 7°; 25/N DCP; 27/M 10°; 29/P 4°+M3M40;
+  30/M 10°+4°) — sonda: `node scripts/.dbg-minimi-live.mjs 2026-09`.
+  La funzione resta dormiente finché non esiste una prima fotografia: prima di
+  quella data non cambia niente sulla board. La PRIMA è stata scritta dal 1/9/2026
+  (39 valori, tutti i default) — sonda: `node scripts/.dbg-minimi-seed.mjs`
+  (prova a vuoto; `--scrivi` per salvare).
+- **MINIMI: turno di partenza + chip gialle in una sola famiglia + il mio nome
+  in grassetto (16/09/2026)**: tre richieste in un colpo.
+  (1) TURNO DI PARTENZA dei minimi: `SalaMinimoEntry` ha `fromShift?` («M»
+  assente = tutta la giornata, come le voci scritte prima) e il minimo di un
+  giorno+turno è l'ultima voce che li copre — la voce del giorno `from` vale solo
+  DAL PROPRIO turno (`effectiveEntry(entries, giorno, turno)`, ordine M<P<N),
+  quindi «dal 27/9, turno P» lascia la mattina del 27 alla voce precedente e dal
+  giorno dopo vale su tutti i turni. `withMinimoEntry` deduplica sulla COPPIA
+  data+turno (due voci dello stesso giorno convivono), `nextEntry` dice al
+  pannello qual è la prima voce NON ancora in vigore (niente più «ancora nessun
+  minimo configurato» quando invece ne esiste uno che parte dopo). Nel pannello
+  admin: caselle M/P/N «Dal turno» accanto a «Valido dal» (aria-label «Turno X di
+  partenza», per non rubare il label «Valido dal» al campo data).
+  (2) CHIP GIALLE di /turnisala, COLORI: nel chiaro il testo è `#b3261e`
+  (`--sala-yellow-chip-text`, variabile SUA: il rosso delle celle Assenti resta
+  `--cell-abs-text`, `#8c2a24` che l'utente leggeva come «marrone»); nel buio
+  resta `#fbd9d6`. E il BORDO ora si ricava dal TESTO (`currentColor` 30%), come
+  ogni altra pillola dell'app: prima veniva da `--altri-pill-trasferte-text`
+  (ambra) mentre il testo veniva dalla tinta assenze — era l'UNICA pillola col
+  bordo che non seguiva il proprio testo e in tema scuro le due famiglie
+  (ambra #fbbf24 vs rosa #fbd9d6) si vedevano come DUE colori sulla stessa chip
+  (il «doppio colore» segnalato sulla DCIF del 19/9 P e sulla 8° del 23/9).
+  Verificato sui PIXEL, non a occhio: screenshot 6× della chip e mappa dei
+  colori resi (`node scripts/.dbg-chip-pixel.mjs file.png`) — prima il bordo
+  misurava `#75520b` (ambra) sotto un testo `#fbd9d6`, ora ha gli stessi canali
+  del testo in entrambi i temi (chiaro: fill `#fef3c7`, bordo `#e7b494`, testo
+  `#b3261e`); il bordo si compone col riempimento della chip (trasparente al
+  70%), per questo la tinta resa non è il puro 30%.
+  (3) EVIDENZIA dell'utente loggato: dove la board nomina l'utente il testo va in
+  GRASSETTO — nomi in card, chip gialle (nome E sigla), tirocinanti, righe
+  teorico≠reale — e nelle «altre presenze»/assenti la sua pill (già
+  `desk-own-badge`) prende anche `.desk-own-badge-strong`: `font-weight: 700` e
+  anello interno a 2px. Un solo predicato in board (`isOwn` = `matchesCognome`,
+  omonimi e nomi «posseduti» compresi) alimenta tutto, così grassetto e bordo
+  spesso cadono ESATTAMENTE dove cade l'evidenzia della card.
+  TEST: `tests/sala-scoperto.spec.ts` (+4 casi sulla logica: turno di partenza,
+  voci vecchie senza turno, due voci nello stesso giorno, `snapshotForDay` per
+  giorno+turno); `tests/minimi.spec.ts` (+1 end-to-end: salva «27/9 turno P» e
+  verifica che la MATTINA del 27 non cambi, che il pannello dica «la prima voce
+  parte dal 2026-09-27, turno P» in mattina e «In vigore da 2026-09-27, turno P»
+  dal pomeriggio); `tests/chip-gialle.spec.ts` (+3 casi: bordo e testo con gli
+  STESSI canali nei due temi, e nel chiaro un rosso vero non il marrone di
+  prima); `tests/dipendente.spec.ts` (+2 casi: in card in grassetto solo il
+  cognome dell'utente, e la pill dell'utente in grassetto con anello 2px mentre
+  chi non è nei gruppi non ne ha nessuna). Helper nuovi in `tests/sala-board.ts`:
+  `boardChipColors`, `boldTexts` (foglie con lettere, con la chip di
+  appartenenza), `ownPills`.
+  CONTROLLI NEGATIVI fatti (le prove non passano a vuoto): rimettendo il bordo
+  sulla tinta trasferte → rossi ENTRAMBI i temi; e ignorando `fromShift` in
+  `effectiveEntry` → rosso l'end-to-end sui minimi (il 27/9 mattina cambia, cioè
+  la voce verrebbe applicata mezza giornata prima).
+  NB posizionale: le chip di CODA delle card a riga vivono FUORI da
+  `.sala-card-body` (stanno sul fondo card, non sul corpo) — per questo
+  `boldTexts` guarda tutta la card e non solo il corpo. Suite completa
+  46 passed / 3 skipped (gli skip sono preesistenti), tsc + eslint ok (2 warning
+  preesistenti).

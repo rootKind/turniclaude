@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { E2E_BASE_URL } from './employee-session'
 
 /**
  * Smoke delle PAGINE (autenticate, vedi tests/README.md per la sessione):
@@ -16,7 +17,7 @@ import { expect, test, type Page } from '@playwright/test'
  */
 
 async function requirePage(page: Page, path: string, h1: RegExp) {
-  await page.goto(`http://localhost:3000${path}?dev=rootkind-dev-2026`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`${E2E_BASE_URL}${path}?dev=rootkind-dev-2026`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1_500) // il PwaGuard decide dopo il mount
   if (!page.url().includes(path)) test.skip(true, `non autenticato: ${page.url()}`)
   await expect(page.locator('main h1').filter({ hasText: h1 })).toBeVisible()

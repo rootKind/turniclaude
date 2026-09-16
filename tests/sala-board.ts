@@ -23,18 +23,33 @@ export interface BoardCard {
   highlighted: boolean
   /** Testo delle chip gialle della card («Di Meo», «BarraA», «— scoperto»…). */
   chips: string[]
+  /** Nomi dell'EQUIPAGGIO (elenco + tirocinanti), senza le chip gialle: serve a
+   *  distinguere chi c'è per turno da chi c'è SOLO come chip gialla. */
+  names: string
   text: string
 }
 
 /** Card della board, nell'ordine di rendering. */
 export async function boardCards(page: Page): Promise<BoardCard[]> {
   return page.evaluate(chipSel => {
-    const out: Array<{ title: string; highlighted: boolean; chips: string[]; text: string }> = []
+    const out: Array<{ title: string; highlighted: boolean; chips: string[]; names: string; text: string }> = []
     for (const c of document.querySelectorAll('.sala-card-bg')) {
+      // Nomi dell'equipaggio = testo delle aree nomi SENZA le chip gialle
+      // (che stanno o in coda o al posto del nome).
+      const names = [...c.querySelectorAll('.sala-card-body, .sala-card-tir')]
+        .map(area => {
+          const clone = area.cloneNode(true) as HTMLElement
+          clone.querySelectorAll(chipSel).forEach(el => el.remove())
+          return clone.textContent ?? ''
+        })
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim()
       out.push({
         title: c.querySelector('.sala-card-title')?.textContent?.trim() ?? '',
         highlighted: c.className.includes('desk-card-highlight'),
         chips: [...c.querySelectorAll(chipSel)].map(el => (el.textContent ?? '').replace(/\s+/g, ' ').trim()),
+        names,
         text: (c as HTMLElement).innerText.replace(/\s*\n+\s*/g, ' | ').trim(),
       })
     }
@@ -112,6 +127,194 @@ export async function openBoard(page: Page, target: BoardTarget, baseUrl = E2E_B
     await page.waitForTimeout(800)
   }
   return true
+}
+
+/** Seleziona il turno nella toolbar della board, senza ricaricare la pagina. */
+export async function selectShift(page: Page, shift: 'M' | 'P' | 'N'): Promise<void> {
+  await page.locator('button', { hasText: new RegExp(`^${shift}$`) }).first().click()
+  // I chip cambiano con il turno: il render è immediato ma le misure no.
+  await page.waitForTimeout(600)
+}
+
+export interface BoardChip {
+  /** Titolo della card che la contiene. */
+  card: string
+  /** Testo della chip («SmeragliuoloSPCA», «— scoperto»…). */
+  text: string
+  /** true se la CHIP (la pillola, non solo il testo) esce dall'area visibile
+   *  della card: la card ha `overflow-hidden` e taglia sul suo bordo, quindi
+   *  quello che sporge perde il contorno e parte del testo (regressione
+   *  15/09/2026: a 390px la chip «SmeragliuoloSPCA» usciva di 22px). */
+  overflowing: boolean
+  /** true se il testo è finito dietro l'ellipsis. */
+  clipped: boolean
+  /** Righe su cui è disposta la chip (2 = la sigla è scesa sotto il nome). */
+  lines: number
+  /** Larghezza della chip (px). */
+  width: number
+  /** Font applicato al testo della chip (px). */
+  font: number
+}
+
+/**
+ * Chip gialle della board con le loro misure. I testi adattivi hanno la classe
+ * `.sala-fit-text` (globals.css): la loro misura cambia con la larghezza della
+ * card, quindi il confronto va fatto sui rettangoli resi dal browser.
+ */
+export async function boardChips(page: Page): Promise<BoardChip[]> {
+  return page.evaluate((chipSel: string) => {
+    const out: Array<{
+      card: string
+      text: string
+      overflowing: boolean
+      clipped: boolean
+      lines: number
+      width: number
+      font: number
+    }> = []
+    for (const chip of document.querySelectorAll(chipSel)) {
+      const card = chip.closest('.sala-card-bg')
+      const cb = card?.getBoundingClientRect()
+      const box = chip.getBoundingClientRect()
+      const lineH = parseFloat(getComputedStyle(chip).lineHeight) || 16
+      const parti = [...chip.querySelectorAll('.sala-fit-text')]
+      // Limite visibile = padding box della card (overflow-hidden taglia sul
+      // bordo: 1px per lato). LL confronto è sulla CHIP: il suo contorno tondo
+      // è ciò che si perde, e il testo può starci dentro mentre la pillola no.
+      out.push({
+        card: card?.querySelector('.sala-card-title')?.textContent?.trim() ?? '',
+        text: (chip.textContent ?? '').replace(/\s+/g, ' ').trim(),
+        overflowing: !!cb && (box.right > cb.right - 1 || box.left < cb.left + 1),
+        clipped: parti.some(el => el.scrollWidth > el.clientWidth + 1),
+        lines: Math.max(1, Math.round(box.height / lineH)),
+        width: Math.round(box.width),
+        font: parti[0] ? +parseFloat(getComputedStyle(parti[0]).fontSize).toFixed(2) : 0,
+      })
+    }
+    return out
+  }, CHIP_SELECTOR)
+}
+
+export interface BoardChipColor {
+  /** Titolo della card che la contiene. */
+  card: string
+  /** Testo della chip («AlbanoA», «MininoSPCA»…). */
+  text: string
+  /** Colore del testo della chip, come lo rende il browser («rgb(…)»). */
+  textColor: string
+  /** Colore del BORDO con la sua trasparenza («color(srgb r g b / 0.3)»). */
+  borderColor: string
+  /** Testi e colori dei pezzi dentro la chip (cognome, sigla). */
+  children: Array<{ text: string; color: string }>
+  /** Grassetto (700+) sui pezzi DENTRO la chip: true solo per l'utente loggato. */
+  bold: boolean
+}
+
+/**
+ * Colori RESI delle chip gialle: serve a difendere che la chip abbia una sola
+ * famiglia di colori (richiesta 16/09/2026). Prima il bordo si ricavava dalla
+ * tinta TRASFERTE (ambra) mentre il testo veniva dalla tinta ASSENTI: in tema
+ * scuro ambra e rosa sono due famiglie lontane e la chip sembrava avere DUE
+ * colori addosso. Ora il bordo segue il testo (`currentColor` 30%), come ogni
+ * altra pillola dell'app: qui si confrontano i canali, non i nomi delle variabili.
+ */
+export async function boardChipColors(page: Page): Promise<BoardChipColor[]> {
+  return page.evaluate((chipSel: string) => {
+    const out: Array<{
+      card: string
+      text: string
+      textColor: string
+      borderColor: string
+      children: Array<{ text: string; color: string }>
+      bold: boolean
+    }> = []
+    for (const chip of document.querySelectorAll(chipSel)) {
+      const st = getComputedStyle(chip)
+      const parti = [...chip.querySelectorAll('.sala-fit-text')]
+      out.push({
+        card: chip.closest('.sala-card-bg')?.querySelector('.sala-card-title')?.textContent?.trim() ?? '',
+        text: (chip.textContent ?? '').replace(/\s+/g, ' ').trim(),
+        textColor: st.color,
+        borderColor: st.borderTopColor,
+        children: parti.map(el => ({ text: (el.textContent ?? '').trim(), color: getComputedStyle(el).color })),
+        bold: parti.some(el => +getComputedStyle(el).fontWeight >= 700),
+      })
+    }
+    return out
+  }, CHIP_SELECTOR)
+}
+
+/**
+ * I testi in GRASSETTO della board, con la card che li contiene (richiesta
+ * 16/09/2026: il nome dell'utente loggato si riconosce a colpo d'occhio).
+ */
+export async function boldTexts(page: Page): Promise<Array<{ card: string; text: string; chip: string | null; weight: number }>> {
+  return page.evaluate(() => {
+    const out: Array<{ card: string; text: string; chip: string | null; weight: number }> = []
+    // TUTTA la card: i nomi stanno nel corpo (`.sala-card-body`) ma le chip
+    // gialle possono stare anche nelle righe di coda, che vivono fuori dal corpo.
+    const foglie = [...document.querySelectorAll('.sala-card-bg span')]
+      // Solo le FOGLIE: i contenitori ereditano il grassetto del figlio e
+      // riporterebbero lo stesso nome due volte (il pallino ● che li accompagna
+      // non è un nome e resta fuori).
+      .filter(el => !el.querySelector('span'))
+    for (const el of foglie) {
+      const w = +getComputedStyle(el).fontWeight
+      const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
+      if (w < 700 || !/[A-Za-z]/.test(text)) continue
+      out.push({
+        card: el.closest('.sala-card-bg')?.querySelector('.sala-card-title')?.textContent?.trim() ?? '',
+        text,
+        // La chip che la contiene (se è dentro una chip gialla): la sua SIGLA è
+        // in grassetto insieme al nome, quindi appartiene all'utente anche se
+        // non porta il cognome.
+        chip: el.closest('span[style*="altri-pill"]')?.textContent?.replace(/\s+/g, ' ').trim() ?? null,
+        weight: w,
+      })
+    }
+    return out
+  })
+}
+
+/**
+ * Apre il menu dei mini-Fab di /turnisala (admin e manager). NON è un click: la
+ * bottom-nav lo apre con una PRESSIONE LUNGA di 500 ms sul Fab «Azioni sala»
+ * (onPointerDown avvia il timer, onPointerUp lo annulla), quindi un click
+ * normale porta da un'altra parte — esattamente la ragione per cui serve un
+ * helper invece di `page.click`.
+ */
+export async function openSalaAdminFab(page: Page): Promise<void> {
+  const apri = page.getByLabel('Minimi di persone per card')
+  for (let tentativo = 0; tentativo < 3; tentativo++) {
+    if (await apri.count()) return
+    const fab = page.getByLabel('Azioni sala')
+    if (!(await fab.count())) return
+    // NIENTE pointerup: quando il menu è aperto la label del Fab diventa «Chiudi
+    // menu», quindi il locator non trova più niente e l'attesa si mangerebbe il
+    // timeout del test. Il timer della pressione lunga è già scattato.
+    await fab.dispatchEvent('pointerdown').catch(() => {})
+    await page.waitForTimeout(900)        // timer della bottom-nav: 500 ms
+  }
+}
+
+/**
+ * Le pill «SEI TU» della board: quelle dell'utente loggato (classe
+ * `desk-own-badge`), con grassetto e spessore dell'anello interno. Nelle «altre
+ * presenze» la pill dell'utente è in grassetto e con il bordo spesso (richiesta
+ * 16/09/2026); le pill degli altri restano normali.
+ */
+export async function ownPills(page: Page): Promise<Array<{ text: string; weight: number; ring: string; bg: string }>> {
+  return page.evaluate(() =>
+    [...document.querySelectorAll('.desk-own-badge')].map(el => {
+      const st = getComputedStyle(el)
+      return {
+        text: (el.textContent ?? '').replace(/\s+/g, ' ').trim(),
+        weight: +st.fontWeight,
+        ring: st.boxShadow,
+        bg: st.backgroundColor,
+      }
+    }),
+  )
 }
 
 /** Titoli delle card evidenziate (la card «sei tu» del dipendente loggato). */

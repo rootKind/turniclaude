@@ -1,13 +1,15 @@
 import { expect, test, type Page } from '@playwright/test'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { E2E_BASE_URL } from './employee-session'
 
 /**
  * Smoke: NESSUN testo di card troncato nel Confronto, a 320px (piccolo) e
  * 390px (iPhone Pro Max). Tre bersagli:
  *  1. mockup statico 320px (peggior caso: TUTOR, DCIF, F.E., Trasf…) — file://;
  *  2. mockup dashed + due righe (card split/strike e card sm) — file://;
- *  3. l'app REALE su localhost:3000 (dev server già avviato, vedi .freebuff/run.md):
+ *  3. l'app REALE sul dev server già avviato (vedi .freebuff/run.md; porta da
+ *     `E2E_BASE_URL`, default localhost:3000):
  *     SENZA sessione il test salta (Supabase tiene la sessione in cookie httpOnly,
  *     non riproducibile qui) — i mockup 1-2 sono la rete di regressione vera.
  *
@@ -84,7 +86,7 @@ test.describe('Confronto: nessun testo di card troncato', () => {
       // senza, un browser NON-PWA viene reindirizzato a /installa prima ancora
       // del check auth. Il guard salva il bypass in localStorage e toglie il
       // parametro dall'URL.
-      await page.goto('http://localhost:3000/tuoturno?dev=rootkind-dev-2026', { waitUntil: 'domcontentloaded' })
+      await page.goto(`${E2E_BASE_URL}/tuoturno?dev=rootkind-dev-2026`, { waitUntil: 'domcontentloaded' })
       await page.waitForTimeout(1_500) // il guard decide dopo il mount
       if (!page.url().includes('/tuoturno')) {
         test.skip(true, `app non autenticata in questo browser di test: ${page.url()}`)

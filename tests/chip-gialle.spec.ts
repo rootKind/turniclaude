@@ -1,0 +1,158 @@
+import { test, expect, E2E_BASE_URL, findEmployee } from './fixtures'
+import { boardChipColors, boardChips, openBoard, selectShift } from './sala-board'
+
+/**
+ * CHIP GIALLE DENTRO LA CARD + SCORRIMENTO VERTICALE (richiesta 15/09/2026).
+ *
+ * La board è a 3 colonne FISSE: la card misura 411px su desktop ma 114px a 390px
+ * di schermo, e la card ha `overflow-hidden` → quello che non entra viene
+ * TAGLIATO. La chip gialla «cognome + sigla» è la più esposta: il 23/9 turno P,
+ * con «SmeragliuoloSPCA» (142px) in 98px di riga utile, 8 chip su 28 uscivano
+ * dalla card. Ora la sigla scende sotto il nome (flex-wrap) e, se nemmeno il
+ * solo cognome entra, il testo si rimpicciolisce (`.sala-fit-text`, container
+ * query sulla card): qui si difende che a OGNI larghezza nulla sporga e nulla
+ * finisca dietro l'ellipsis, e che su desktop non cambi niente (chip su una riga).
+ *
+ * Il 23/9 è il giorno con più gialli del mese (30 chip su 12 card): è il caso
+ * peggiore, non un campione comodo.
+ */
+const LARGHEZZE = [320, 390, 1280]
+
+test.setTimeout(300_000)
+
+test('le chip gialle restano dentro la card a ogni larghezza', async ({ asEmployee }) => {
+  test.skip(!(await findEmployee('Di Monda')), 'serve un dipendente (service-role in .env.local)')
+  const page = await asEmployee('Di Monda')
+  let viste = 0
+
+  for (const w of LARGHEZZE) {
+    await page.setViewportSize({ width: w, height: 900 })
+    expect(await openBoard(page, { month: 9, day: 23 }), 'board non aperta').toBe(true)
+    for (const turno of ['M', 'P', 'N'] as const) {
+      await selectShift(page, turno)
+      const chips = await boardChips(page)
+      viste = Math.max(viste, chips.length)
+
+      expect(
+        chips.filter(c => c.overflowing).map(c => `«${c.text}» su ${c.card}`),
+        `a ${w}px nessuna chip deve uscire dalla card`,
+      ).toEqual([])
+      expect(
+        chips.filter(c => c.clipped).map(c => `«${c.text}»`),
+        `a ${w}px nessuna chip deve finire dietro l'ellipsis`,
+      ).toEqual([])
+      // Su desktop lo spazio c'è: la chip non deve cambiare forma.
+      if (w >= 1280) {
+        expect(chips.filter(c => c.lines > 1).map(c => c.text), 'su desktop le chip restano su una riga').toEqual([])
+      }
+    }
+  }
+
+  expect(viste, 'nessuna chip gialla trovata: la prova passerebbe a vuoto').toBeGreaterThan(5)
+})
+
+/**
+ * UNA SOLA FAMIGLIA DI COLORI PER CHIP (richiesta 16/09/2026).
+ *
+ * Nel tema scuro la chip «AlbanoA» della DCIF del 19/9 P (e «MininoSPCA» della
+ * 8° del 23/9 P) sembrava avere DUE colori: il testo veniva dalla tinta ASSENTI
+ * (rosa #fbd9d6) mentre il BORDO dalla tinta TRASFERTE (ambra #fbbf24): due
+ * famiglie lontane, sulla stessa pillola. Era l'unica pillola dell'app col bordo
+ * che non seguiva il proprio testo.
+ *
+ * Qui si confrontano i CANALI resi dal browser: il bordo è 30% del testo, quindi
+ * stessi RGB — in entrambi i temi. E nel chiaro il testo è il ROSSO della
+ * richiesta, non il marrone di prima.
+ */
+function canali(css: string): [number, number, number] {
+  const srgb = css.match(/color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/)
+  if (srgb) return [Math.round(+srgb[1] * 255), Math.round(+srgb[2] * 255), Math.round(+srgb[3] * 255)]
+  const rgb = css.match(/rgba?\(([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/)
+  if (!rgb) throw new Error(`colore non interpretabile: ${css}`)
+  return [Math.round(+rgb[1]), Math.round(+rgb[2]), Math.round(+rgb[3])]
+}
+
+for (const tema of ['light', 'dark'] as const) {
+  test(`la chip ha una famiglia sola di colori (tema ${tema})`, async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Di Monda')), 'serve un dipendente (service-role in .env.local)')
+    const page = await asEmployee('Di Monda')
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.addInitScript(t => window.localStorage.setItem('ui-theme', t), tema)
+    await page.emulateMedia({ colorScheme: tema })
+
+    let viste = 0
+    for (const giorno of [19, 23]) {
+      expect(await openBoard(page, { month: 9, day: giorno, shift: 'P' }, E2E_BASE_URL), 'board non aperta').toBe(true)
+      const chips = await boardChipColors(page)
+      viste += chips.length
+      for (const c of chips) {
+        const testo = canali(c.textColor)
+        const bordo = canali(c.borderColor)
+        expect(
+          bordo.map((v, i) => Math.abs(v - testo[i])),
+          `«${c.text}» su ${c.card}: il bordo (${bordo.join(',')}) deve essere della stessa famiglia del testo (${testo.join(',')})`,
+        ).toEqual([0, 0, 0])
+        // Il cognome e la sigla DENTRO la chip ereditano lo stesso colore.
+        for (const f of c.children) {
+          expect(canali(f.color), `«${f.text}» dentro «${c.text}»`).toEqual(testo)
+        }
+      }
+    }
+    expect(viste, 'nessuna chip: la prova passerebbe a vuoto').toBeGreaterThan(3)
+  })
+}
+
+test('nel tema chiaro il testo della chip è rosso, non marrone', async ({ asEmployee }) => {
+  test.skip(!(await findEmployee('Di Monda')), 'serve un dipendente (service-role in .env.local)')
+  const page = await asEmployee('Di Monda')
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.addInitScript(() => window.localStorage.setItem('ui-theme', 'light'))
+  await page.emulateMedia({ colorScheme: 'light' })
+  expect(await openBoard(page, { month: 9, day: 19, shift: 'P' }, E2E_BASE_URL), 'board non aperta').toBe(true)
+
+  const chips = await boardChipColors(page)
+  expect(chips.length, 'la DCIF del 19/9 P ha la chip di ALBANO').toBeGreaterThan(0)
+  for (const c of chips) {
+    const [r, g] = canali(c.textColor)
+    // Il marrone di prima (#8c2a24) stava su R=140: qui si chiede un rosso vero.
+    expect(r, `«${c.text}»: componente rossa`).toBeGreaterThan(150)
+    expect(g, `«${c.text}»: componente verde`).toBeLessThan(60)
+  }
+})
+
+test('/turnisala scorre in verticale sui display bassi', async ({ asEmployee }) => {
+  test.skip(!(await findEmployee('Di Monda')), 'serve un dipendente (service-role in .env.local)')
+  const page = await asEmployee('Di Monda')
+  await page.setViewportSize({ width: 1280, height: 900 })
+  expect(await openBoard(page, { month: 9, day: 23, shift: 'P' }), 'board non aperta').toBe(true)
+
+  for (const h of [380, 500, 1280]) {
+    await page.setViewportSize({ width: 1280, height: h })
+    await page.waitForTimeout(350)
+    const prima = await page.evaluate(() => ({
+      doc: document.documentElement.scrollHeight,
+      view: window.innerHeight,
+      html: getComputedStyle(document.documentElement).overflowY,
+      body: getComputedStyle(document.body).overflowY,
+    }))
+    // Nessuno deve aver spento lo scorrimento del documento.
+    expect([prima.html, prima.body], 'overflow-y del documento non deve essere hidden').not.toContain('hidden')
+
+    await page.evaluate(() => window.scrollTo(0, 99999))
+    await page.waitForTimeout(250)
+    const dopo = await page.evaluate(() => ({
+      y: Math.round(window.scrollY),
+      max: Math.round(document.documentElement.scrollHeight - window.innerHeight),
+    }))
+
+    if (prima.doc > prima.view) {
+      expect(dopo.max, `a ${h}px di altezza la pagina deve scorrere`).toBeGreaterThan(0)
+      expect(Math.abs(dopo.y - dopo.max), `a ${h}px lo scorrimento deve arrivare in fondo`).toBeLessThan(3)
+      console.log(`1280×${h}: pagina alta ${prima.doc}px su viewport ${prima.view}px → scroll fino a ${dopo.max}px ✓`)
+    } else {
+      expect(dopo.y, `a ${h}px la pagina ci sta: nessuno scroll`).toBe(0)
+      console.log(`1280×${h}: pagina alta ${prima.doc}px su viewport ${prima.view}px → nessuno scroll necessario`)
+    }
+    await page.evaluate(() => window.scrollTo(0, 0))
+  }
+})
