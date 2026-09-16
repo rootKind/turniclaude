@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useRef, useState, type CSSProperties } from 'react'
 import { Trash2, UserPlus, Link2, ArrowLeftRight, ArrowUpDown, GripVertical, Palette } from 'lucide-react'
 import { useDraggable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -37,10 +37,19 @@ interface Props {
    *  è ambigua → il nome NON si aggiunge alla card (uno dei due è giallo,
    *  ma non si sa quale). */
   duplicateCognomi?: Set<string>
-  /** Card SCOPERTA (richiesta 27/09/2026): la persona che il teorico le
-   *  assegnava è stata spostata da un giallo (chip sulla card di destinazione)
-   *  e nessuno l'ha rimpiazzata → chip gialla «scoperto» in coda all'elenco. */
-  scoperto?: boolean
+  /** Nome dell'UTENTE LOGGATO (richiesta 16/09/2026): «mi sta guardando la
+   *  board, il mio nome lo vedo in GRASSETTO». Il confronto usa la stessa
+   *  logica dell'evidenzia della card (matchesCognome, con omonimi e nomi
+   *  «posseduti»): arriva come predicato dalla board, così non si duplica qui. */
+  isOwn?: (name: string) => boolean
+  /** Card SCOPERTA (richieste 27/09 e 15/09/2026): quante PERSONE MANCANO
+   *  rispetto al minimo previsto per quella sezione e turno (lib/sala-minimi),
+   *  o perché un giallo le ha spostate (chip sulla card di destinazione) o
+   *  perché semplicemente non ci sono — caso ROTONDO, la cui squadra gira su
+   *  4/6/7/10 mentre il suo teorico è una serie di G. Ogni persona mancante ha
+   *  la sua chip gialla «— scoperto» in coda all'elenco. 0/undefined = la card
+   *  è completa. */
+  scoperti?: number
 }
 
 const toTitleCase = (s: string) =>
@@ -61,6 +70,24 @@ const cognomeOf = (name: string) => {
 const rowLabel = (name: string, nameDisplay?: Map<string, string>) =>
   lookupNameDisplay(name, nameDisplay) ?? cognomeOf(name)
 
+/**
+ * Misura ADATTIVA del testo dentro la card (richiesta 15/09/2026): la board è a
+ * 3 colonne FISSE, quindi a 390px di schermo la card scende a 114px e la chip
+ * gialla «cognome + sigla» (142px con «SmeragliuoloSPCA») non entra più — la
+ * card ha `overflow-hidden` e il cognome veniva tagliato. Qui si passano i
+ * parametri della misura, il calcolo lo fa `.sala-fit-text` (globals.css) con
+ * una container query: si aggiorna da sola al resize, senza ricalcolare le card.
+ *
+ * `pad` = pixel che il testo NON può usare (padding della riga: 16px; dentro la
+ * chip anche il padding della chip: 28px). `em` = larghezza media di un
+ * carattere in em, MISURATA in Geist (nomi 0.577, sigle maiuscole 0.683) e
+ * arrotondata per eccesso: il testo può risultare un filo più piccolo del
+ * necessario, mai tagliato.
+ */
+function fitText(text: string, pad: number, em: number): CSSProperties {
+  return { '--fit-chars': text.length, '--fit-pad': `${pad}px`, '--fit-em': em } as CSSProperties
+}
+
 
 function colorToHex(color: string | null | undefined): string {
   if (!color) return '#000000'
@@ -73,7 +100,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowByCard, duplicateCognomi, scoperto }: Props) {
+export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowByCard, duplicateCognomi, scoperti = 0, isOwn }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -125,18 +152,40 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
   // La sigla sta DENTRO la chip sulla STESSA riga di base del nome e della
   // stessa misura (richiesta 27/09/2026: a text-[10px] il codice sembrava più
   // piccolo e più in basso del cognome — resta semibold per distinguersi).
-  const YellowChip = ({ name, code }: { name: string; code?: string }) => (
+  // La sigla è un ITEM A SÉ (non dentro lo span del nome): con `flex-wrap`
+  // scende sotto il nome quando la card è stretta (114px a 390px di schermo),
+  // invece di spingere il nome fuori dalla card — la card ha overflow-hidden,
+  // quindi prima il cognome veniva TAGLIATO (richiesta 15/09/2026).
+  //
+  // COLORE (richiesta 16/09/2026): il testo è `--sala-yellow-chip-text` (rosso,
+  // più rosso del marrone di prima nel tema chiaro) e il BORDO si ricava da
+  // QUEL colore con `currentColor`, come ogni altra pillola dell'app. Prima il
+  // bordo prendeva la tinta delle TRASFERTE (ambra): nei temi scuri ambra e rosa
+  // sono due famiglie lontane e la chip sembrava avere DUE colori addosso.
+  // `own` = la chip è dell'utente loggato (nome in grassetto, richiesta 16/09).
+  const YellowChip = ({ name, code, own }: { name: string; code?: string; own?: boolean }) => (
     <span
       style={{
         background: 'var(--altri-pill-trasferte-bg)',
-        border: '1px solid color-mix(in srgb, var(--altri-pill-trasferte-text) 30%, transparent)',
+        color: 'var(--sala-yellow-chip-text)',
+        border: '1px solid color-mix(in srgb, currentColor 30%, transparent)',
       }}
-      className="select-none inline-flex items-center rounded-full px-1.5 leading-4"
+      className="select-none inline-flex flex-wrap items-center justify-center gap-x-1 max-w-full rounded-full px-1.5 leading-4"
     >
-      <span className="text-sm font-medium whitespace-nowrap align-baseline" style={{ color: 'var(--cell-abs-text)' }}>
+      <span
+        className={`sala-fit-text whitespace-nowrap truncate align-baseline ${own ? 'font-bold' : 'font-medium'}`}
+        style={fitText(name, 28, 0.62)}
+      >
         {name}
-        {code ? <span className="text-sm font-semibold tabular-nums ml-1 align-baseline">{code}</span> : null}
       </span>
+      {code ? (
+        <span
+          className={`sala-fit-text tabular-nums whitespace-nowrap truncate align-baseline ${own ? 'font-bold' : 'font-semibold'}`}
+          style={fitText(code, 28, 0.72)}
+        >
+          {code}
+        </span>
+      ) : null}
     </span>
   )
   const renderDot = (name: string) => {
@@ -176,13 +225,17 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     const slotClass = getSlotClass(i)
     const resolved = lookupNameDisplay(surname, nameDisplay)
     const label = resolved ?? toTitleCase(surname)
+    // Il NOME dell'utente loggato va in GRASSETTO (richiesta 16/09/2026).
+    const strong = isOwn?.(surname) ? ' font-bold' : ''
     return (
-      <span className={`text-sm whitespace-nowrap leading-tight flex items-center gap-0.5 ${slotClass}`}>
+      <span className={`whitespace-nowrap leading-tight flex items-center gap-0.5 ${slotClass}${strong}`}>
         {dot}
         {surname ? (
-          <span>{label}</span>
+          // Il cognome si adatta alla card (vedi .sala-fit-text): a 320px la
+          // colonna scende a ~95px e un cognome di 10 lettere non entra.
+          <span className="sala-fit-text" style={fitText(label, 16, 0.62)}>{label}</span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-sm text-muted-foreground/40">—</span>
         )}
       </span>
     )
@@ -252,25 +305,27 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       <YellowChip
         name={rowLabel(y.name, nameDisplay)}
         code={y.showCode && y.code ? y.code : undefined}
+        own={isOwn?.(y.name)}
       />
     </span>
   )
 
-  // Riga «scoperto» (richiesta 27/09/2026): la card perde la persona che il
-  // teorico le assegnava per un giallo che l'ha spostata altrove e nessuno
-  // l'ha rimpiazzata → stessa chip gialla dei gialli, col testo rosso. Il
-  // TRATTINO del posto libero sta DENTRO la chip («— scoperto», richiesta
-  // 27/09/2026): sulla card scoperta il placeholder «—» non si disegna più.
-  const renderScopertoRow = () => (
-    <span className="flex items-center text-sm leading-tight">
+  // Righe «scoperto» (richieste 27/09 e 15/09/2026): una CHIP per ogni persona
+  // mancante, con lo stesso aspetto dei gialli e il testo rosso. Il TRATTINO
+  // del posto libero sta DENTRO la chip («— scoperto»): sulla card scoperta il
+  // placeholder «—» non si disegna più, altrimenti si leggerebbe due volte.
+  // Es. doppia con minimo 2 e nessun reale → due chip; doppia con 1 reale → una.
+  const mancanti = isEditing ? 0 : Math.max(0, Math.floor(scoperti))
+  const renderScopertoRow = (i: number) => (
+    <span key={`sc-${i}`} className="flex items-center text-sm leading-tight">
       <YellowChip name="— scoperto" />
     </span>
   )
 
   // Slot di nome da disegnare. Sulla card SCOPERTA gli slot vuoti non rendono
-  // il loro «—» (lo porta la chip): restano gli indici ORIGINALI per slot
+  // il loro «—» (lo portano le chip): restano gli indici ORIGINALI per slot
   // T/S e colori, quindi si filtrano le voci vuote, non le posizioni.
-  const slots = !isEditing && scoperto
+  const slots = mancanti > 0
     ? card.surnames.map((surname, i) => ({ surname, i })).filter(s => s.surname)
     : card.surnames.map((surname, i) => ({ surname, i }))
 
@@ -278,9 +333,12 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
     <div
       ref={setNodeRef}
       style={style}
+      // `sala-card-fit` (container query per .sala-fit-text) SOLO sulla card in
+      // griglia: nell'overlay di trascinamento la card è shrink-to-fit e la
+      // containment in linea la farebbe collassare a zero.
       className={`sala-card-bg sala-card-border rounded-lg overflow-hidden flex flex-col h-full border transition-opacity ${
-        highlighted ? 'desk-card-highlight' : ''
-      } ${isDragging && !isDragOverlay ? 'opacity-40' : ''}`}
+        isDragOverlay ? '' : 'sala-card-fit'
+      } ${highlighted ? 'desk-card-highlight' : ''} ${isDragging && !isDragOverlay ? 'opacity-40' : ''}`}
     >
       {/* Main area */}
       <div className="flex flex-col flex-1 min-h-0" style={{ minWidth: `${minWidth}px` }}>
@@ -441,10 +499,11 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
             {!isEditing && yellowInList.map((y, i) => (
               <div key={`yl-${i}`} className="flex items-center px-2 py-0.5">{renderYellowRow(y)}</div>
             ))}
-            {/* Card scoperta (anch'essa in coda agli altri nomi). */}
-            {!isEditing && scoperto && (
-              <div className="flex items-center px-2 py-0.5">{renderScopertoRow()}</div>
-            )}
+            {/* Card scoperta (anch'essa in coda agli altri nomi): una riga
+                per persona mancante. */}
+            {!isEditing && Array.from({ length: mancanti }, (_, i) => (
+              <div key={`sc-${i}`} className="flex items-center px-2 py-0.5">{renderScopertoRow(i)}</div>
+            ))}
           </div>
         ) : (
           <div className="flex flex-col flex-1">
@@ -464,11 +523,11 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
               ))}
             </div>
             {/* v5: variante RIGA con aggiunte in coda, sotto i nomi. */}
-            {!isEditing && (yellowInList.length > 0 || scoperto) && (
+            {!isEditing && (yellowInList.length > 0 || mancanti > 0) && (
               <div className="flex flex-col items-center gap-0.5 px-2 pb-1.5">
                 {yellowInList.map((y, i) => <span key={`yl-${i}`}>{renderYellowRow(y)}</span>)}
-                {/* Card scoperta: riga gialla in coda, sotto i nomi. */}
-                {scoperto && <span>{renderScopertoRow()}</span>}
+                {/* Card scoperta: una riga gialla per persona mancante. */}
+                {Array.from({ length: mancanti }, (_, i) => <span key={`sc-${i}`}>{renderScopertoRow(i)}</span>)}
               </div>
             )}
           </div>
@@ -486,7 +545,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
         <div className="border-t sala-card-title-sep shrink-0 bg-muted/30">
           {theoCompare.rows.map(r => (
             <div key={r.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
-              <span className="whitespace-nowrap font-medium">{rowLabel(r.name, nameDisplay)}</span>
+              <span className={`whitespace-nowrap ${isOwn?.(r.name) ? 'font-bold' : 'font-medium'}`}>{rowLabel(r.name, nameDisplay)}</span>
               {/* Il teorico NON si riscrive: la card in cui la riga sta parla
                   già di sezione+turno previsti (es. M 14/9). Solo il REALE —
                   spostamento, sigla di assenza, «presente»/«assente» — in rosso. */}
@@ -495,7 +554,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
  ))}
           {theoCompare.extras.map(e => (
             <div key={e.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
-              <span className="whitespace-nowrap font-medium">{rowLabel(e.name, nameDisplay)}</span>
+              <span className={`whitespace-nowrap ${isOwn?.(e.name) ? 'font-bold' : 'font-medium'}`}>{rowLabel(e.name, nameDisplay)}</span>
               {e.theo && <span className="tabular-nums text-muted-foreground whitespace-nowrap">da {e.theo}</span>}
             </div>
           ))}
@@ -520,7 +579,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
                   // v7: tirocinante giallo → chip che ingloba il nome (rosso).
                   renderYellowRow(yellowForSlot.get(normName(tir))!)
                 ) : (
-                  <span className="text-xs whitespace-nowrap italic text-muted-foreground flex items-center gap-0.5">
+                  <span className={`text-xs whitespace-nowrap italic text-muted-foreground flex items-center gap-0.5${isOwn?.(tir) ? ' font-bold' : ''}`}>
                     {renderDot(tir)}
                     {tir ? lookupNameDisplay(tir, nameDisplay) ?? toTitleCase(tir) : <span className="text-muted-foreground/40">—</span>}
                   </span>

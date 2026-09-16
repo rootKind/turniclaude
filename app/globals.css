@@ -100,6 +100,14 @@
      stessa tinta identica su celle, pill e pallini. */
   --cell-yellow-bg: var(--altri-pill-trasferte-bg); --cell-yellow-text: var(--altri-pill-trasferte-text);
   --cell-abs-bg: #fbd9d6;   --cell-abs-text: #8c2a24;
+  /* TESTO della chip gialla di /turnisala (richiesta 16/09/2026): più ROSSO,
+     non marrone (#8c2a24). È una variabile SUA e non `--cell-abs-text` perché
+     il rosso delle celle Assenti resta quello. Il BORDO della chip si ricava da
+     QUESTO colore (currentColor 30%): prima veniva dalla tinta TRASFERTE (ambra,
+     --altri-pill-trasferte-text) mentre il testo veniva dalla tinta ASSENTI, e in
+     tema scuro le due famiglie — ambra e rosa — si vedevano come DUE colori
+     sulla stessa chip. Ora la chip ha una famiglia sola, come ogni altra pill. */
+  --sala-yellow-chip-text: #b3261e;
   --cell-duty-bg: #d6f0dd;  --cell-duty-text: #1f5a34;
   --cell-empty-bg: #eef0f2; --cell-empty-text: #8b939e;
   --cell-pend-ring: #d9a53a;
@@ -303,6 +311,9 @@
   --cell-avail-bg: #12303c; --cell-avail-text: #a8d8ea;
   --cell-yellow-bg: var(--altri-pill-trasferte-bg); --cell-yellow-text: var(--altri-pill-trasferte-text);
   --cell-abs-bg: #3d1c1a;   --cell-abs-text: #fbd9d6;
+  /* Chip gialla — scuro (richiesta 16/09/2026): stesso rosso della tinta
+     assenze, così riempimento, bordo e testo restano in una famiglia sola. */
+  --sala-yellow-chip-text: var(--cell-abs-text);
   --cell-duty-bg: #16301f;  --cell-duty-text: #9fd9b4;
   --cell-empty-bg: #1b1f24; --cell-empty-text: #8b939e;
   --cell-pend-ring: #d9a53a;
@@ -833,6 +844,26 @@
   .sala-card-tir    { background-color: var(--sala-card-tir-bg); }
   .sala-card-title-sep { border-color: var(--sala-card-title-sep); }
   .sala-present-pill { background-color: var(--sala-present-pill-bg); color: var(--sala-present-pill-text); }
+  /* ─── TESTO LUNGO NELLE CARD di /turnisala (richiesta 15/09/2026) ───
+     La board è a 3 colonne fisse: la card misura 411px su desktop ma 114px a
+     390px di schermo, e la card ha `overflow-hidden` → quello che non entra
+     viene TAGLIATO. La chip gialla «cognome + sigla» è la più esposta: con
+     «SmeragliuoloSPCA» (142px) in 98px di riga utile sparivano 22px di nome
+     (il 23/9 turno P: 8 chip su 28 fuori). Il codice va a capo sotto il nome
+     (flex-wrap, in desk-card) e, se nemmeno il solo nome entra, il testo si
+     RIMPICCIOLISCE: lo spazio lo dà la card (100cqw), la lunghezza del testo
+     arriva da --fit-chars, il contesto (padding della riga, della chip e
+     larghezza media del carattere) da --fit-pad/--fit-em passati da
+     fitText().
+     --fit-em è l'em/carattere MISURATO in Geist (nomi 0.577, sigle maiuscole
+     0.683) arrotondato per eccesso: il testo può risultare un filo più piccolo
+     del necessario, mai tagliato. `container-type: inline-size` sta sulla CARD
+     e NON sulla versione dell'overlay di trascinamento: lì la card è
+     shrink-to-fit e la containment in linea la farebbe collassare. */
+  .sala-card-fit { container-type: inline-size; }
+  .sala-fit-text {
+    font-size: clamp(var(--fit-min, 9px), calc((100cqw - var(--fit-pad, 16px)) / (var(--fit-chars, 8) * var(--fit-em, 0.62))), var(--fit-max, 14px));
+  }
   /* Tinte dei gruppi «altre presenti» (richiesta 23/09/2026) */
   .altri-pill-trasferte  { background-color: var(--altri-pill-trasferte-bg);  color: var(--altri-pill-trasferte-text); border: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
   /* Bordo in stile assenti (.cell-tint-abs): anello sottile dello stesso tinta
@@ -878,6 +909,14 @@
     background: var(--sala-own-badge-bg);
     box-shadow: inset 0 0 0 1px var(--sala-own-badge-border);
     color: var(--sala-own-badge-text);
+  }
+  /* UTENTE LOGGATO nelle «altre presenze» e fra gli assenti (richiesta
+     16/09/2026): oltre alla tinta propria, il testo in GRASSETTO e il bordo
+     spesso il doppio. L'anello è inset (come .desk-own-badge) per non spostare
+     il perimetro della pill accanto alle altre. */
+  .desk-own-badge-strong {
+    font-weight: 700;
+    box-shadow: inset 0 0 0 2px var(--sala-own-badge-border);
   }
 
   /* Period pills (6 ferie periods) — bordo 1px nel colore del testo al 30% */

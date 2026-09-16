@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, ArrowLeft, ArrowRight, Upload, History, Pencil, LayoutGrid, Palette, Users, GitCompareArrows } from 'lucide-react'
+import { Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, ArrowLeft, ArrowRight, Upload, History, Pencil, LayoutGrid, Palette, Users, GitCompareArrows, UserCog } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
@@ -213,6 +213,20 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
                 aria-label="Mostra i turni teorici diversi dal reale"
               >
                 <GitCompareArrows size={18} />
+              </button>
+            </div>
+            {/* MINIMI PER CARD (richiesta 15/09/2026): quanti dipendenti deve
+                avere ogni card, per turno, da una data in poi. */}
+            <div className="flex items-center gap-2 pointer-events-auto">
+              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
+                Minimi per card
+              </span>
+              <button
+                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-minimi') }}
+                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
+                aria-label="Minimi di persone per card"
+              >
+                <UserCog size={18} />
               </button>
             </div>
             <div className="flex items-center gap-2 pointer-events-auto">

@@ -373,24 +373,36 @@ function yellowCardKey(t: string): string | null {
 }
 
 /**
- * Card rimaste SCOPERTE per effetto di un giallo (richiesta 27/09/2026): la
- * persona che il teorico dava su quella sezione+turno è stata spostata altrove
- * (la chip sta sulla card di DESTINAZIONE) e nessuno l'ha rimpiazzata → la
- * card perde la sua persona (es. P DCIF il 24/09 e M DCIF il 25/09, da cui DI
- * MEO è stato chiamato sulla DCP).
+ * Card SCOPERTE di un giorno (richieste 27/09 e 15/09/2026): chiave
+ * «SEZIONE|TURNO» (stesse di yellowForDay) → numero di PERSONE MANCANTI.
  *
- * Restano FUORI i gialli che NON svuotano la card d'origine:
- *  - RICHIEDENTE (assenza/corso/proposta sul proprio turno): la chip resta lì,
- *    in elenco (es. BARRA A sulla DCCM del 24/09);
- *  - sostituto che lavora nella STESSA card del teorico.
- * E restano fuori le divergenze SENZA giallo (v8: «solo quelle gialle devono
- * essere segnalate» — un teorico≠reale normale non è una scopertura).
+ * Due cause, che si SOMMANO (richiesta 15/09/2026) con la stessa dicitura in
+ * card («— scoperto»):
  *
- * Il confronto è fra persone ATTESE (teorico) e REALI della card: con 2 attese
- * e 1 reale la card è scoperta ANCHE SE non è vuota (richiesta 27/09/2026).
- * Ritorna le chiavi «SEZIONE|TURNO» (stesse di yellowForDay).
+ *  1. MINIMO non coperto — `mins` (vedi lib/sala-minimi): le persone reali che
+ *     lavorano sulla card sono meno del previsto per quella sezione e turno.
+ *     È il caso che la vecchia regola non vedeva: ROTONDO, la cui squadra gira
+ *     su 4/6/7/10 mentre il suo teorico è una serie di G, lascia la card con
+ *     una persona in meno senza nessuna cella gialla di mezzo.
+ *  2. GIALLO che ha spostato la persona — la chip sta sulla card di
+ *     DESTINAZIONE e nessuno l'ha rimpiazzata (es. P DCIF il 24/09 e M DCIF il
+ *     25/09, da cui DI MEO è stato chiamato sulla DCP). Restano FUORI i gialli
+ *     che NON svuotano la card d'origine: il RICHIEDENTE (assenza/corso sul
+ *     proprio turno) ci resta in elenco con la chip, e il sostituto che lavora
+ *     nella STESSA card del teorico non toglie niente a nessuno.
+ *
+ * Il numero di mancanti NON è la somma delle due cause: la stessa persona
+ * assente verrebbe contata due volte (una card con minimo 2, teorico 2 e reale 0
+ * manca di 2, non di 4). Si prende il massimo fra le due letture.
+ *
+ * `mins` assente o nullo = minimo non configurato per quel giorno → vale solo
+ * la causa gialla, esattamente come prima del 15/09/2026.
  */
-export function scopertiForDay(people: MonthPersonShifts[], day: number): Set<string> {
+export function scopertiForDay(
+  people: MonthPersonShifts[],
+  day: number,
+  mins?: Map<string, number> | null,
+): Map<string, number> {
   const attese = new Map<string, number>()
   const reali = new Map<string, number>()
   const spostate = new Map<string, number>()
@@ -409,9 +421,14 @@ export function scopertiForDay(people: MonthPersonShifts[], day: number): Set<st
     if (realKey === teoKey) continue
     bump(spostate, teoKey)
   }
-  const out = new Set<string>()
-  for (const key of spostate.keys()) {
-    if ((attese.get(key) ?? 0) > (reali.get(key) ?? 0)) out.add(key)
+  const chiavi = new Set<string>([...spostate.keys(), ...(mins?.keys() ?? [])])
+  const out = new Map<string, number>()
+  for (const key of chiavi) {
+    const n = reali.get(key) ?? 0
+    const sottoMinimo = Math.max(0, (mins?.get(key) ?? 0) - n)
+    const daGiallo = spostate.has(key) ? Math.max(0, (attese.get(key) ?? 0) - n) : 0
+    const mancanti = Math.max(sottoMinimo, daGiallo)
+    if (mancanti > 0) out.set(key, mancanti)
   }
   return out
 }

@@ -128,9 +128,35 @@ export interface DeskCard {
   surnameColors?: Record<string, string>
 }
 
+/**
+ * MINIMO di persone previste su una card, valido DA una data in poi (richiesta
+ * 15/09/2026). Storia datata: il minimo di una sezione cambia nel tempo
+ * (es. l'8° non presidiata da marzo a giugno, il 4° che di notte scende a 1) e
+ * l'admin lo corregge senza riscrivere i giorni già passati. Il minimo di un
+ * giorno è quello dell'ultima voce con `from <= giorno`; se non ce n'è nessuna,
+ * la regola dei minimi non è ancora attiva per quel giorno.
+ */
+export interface SalaMinimoEntry {
+  /** Data ISO «YYYY-MM-DD» da cui valgono i valori di questa voce. */
+  from: string
+  /** TURNO del giorno indicato da cui i valori cominciano a valere (richiesta
+   *  16/09/2026): «M» = tutta la giornata, «P» = dal pomeriggio (la mattina di
+   *  `from` usa ancora la voce precedente), «N» = solo dalla notte.
+   *  Assente = «M»: le voci scritte prima di questa richiesta valevano dall'inizio
+   *  del giorno, e continuano a valere così. */
+  fromShift?: SalaShiftType
+  /** Chiave «cardKey|TURNO» (cardKey = sectionKey della piantina, o titolo) →
+   *  numero di persone previste su quella card in quel turno. */
+  values: Record<string, number>
+  updated_at?: string
+  updated_by?: string
+}
+
 export interface SalaLayout {
   cards: DeskCard[]
   defaults?: SalaLayoutDefaults
+  /** Storia dei minimi per card/turno (vedi SalaMinimoEntry), in ordine di data. */
+  minimums?: SalaMinimoEntry[]
 }
 
 // ── Sala Schedule (PDF import) ────────────────────────────────────────────────

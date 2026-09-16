@@ -6,12 +6,15 @@ import { it } from 'date-fns/locale'
 import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { toast } from 'sonner'
-import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaSchedule, SalaShiftType, ShiftTeamTree } from '@/types/database'
+import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaMinimoEntry, SalaSchedule, SalaShiftType, ShiftTeamTree } from '@/types/database'
 import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import { decodeSalaMonth, scopertiForDay, yellowForDay, type YellowEntry } from '@/lib/sala-month'
+import { SALA_SHIFTS, minValuesForDay, withMinimoEntry } from '@/lib/sala-minimi'
+import { NON_SECTION_DUTIES, isPresentNoSection, isShiftWorkCode, parseShiftCode } from '@/lib/shift-tokens'
+import { MinimiPanel } from './minimi-panel'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName, matchesCognome } from '@/lib/utils'
 import { buildBareOwners, lookupNameDisplay, type BareOwnerMap } from '@/lib/shift-teams-matching'
@@ -147,6 +150,7 @@ export function DeskBoard({
   layout: initialLayout,
   isAdmin,
   isManager = false,
+  userId,
   userCognome,
   userNome,
   onSave,
@@ -167,6 +171,12 @@ export function DeskBoard({
     initialLayout.defaults ?? DEFAULT_SALA_LAYOUT_DEFAULTS,
   )
   const [isEditing, setIsEditing] = useState(false)
+  // MINIMI per card/turno (richiesta 15/09/2026): storia datata dentro la
+  // piantina (SalaLayout.minimums). Stanno qui perché il salvataggio passa dallo
+  // stesso documento della piantina — una sola scrittura, nessun rischio di
+  // sovrascrivere le card mentre si salva il minimo.
+  const [minimums, setMinimums] = useState<SalaMinimoEntry[]>(() => initialLayout.minimums ?? [])
+  const [minPanelOpen, setMinPanelOpen] = useState(false)
   const [savedCards, setSavedCards] = useState<DeskCardType[]>(() => initCards(initialLayout.cards))
   const [savedDefaults, setSavedDefaults] = useState<SalaLayoutDefaults>(
     initialLayout.defaults ?? DEFAULT_SALA_LAYOUT_DEFAULTS,
@@ -357,7 +367,7 @@ export function DeskBoard({
   const handleSave = async () => {
     setSaving(true)
     try {
-      await onSave({ cards, defaults })
+      await onSave({ cards, defaults, minimums })
       setSavedCards(cards)
       setSavedDefaults(defaults)
       setDirty(false)
@@ -367,12 +377,45 @@ export function DeskBoard({
     }
   }
 
+  /**
+   * Salva una nuova fotografia dei minimi valida dal giorno `from` e DAL TURNO
+   * `fromShift` in poi (richieste 15/09 e 16/09/2026). Passa dallo stesso onSave
+   * della piantina, ma scrive i CARD SALVATI (`savedCards`/`savedDefaults`): se
+   * l'admin ha in corso una modifica della piantina non ancora confermata, aprire
+   * i minimi e salvare non deve pubblicarla di nascosto.
+   */
+  const handleSaveMinimums = useCallback(async (values: Record<string, number>, from: string, fromShift: SalaShiftType) => {
+    const next = withMinimoEntry(minimums, {
+      from,
+      fromShift,
+      values,
+      updated_at: new Date().toISOString(),
+      updated_by: userId,
+    })
+    await onSave({ cards: savedCards, defaults: savedDefaults, minimums: next })
+    setMinimums(next)
+    setMinPanelOpen(false)
+    toast.success(fromShift === 'M'
+      ? `Minimi aggiornati dal ${from}`
+      : `Minimi aggiornati dal ${from}, turno ${fromShift}`)
+  }, [minimums, onSave, savedCards, savedDefaults, userId])
+
   const handleCancel = () => {
     setCards(savedCards)
     setDefaults(savedDefaults)
     setDirty(false)
     setIsEditing(false)
   }
+
+  /* Pannello «Minimi per card» (solo admin, richiesta 15/09/2026): evento
+     `sala-admin-minimi` dal mini-Fab della bottom-nav, come le altre azioni
+     admin di /turnisala. */
+  useEffect(() => {
+    if (!isAdmin) return
+    const onMinimi = () => setMinPanelOpen(true)
+    document.addEventListener('sala-admin-minimi', onMinimi)
+    return () => { document.removeEventListener('sala-admin-minimi', onMinimi) }
+  }, [isAdmin])
 
   const handleChangeDefaults = useCallback((d: SalaLayoutDefaults) => {
     setDefaults(d)
@@ -532,6 +575,17 @@ export function DeskBoard({
     },
     [nameDisplay],
   )
+  /**
+   * «QUESTO NOME È IL MIO» (richiesta 16/09/2026): un solo predicato per tutto
+   * ciò che la board scrive di una persona — nomi in card, chip gialle,
+   * tirocinanti, righe teorico≠reale, pill delle «altre presenze» e degli
+   * assenti. Usa matchesCognome (omonimi compresi) come l'evidenzia della card,
+   * così grassetto e bordo spesso cadono esattamente dove cade l'evidenzia.
+   */
+  const isOwn = useCallback(
+    (name: string) => matchesCognome([name], userCognome, userNome, duplicateCognomi, bareOwners),
+    [userCognome, userNome, duplicateCognomi, bareOwners],
+  )
   // Codici PDF del giorno (mese v2) per le persone NON in sezione — assenze/
   // riposi COME NEL PDF («A», «AG7», «F.E.», «VS»…). Serve al teorico≠reale E
   // al blocco «Assenti»: memo condivisa, un solo decode per giorno.
@@ -635,22 +689,60 @@ export function DeskBoard({
     return map
   }, [yellowByCard])
 
-  // CARD SCOPERTE (richiesta 27/09/2026): la card perde la persona che il
-  // teorico le assegnava perché un giallo l'ha spostata altrove (la chip sta
-  // sulla card di DESTINAZIONE) e nessuno l'ha rimpiazzata → chip gialla
-  // «scoperto» dentro l'elenco. Solo le cause GIALLE contano: una divergenza
-  // senza giallo è un fatto normale del foglio e non si segnala (v8).
-  // Nel conteggio restano le card con 2 attese e 1 reale (non solo le vuote).
+  // Data del giorno a schermo («YYYY-MM-DD»): governa quale voce di storia dei
+  // minimi è in vigore (lib/sala-minimi).
+  const dayISO = `${currentMonth}-${String(selectedDay).padStart(2, '0')}`
+
+  // MINIMI in vigore nel giorno a schermo, per il turno scelto: chiave
+  // «cardKey|TURNO». `null` = non configurati → vale solo la causa gialla.
+  const minByKey = useMemo(
+    () => minValuesForDay({ minimums }, cards, dayISO, selectedShift),
+    [minimums, cards, dayISO, selectedShift],
+  )
+
+  // CARD SCOPERTE (richieste 27/09 e 15/09/2026): quante PERSONE MANCANO su ogni
+  // card → una chip gialla «— scoperto» ciascuna. Due cause che si sommano:
+  // (1) le reali sono meno del MINIMO previsto per sezione e turno — è il caso
+  // ROTONDO, che la vecchia regola non vedeva perché il suo teorico è una serie
+  // di G (nessuna cella gialla, ma la card perde comunque una persona);
+  // (2) un giallo ha spostato la persona altrove e nessuno l'ha rimpiazzata (la
+  // chip sta sulla card di DESTINAZIONE). Il numero non somma le due letture: la
+  // stessa persona verrebbe contata due volte — si prende il massimo.
   const scoperti = useMemo(() => {
-    const out = new Set<string>()
+    const out = new Map<string, number>()
     if (isEditing || !schedule?.data) return out
-    const keys = scopertiForDay(decodeSalaMonth(schedule.data), selectedDay)
-    if (!keys.size) return out
+    const perKey = scopertiForDay(decodeSalaMonth(schedule.data), selectedDay, minByKey)
+    if (!perKey.size) return out
     for (const card of cards) {
-      if (keys.has(`${card.sectionKey ?? card.title}|${selectedShift}`)) out.add(card.id)
+      const n = perKey.get(`${card.sectionKey ?? card.title}|${selectedShift}`)
+      if (n) out.set(card.id, n)
     }
     return out
-  }, [schedule, selectedDay, selectedShift, cards, isEditing])
+  }, [schedule, selectedDay, selectedShift, cards, isEditing, minByKey])
+
+  // PRESENZE REALI per card, sui TRE turni del giorno a schermo: il pannello dei
+  // minimi le mostra accanto a ogni valore, così si vede subito dove si buca.
+  const realiPerCard = useMemo(() => {
+    const out = new Map<string, number>()
+    if (!schedule?.data) return out
+    const people = decodeSalaMonth(schedule.data)
+    for (const shift of SALA_SHIFTS) {
+      const perKey = new Map<string, number>()
+      for (const p of people) {
+        const token = p.days[selectedDay - 1] ?? ''
+        if (!isShiftWorkCode(token) || isPresentNoSection(token)) continue
+        const parsed = parseShiftCode(token)
+        if (NON_SECTION_DUTIES.has(parsed.section.toUpperCase())) continue
+        const key = `${parsed.section}|${parsed.shift}`
+        perKey.set(key, (perKey.get(key) ?? 0) + 1)
+      }
+      for (const card of cards) {
+        const n = perKey.get(`${card.sectionKey ?? card.title}|${shift}`) ?? 0
+        out.set(`${card.sectionKey ?? card.title}|${shift}`, n)
+      }
+    }
+    return out
+  }, [schedule, selectedDay, cards])
 
   // BLOCCO «ASSENTI» (richiesta 23/09/2026): chi nel PDF del giorno ha una
   // sigla di assenza (A/AG7/F.E./VS…), attribuito al SOLO turno teorico della
@@ -904,8 +996,9 @@ export function DeskBoard({
                         theoCompare={theoCompareByCardId.get(card.id)}
                         nameDisplay={nameDisplay}
                         yellowByCard={yellowByCard.get(card.id)}
-                        scoperto={scoperti.has(card.id)}
+                        scoperti={scoperti.get(card.id) ?? 0}
                         duplicateCognomi={duplicateCognomi}
+                        isOwn={isOwn}
                       />
                     ))}
                   </DroppableCell>
@@ -947,12 +1040,15 @@ export function DeskBoard({
             <div key={gruppo.key} className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-muted-foreground shrink-0">{gruppo.label}:</span>
               {gruppo.entries.map((e, i) => {
-                const isMe = matchesCognome([e.name], userCognome, userNome, duplicateCognomi, bareOwners)
+                const isMe = isOwn(e.name)
                 const da = gruppoProvenienza?.get(normName(e.name))
                 return (
                   <span
                     key={i}
-                    className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : gruppo.colorClass}`}
+                    // La pill dell'utente loggato è in GRASSETTO e con il bordo
+                    // spesso (richiesta 16/09/2026): si riconosce a colpo d'occhio
+                    // anche in mezzo a una riga di trasferte.
+                    className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge desk-own-badge-strong' : gruppo.colorClass}`}
                   >
                     {displayForPdfName(e.name)}
                     {e.code && <span className="tabular-nums font-semibold opacity-80"> {e.code}</span>}
@@ -970,11 +1066,11 @@ export function DeskBoard({
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-muted-foreground shrink-0">Assenti:</span>
               {assenti.get(selectedShift)!.map((a, i) => {
-                const isMe = matchesCognome([a.name], userCognome, userNome, duplicateCognomi, bareOwners)
+                const isMe = isOwn(a.name)
                 return (
                   <span
                     key={i}
-                    className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge' : 'cell-tint-abs'}`}
+                    className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge desk-own-badge-strong' : 'cell-tint-abs'}`}
                   >
                     {displayForPdfName(a.name)}
                     <span className="tabular-nums font-semibold opacity-80"> {a.code}</span>
@@ -1071,6 +1167,23 @@ export function DeskBoard({
             </div>
           </div>
         </div>
+      )}
+
+      {/* MINIMI per card (solo admin, richiesta 15/09/2026): pannello aperto dal
+          mini-Fab «Minimi per card» della bottom-nav. Sta FUORI dalla modalità
+          modifica piantina: qui si scrivono solo i numeri, con la data da cui
+          valgono, e accanto a ognuno le presenze reali del giorno a schermo. */}
+      {minPanelOpen && isAdmin && (
+        <MinimiPanel
+          cards={cards}
+          layout={{ minimums }}
+          dayISO={dayISO}
+          day={selectedDay}
+          shift={selectedShift}
+          reali={realiPerCard}
+          onSave={handleSaveMinimums}
+          onClose={() => setMinPanelOpen(false)}
+        />
       )}
 
       {/* PDF upload timestamp / badge mese teorico — fixed sopra la bottom navbar.
