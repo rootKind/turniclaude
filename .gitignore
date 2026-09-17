@@ -101,3 +101,7 @@ Turni esempio/
 tests/.probe-*.mjs
 tests/.analisi-*.mjs
 tests/.coerenza*.json
+
+# Backup JSON dei dati di rotazione (dump dei DB, non codice)
+scripts/backup-rotazione-prod-*.json
+scripts/backup-riposi-prod-*.json

@@ -2082,3 +2082,19 @@ RM RC RI → RC RI P5T). Su /tuoturno la priorità ora è: PDF → **rotazione D
 confronto (`compareRows`). I Noni restano perfetti (cicli rigidi, 100%). La predizione NON è
 toccata in lib/person-cycle.ts: resta disponibile e le sue regressioni si misurano con
 `node scripts/verify-tuoturno.mjs`.
+
+**Riposi «D» vs «RC» nei pattern (17/09/2026, terzo segnalazione dell'utente: «Cavanna il
+10/10 dovrebbe essere un riposo, non D»):** il seed 024 deduceva i riposi dalla MAGGIORANZA
+del REALE nei PDF (soglia 50%, altrimenti 'D' = disponibilità). Ma il TEORICO PRE-STAMPATO
+dei PDF è la verità di pianificazione: per CAVANNA e DONNARUMMA (Scorte, ciclo 28,
+anchor 2026-03-01) l'indice 27 del ciclo (28/03, 25/04, 23/05, 20/06, 18/07, 15/08, 12/09)
+porta RC in TUTTI i mesi (7/7 su dev, 6/6 su prod) mentre il reale è misto → il pattern
+aveva 'D' e il 10/10/2026 generava D. Le ALTRE D del pattern delle Scorte sono LEGITTIME
+(il teorico stampato dice davvero D lì). Fix: `scripts/ripara-riposi-pattern.mjs` — piano
+calcolato sui PDF di dev e applicato IDENTICO a dev e prod (id membro uguali), backup
+di prod, verifica post-apply, idempotente; SOLO posizioni rest→rest (D/RM/RC/RI/''),
+supporto ≥60% con ≥3 campioni, bersagli confermati dall'utente. **ROTONDO (in seconda,
+ciclo 84) VOLUTAMENTE escluso:** la sua teoria stampata cambia schema da fine maggio
+(RC sabato + RI domenica, giorni lavorativi in 'G' da confermare) mentre il pattern 84gg
+del DB è fedele a marzo-aprile (riposi ogni 3gg) — divergenza strutturale che richiede una
+decisione di pianificazione, non un fix puntuale.
