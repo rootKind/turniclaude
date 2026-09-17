@@ -42,5 +42,8 @@ export async function fetchNotifOverrides(
 }
 
 export async function updateAppSettings(supabase: SupabaseClient, patch: Partial<AppSettings>) {
-  await supabase.from('app_settings').update(patch).eq('id', true)
+  const { error } = await supabase.from('app_settings').update(patch).eq('id', true)
+  // RLS (policy «admin can update app_settings»): senza questo check un
+  // salvataggio fallito tornerebbe silenzioso e l'admin non se ne accorgerebbe.
+  if (error) throw new Error(error.message)
 }

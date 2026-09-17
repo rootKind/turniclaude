@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, EyeOff, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser, X, Palette } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -20,6 +22,7 @@ import { useThemeInspectorStore } from '@/stores/theme-inspector-store'
 
 export function AdminPanel() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifTestOpen, setNotifTestOpen] = useState(false)
   const [usersOpen, setUsersOpen] = useState(false)
@@ -69,6 +72,12 @@ export function AdminPanel() {
     try {
       const supabase = createClient()
       await updateAppSettings(supabase, { [field]: value })
+      // Il pannello legge con getAppSettings diretto, ma le pagine usano la
+      // query cache-first: invalido così anche sessioni aperte si riallineano.
+      queryClient.invalidateQueries({ queryKey: ['app-settings'] })
+      toast.success('Impostazione salvata')
+    } catch (err) {
+      toast.error(`Salvataggio non riuscito: ${err instanceof Error ? err.message : 'errore sconosciuto'}`)
     } finally {
       setSavingYears(false)
     }
@@ -79,6 +88,10 @@ export function AdminPanel() {
     try {
       const supabase = createClient()
       await updateAppSettings(supabase, patch)
+      queryClient.invalidateQueries({ queryKey: ['app-settings'] })
+      toast.success('Limite cambio turno salvato')
+    } catch (err) {
+      toast.error(`Salvataggio non riuscito: ${err instanceof Error ? err.message : 'errore sconosciuto'}`)
     } finally {
       setSavingLimit(false)
     }

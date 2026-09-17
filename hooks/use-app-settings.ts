@@ -26,6 +26,12 @@ function setCached(data: AppSettings): void {
  * sessione si parte dai DEFAULT, poi la query risolve e l'anno si aggancia.
  * staleTime 24h: le impostazioni cambiano quasi mai; il realtime su
  * app_settings (già in publication, migration 007) copre i cambi live.
+ *
+ * refetchOnMount 'always' è ESSENZIALE: con initialData (cache/default) la
+ * query partirebbe «fresca» e con staleTime 24h NON rifarebbe mai la fetch —
+ * le pagine mostrerebbero per un'intera sessione i valori vecchi dopo un
+ * cambio in admin (il realtime copre solo i cambi avvenuti mentre la pagina
+ * era già aperta). Era il bug «impostazioni admin che non funzionano».
  */
 export function useAppSettings(): AppSettings {
   const { data } = useQuery({
@@ -36,6 +42,7 @@ export function useAppSettings(): AppSettings {
       return data
     },
     staleTime: 24 * 60 * 60 * 1000,
+    refetchOnMount: 'always',
     initialData: () => getCached() ?? SETTINGS_DEFAULTS,
   })
   return data
