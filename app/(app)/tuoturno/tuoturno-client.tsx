@@ -1118,12 +1118,18 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 
       {/* Selettore utente */}
       <Dialog open={pickerOpen} onOpenChange={v => !v && setPickerOpen(false)}>
-        <DialogContent className="max-w-sm max-h-[80vh] flex flex-col overflow-hidden">
+        {/* `initialFocus={false}` (17/09/2026): senza, il dialog porta il focus
+            sul primo elemento focalizzabile (la casella di ricerca) e sul telefono
+            si apre la tastiera, che copre metà lista mentre si sceglie la persona.
+            Togliere `autoFocus` dall'input NON basta: la scelta è del dialog. */}
+        <DialogContent initialFocus={false} className="max-w-sm max-h-[80vh] flex flex-col overflow-hidden">
           <DialogHeader><DialogTitle>Turni di chi?</DialogTitle></DialogHeader>
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            {/* SENZA autoFocus (17/09/2026): aprire il selettore faceva saltare
+                fuori la tastiera del telefono, che copre metà lista proprio
+                mentre si sceglie la persona. La ricerca resta a un tap. */}
             <Input
-              autoFocus
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Cerca cognome o nome…"
@@ -1169,12 +1175,14 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 
       {/* Selettore multiplo: confronto fra più dipendenti */}
       <Dialog open={compareOpen} onOpenChange={v => !v && setCompareOpen(false)}>
-        <DialogContent className="max-w-sm max-h-[80vh] flex flex-col overflow-hidden">
+        {/* Come il selettore qui sopra: niente tastiera che si apre da sola. */}
+        <DialogContent initialFocus={false} className="max-w-sm max-h-[80vh] flex flex-col overflow-hidden">
           <DialogHeader><DialogTitle>Confronta i turni</DialogTitle></DialogHeader>
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            {/* Come il selettore qui sopra: niente tastiera che si apre da sola
+                sul Confronta (era `autoFocus` sull'input di ricerca). */}
             <Input
-              autoFocus
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Cerca cognome o nome…"

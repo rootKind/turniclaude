@@ -151,10 +151,11 @@
   --offered-box-label: #475569;
   --offered-box-value: #0f172a;
 
-  /* My period section (turniferie) — header più scuro delle altre + accento nero */
+  /* My period section (turniferie) — header più scuro delle altre + accento nero.
+     L'highlight è BORDO + testata: la texture sul corpo è stata tolta il 17/09/2026
+     (velava i nomi della sezione), quindi non c'è più un --my-period-content-bg. */
   --my-period-border: #1c1c1c;
   --my-period-header-bg: #d3e4f2;
-  --my-period-content-bg: #eaf3fb;
   --my-period-text: #0f172a;
   --my-period-dot: #1c1c1c;
 
@@ -356,10 +357,10 @@
   --offered-box-label: rgba(255,255,255,0.65);
   --offered-box-value: #ffffff;
 
-  /* My period — dark: header più chiaro delle altre + accento bianco */
+  /* My period — dark: header più chiaro delle altre + accento bianco (niente
+     texture sul corpo: vedi il commento del tema chiaro). */
   --my-period-border: #ffffff;
   --my-period-header-bg: #454545;
-  --my-period-content-bg: rgba(255,255,255,0.06);
   --my-period-text: #ffffff;
   --my-period-dot: #ffffff;
 
@@ -807,7 +808,6 @@
     box-shadow: 0 0 0 1px var(--my-period-border);
   }
   .my-period-header  { background: var(--my-period-header-bg); }
-  .my-period-content { background: var(--my-period-content-bg); }
   .text-my-period    { color: var(--my-period-text); }
   .my-period-dot     { background: var(--my-period-dot); }
   .text-my-period-dot{ color: var(--my-period-dot); }

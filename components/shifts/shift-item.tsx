@@ -555,6 +555,9 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                       <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); onEdit?.(shift) }}>
                         <Pencil size={13} className="mr-1" /> Modifica
                       </Button>
+                      {/* Bordo visibile (richiesta 17/09/2026): «destructive» è solo
+                          tinta di fondo + testo rosso, e senza contorno il pulsante
+                          «Elimina» non si distingue dal resto della card espansa. */}
                       {confirmDelete ? (
                         <>
                           <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
@@ -565,7 +568,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                           </Button>
                         </>
                       ) : (
-                        <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
+                        <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px] border-destructive/50" onClick={handleDelete}>
                           <Trash2 size={13} className="mr-1" /> Elimina
                         </Button>
                       )}

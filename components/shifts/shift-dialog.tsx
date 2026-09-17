@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { cn, todayRome, formatDisplayName, formatRelativeTime, SHIFT_PILL_CLASSES } from '@/lib/utils'
@@ -19,7 +19,7 @@ import { useAppSettings } from '@/hooks/use-app-settings'
 import { toast } from 'sonner'
 import { it } from 'date-fns/locale'
 import { format, addDays, parseISO } from 'date-fns'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, XIcon } from 'lucide-react'
 import type { Shift, ShiftType } from '@/types/database'
 
 const SHIFT_TYPES: ShiftType[] = ['Mattina', 'Pomeriggio', 'Notte']
@@ -301,13 +301,31 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
   return (
     <Dialog open={open} onOpenChange={v => !v && handleClose()}>
       <DialogContent
+        showCloseButton={false}
         className={cn(
-          'max-w-sm w-full p-0 flex flex-col shift-dialog',
+          'max-w-sm w-full p-0 gap-0 flex flex-col shift-dialog',
           isIOS && 'ios-dialog-fix'
         )}
         style={{ maxHeight: isIOS ? '85dvh' : '85svh' }}
       >
-        <div className="scroll-area overflow-y-auto flex-1 min-h-0 px-5 pb-5 pt-5 space-y-5">
+        {/*
+          RIGA DELLA «X» — fix 17/09/2026.
+
+          La X predefinita dell'involucro è assoluta in alto a destra, quindi cadeva
+          addosso alla freccia «mese successivo» del calendario (misurato: X a
+          x 351-379 / y 121-149, freccia a x 330-358 / y 142-170 → 7×7 px di
+          sovrapposizione) e, scorrendo, copriva anche i numeri dei giorni.
+          Ora la X ha una riga sua, fuori dall'area che scorre: non copre nulla e non
+          si sposta col contenuto. Per questo il contenuto parte da pt-2 (prima pt-5),
+          così l'altezza spesa in più resta ~10 px.
+        */}
+        <div className="flex shrink-0 justify-end px-2 pt-1.5 pb-0.5">
+          <DialogClose render={<Button variant="ghost" size="icon-sm" />}>
+            <XIcon className="size-4" />
+            <span className="sr-only">Chiudi</span>
+          </DialogClose>
+        </div>
+        <div className="scroll-area overflow-y-auto flex-1 min-h-0 px-5 pb-5 pt-2 space-y-5">
           {compatCheck ? (
             /* Popup «non è fattibile col tuo turno»: conferma o annulla */
             <div className="space-y-4">

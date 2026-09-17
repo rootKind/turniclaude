@@ -153,12 +153,19 @@ export function VacationRequestItem({
         const res = await fetch(`/api/admin/vacation-requests?id=${request.id}`, { method: 'DELETE' })
         if (!res.ok) { const b = await res.json(); throw new Error(b.error) }
       } else {
+        // `.select('id')` NON è decorativo (bug del 17/09/2026): senza, una
+        // cancellazione che la RLS non permette torna `error: null` e ZERO righe
+        // toccate, e la card annunciava «Richiesta eliminata» su una richiesta
+        // ancora in elenco. Chiedendo indietro le righe eliminate si sa se è
+        // andata davvero, e in caso contrario l'utente vede un errore.
         const supabase = createClient()
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('vacation_requests')
           .delete()
           .eq('id', request.id)
+          .select('id')
         if (error) throw error
+        if (!data?.length) throw new Error('nessuna riga eliminata')
       }
       queryClient.invalidateQueries({ queryKey: VACATION_REQUESTS_QUERY_KEY(isSecondary, year) })
       toast.success('Richiesta eliminata')
@@ -579,6 +586,9 @@ export function VacationRequestItem({
 
                   {(isOwn || canAdminAct) && (
                     <div className="flex gap-2">
+                      {/* Bordo visibile (richiesta 17/09/2026), come nella card
+                          dei cambi turno: «destructive» è tinta + testo, e senza
+                          contorno il pulsante non si distingue nella card. */}
                       {confirmDelete ? (
                         <>
                           <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
@@ -589,7 +599,7 @@ export function VacationRequestItem({
                           </Button>
                         </>
                       ) : (
-                        <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
+                        <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px] border-destructive/50" onClick={handleDelete}>
                           <Trash2 size={13} className="mr-1" /> Elimina
                         </Button>
                       )}

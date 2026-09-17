@@ -309,10 +309,13 @@ export default function TurniFeriePage() {
                 </div>
               </button>
 
+              {/* 17/09/2026 — NIENTE TEXTURE sul corpo della card del PROPRIO
+                  periodo: oltre al bordo e alla testata, il corpo era tinto
+                  (--my-period-content-bg) e velava i nomi della sezione. Resta
+                  l'highlight sul BORDO (.my-period-border, la stessa tecnica a
+                  bordo + anello di /turnisala) e la testata. */}
               {isOpen && (
-                <div
-                  className={`border-t border-black/10 dark:border-white/10 ${isMyPeriod ? 'my-period-content' : ''}`}
-                >
+                <div className="border-t border-black/10 dark:border-white/10">
                   {users.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Nessuno</p>
                   ) : (
