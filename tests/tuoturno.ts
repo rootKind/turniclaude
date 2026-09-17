@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import { E2E_BASE_URL } from './employee-session'
 import { dismissChangelog } from './sala-board'
 
@@ -26,6 +26,63 @@ export interface CellCode {
   /** true se il testo è TAGLIATO (ellipsis): la regressione da non riammettere. */
   clipped: boolean
   cellW: number
+}
+
+/** Il FAB centrale della barra di /tuoturno: apre e chiude il menu dei mini-fab. */
+export function fabTurno(page: Page) {
+  return page.getByRole('button', { name: /^(Azioni turno|Chiudi menu)$/ })
+}
+
+/**
+ * Apre una voce del menu del FAB (FAB → voce). Le voci si chiamano: «Personalizza
+ * colori e stile delle card», «Confronta i turni di più dipendenti».
+ *
+ * PERCHÉ ESISTE, invece di due click scritti a mano negli spec: il menu è di
+ * `bottom-nav`, l'ascoltatore dell'evento che apre il pannello è della pagina
+ * (`tuoturno-client`). Due componenti, due tempi di idratazione: se il click
+ * arriva mentre la pagina non ha ancora agganciato il suo `useEffect`, l'evento
+ * cade nel vuoto — il menu si chiude e il pannello non si apre (visto dal vivo
+ * a dev server FREDDO, con più browser che compilano insieme).
+ *
+ * Qui si fa la parte che si può fare senza dormire: si parte da menu chiuso e si
+ * ASPETTA che la voce sia davvero comparsa prima di cliccarla. Chi chiama, se il
+ * suo pannello non è comparso, riprova la voce: vedi `apriVoceFabConRitentativo`.
+ */
+export async function apriVoceFab(page: Page, nomeVoce: string): Promise<void> {
+  const fab = fabTurno(page)
+  // Se il menu era rimasto aperto (tentativo precedente andato a vuoto), il click
+  // sul FAB lo CHIUDEREBBE: si riparte sempre da menu chiuso.
+  if ((await fab.getAttribute('aria-label')) === 'Chiudi menu') await fab.click()
+  await fab.click()
+  const voce = page.getByRole('button', { name: nomeVoce })
+  const comparsa = await voce.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true).catch(() => false)
+  if (!comparsa) throw new Error(`il menu del FAB non si è aperto: «${nomeVoce}» non è comparso`)
+  await voce.click()
+}
+
+/**
+ * Apre la voce del FAB e aspetta che il pannello che ne consegue si APRA davvero,
+ * riprovando la voce (fino a `tentativi` volte) se è andata a vuoto. Ritorna il
+ * locator del pannello, già atteso visibile: chi chiama lo usa com'è.
+ *
+ * Non è un'attesa a tempo travestita: ogni tentativo è un'interazione vera, e la
+ * condizione d'uscita è il pannello visibile (non «sono passati N ms»).
+ */
+export async function apriVoceFabConRitentativo(
+  page: Page,
+  nomeVoce: string,
+  pannello: Locator,
+  tentativi = 3,
+): Promise<Locator> {
+  for (let t = 0; t < tentativi; t++) {
+    const gia = await pannello.isVisible().catch(() => false)
+    if (gia) return pannello
+    await apriVoceFab(page, nomeVoce)
+    const aperto = await pannello.waitFor({ state: 'visible', timeout: 4_000 }).then(() => true).catch(() => false)
+    if (aperto) return pannello
+  }
+  await expect(pannello, `il pannello di «${nomeVoce}» non si è aperto`).toBeVisible()
+  return pannello
 }
 
 /**

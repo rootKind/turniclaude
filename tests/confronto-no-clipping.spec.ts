@@ -3,6 +3,7 @@ import { expect, test } from './fixtures'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { E2E_BASE_URL } from './employee-session'
+import { apriVoceFabConRitentativo } from './tuoturno'
 
 /**
  * Smoke: NESSUN testo di card troncato nel Confronto, a 320px (piccolo) e
@@ -96,9 +97,13 @@ test.describe('Confronto: nessun testo di card troncato', () => {
       }
       await expect(page.locator('main')).toBeVisible()
       // Apri il Confronto: FAB → mini-fab Users → prime due persone → conferma.
-      await page.getByRole('button', { name: 'Azioni turno' }).click()
-      await page.getByRole('button', { name: 'Confronta i turni di più dipendenti' }).click()
-      const dialog = page.locator('[role="dialog"]')
+      // L'apertura riprova la voce se il pannello non compare (corsa con
+      // l'idratazione: il menu è della barra, l'ascoltatore è della pagina).
+      const dialog = await apriVoceFabConRitentativo(
+        page,
+        'Confronta i turni di più dipendenti',
+        page.locator('[role="dialog"]'),
+      )
       await expect(dialog).toBeVisible()
       // Righe-persone: nome e cognome (≥2 parole) — esclude l'X senza testo e i
       // bottoni del footer («Azzera», «Scegli almeno 2», «Confronta (n)»).

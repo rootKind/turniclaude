@@ -439,6 +439,19 @@ export type CardKind =
 /** Colori { sfondo, testo } per tipologia; `undefined` = il tema fa da padrone (default CSS). */
 export type CardPalette = Partial<Record<CardKind, { bg: string; text: string }>>
 
+/** Classi CSS della tinta di ogni tipologia di card (i colori stanno in globals.css:
+ *  `.cell-tint-*` legge gli override dell'utente da `--c-bg`/`--c-text`).
+ *  Le usano le card di /tuoturno e il pannello «Personalizza le card». */
+export const CARD_TINT_CLASS: Record<CardKind, string> = {
+  mattina: 'cell-tint-m',
+  pomeriggio: 'cell-tint-p',
+  notte: 'cell-tint-n',
+  rest: 'cell-tint-rest',
+  availability: 'cell-tint-avail',
+  absence: 'cell-tint-abs',
+  duty: 'cell-tint-duty',
+}
+
 export const CARD_KINDS: { kind: CardKind; label: string; hint: string }[] = [
   { kind: 'pomeriggio', label: 'Pomeriggio (P)', hint: 'Turni pomeriggio' },
   { kind: 'mattina', label: 'Mattina (M)', hint: 'Turni mattina' },
@@ -449,69 +462,183 @@ export const CARD_KINDS: { kind: CardKind; label: string; hint: string }[] = [
   { kind: 'duty', label: 'Senza sezione (Sp, ISp…)', hint: 'Presente ma non in sezione' },
 ]
 
-const PALETTE_KEY = 'tuoturno-colori'
+// ── Le preferenze di aspetto sono UNA PER TEMA (richiesta 18/09/2026) ────────
 
-function readPalette(): CardPalette {
+/**
+ * La regola, in una riga: **quello che si sceglie in tema chiaro non tocca il
+ * tema scuro, e viceversa**.
+ *
+ * Vale per tutte e tre le preferenze di aspetto di /tuoturno — palette dei
+ * colori, stile dei giorni diversi dal teorico, contorno «da confermare» —
+ * perché sono tutte scelte che si fanno GUARDANDO lo schermo: erano condivise fra
+ * i due temi, e una tinta che si legge bene sul chiaro poteva diventare
+ * illeggibile sullo scuro (è la richiesta che ha portato a questa forma).
+ *
+ * `light` e `dark` sono i temi come li risolve next-themes (la preferenza del
+ * sistema, se l'utente segue il sistema).
+ *
+ * FORMATO SU DISCO: una busta `{ light: …, dark: … }` per chiave. Un tema senza
+ * voce vuol dire «non ho scelto niente, vale il default» — e in quel caso la
+ * chiave non si scrive affatto: il default non è una personalizzazione, è quello
+ * che l'app mostra comunque (in chiaro la palette «Tema», in scuro «Notte»).
+ * Il formato VECCHIO — una preferenza sola valida in entrambi i temi — si legge
+ * ancora e si copia nei due, così nessuno perde quello che aveva scelto.
+ */
+export type PaletteMode = 'light' | 'dark'
+
+/** I due temi, nell'ordine in cui si mostrano. */
+export const PALETTE_MODES: PaletteMode[] = ['light', 'dark']
+
+/** La busta per tema: `null` = nessuna scelta per quel tema (vale il default). */
+interface Busta<T> { light: T | null; dark: T | null }
+
+function bustaVuota<T>(): Busta<T> {
+  return { light: null, dark: null }
+}
+
+/**
+ * Legge la busta, con la migrazione dal formato vecchio.
+ *
+ * `JSON.parse` può FALLIRE e non è un caso di scuola: le due preferenze a stringa
+ * sono state scritte per anni come valore nudo (`localStorage.setItem(k, 'strike')`,
+ * non `JSON.stringify`). Se il testo non è JSON, è il valore vecchio — non si
+ * butta via niente.
+ */
+function leggiBusta<T>(chiave: string, valida: (g: unknown) => T | null, clona: (v: T) => T): Busta<T> {
+  const vuota = bustaVuota<T>()
   try {
-    const raw = localStorage.getItem(PALETTE_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as CardPalette
-    if (!parsed || typeof parsed !== 'object') return {}
-    const out: CardPalette = {}
-    for (const { kind } of CARD_KINDS) {
-      const v = parsed[kind]
-      if (v && typeof v.bg === 'string' && typeof v.text === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.bg) && /^#[0-9a-fA-F]{6}$/.test(v.text)) {
-        out[kind] = { bg: v.bg, text: v.text }
-      }
+    const raw = localStorage.getItem(chiave)
+    if (!raw) return vuota
+    let parsed: unknown = raw
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      /* non è JSON: è il valore nudo del formato vecchio */
     }
-    return out
+    const busta = parsed as { light?: unknown; dark?: unknown } | null
+    const èBusta = !!busta && typeof busta === 'object' && !Array.isArray(busta) && ('light' in busta || 'dark' in busta)
+    if (!èBusta) {
+      const vecchio = valida(parsed)
+      return vecchio === null ? vuota : { light: vecchio, dark: clona(vecchio) }
+    }
+    return { light: valida(busta!.light), dark: valida(busta!.dark) }
   } catch {
-    return {}
+    return vuota
+  }
+}
+
+/** Scrive la busta, e TOGLIE la chiave quando non c'è più nessuna scelta. */
+function scriviBusta<T>(chiave: string, valori: Busta<T>): void {
+  try {
+    if (valori.light === null && valori.dark === null) {
+      localStorage.removeItem(chiave)
+      return
+    }
+    localStorage.setItem(chiave, JSON.stringify({ light: valori.light, dark: valori.dark }))
+  } catch {
+    /* storage pieno o non disponibile: la preferenza resta solo per la sessione */
   }
 }
 
 /**
- * Cache del modulo: `getSnapshot` di useSyncExternalStore deve restituire lo
- * STESSO riferimento tra un cambio e l'altro — un oggetto nuovo a ogni chiamata
- * fa andare React in loop («The result of getSnapshot should be cached to avoid
- * an infinite loop») e manda in errore la pagina. Il riferimento cambia SOLO
- * dopo set/reset, che notificano gli iscritti.
+ * Una preferenza a scelta fra poche possibilità, scritta come stringa: `null` =
+ * valore non riconosciuto (meglio il default che una preferenza inventata).
  */
-let paletteCache: CardPalette | null = null
+function validaScelta<T extends string>(ammesse: readonly T[]) {
+  return (g: unknown): T | null => {
+    if (g === null || g === undefined) return null
+    const v = String(g).replace(/"/g, '')
+    return (ammesse as readonly string[]).includes(v) ? (v as T) : null
+  }
+}
 
-function cachedPalette(): CardPalette {
-  if (paletteCache === null) paletteCache = readPalette()
-  return paletteCache
+const PALETTE_KEY = 'tuoturno-colori'
+
+/** La palette VUOTA: è il default di entrambi i temi (i colori del tema). */
+const PALETTE_VUOTA: CardPalette = {}
+
+/** Una palette salvata è valida solo se OGNI voce è una coppia di colori pieni. */
+function validaPalette(g: unknown): CardPalette | null {
+  if (!g || typeof g !== 'object') return null
+  const out: CardPalette = {}
+  for (const { kind } of CARD_KINDS) {
+    const v = (g as Record<string, { bg?: unknown; text?: unknown }>)[kind]
+    if (v && typeof v.bg === 'string' && typeof v.text === 'string' && /^#[0-9a-fA-F]{6}$/.test(v.bg) && /^#[0-9a-fA-F]{6}$/.test(v.text)) {
+      out[kind] = { bg: v.bg, text: v.text }
+    }
+  }
+  return out
+}
+
+function clonaPalette(p: CardPalette): CardPalette {
+  const out: CardPalette = {}
+  for (const { kind } of CARD_KINDS) {
+    const v = p[kind]
+    if (v) out[kind] = { bg: v.bg, text: v.text }
+  }
+  return out
 }
 
 /**
- * Palette personalizzata dell'utente, persistita in localStorage. Store esterno
- * letto con `useSyncExternalStore` (niente setState in effect: il lint lo vieta).
+ * Cache del modulo, UNA PER TEMA: `getSnapshot` di useSyncExternalStore deve
+ * restituire lo STESSO riferimento tra un cambio e l'altro — un oggetto nuovo a
+ * ogni chiamata fa andare React in loop («The result of getSnapshot should be
+ * cached to avoid an infinite loop») e manda in errore la pagina. Il riferimento
+ * cambia SOLO dopo set/reset, che notificano gli iscritti.
+ */
+let paletteCache: Busta<CardPalette> | null = null
+
+function cachedPalette(): Busta<CardPalette> {
+  if (paletteCache === null) paletteCache = leggiBusta(PALETTE_KEY, validaPalette, clonaPalette)
+  return paletteCache
+}
+
+function scriviPalette(mode: PaletteMode, p: CardPalette): void {
+  const busta: Busta<CardPalette> = { ...cachedPalette() }
+  busta[mode] = Object.keys(p).length ? p : null
+  paletteCache = busta
+  scriviBusta(PALETTE_KEY, busta)
+  cardPaletteStore.listeners.forEach(l => l())
+}
+
+/**
+ * La palette personalizzata dell'utente, persistita in localStorage e TENUTA
+ * DIVISA PER TEMA (richiesta 18/09/2026). Store esterno letto con
+ * `useSyncExternalStore` (niente setState in effect: il lint lo vieta).
+ *
+ * Senza personalizzazione per quel tema la palette è VUOTA: le card mostrano i
+ * colori del tema (in chiaro «Tema», in scuro «Notte») — vedi
+ * `lib/card-palettes.ts`, `themePaletteFor`. Applicare un preset scrive la
+ * scelta per QUEL tema soltanto.
  */
 export const cardPaletteStore = {
   listeners: new Set<() => void>(),
-  get(): CardPalette {
-    return cachedPalette()
+  getFor(mode: PaletteMode): CardPalette {
+    return cachedPalette()[mode] ?? PALETTE_VUOTA
   },
-  set(kind: CardKind, colors: { bg: string; text: string } | null) {
-    const p: CardPalette = { ...cachedPalette() }
+  setFor(mode: PaletteMode, kind: CardKind, colors: { bg: string; text: string } | null) {
+    const p: CardPalette = { ...cardPaletteStore.getFor(mode) }
     if (colors) p[kind] = colors
     else delete p[kind]
-    paletteCache = p
-    try {
-      localStorage.setItem(PALETTE_KEY, JSON.stringify(p))
-    } catch {
-      /* storage pieno o non disponibile: la preferenza resta solo per la sessione */
-    }
-    cardPaletteStore.listeners.forEach(l => l())
+    scriviPalette(mode, p)
   },
-  reset() {
-    paletteCache = {}
-    try {
-      localStorage.removeItem(PALETTE_KEY)
-    } catch {
-      /* come sopra */
-    }
+  /**
+   * Sostituisce TUTTA la palette di un tema in un colpo solo: è quello che serve
+   * a una palette pronta del pannello (lib/card-palettes.ts), che ne cambia sette
+   * insieme. Passare da setFor() sette volte farebbe sette scritture su
+   * localStorage e sette render.
+   */
+  applyFor(mode: PaletteMode, colors: CardPalette) {
+    scriviPalette(mode, clonaPalette(colors))
+  },
+  /** Ripristina i colori del tema SOLO per quel tema. */
+  resetFor(mode: PaletteMode) {
+    scriviPalette(mode, {})
+  },
+  /** Azzera le personalizzazioni di ENTRAMBI i temi (chiave tolta). */
+  resetAll() {
+    paletteCache = bustaVuota<CardPalette>()
+    scriviBusta(PALETTE_KEY, paletteCache)
     cardPaletteStore.listeners.forEach(l => l())
   },
   subscribe(l: () => void) {
@@ -526,26 +653,35 @@ export const cardPaletteStore = {
 export type MismatchStyle = 'split' | 'strike'
 
 const MISMATCH_KEY = 'tuoturno-mismatch'
+const MISMATCH_STYLES: MismatchStyle[] = ['split', 'strike']
+
+let mismatchCache: Busta<MismatchStyle> | null = null
+
+function cachedMismatch(): Busta<MismatchStyle> {
+  if (mismatchCache === null) {
+    mismatchCache = leggiBusta(MISMATCH_KEY, validaScelta(MISMATCH_STYLES), v => v)
+  }
+  return mismatchCache
+}
 
 /**
- * Preferenza «card divisa in due» vs «teorico barrato a card intera». Lo snapshot
- * è una stringa primitiva: stabile per Object.is senza bisogno di cache.
+ * «Card divisa in due» vs «teorico barrato a card intera», UNA SCELTA PER TEMA.
+ * Lo snapshot è una stringa primitiva: stabile per Object.is senza cache.
  */
 export const mismatchStyleStore = {
   listeners: new Set<() => void>(),
-  get(): MismatchStyle {
-    try {
-      return localStorage.getItem(MISMATCH_KEY) === 'strike' ? 'strike' : 'split'
-    } catch {
-      return 'split'
-    }
+  getFor(mode: PaletteMode): MismatchStyle {
+    return cachedMismatch()[mode] ?? 'split'
   },
-  set(v: MismatchStyle) {
-    try {
-      localStorage.setItem(MISMATCH_KEY, v)
-    } catch {
-      /* storage non disponibile: la preferenza resta per la sessione */
-    }
+  setFor(mode: PaletteMode, v: MismatchStyle) {
+    const busta: Busta<MismatchStyle> = { ...cachedMismatch(), [mode]: v }
+    mismatchCache = busta
+    scriviBusta(MISMATCH_KEY, busta)
+    mismatchStyleStore.listeners.forEach(l => l())
+  },
+  resetAll() {
+    mismatchCache = bustaVuota<MismatchStyle>()
+    scriviBusta(MISMATCH_KEY, mismatchCache)
     mismatchStyleStore.listeners.forEach(l => l())
   },
   subscribe(l: () => void) {
@@ -562,26 +698,32 @@ export type PendingRing = 'yellow-solid' | 'yellow-dashed' | 'red-solid' | 'red-
 const PENDING_RING_KEY = 'tuoturno-pending-ring'
 const PENDING_RINGS: PendingRing[] = ['yellow-solid', 'yellow-dashed', 'red-solid', 'red-dashed']
 
+let ringCache: Busta<PendingRing> | null = null
+
+function cachedRing(): Busta<PendingRing> {
+  if (ringCache === null) ringCache = leggiBusta(PENDING_RING_KEY, validaScelta(PENDING_RINGS), v => v)
+  return ringCache
+}
+
 /**
- * Preferenza del contorno «da confermare»: colore (giallo/rosso) e tratto
- * (continuo/tratteggiato). Snapshot primitivo, come mismatchStyleStore.
+ * Il contorno «da confermare» — colore (giallo/rosso) e tratto
+ * (continuo/tratteggiato) — anche questo UNA SCELTA PER TEMA: una cornice gialla
+ * su un fondo scuro e su un fondo chiaro non sono la stessa cosa da vedere.
  */
 export const pendingRingStore = {
   listeners: new Set<() => void>(),
-  get(): PendingRing {
-    try {
-      const v = localStorage.getItem(PENDING_RING_KEY) as PendingRing | null
-      return v && PENDING_RINGS.includes(v) ? v : 'yellow-solid'
-    } catch {
-      return 'yellow-solid'
-    }
+  getFor(mode: PaletteMode): PendingRing {
+    return cachedRing()[mode] ?? 'yellow-solid'
   },
-  set(v: PendingRing) {
-    try {
-      localStorage.setItem(PENDING_RING_KEY, v)
-    } catch {
-      /* storage non disponibile: la preferenza resta per la sessione */
-    }
+  setFor(mode: PaletteMode, v: PendingRing) {
+    const busta: Busta<PendingRing> = { ...cachedRing(), [mode]: v }
+    ringCache = busta
+    scriviBusta(PENDING_RING_KEY, busta)
+    pendingRingStore.listeners.forEach(l => l())
+  },
+  resetAll() {
+    ringCache = bustaVuota<PendingRing>()
+    scriviBusta(PENDING_RING_KEY, ringCache)
     pendingRingStore.listeners.forEach(l => l())
   },
   subscribe(l: () => void) {

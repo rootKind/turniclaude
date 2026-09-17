@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, EyeOff, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser, X } from 'lucide-react'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, EyeOff, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser, X, Palette } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { NotificationBadge } from '@/components/ui/notification-badge'
@@ -16,6 +16,7 @@ import { SquadreDialog } from './squadre-dialog'
 import { ShiftDialog } from './shift-dialog'
 import { ShiftCleanupDialog } from './shift-cleanup-dialog'
 import { CompareVisibilityDialog } from './compare-visibility-dialog'
+import { useThemeInspectorStore } from '@/stores/theme-inspector-store'
 
 export function AdminPanel() {
   const router = useRouter()
@@ -38,6 +39,10 @@ export function AdminPanel() {
   const [maxSwapDays, setMaxSwapDays] = useState(90)
   const [hideShiftsBeyond, setHideShiftsBeyond] = useState(false)
   const [savingLimit, setSavingLimit] = useState(false)
+  // Sonda colori (17/09/2026): si accende QUI e resta accesa mentre giri per
+  // l'app — è il senso della sonda, il tocco seleziona invece di navigare.
+  const sondaArmata = useThemeInspectorStore(s => s.armata)
+  const setSondaArmata = useThemeInspectorStore(s => s.setArmata)
 
   useEffect(() => {
     const supabase = createClient()
@@ -173,6 +178,22 @@ export function AdminPanel() {
           label="Changelog"
           description="Gestisci le novità, lancia una nuova versione, vedi chi le ha lette"
           onClick={() => setChangelogOpen(true)}
+        />
+        <PanelButton
+          icon={<Palette size={15} />}
+          label={sondaArmata ? 'Sonda accesa' : 'Colori'}
+          description={
+            sondaArmata
+              ? 'La sonda colori è accesa: premi a lungo un elemento per vedere da dove viene il suo colore. Tocca qui per spegnerla'
+              : 'Sonda colore: premi a lungo un elemento per sapere da quale variabile viene il suo colore e provarne un altro'
+          }
+          onClick={() => {
+            // NESSUN avviso a comparsa: la pillola della sonda in basso a
+            // sinistra è il riscontro, e i toast dell'app vivono in alto al
+            // centro. Il tocco normale resta dell'app (si campiona premendo a
+            // lungo), quindi non c'è nessuna modalità da spiegare con un avviso.
+            setSondaArmata(!sondaArmata)
+          }}
         />
       </div>
 

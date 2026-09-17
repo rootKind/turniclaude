@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
-import { Check, ChevronDown, ChevronLeft, ChevronRight, RotateCcw, Search, X } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
 import { readCachedSchedule, writeCachedSchedule } from '@/lib/sala-schedule-cache'
@@ -22,15 +23,17 @@ import {
   type PersonDayShift,
   type SalaCodeKind,
 } from '@/lib/sala-month'
+import { CardColorPanel } from '@/components/sala/card-color-panel'
 import {
   cardPaletteStore,
-  CARD_KINDS,
+  CARD_TINT_CLASS,
   mismatchStyleStore,
   pendingRingStore,
   predictTheoreticalMonth,
   type CardKind,
   type CardPalette,
   type MismatchStyle,
+  type PaletteMode,
   type PendingRing,
   type PersonTheoretical,
 } from '@/lib/person-cycle'
@@ -94,16 +97,9 @@ function legacyRealShift(
 /** Palette vuota (snapshot server per useSyncExternalStore). */
 const EMPTY_PALETTE: CardPalette = {}
 
-/** Classe CSS di default per ogni tipologia di contenuto (i colori vivono in globals.css). */
-const TINT_BY_KIND: Record<CardKind, string> = {
-  pomeriggio: 'cell-tint-p',
-  mattina: 'cell-tint-m',
-  notte: 'cell-tint-n',
-  rest: 'cell-tint-rest',
-  availability: 'cell-tint-avail',
-  absence: 'cell-tint-abs',
-  duty: 'cell-tint-duty',
-}
+/** Classe CSS di default per ogni tipologia di contenuto (i colori vivono in globals.css).
+ *  L'elenco sta in lib/person-cycle (CARD_TINT_CLASS): lo usa anche il pannello dei colori. */
+const TINT_BY_KIND = CARD_TINT_CLASS
 
 /** Codice del giorno → tipologia di contenuto (per la palette personalizzabile); null = cella vuota. */
 function kindOf(kind: SalaCodeKind, token: string): CardKind | null {
@@ -485,67 +481,6 @@ function CompareTable({ rows, chunks, month, todayISO, palette, cellW }: {
   )
 }
 
-/** Riga del pannello colori: anteprima della tinta + selettori sfondo/testo + ripristino. */
-function PaletteRow({ kind, label, hint, value, onChange, onClear }: {
-  kind: CardKind
-  label: string
-  hint: string
-  value: { bg: string; text: string } | undefined
-  onChange: (v: { bg: string; text: string }) => void
-  onClear: () => void
-}) {
-  return (
-    <div className="flex items-center gap-2 py-1.5">
-      <span
-        className={cn('cell-day inline-flex h-9 w-12 items-center justify-center rounded-lg text-[11px] font-bold', TINT_BY_KIND[kind])}
-        style={inlineColors(value)}
-      >
-        M7
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium leading-tight">{label}</span>
-        <span className="block truncate text-[10px] leading-tight text-muted-foreground">{hint}</span>
-      </span>
-      <label className="relative h-7 w-7 shrink-0" title="Colore sfondo">
-        <input
-          type="color"
-          value={value?.bg ?? '#000000'}
-          onChange={e => onChange({ bg: e.target.value, text: value?.text ?? '#ffffff' })}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          aria-label={`${label}: colore sfondo`}
-        />
-        <span
-          className="block h-7 w-7 rounded-full border border-border"
-          style={{ background: value?.bg }}
-        />
-      </label>
-      <label className="relative h-7 w-7 shrink-0" title="Colore testo">
-        <input
-          type="color"
-          value={value?.text ?? '#ffffff'}
-          onChange={e => onChange({ bg: value?.bg ?? '#000000', text: e.target.value })}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          aria-label={`${label}: colore testo`}
-        />
-        <span
-          className="block h-7 w-7 rounded-full border border-border"
-          style={{ background: value?.text }}
-        />
-      </label>
-      {value && (
-        <button
-          onClick={onClear}
-          title="Ripristina il colore predefinito"
-          aria-label={`Ripristina ${label}`}
-          className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <RotateCcw size={13} />
-        </button>
-      )}
-    </div>
-  )
-}
-
 export interface UserOption {
   id: string
   nome: string | null
@@ -592,10 +527,17 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const [colorsOpen, setColorsOpen] = useState(false)
   // Selettore mese/anno (aperto dall'etichetta tra le frecce).
   const [monthPickerOpen, setMonthPickerOpen] = useState(false)
-  const palette = useSyncExternalStore(cardPaletteStore.subscribe, cardPaletteStore.get, () => EMPTY_PALETTE)
-  const mismatchStyle = useSyncExternalStore(mismatchStyleStore.subscribe, mismatchStyleStore.get, () => 'split' as MismatchStyle)
+  // LE PREFERENZE DI ASPETTO SONO UNA PER TEMA (richiesta 18/09/2026): quello che
+  // si sceglie in chiaro non tocca lo scuro, e viceversa — sono due insiemi di
+  // colori diversi, e una tinta leggibile sul chiaro può sparire sullo scuro. Il
+  // tema in vigore lo dice `resolvedTheme` (segue la preferenza del sistema se
+  // l'utente lascia «sistema»), ed è la chiave con cui si leggono gli store.
+  const { resolvedTheme } = useTheme()
+  const modo: PaletteMode = resolvedTheme === 'dark' ? 'dark' : 'light'
+  const palette = useSyncExternalStore(cardPaletteStore.subscribe, () => cardPaletteStore.getFor(modo), () => EMPTY_PALETTE)
+  const mismatchStyle = useSyncExternalStore(mismatchStyleStore.subscribe, () => mismatchStyleStore.getFor(modo), () => 'split' as MismatchStyle)
   // Contorno dei giorni «da confermare»: giallo/rosso, continuo/tratteggiato.
-  const pendingRing = useSyncExternalStore(pendingRingStore.subscribe, pendingRingStore.get, () => 'yellow-solid' as PendingRing)
+  const pendingRing = useSyncExternalStore(pendingRingStore.subscribe, () => pendingRingStore.getFor(modo), () => 'yellow-solid' as PendingRing)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   // Il gesto swipe-back deve sapere se il CONFRONTO è aperto senza ri-iscrivere
   // i listener del documento a ogni cambio stato: ref specchiata (schema già
@@ -1015,12 +957,15 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 
       {/* Pannello personalizza: stile delle modifiche + tinta di ogni tipologia */}
       <Dialog open={colorsOpen} onOpenChange={setColorsOpen}>
-        <DialogContent className="max-h-[80vh] max-w-sm flex flex-col overflow-hidden">
+        {/* `gap-3` e non il `gap-4` ereditato: qui dentro convivono quattro sezioni
+            (contorno, stile, palette pronte, sette righe di colore) e ogni pixel
+            tolto va alla lista dei colori, che è quella che scorre. */}
+        <DialogContent className="max-h-[85vh] max-w-sm flex flex-col overflow-hidden gap-3">
           <DialogHeader><DialogTitle>Personalizza le card</DialogTitle></DialogHeader>
           <p className="text-xs leading-snug text-muted-foreground">
-            Scegli sfondo e testo per ogni tipologia, come mostrare i giorni diversi dal teorico e il
-            contorno dei giorni da confermare: si applicano subito e restano su questo dispositivo.
-            Senza personalizzazione valgono i colori del tema.
+            Si applicano subito e restano su questo dispositivo. Valgono <strong>solo per il tema
+            {modo === 'dark' ? ' scuro' : ' chiaro'}</strong>: passando all’altro tema la
+            personalizzazione è un’altra, e senza personalizzazione valgono i colori del tema.
           </p>
           <div className="rounded-xl border border-border/60 p-2">
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1037,7 +982,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
               ).map(([value, label, title]) => (
                 <button
                   key={value}
-                  onClick={() => pendingRingStore.set(value)}
+                  onClick={() => pendingRingStore.setFor(modo, value)}
                   title={title}
                   aria-pressed={pendingRing === value}
                   className={cn(
@@ -1073,7 +1018,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
               ).map(([value, label, title]) => (
                 <button
                   key={value}
-                  onClick={() => mismatchStyleStore.set(value)}
+                  onClick={() => mismatchStyleStore.setFor(modo, value)}
                   title={title}
                   aria-pressed={mismatchStyle === value}
                   className={cn(
@@ -1088,31 +1033,16 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-x-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Tipologia</span>
-            <span>Riempimento</span>
-            <span>Contorno</span>
-          </div>
-          <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
-            {CARD_KINDS.map(({ kind, label, hint }) => (
-              <PaletteRow
-                key={kind}
-                kind={kind}
-                label={label}
-                hint={hint}
-                value={palette[kind]}
-                onChange={v => cardPaletteStore.set(kind, v)}
-                onClear={() => cardPaletteStore.set(kind, null)}
-              />
-            ))}
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => cardPaletteStore.reset()}
-            disabled={Object.keys(palette).length === 0}
-          >
-            Ripristina tutti i colori predefiniti
-          </Button>
+          {/* Colori: palette pronte + colore singolo (components/sala/card-color-panel.tsx).
+              Il selettore è il NOSTRO (components/ui/color-picker.tsx): prima era
+              `<input type="color">`, cioè quello di sistema (diverso su ogni
+              dispositivo, senza tinte pronte) — richiesta 17/09/2026. */}
+          <CardColorPanel
+            palette={palette}
+            setKind={(kind, colors) => cardPaletteStore.setFor(modo, kind, colors)}
+            applyPreset={colors => cardPaletteStore.applyFor(modo, colors)}
+            resetAll={() => cardPaletteStore.resetFor(modo)}
+          />
         </DialogContent>
       </Dialog>
 

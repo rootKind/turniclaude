@@ -5,6 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { ThemeColor } from '@/components/providers/theme-color'
+import { ThemeInspector } from '@/components/admin/theme-inspector'
 import { LIGHT_BACKGROUND, DARK_BACKGROUND } from '@/lib/color-defaults'
 import { PwaGuard } from '@/components/providers/pwa-guard'
 import { BootSplash } from '@/components/providers/boot-splash'
@@ -56,6 +57,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <PwaGuard>
               {children}
             </PwaGuard>
+            {/* Sonda colori dell'admin (richiesta 17/09/2026): vive qui — dentro
+                il QueryProvider (chiede chi sono con `useCurrentUser`) e fuori
+                dal PwaGuard — perché deve poter guardare QUALUNQUE pagina
+                dell'app. Non rende e non ascolta niente finché non è accesa, e
+                solo per l'admin. */}
+            <ThemeInspector />
             <Toaster richColors position="top-center" />
           </QueryProvider>
           <Analytics />
