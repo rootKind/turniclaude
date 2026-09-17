@@ -2053,3 +2053,32 @@ BRANCH: eliminati anche gli ultimi due `freebuff/*` locali (`avvia-l-app-…` e
 `in-quanti-sottogruppi-…` — verificati entrambi **inclusi** in master, diff vuoti): la cartella
 specchia GitHub, restano solo `master` e `dev`. La cartella progetto ora è pulita: nessun file
 non tracciato.
+
+## 17/09/2026 — Rotazione teorica: prod allineata a dev + priorità delle sorgenti in /tuoturno
+
+**Il bug** («il ciclo di Borrelli riparte dal giorno 1 a ottobre»): la riparazione della
+rotazione fatta su dev (apply-super-cycle.mjs: anchor comune 2026-03-01, ciclo 84gg «in terza»
+con pattern completi, pattern 024 da consenso) NON era mai passata su produzione — le migration
+018-033 non toccano cycle_days/pattern_start/pattern, quindi prod restava al seed 020
+(pattern_start=2026-07-01): con quell'ancora il 01/10 cadeva sul giorno 9 invece di proseguire
+settembre (13/09 = giorno 1 → 01/10 = giorno 19 per i cicli 28gg).
+
+**Fix dati su PRODUZIONE:** `scripts/allinea-rotazione-prod.mjs` (dry-run di default, backup
+automatico, verifica post-apply, idempotente: pianifica dal backup pristine e salta le righe
+uguagli al target) ha allineato prod ← dev: 4 tipologie, 75 membri per id, 4 membri solo-prod
+(COLUCCI M./PELOSI/SPAGNULO/STRINGILE — fase preservata con rotazione del pattern), 81 template.
+Verifica: match col teorico del PDF di settembre 72,1% → 93,8%; BORRELLI 01/10 = giorno 19 ✓.
+I mesi PDF 2026-03…08 di prod sono ANCORA v1 (solo 2026-09 è v2): NON rilanciare
+apply-super-cycle su prod senza prima convertirli (dedurrebbe pattern da un solo mese).
+
+**Secondo bug, nella stessa indagine (segnalato dall'utente: «ottobre di Minino sbagliato su
+dev E main, tutti i DCO, i Noni a posto»):** /tuoturno per i mesi SENZA PDF usava la predizione
+dalla storia dei PDF (lib/person-cycle.ts) PRIMA della rotazione del DB — ordine scritto quando
+il seed del DB era rotto (~56%). Con il seed riparato la gerarchia è girata: la rotazione
+replica il teorico dei PDF al 92-100% su TUTTI i gruppi, la predizione (macchina a stati dei
+blocchi) deraglia sui DCO (1-17% su «in terza», catene di riposi slittate di un giorno:
+RM RC RI → RC RI P5T). Su /tuoturno la priorità ora è: PDF → **rotazione DB** → predizione
+(solo per chi non è nell'albero), sia nella griglia personale (`theoreticalFor`) sia nel
+confronto (`compareRows`). I Noni restano perfetti (cicli rigidi, 100%). La predizione NON è
+toccata in lib/person-cycle.ts: resta disponibile e le sue regressioni si misurano con
+`node scripts/verify-tuoturno.mjs`.

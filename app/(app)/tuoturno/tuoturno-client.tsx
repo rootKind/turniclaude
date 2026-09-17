@@ -624,8 +624,13 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 
   // ── teorico: tre sorgenti in ordine di priorità ──────────────────────────
   // 1. riga base del PDF del mese (esatta per definizione);
-  // 2. predizione dalla STORIA dei PDF (ciclo dedotto o rotazione a blocchi);
-  // 3. rotazione delle squadre del DB (solo ultimo fallback).
+  // 2. rotazione delle squadre del DB (dal 17/09/2026 PRIMA della predizione:
+  //    col seed riparato — anchor 2026-03-01 e cicli 84gg — replica il teorico
+  //    dei PDF al 92-100% su tutti i gruppi, mentre la predizione dalla storia
+  //    deraglia sui DCO: le catene di riposi slittano di un giorno appena il
+  //    piano reale si scosta dal ciclo rigido. La predizione resta il fallback
+  //    per chi NON è nell'albero — vedi verify-tuoturno.mjs per i numeri);
+  // 3. predizione dalla STORIA dei PDF (ciclo dedotto o rotazione a blocchi).
   const theoSrc = selectedUser ? personTheoretical[selectedUser.id] ?? null : null
   const theoPredicted = useMemo(
     () => predictTheoreticalMonth(theoSrc, month),
@@ -636,9 +641,11 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
       // Il PDF è la verità: la riga base stampata vale anche quando è vuota.
       return realPerson.teorico[d - 1] ?? ''
     }
+    const db = theoreticalTokenFor(tree, selectedUser, `${month}-${String(d).padStart(2, '0')}`, duplicateCognomi, bareOwners)
+    if (db) return db
     const pred = theoPredicted[d - 1] ?? ''
     if (pred) return pred
-    return theoreticalTokenFor(tree, selectedUser, `${month}-${String(d).padStart(2, '0')}`, duplicateCognomi, bareOwners)
+    return ''
   }
   // ── confronto fra più dipendenti ──────────────────────────────────────────
   const viewportHeight = useSyncExternalStore(subscribeResize, () => window.innerHeight, () => 700)
@@ -691,8 +698,8 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
             ? personDayShift(person, d)
             : legacyRealShift(realSchedule?.schedule?.[d], u, duplicateCognomi, bareOwners)
         const theo = (isRealMonth ? person?.teorico[d - 1] : undefined)
-          || predicted[d - 1]
           || theoreticalTokenFor(tree, u, dateISO, duplicateCognomi, bareOwners)
+          || predicted[d - 1]
         return buildCompareDay(real, theo, hasTheo)
       })
       return { id: u.id, name: [u.cognome, u.nome].filter(Boolean).join(' '), cognome: u.cognome ?? '', nome: u.nome ?? '', cells }

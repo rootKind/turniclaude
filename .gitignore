@@ -96,3 +96,8 @@ scripts/.dbg-*
 
 # Materiale di lavoro dell'ufficio (PDF di esempio): dati, non codice.
 Turni esempio/
+
+# Strumenti di analisi coerenza colori (usa-e-getta, non fanno parte della suite)
+tests/.probe-*.mjs
+tests/.analisi-*.mjs
+tests/.coerenza*.json
