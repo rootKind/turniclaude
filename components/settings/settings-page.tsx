@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator'
 import { Sun, Moon } from 'lucide-react'
 import { FeedbackDialog } from './feedback-dialog'
 import { CHANGELOG_SHOW_ALL_EVENT } from '@/components/providers/changelog-dialog'
+import { versioneTesto } from '@/lib/app-version'
 import { NotificationHelpDialog } from './notification-help-dialog'
 import { toast } from 'sonner'
 import { useState } from 'react'
@@ -241,8 +242,11 @@ export function SettingsPage() {
         >
           Novità
         </Button>
-        <p className="text-center text-xs text-muted-foreground pt-1 pb-2">
-          v1.226 · 6eb0c28 — ultimo aggiornamento: 26/08/2026 13:10
+        {/* `suppressHydrationWarning`: la data è formattata con l'ora di Roma da
+            un valore cotto alla build, e il formato può differire di un soffio fra
+            l'HTML del server e il browser. È informazione, non stato. */}
+        <p suppressHydrationWarning className="text-center text-xs text-muted-foreground pt-1 pb-2">
+          {versioneTesto()}
         </p>
       </section>
 
