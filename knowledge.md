@@ -2004,3 +2004,31 @@ l'aggiornamento. Il fallback scritto a mano serve solo a chi compila in locale (
 dev server la riga a schermo mostra l'ora di avvio del server, non il fallback → l'iniezione
 delle env funziona anche con Turbopack). Prova: `tests/versione.spec.ts` (formattazione pura,
 comprese ora legale e solare, + la riga vera su /impostazioni che non deve più contenere «v1.226»).
+
+## 18/09/2026 — RELEASE V5: merge in master
+
+`dev → master` mergiato e pushato (merge `240870f`, «Merge branch 'dev' into master — release V5»):
+**131 commit** da agosto, 206 file, ~56.000 righe. La PWA live prende: turni teorici con squadre
+e catalogo dei cicli, gialli del PDF (chip, evidenzia, card scoperte coi minimi per card e la
+storia datata), cache-first su IndexedDB con riconvalida realtime, notifiche (registry con
+override admin, push «novità del changelog», filtro «solo se posso coprirlo», promemoria
+permessi), il pannello colori di /tuoturno (selettore nostro, palette pronte, **una config per
+tema**), la sonda colori dell'admin col campionario, la riga di versione presa dalla build e la
+suite E2E (106 prove, ~72 s).
+
+BRANCH: il branch `freebuff/voglio-creare-le-basi-di-logica-di-turni-mi-spiego-…` era
+**incluso in dev** (antenato, diff vuoto) ed è stato eliminato su GitHub e in locale — su
+origin restano solo `master` e `dev`. Restano due branch `freebuff/*` **solo locali**:
+`avvia-l-app-…` (incluso in dev, si può togliere) e `in-quanti-sottogruppi-…` (NON incluso:
+contiene lavoro non mergiato — non cancellarlo senza guardarlo).
+
+⚠️ **MIGRATION DA APPLICARE SU PRODUZIONE: 018–033** (16 file). Il DB main ha la history delle
+migration a timestamp, quindi `supabase db push` NON si usa lì: si passa dalla Management API
+(come per la release di agosto). Preparato lo script `scripts/apply-release-migrations.mjs`:
+verifica cosa manca, applica un file per volta in transazione registrando la versione in
+`supabase_migrations.schema_migrations`, si ferma al primo errore, e con `--bundle` scrive il
+file da incollare nell'SQL editor. Serve `SUPABASE_ACCESS_TOKEN` in `.env.local` (Supabase →
+Account → Access Tokens, oppure Credential Manager di Windows → «Supabase CLI:supabase»).
+Senza quel token le funzioni che usano le novità (statistiche admin 018, squadre/cicli
+019-028, filtro notifiche 023, override testi push 029, realtime 030-031, cancellazione della
+propria richiesta ferie 033) NON funzionano in produzione.
