@@ -12,7 +12,17 @@ import type { VacationPeriod } from '@/types/database'
 
 export type NotifType = 'system' | 'interest' | 'new_shift' | 'vacation_interest' | 'new_vacation'
 
-/** Variabili disponibili nei template admin, con descrizione e valore d'esempio. */
+/**
+ * Variabili disponibili nei template admin, con descrizione e valore d'esempio.
+ *
+ * CONVENZIONE DEI VALORI (17/09/2026) — `sample` è «nudo»: niente spazio
+ * iniziale, niente parentesi. Parentesi e separatori li mette il TEMPLATE (es.
+ * `{periodo} ({anno})`). Così l'anteprima del pannello debug — che rende il
+ * testo con QUESTI valori d'esempio — è carattere per carattere il messaggio che
+ * l'utente riceve davvero, e basta un'occhiata per accorgersi di un testo che
+ * non sta in piedi: era il caso di «{periodo}{anno}», che in anteprima leggeva
+ * «16–30 Giu2026» perché lo spazio arrivava dal flusso, non dal testo.
+ */
 export interface TemplateVar {
   name: string
   description: string
@@ -34,7 +44,7 @@ export const NOTIF_VARS: TemplateVar[] = [
   { name: 'motivo', description: 'Motivo testuale di un rifiuto (facoltativo)', sample: 'per: copertura già assicurata' },
   { name: 'turno_effettivo', description: 'Turno realmente trovato nel calendario (pulizia cambi)', sample: 'Pomeriggio' },
   { name: 'dettaglio', description: 'Spiegazione specifica del messaggio (pulizia cambi)', sample: 'nel turno caricato risulti già in Pomeriggio' },
-  { name: 'extra', description: 'Aggiunta testuale facoltativa (es. «e altre 2 richieste»)', sample: ' (e altre 2 richieste)' },
+  { name: 'extra', description: 'Aggiunta testuale facoltativa (es. «e altre 2 richieste»)', sample: '(e altre 2 richieste)' },
   { name: 'versione', description: 'Numero della nuova versione del changelog', sample: '5' },
 ]
 
@@ -103,7 +113,10 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
   },
   {
     key: 'interest.title', title: 'Nuovo interesse al tuo turno',
-    body: '{cognome_attore} è interessato al tuo {turno} del {data} (cerca {turno_cercati})',
+    // «cerca» senza soggetto si leggeva come se fosse l'INTERESSATO a cercare i
+    // turni: li cerca invece il destinatario, con la sua stessa richiesta (nel
+    // modello chi prende il tuo turno te ne dà uno che avevi chiesto).
+    body: '{cognome_attore} è interessato al tuo {turno} del {data} (tu cerchi {turno_cercati})',
     label: 'Interesse al tuo turno', type: 'interest', source: 'Pulsante «Mi interessa»',
     context: 'Al creatore della richiesta di cambio',
   },
@@ -118,7 +131,7 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
   // nel giorno offerto è fra i turni cercati — e il messaggio lo dice.
   {
     key: 'interest.compatible.title', title: 'Interesse su un cambio che puoi coprire',
-    body: '{cognome_attore} è interessato al tuo {turno} del {data}: il {data} sei in {turno_effettivo}, uno dei turni che cerca ({turno_cercati})',
+    body: '{cognome_attore} è interessato al tuo {turno} del {data}: il {data} sei in {turno_effettivo}, uno dei turni che cercavi ({turno_cercati})',
     label: 'Interesse compatibile col tuo turno', type: 'interest', source: 'Pulsante «Mi interessa» (filtro attivo)',
     context: 'Al creatore con «Solo se posso coprirlo» attivo, quando la sua compatibilità è vera',
   },
@@ -154,7 +167,7 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
   },
   {
     key: 'cleanup.done.title', title: 'Cambio turno già registrato',
-    body: 'La richiesta di cambio del {data} ({turno} → {turno_cercati}) è stata eliminata: {dettaglio}{extra}',
+    body: 'La richiesta di cambio del {data} ({turno} → {turno_cercati}) è stata eliminata: {dettaglio} {extra}',
     label: 'Pulizia: già registrato', type: 'system', source: 'Pulizia cambi (admin)',
     context: 'Al richiedente, quando il cambio è già nei turni caricati ({dettaglio} spiega il caso)',
   },
@@ -173,7 +186,7 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
   // ── Ferie (app/api/push/notify + vacanze) ────────────────────────────────
   {
     key: 'vacation_interest.title', title: 'Qualcuno è interessato al tuo cambio ferie',
-    body: '{cognome_attore} è interessato al tuo {periodo}{anno}',
+    body: '{cognome_attore} è interessato al tuo {periodo} {anno}',
     label: 'Interesse cambio ferie', type: 'vacation_interest', source: 'Interesse su ferie',
     context: 'Al creatore della richiesta ferie',
   },
@@ -185,44 +198,44 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
   },
   {
     key: 'new_vacation.title', title: 'Nuovo cambio ferie disponibile',
-    body: '{cognome_attore} offre {periodo} in cambio di {periodo_cercati}{anno}',
+    body: '{cognome_attore} offre {periodo} {anno} in cambio di {periodo_cercati}',
     label: 'Nuovo cambio ferie', type: 'new_vacation', source: 'Pubblica cambio ferie',
     context: 'A tutti della stessa categoria con notifiche attive',
   },
   {
     key: 'vacation_chain_ready.title', title: 'Nuova catena ferie disponibile',
-    body: '{cognome_attore} ha inserito una richiesta che completa una catena con la tua ({anno})',
+    body: '{cognome_attore} ha inserito una richiesta che completa una catena con la tua richiesta ({anno})',
     label: 'Catena ferie completata', type: 'new_vacation', source: 'Catena ferie',
     context: 'A chi la nuova richiesta completa la catena',
   },
   // ── Ferie: decisione del manager (16/09/2026) — gemelli dei cambi turno ──
   // Erano testo hardcoded nel route: stessi casi dei cambi turno lato manager,
   // ma invisibili al pannello. Ora hanno chiave, label, source e contesto.
-  // NB: «{periodo} {anno}» — nel flusso reale {anno} arriva già fra parentesi
-  // (« (2026)») e lo spazio in più fa leggere bene l'anteprima del pannello,
-  // dove il valore d'esempio è il solo numero: renderFlowTemplate comprime gli
-  // spazi, quindi il testo inviato è identico a quello di prima.
+  // Le parentesi dell'anno sono NEL TESTO («{periodo} ({anno})»): i route
+  // passano l'anno nudo, così l'anteprima del pannello e il messaggio inviato
+  // coincidono (prima il flusso passava « (2026)» e l'anteprima leggeva
+  // «16–30 Giu 2026»: due testi diversi per lo stesso messaggio).
   {
     key: 'vacation_pending.title', title: 'Cambio ferie in attesa di conferma',
-    body: 'Il cambio {periodo} {anno} con {cognome_attore} non può essere ancora accettato perché ci sono scorte disponibili',
+    body: 'Il cambio {periodo} ({anno}) con {cognome_attore} non può essere ancora accettato perché ci sono scorte disponibili',
     label: 'Cambio ferie in attesa (scorte)', type: 'system', source: 'Conferma manager ferie',
     context: 'A creatore e vincitore del cambio ferie',
   },
   {
     key: 'vacation_approved.creator.title', title: 'Cambio ferie approvato',
-    body: 'Il turnista ha approvato la tua richiesta di cambio ferie {periodo} {anno} con {cognome_attore}',
+    body: 'Il turnista ha approvato la tua richiesta di cambio ferie {periodo} ({anno}) con {cognome_attore}',
     label: 'Cambio ferie approvato → richiedente', type: 'system', source: 'Conferma manager ferie',
     context: 'A chi aveva offerto il periodo',
   },
   {
     key: 'vacation_approved.winner.title', title: 'Cambio ferie approvato',
-    body: 'Il turnista ha approvato il cambio ferie {periodo} {anno} con {cognome_attore}',
+    body: 'Il turnista ha approvato il cambio ferie {periodo} ({anno}) con {cognome_attore}',
     label: 'Cambio ferie approvato → vincitore', type: 'system', source: 'Conferma manager ferie',
     context: 'A chi ha preso il periodo',
   },
   {
     key: 'vacation_rejected.title', title: 'Richiesta di cambio ferie cancellata',
-    body: 'Il turnista ha cancellato la tua richiesta di cambio ferie {periodo} {anno}{motivo}',
+    body: 'Il turnista ha cancellato la tua richiesta di cambio ferie {periodo} ({anno}) {motivo}',
     label: 'Cambio ferie cancellato dal turnista', type: 'system', source: 'Rifiuto manager ferie',
     context: 'Al creatore della richiesta; {motivo} se indicato',
   },
@@ -341,6 +354,8 @@ export function buildTemplateVars(input: {
     data: input.dateISO ?? '',
     periodo: input.offeredLabel ?? '',
     periodo_cercati: (input.targetLabels ?? []).join(', '),
-    anno: input.year ? ` ${input.year}` : '',
+    // Anno NUDO (17/09/2026): le parentesi le mette il template, così
+    // l'anteprima del pannello rende lo stesso testo che viene inviato.
+    anno: input.year ? String(input.year) : '',
   }
 }

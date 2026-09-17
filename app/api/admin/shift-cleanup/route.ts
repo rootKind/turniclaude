@@ -152,7 +152,9 @@ export async function POST(req: NextRequest) {
     const actual = actualShiftsForUserDate(ctx, first.user_id, first.shift_date)
       .find(a => (first.requested_shifts ?? []).some(r => SHIFT_TO_SALA[r] === a))
     const actualLabel = actual ? ACTUAL_LABEL[actual] : null
-    const extra = userShifts.length > 1 ? ` (e altre ${userShifts.length - 1} richieste)` : ''
+    // Nudo: lo spazio prima di {extra} sta nel template (convenzione in
+    // lib/notification-templates.ts).
+    const extra = userShifts.length > 1 ? `(e altre ${userShifts.length - 1} richieste)` : ''
     // {dettaglio} spiega il caso specifico: turno trovato nel calendario o
     // «già assegnato»; {extra} elenca le altre richieste ripulite, se ci sono.
     const msg = messageFor(overrides, 'cleanup.done.title', {

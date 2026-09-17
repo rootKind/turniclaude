@@ -69,7 +69,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         ? `${winnerProfile.cognome ?? ''} ${winnerProfile.nome ?? ''}`.trim()
         : 'un collega'
       const periodLabel = VACATION_PERIOD_LABELS_SHORT[vacReq.offered_period as VacationPeriod] ?? `Periodo ${vacReq.offered_period}`
-      const yearLabel = vacReq.year ? ` (${vacReq.year})` : ''
+      // Anno NUDO: le parentesi le mette il template (convenzione in
+      // lib/notification-templates.ts), così l'anteprima del pannello è il testo vero.
+      const yearLabel = vacReq.year ? String(vacReq.year) : ''
       // Testo da registry, identico per creatore e vincitore.
       const msg = messageFor(overrides, 'vacation_pending.title', {
         periodo: periodLabel, anno: yearLabel, cognome_attore: winnerName,
@@ -91,13 +93,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
   const periodLabel = VACATION_PERIOD_LABELS_SHORT[vacReq.offered_period as VacationPeriod] ?? `Periodo ${vacReq.offered_period}`
-  const yearLabel = vacReq.year ? ` (${vacReq.year})` : ''
+  const yearLabel = vacReq.year ? String(vacReq.year) : ''
 
   if (action === 'reject') {
     const reasonStr = typeof reason === 'string' && reason.trim() ? reason.trim() : null
-    // {motivo} include il prefisso « per: …» solo se il manager lo scrive.
+    // {motivo} è nudo («per: …»): lo spazio prima lo mette il template, così se
+    // il manager non scrive nulla non resta niente da comprimere.
     const msg = messageFor(overrides, 'vacation_rejected.title', {
-      periodo: periodLabel, anno: yearLabel, motivo: reasonStr ? ` per: ${reasonStr}` : '',
+      periodo: periodLabel, anno: yearLabel, motivo: reasonStr ? `per: ${reasonStr}` : '',
     })
     await pushToUser(vacReq.user_id as string, {
       title: msg.title,

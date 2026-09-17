@@ -400,8 +400,17 @@ dei 4 messaggi ferie lato manager, invisibili al pannello).
 Lo spec E2E guarda quello che il contratto non può vedere perché serve il browser:
 l'intestazione («21 messaggi push dell'app · N modificati»: il conteggio è un intero,
 non la metà delle chiavi di override) e l'editor di un messaggio ferie con le sue
-variabili (`{periodo} {anno}`, mai `{turno}`) e l'anteprima coi valori d'esempio.
+variabili (`{periodo} ({anno})`, mai `{turno}`) e l'anteprima coi valori d'esempio.
 È in **sola lettura**: non salva override (sarebbero globali per tutti gli utenti).
+
+Dal 17/09/2026 c'è anche l'anteprima dell'**interesse**: «Bianchi è interessato al
+tuo Mattina del 15/05 (tu cerchi Pomeriggio/Notte)». I turni di `{turno_cercati}`
+sono quelli che cerca la richiesta del DESTINATARIO (chi prende il tuo turno te ne
+dà uno che avevi chiesto), mentre il vecchio «(cerca …)» senza soggetto si leggeva
+come se a cercare fosse l'interessato. Il contratto del registry controlla la
+stessa cosa — e tutte le anteprime: niente segnaposto senza valore, spazi doppi o
+valori attaccati (era «16–30 Giu2026»), perché i valori d'esempio sono «nudi» e
+parentesi e spazi li mette il template.
 
 ## La «X» del dialog del cambio turno (`tests/shift-dialog.spec.ts`)
 

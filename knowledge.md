@@ -1799,3 +1799,37 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   col contenuto scorrato in fondo e il test finisce cliccando la X. CONTROLLO
   NEGATIVO fatto: rimettendo la X dell'involucro il test diventa ROSSO con «Go to
   the Next Month … 7×7 px» a entrambe le larghezze; con il fix, verde.
+- **ANTEPRIME DEI MESSAGGI PUSH: DUE TESTI CHE NON AVEVANO SENSO (17/09/2026).**
+  Segnalazione: nel pannello debug l'esempio dell'interesse leggeva «Bianchi è
+  interessato al tuo Mattina del 15/05 (cerca Pomeriggio/Notte)». Il «cerca» era
+  SENZA SOGGETTO e si leggeva come se a cercare fosse l'interessato, mentre
+  `{turno_cercati}` sono i turni cercati dalla richiesta del DESTINATARIO (nel
+  modello chi prende il tuo turno te ne dà uno che avevi chiesto tu). Ora i due
+  messaggi dicono di chi è la ricerca: «(tu cerchi {turno_cercati})» e «uno dei
+  turni che cercavi ({turno_cercati})». Era un difetto del testo VERO, non solo
+  dell'esempio: lo stesso messaggio partiva così anche in produzione.
+  LA CAUSA A MONTE DEGLI ALTRI ESEMPI ROTTI è che il pannello rende il testo con
+  UN SOLO dizionario di valori d'esempio (NOTIF_VARS.sample) mentre alcuni route
+  passavano valori con separatori dentro: `anno: ' (2026)'`, `motivo: ' per: …'`,
+  `extra: ' (e altre 2 richieste)'`. Con `{periodo}{anno}` l'anteprima leggeva
+  «16–30 Giu2026» (e `vacation_rejected` «(2026)per: …»), testo che non veniva mai
+  inviato: l'anteprima raccontava un ALTRO messaggio. CONVENZIONE NUOVA, scritta
+  accanto a NOTIF_VARS: **i valori arrivano «nudi» dal flusso e parentesi e spazi
+  li mette il TEMPLATE** (`{periodo} ({anno})`, `{dettaglio} {extra}`). Dove
+  l'anno è fra parentesi il flusso lo prende SEMPRE da una fonte non vuota
+  (colonna NOT NULL o anno già validato dal route), perché un valore vuoto toglie
+  il segnaposto ma non la punteggiatura: «Lug `{anno}`» diventa «Lug ()».
+  Guardie: il contratto (`scripts/check-notif-templates.mjs`) ora rende TUTTE le
+  anteprime con i valori d'esempio e pretende nessun segnaposto residuo, nessuno
+  spazio doppio o ai bordi, nessun valore attaccato (lettera+numero, parentesi+
+  parola), l'attribuzione della ricerca nei messaggi d'interesse, e che anteprima
+  del pannello e testo inviato COINCIDANO (`renderNotifTemplate` ==
+  `renderFlowTemplate` sugli stessi valori — prima non era garantito). In più:
+  i valori d'esempio non possono iniziare con uno spazio e nessun route può
+  incapsulare anno/motivo/extra/dettaglio in parentesi o spazi (scan del sorgente).
+  CONTROLLO NEGATIVO fatto: rimettendo «(cerca {turno_cercati})» il contratto
+  diventa ROSSO citando proprio la frase segnalata; tolto, verde. E il testo
+  INVIATO non cambia (le prove di non-regressione ferie passano con l'anno nudo:
+  «Il cambio 16–30 Giu (2026) con …» è identico a prima), tranne i due messaggi
+  d'interesse, che è il fix richiesto. La spec del pannello
+  (`tests/notifiche.spec.ts`) controlla l'anteprima dell'interesse nel browser.

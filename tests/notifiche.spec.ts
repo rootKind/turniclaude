@@ -48,13 +48,32 @@ test.describe('pannello: messaggi push', () => {
     await page.getByText('Cambio ferie in attesa (scorte)', { exact: true }).first().click()
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByText(/^Titolo$/).first()).toBeVisible()
+    // Le parentesi dell'anno sono NEL TESTO (17/09/2026): i route passano l'anno
+    // nudo, così l'anteprima qui sotto è il messaggio vero, carattere per carattere.
     await expect(page.locator('textarea').first()).toHaveValue(
-      /Il cambio \{periodo\} \{anno\} con \{cognome_attore\} non può essere ancora accettato perché ci sono scorte disponibili/,
+      /Il cambio \{periodo\} \(\{anno\}\) con \{cognome_attore\} non può essere ancora accettato perché ci sono scorte disponibili/,
     )
     // Vocabolario ferie nelle variabili suggerite: {periodo}/{anno}, non {turno}/{data}.
     await expect(dialog.getByRole('button', { name: '{periodo}' }).first()).toBeVisible()
     await expect(dialog.getByRole('button', { name: '{turno}' })).toHaveCount(0)
     // Anteprima coi valori d'esempio: frase leggibile, non «16–30 Giu2026».
-    await expect(dialog.getByText(/^Il cambio 16–30 Giu 2026 con Bianchi non può essere ancora accettato/)).toBeVisible()
+    await expect(dialog.getByText(/^Il cambio 16–30 Giu \(2026\) con Bianchi non può essere ancora accettato/)).toBeVisible()
+  })
+
+  test('l\'anteprima dell\'interesse attribuisce i turni cercati al destinatario', async ({ asEmployee }) => {
+    const admin = await findEmployee('Minino')
+    test.skip(!admin, 'admin non in anagrafica')
+    const page = await asEmployee('Minino')
+    await page.goto(`${E2E_BASE_URL}/admin?dev=rootkind-dev-2026`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('Debug notifiche').first().click()
+
+    await page.getByText('Interesse al tuo turno', { exact: true }).first().click()
+    const dialog = page.getByRole('dialog')
+    // {turno_cercati} sono i turni che cerca la richiesta del DESTINATARIO (chi
+    // prende il tuo turno te ne dà uno che avevi chiesto): un «cerca …» senza
+    // soggetto si leggeva come se a cercare fosse l'interessato.
+    await expect(dialog.getByText(/^Bianchi è interessato al tuo Mattina del 15\/05 \(tu cerchi Pomeriggio\/Notte\)$/)).toBeVisible()
+    await expect(dialog.getByText(/\(cerca /)).toHaveCount(0)
+    await expect(dialog.getByRole('button', { name: '{turno_cercati}' }).first()).toBeVisible()
   })
 })

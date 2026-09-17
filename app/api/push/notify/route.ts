@@ -179,7 +179,7 @@ export async function POST(req: Request) {
 
     const { data: vacReq } = await supabase
       .from('vacation_requests')
-      .select('user_id, offered_period, target_periods')
+      .select('user_id, offered_period, target_periods, year')
       .eq('id', Number(requestId))
       .single()
 
@@ -196,7 +196,12 @@ export async function POST(req: Request) {
     }
 
     const offeredLabel = VACATION_PERIOD_LABELS_SHORT[vacReq.offered_period as VacationPeriod] ?? `Periodo ${vacReq.offered_period}`
-    const yearLabel = year ? ` ${year}` : ''
+    // Anno NUDO e preso dalla RICHIESTA (colonna NOT NULL), non dal corpo della
+    // richiesta HTTP: così è sempre presente e il testo non dipende dal client.
+    // Le parentesi, dove servono, stanno nel template (vedi la convenzione in
+    // lib/notification-templates.ts) — e l'anteprima del pannello debug è lo
+    // stesso testo che l'utente riceve.
+    const yearLabel = vacReq.year ? String(vacReq.year) : (year ? String(year) : '')
     const overrides = await loadNotifOverrides()
     const msg = messageFor(overrides, 'vacation_interest.title', {
       cognome_attore: typeof actorName === 'string' ? actorName : '', periodo: offeredLabel, anno: yearLabel,
@@ -221,7 +226,7 @@ export async function POST(req: Request) {
       const tgLabel = Array.isArray(targetPeriods) && (targetPeriods as number[]).length >= 5
         ? 'qualsiasi periodo'
         : ((targetPeriods as number[]) ?? []).map(p => VACATION_PERIOD_LABELS_SHORT[p as VacationPeriod] ?? `P${p}`).join(', ')
-      const nvYearLabel = year ? ` (${year})` : ''
+      const nvYearLabel = year ? String(year) : ''
       const overrides = await loadNotifOverrides()
       const msg = messageFor(overrides, 'new_vacation.title', {
         cognome_attore: typeof actorName === 'string' ? actorName : '', periodo: offLabel, periodo_cercati: tgLabel, anno: nvYearLabel,

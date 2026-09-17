@@ -31,6 +31,9 @@ try {
   const { NOTIF_TEMPLATES, NOTIF_TEMPLATE_BY_KEY, renderNotifTemplate, renderFlowTemplate, extractTemplateVars, varsForTemplate, resolveTemplates, resolveMessage, countModifiedTemplates, buildTemplateVars, NOTIF_VARS } =
     await import(pathToFileURL(join(dir, 'notification-templates.js')).href)
 
+  // Valori d'esempio come li usa il pannello debug (TemplateEditor.sampleVars).
+  const samples = Object.fromEntries(NOTIF_VARS.map(v => [v.name, v.sample]))
+
   // ── registry coerente ────────────────────────────────────────────────────────
   assert.ok(NOTIF_TEMPLATES.length >= 21, `ci sono tutti i messaggi (${NOTIF_TEMPLATES.length})`)
   assert.equal(NOTIF_TEMPLATE_BY_KEY.size, NOTIF_TEMPLATES.length, 'chiavi template uniche')
@@ -91,16 +94,18 @@ try {
   // ── ferie lato manager: testo IDENTICO a quello hardcoded di prima ──────────
   // Prova di non-regressione: il testo che il route costruiva a mano, ora
   // passando dal registro con le stesse variabili, esce carattere per carattere.
+  // Dal 17/09/2026 i route passano l'anno e il motivo NUDI (le parentesi e lo
+  // spazio li mette il template): il testo inviato deve restare questo.
   const vacationCases = [
-    ['vacation_pending.title', { periodo: '16–30 Giu', anno: ' (2026)', cognome_attore: 'Rossi Mario' },
+    ['vacation_pending.title', { periodo: '16–30 Giu', anno: '2026', cognome_attore: 'Rossi Mario' },
       'Il cambio 16–30 Giu (2026) con Rossi Mario non può essere ancora accettato perché ci sono scorte disponibili'],
-    ['vacation_approved.creator.title', { periodo: '16–30 Giu', anno: ' (2026)', cognome_attore: 'Bianchi Laura' },
+    ['vacation_approved.creator.title', { periodo: '16–30 Giu', anno: '2026', cognome_attore: 'Bianchi Laura' },
       'Il turnista ha approvato la tua richiesta di cambio ferie 16–30 Giu (2026) con Bianchi Laura'],
-    ['vacation_approved.winner.title', { periodo: '16–30 Giu', anno: ' (2026)', cognome_attore: 'Rossi Mario' },
+    ['vacation_approved.winner.title', { periodo: '16–30 Giu', anno: '2026', cognome_attore: 'Rossi Mario' },
       'Il turnista ha approvato il cambio ferie 16–30 Giu (2026) con Rossi Mario'],
-    ['vacation_rejected.title', { periodo: '16–30 Giu', anno: ' (2026)', motivo: '' },
+    ['vacation_rejected.title', { periodo: '16–30 Giu', anno: '2026', motivo: '' },
       'Il turnista ha cancellato la tua richiesta di cambio ferie 16–30 Giu (2026)'],
-    ['vacation_rejected.title', { periodo: '16–30 Giu', anno: ' (2026)', motivo: ' per: copertura già assicurata' },
+    ['vacation_rejected.title', { periodo: '16–30 Giu', anno: '2026', motivo: 'per: copertura già assicurata' },
       'Il turnista ha cancellato la tua richiesta di cambio ferie 16–30 Giu (2026) per: copertura già assicurata'],
     ['vacation_others.title', {},
       'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.'],
@@ -111,12 +116,118 @@ try {
   }
   assert.equal(resolveMessage({}, 'vacation_pending.title').title, 'Cambio ferie in attesa di conferma', 'titolo invariato')
   assert.equal(resolveMessage({}, 'vacation_rejected.title').title, 'Richiesta di cambio ferie cancellata', 'titolo invariato')
-  // una data assente (route legacy) non deve lasciare un doppio spazio
+  // Un valore assente non deve lasciare residui: il valore vuoto viene tolto col
+  // suo spazio (renderFlowTemplate), quindi il testo resta pulito. Nei messaggi
+  // dove l'anno è fra parentesi (lato manager) il flusso lo prende dalla colonna
+  // NOT NULL `vacation_requests.year`, quindi non può mancare; la prova qui è
+  // sulla famiglia che lo scrive nudo.
   assert.equal(
-    renderFlowTemplate(resolveMessage({}, 'vacation_approved.creator.title').body, { periodo: 'Lug', anno: '', cognome_attore: 'Rossi Mario' }),
-    'Il turnista ha approvato la tua richiesta di cambio ferie Lug con Rossi Mario',
+    renderFlowTemplate(resolveMessage({}, 'vacation_interest.title').body, { periodo: 'Lug', anno: '', cognome_attore: 'Rossi Mario' }),
+    'Rossi Mario è interessato al tuo Lug',
     'anno assente: nessun doppio spazio',
   )
+  assert.equal(
+    renderFlowTemplate(resolveMessage({}, 'vacation_approved.creator.title').body, { periodo: 'Lug', anno: '2026', cognome_attore: 'Rossi Mario' }),
+    'Il turnista ha approvato la tua richiesta di cambio ferie Lug (2026) con Rossi Mario',
+    'anno presente: fra parentesi, come nel testo inviato'
+  )
+  // La prova dell'anteprima → invio: lo stesso testo con gli stessi valori, sia
+  // dal pannello (renderNotifTemplate, senza compressione) sia dal flusso
+  // (renderFlowTemplate). Con i valori nudi devono uscire identici: è la
+  // garanzia che l'esempio del pannello non racconti un altro messaggio.
+  for (const t of NOTIF_TEMPLATES) {
+    const pannello = renderNotifTemplate(t.body, samples)
+    const flusso = renderFlowTemplate(t.body, samples)
+    assert.equal(pannello, flusso, `${t.key}: anteprima del pannello e testo inviato devono coincidere`)
+  }
+
+  // ── ANTEPRIMA DEL PANNELLO: ogni esempio deve leggersi come un messaggio ─────
+  // Il pannello debug (components/admin/notification-debug-dialog.tsx) rende il
+  // testo con i valori d'esempio di NOTIF_VARS: quello che si vede lì è ciò che
+  // l'utente riceverebbe con gli stessi valori. Qui si controlla che nessun
+  // esempio sia rotto — è il difetto segnalato il 17/09/2026: «Bianchi è
+  // interessato al tuo Mattina del 15/05 (cerca Pomeriggio/Notte)», dove «cerca»
+  // senza soggetto si leggeva come se a cercare fosse l'interessato.
+  // I valori d'esempio sono NUDI: niente spazio iniziale (lo spazio lo mette il
+  // template, altrimenti l'anteprima mostra un doppio spazio che l'invio reale
+  // invece comprime — due testi diversi per lo stesso messaggio).
+  for (const v of NOTIF_VARS) {
+    assert.equal(v.sample, v.sample.trim(), `{${v.name}}: il valore d'esempio non inizia/finisce con uno spazio`)
+  }
+  // Un testo d'esempio «rotto»: spazio doppio o ai bordi, oppure due cose
+  // attaccate che dovrebbero stare separate (lettera+numero, parentesi+parola).
+  const appiccicate = [
+    [/[a-zà-ù]\d/i, 'lettera attaccata a un numero'],
+    [/\d[a-zà-ù]/i, 'numero attaccato a una lettera'],
+    [/[a-zà-ù]\(/i, 'lettera attaccata a una parentesi'],
+    [/\)[a-zà-ù]/i, 'parentesi attaccata a una lettera'],
+  ]
+  const rotto = (testo, dove) => {
+    if (/(^|\s)\s/.test(testo) || testo !== testo.trim()) return dove + ': spazio doppio o ai bordi («' + testo + '»)'
+    for (const [re, che] of appiccicate) {
+      const m = testo.match(new RegExp('\\S*' + re.source + '\\S*', re.flags))
+      if (m) return dove + ': ' + che + ' («' + m[0] + '»)'
+    }
+    return null
+  }
+  for (const t of NOTIF_TEMPLATES) {
+    const preview = `${renderNotifTemplate(t.title, samples)} — ${renderNotifTemplate(t.body, samples)}`
+    const restano = extractTemplateVars(preview)
+    assert.deepEqual(restano, [], `${t.key}: nell'anteprima nessun segnaposto senza valore (${restano.join(' ')})`)
+    assert.equal(rotto(preview, t.key), null, `anteprima illeggibile in ${t.key}`)
+  }
+
+  // L'attribuzione della ricerca nei messaggi d'interesse: {turno_cercati} sono
+  // i turni che cerca LA RICHIESTA DEL DESTINATARIO (chi prende il tuo turno te
+  // ne dà uno che avevi chiesto tu). Un «cerca …» senza soggetto si leggeva come
+  // se a cercare fosse l'interessato: è la segnalazione del 17/09/2026.
+  for (const key of ['interest.title', 'interest.compatible.title']) {
+    const testo = renderNotifTemplate(resolveMessage({}, key).body, samples)
+    assert.ok(
+      !/\(?cerca [A-Za-z]/.test(testo),
+      key + ': i turni cercati sono del DESTINATARIO, il verbo deve avere il soggetto («' + testo + '»)',
+    )
+    assert.ok(/tu cerchi|che cercavi/.test(testo), key + ': dice di chi sono i turni cercati («' + testo + '»)')
+  }
+
+  // ── variabili FACOLTATIVE vuote: il testo inviato non deve avere residui ─────
+  // È il caso reale: il manager rifiuta senza scrivere il motivo, la pulizia non
+  // ha altre richieste da elencare. (L'anno non è in questo elenco: dove compare
+  // fra parentesi arriva sempre — colonna NOT NULL o anno validato dal route — e
+  // dove è nudo viene tolto col suo spazio.)
+  for (const t of NOTIF_TEMPLATES) {
+    const vuote = { ...samples }
+    for (const nome of ['motivo', 'extra']) vuote[nome] = ''
+    const reso = renderFlowTemplate(t.body, vuote)
+    // Residui tipici di una variabile tolta male: parentesi vuote, spazio doppio
+    // o spazio prima di un segno di punteggiatura.
+    assert.ok(!/\(\)|\s{2,}|\s+[.,;:!?)«»]/.test(reso), t.key + ': variabili facoltative vuote, il testo inviato ha residui («' + reso + '»)')
+    assert.equal(reso, reso.trim(), `${t.key}: con le variabili facoltative vuote resta uno spazio ai bordi`)
+  }
+
+  // ── chi passa i valori: niente spazio/parentesi nelle MANI DEL FLUSSO ────────
+  // Le variabili che seguono {periodo}/{data}/{turno} devono arrivare nude dal
+  // route: se un route le incapsula (« (2026)», « per: …»), l'anteprima del
+  // pannello e il messaggio inviato divergono.
+  {
+    const files = []
+    const cammina = (d) => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        const p = join(d, e.name)
+        if (e.isDirectory()) cammina(p)
+        else if (e.name.endsWith('.ts')) files.push(p)
+      }
+    }
+    cammina('app')
+    for (const f of files) {
+      const src = readFileSync(f, 'utf8')
+      if (!src.includes('@/lib/push/send-with-template')) continue
+      for (const m of src.matchAll(/\b(anno|motivo|extra|dettaglio|turno_effettivo)\s*:\s*`([^`]*)`/g)) {
+        assert.ok(!/^\s/.test(m[2]), `${f}: «${m[1]}» passato con uno spazio iniziale («${m[2]}»): lo spazio sta nel template`)
+        assert.ok(!/^\s*\(/.test(m[2]), `${f}: «${m[1]}» passato fra parentesi («${m[2]}»): le parentesi stanno nel template`)
+      }
+    }
+  }
 
   // ── legame registry ↔ route ──────────────────────────────────────────────────
   const routeFiles = []
