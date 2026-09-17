@@ -2032,3 +2032,24 @@ Account → Access Tokens, oppure Credential Manager di Windows → «Supabase C
 Senza quel token le funzioni che usano le novità (statistiche admin 018, squadre/cicli
 019-028, filtro notifiche 023, override testi push 029, realtime 030-031, cancellazione della
 propria richiesta ferie 033) NON funzionano in produzione.
+
+## 18/09/2026 — Migration 018–033 APPLICATE su produzione (release V5 completata)
+
+Con il token fornito dall'utente, `scripts/apply-release-migrations.mjs --prod --apply` ha
+applicato **tutte e 16** le migration mancanti su produzione: 018–024 (già verificate),
+025–033 (applicate ora). Verifica finale: le versioni `025`–`033` sono registrate in
+`supabase_migrations.schema_migrations` (versioni a 3 cifre: in ordine testuale vengono prima
+dei timestamp, NON cercarle in cima alla history), `shift_cycle_templates` ha **81 template**
+seedati e tutte le squadre collegate per nome.
+
+⚠️ **Fix necessario in volo (025):** il seed aveva gli UUID delle squadre del progetto di dev
+(`255226bf…` Rilievo A, `8198d38b…` Rilievo B, `521d3c94…` Rilievo C, `f4f910ff…` Rilievo D —
+non esistevano in produzione, FK violata). Corretto: il file ora risolve la squadra **per nome**
+(`(select id from public.shift_teams where name = 'Rilievo A')`), così il seed vale su ogni
+ambiente. In produzione le squadre si chiamano «Rilievo A/B/C» + «Rilievo D» (il secondo
+«Rilievo A» del catalogo è in realtà Rilievo D: LONI A. e NEVANO).
+
+BRANCH: eliminati anche gli ultimi due `freebuff/*` locali (`avvia-l-app-…` e
+`in-quanti-sottogruppi-…` — verificati entrambi **inclusi** in master, diff vuoti): la cartella
+specchia GitHub, restano solo `master` e `dev`. La cartella progetto ora è pulita: nessun file
+non tracciato.
