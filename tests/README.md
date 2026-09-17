@@ -96,6 +96,11 @@ che compilano e navigano insieme sporcherebbero la misura.
 | rotazione della squadra | nessuno — dati veri (service-role) | `squadra-rosa.spec.ts`: ROTONDO gira come i compagni (56 turni su 84, zero «G», riposi allineati), la griglia copre 4/6/7/10 e il pattern riproduce il teorico dei PDF 71/71 |
 | dialog del cambio turno | `http://localhost:3000/dashboard?new=1` | `shift-dialog.spec.ts`: la X non si sovrappone a nessun controllo del datepicker (era sulla freccia «mese successivo») né resta coperta, a 320px e 390px e anche dopo lo scorrimento |
 | velocità di `openBoard` | nessuno — misura | `perf.spec.ts` (progetto `perf`): mediana di 3 navigazioni sotto 3,5 s |
+| colori delle card (logica) | nessuno — logica pura | `palette-colori.spec.ts`: conversioni, contrasto WCAG, preset completi e coerenti, `themePaletteFor` («Notte» = i colori del tema scuro di globals.css) |
+| sonda colori (logica) | nessuno — logica pura | `sonda-colori-logica.spec.ts`: nomi leggibili dei token, colori leggibili, CSS dell'anteprima (`:root`/`.dark`), testo della richiesta, selettori, campionario (campione, confronto fra pagine, raggruppamento) (1 s, nessun browser) |
+| sonda colori (browser) | `http://localhost:3000/admin` → `/turnisala`, `/turniferie` | `sonda-colori.spec.ts`: dal pannello admin si accende e resta accesa navigando; il tocco naviga ANCHE con la sonda accesa (controllo negativo: senza la sonda idem); la pressione lunga campiona e non naviga, e il pannello dice da quale variabile viene il colore; anteprima sul dispositivo, richiesta da copiare, azzeramento; il campionario confronta lo stesso elemento fra due pagine |
+| pannello colori (browser) | `http://localhost:3000/tuoturno` | `colori-card.spec.ts`: palette pronte che riempiono tutte le tipologie, colore singolo col selettore NOSTRO (niente `input[type=color]`), testo leggibile, ripristino, scelta che resta su questo dispositivo, default che segue il tema, **una configurazione per tema** (chiaro e scuro non si pestano) e migrazione dal formato vecchio |
+| riga di versione (logica + browser) | `http://localhost:3000/impostazioni` | `versione.spec.ts`: `versioneTesto()` nell'ora di Roma (ora legale e solare) e la riga vera a schermo, che non deve più contenere «v1.226» |
 
 ## Autenticazione del test «app reale»
 
@@ -388,6 +393,37 @@ desktop, 37px a 320px) mentre i codici del PDF arrivano a 6-7 caratteri
 nemmeno a schermo intero. La classe `.cell-fit` (globals.css) adatta il font
 alla cella con una container query e sotto i 44px di cella manda a capo.
 
+Lo stesso file ospita gli aiuti del **menu del FAB** (17/09/2026), usati da
+`colori-card.spec.ts` e `confronto-no-clipping.spec.ts`:
+
+```ts
+import { apriVoceFabConRitentativo } from './tuoturno'
+
+// FAB → «Personalizza colori e stile delle card»: ritorna il pannello, già atteso visibile.
+const pannello = await apriVoceFabConRitentativo(
+  page,
+  'Personalizza colori e stile delle card',
+  page.getByRole('dialog').getByText('Personalizza le card'),
+)
+```
+
+**Perché c'è il ritentativo.** Il menu dei mini-fab è di `bottom-nav`, l'effetto
+che apre il pannello è della pagina (`tuoturno-client`): due componenti, due
+tempi di idratazione. Con il dev server FREDDO e più browser che compilano
+insieme, il click sulla voce può arrivare quando quell'ascoltatore non c'è
+ancora: l'evento cade nel vuoto, il menu si chiude e il pannello non si apre (due
+falsi rossi, sempre sulla prima apertura di una pagina appena compilata).
+`apriVoceFab` parte sempre da menu chiuso e ASPETTA che la voce sia comparsa;
+`apriVoceFabConRitentativo` ripete la voce finché il pannello non è visibile (al
+massimo 3 volte, poi fallisce dicendo quale pannello non si è aperto). Non è
+un'attesa a tempo: ogni tentativo è un'interazione vera e la condizione d'uscita
+è il pannello.
+
+**Controllo negativo fatto** (sonda usa-e-getta, poi cancellata): buttando via il
+PRIMO `document.dispatchEvent('tuoturno-open-personalizza')`, l'evento consegnato
+è 1 invece di 2 e il pannello si apre lo stesso — cioè il recupero è del
+ritentativo; senza ostacolo, un evento solo e apertura al primo colpo.
+
 ## Pannello notifiche (`tests/notifiche.spec.ts`)
 
 Il contratto del registry vive in `scripts/check-notif-templates.mjs`
@@ -439,6 +475,109 @@ X finiva sui giorni — e il test conclude cliccando la X per verificare che chi
 ancora il dialog (la X ora è nostra, non più quella dell'involucro).
 **Controllo negativo fatto**: con la X dell'involucro rimessa, il test diventa
 ROSSO indicando le due intersezioni da 7×7 px; tolta quella, verde. Costo: ~4 s.
+
+## La sonda colori (`tests/sonda-colori.spec.ts`, `tests/sonda-colori-logica.spec.ts`)
+
+Dal pannello admin (pulsante «Colori») si accende una **sonda**. Il contratto, dopo il
+feedback del 17/09 sera («non mi permette di navigare, e non posso ricordarmi i colori a
+memoria»):
+
+- **il tocco resta dell'app** — bottoni, card e popup funzionano come sempre; si campiona con
+  una **pressione lunga** (~1 s; la soglia è 650 ms, sopra i 500 ms che l'app usa da sé sul
+  pulsante Ferie), un gesto che l'app non ha;
+- il pannello dice **da quale variabile** viene il colore, si prova un colore in **anteprima**
+  (solo su quel dispositivo) e si copia una **richiesta** (pagina, elemento, selettore,
+  origine, `da → a`) da far arrivare a chi mette mano a `globals.css`;
+- con ＋ il colore entra nel **campionario**: resta scritto fra una pagina e l'altra, la riga
+  dice da sé se altrove lo stesso nome ha lo stesso colore («= … su /turnisala» / «≠ …») e la
+  vista «Campionario» raggruppa per nome+tema segnalando i gruppi con più valori.
+
+Nessun override viene scritto da nessuna parte.
+
+Due prove, divise come al solito per quello che sanno fare:
+
+- `sonda-colori-logica.spec.ts` (pura, senza browser, ~1 s): nomi leggibili dei token,
+  `coloreLeggibile` (compresa la trasparenza, che NON si perde), il CSS dell'anteprima
+  (chiaro in `:root`, scuro in `.dark`, regole puntuali con `!important`), il testo della
+  richiesta (che deve contenere SEMPRE il colore di partenza: senza, non si sa se il
+  valore nel codice è ancora quello visto sullo schermo), la regola del selettore
+  (poche classi, `nth-child` solo se non c'è altro appiglio) e il campionario
+  (`campioneDaSlot`, il confronto che ignora la pagina su cui si sta guardando e il tema
+  sbagliato, il raggruppamento che mette davanti i gruppi che non tornano).
+- `sonda-colori.spec.ts` (browser, 6 prove, ~15 s) — le cose che solo il browser può dire:
+  1. **Controllo negativo**: senza la sonda il tocco sulla barra di sotto NAVIGA davvero
+     (è il patto: la sonda non deve rompere il modo normale di usare l'app);
+  2. **con la sonda accesa il tocco naviga allo stesso modo**, e anche i comandi DENTRO la
+     pagina rispondono (il FAB di /tuoturno apre il suo menù e la voce apre il pannello) —
+     era il difetto della prima versione, che prendeva i tocchi e obbligava a «sospendere»
+     la sonda per usare l'app;
+  3. la **pressione lunga** apre il pannello con la pila degli elementi sotto il dito
+     (si sale di livello da lì) e **non naviga** (il click del rilascio viene mangiato): il
+     controllo negativo è un tocco secco, che non deve aprire niente. Da lì si arriva allo
+     sfondo della card, si cambia il colore, si vede il `<style>` dell'anteprima e il colore
+     cambiare davvero, si copia la richiesta e si azzera — tutto a 320px, senza sbordi;
+  4. **in tema scuro l'anteprima va nel blocco `.dark`** e non in `:root`: sono due insiemi
+     di variabili diversi, e una modifica pensata per un tema non deve toccare l'altro;
+  5. **il campionario confronta fra pagine**: si fotografa lo **sfondo della barra di
+     navigazione** (l'unico elemento identico su tutte le pagine) su /turnisala, si va su
+     /turniferie, si fotografa la stessa riga e si pretende che i due campioni siano UN
+     gruppo con due pagine e senza l'avviso «≠» (se sono coerenti) e che il testo da copiare
+     porti le due pagine.
+
+Serve l'admin (`Minino`, `ADMIN_ID`): senza anagrafica i test si SALTANO. La prova non
+lascia niente in giro: l'anteprima è un `<style>` sul contesto del test, i test finiscono con
+«Azzera» e il campionario viene svuotato.
+
+## I colori delle card: preset e default per tema (`tests/palette-colori.spec.ts`, `tests/colori-card.spec.ts`)
+
+Due prove, divise per quello che sanno fare:
+
+- `palette-colori.spec.ts` (pura, niente browser, ~1 s): conversioni hex↔rgb,
+  contrasto WCAG, e che ogni preset di `lib/card-palettes.ts` sia COMPLETO (sette
+  tipologie) e leggibile (AA, tranne «Tema» e «Notte» che riproducono il tema
+  dell'app). Fissa anche le due regole chieste il 17/09/2026:
+  `themePaletteFor('light') === preset('tema')`, `themePaletteFor('dark') ===
+  preset('notte')`, `defaultPresetId` coerente, e che i colori di «Notte» siano
+  quelli del tema SCURO di `globals.css` (se il tema cambia, il test lo dice).
+- `colori-card.spec.ts` (browser, 5 prove, ~13 s): il pannello vero. Che non ci sia
+  più nessun `input[type="color"]` (era il selettore di SISTEMA), che una palette
+  pronta riempia le sette tipologie E le celle del calendario, che il colore
+  singolo si scriva a mano e che il testo si prenda da sé un colore leggibile
+  («Contrasto basso» → «Testo leggibile»), il ripristino, la persistenza su
+  localStorage, e il default che segue il tema: in chiaro è già in vigore
+  «Tema», in scuro «Notte», **senza scrivere niente** (il default non è una
+  personalizzazione: `localStorage` resta vuoto). In scuro la prova controlla
+  anche la tinta vera di una cella di riposo (`rgb(36,40,46)` = `#24282e`), che è
+  esattamente il preset «Notte».
+
+### Una configurazione PER TEMA, e la migrazione dal formato vecchio (18/09/2026)
+
+Le preferenze di aspetto di /tuoturno (palette, stile dei giorni diversi dal teorico,
+contorno «da confermare») sono **una per tema**: quello che si sceglie in chiaro non tocca
+lo scuro. Due prove in più, e servono entrambe perché toccano cose che solo il browser può
+dire:
+
+  1. **«una per tema, e non si pestano»**: in chiaro si applica Contrasto, in scuro Fluo —
+     le due scelte convivono, il pannello dichiara di quale tema sta mostrando le palette
+     (`tema scuro · predefinita Notte`), le celle portano l'override inline solo dove quel
+     tema è personalizzato, e «Ripristina i colori di questo tema» tocca solo quello.
+     La busta su disco (`tuoturno-colori`) deve avere le due voci, `light` e `dark`.
+  2. **«il formato vecchio si legge ancora»**: su disco prima c'era UNA preferenza sola
+     (palette come mappa piatta, e le due scelte a stringa scritta **nuda**, non
+     `JSON.stringify`: `localStorage.setItem(k, 'strike')`). La migrazione la applica a
+     ENTRAMBI i temi — era quello che faceva — e non riscrive niente; il test se ne accorge
+     perché è il caso che `pages.spec.ts` usava da sempre con `addInitScript`, e in quel
+     caso non c'è nessun JSON da parsare.
+
+## La riga di versione in Impostazioni (`tests/versione.spec.ts`)
+
+Due prove, ~3 s: la **formattazione pura** (`commitBreve`, `dataItaliana`, `versioneTesto`) e
+la riga vera su /impostazioni. Le due cose che il test difende: la data è nell'**ora di Roma**
+(dichiarata, non quella del dispositivo: due casi, ora legale e ora solare, perché una
+conversione scritta a mano sbaglia d'inverno) e la vecchia riga scritta a mano («v1.226»)
+non deve restare da nessuna parte. Commit e momento dell'aggiornamento arrivano dalla BUILD
+(`next.config.ts` → env `NEXT_PUBLIC_*`), quindi la prova non pretende un valore preciso:
+pretende la FORMA.
 
 ## Limitazioni note
 

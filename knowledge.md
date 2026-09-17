@@ -83,13 +83,20 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   `lib/push/send-to-user.ts` (usa il service role: la RLS su `push_subscriptions` è own-row-only).
   `sw.js`: solo push + click (cache statica minima, NESSUNA pagina offline).
   `Notification.requestPermission()` in forma Promise (standard) — non reintrodurre la callback.
-- **Colori (funzionalità admin RIMOSSA 03/08/2026):** niente più pagina `/admin/colori`,
-  inspector, `/api/admin/save-colors`, né override: `app_settings.color_overrides` è stata
-  eliminata (migration 014) e il cookie `co` non è più letto/scritto. I colori reali sono solo
-  in `globals.css`; `lib/color-defaults.ts` resta solo con `LIGHT_BACKGROUND`/`DARK_BACKGROUND`
-  (meta theme-color). NON reintrodurre il sistema di override. Nota: il cookie `co`
-  residuo nei browser di chi aveva salvato colori è INERTE (nessun codice lo legge più).
-  `public/color-studio.html` è stato ELIMINATO (04/08/2026) — NON ricrearlo.
+- **Colori (sistema di override RIMOSSO 03/08/2026 — e mai tornato).** Niente
+  `app_settings.color_overrides` (migration 014), niente `/api/admin/save-colors`, niente
+  cookie `co`: **nessun colore si salva nel database**. I colori reali sono solo in
+  `globals.css` (`:root` = tema chiaro, `.dark` = scuro) e arrivano agli elementi per
+  variabile o per classe. `public/color-studio.html` è stato ELIMINATO (04/08/2026) — NON
+  ricrearlo. Il cookie `co` residuo nei browser è INERTE.
+  AL SUO POSTO, dal 17/09/2026, c'è la **SONDA COLORI** (`components/admin/theme-inspector.tsx`,
+  `lib/theme-inspector*.ts`, `stores/theme-inspector-store.ts`): si accende da /admin
+  (pulsante «Colori»), il tocco SELEZIONA invece di navigare, mostra da quale variabile
+  viene il colore, fa provare un colore in anteprima (solo su quel dispositivo, un `<style>`
+  iniettato) e prepara la RICHIESTA da copiare (pagina, elemento, selettore, origine,
+  `da → a`). La modifica definitiva si fa nel codice, come sempre. Se un giorno servisse
+  l'override globale nel database, è una decisione da prendere con l'utente: la regola
+  resta «non reintrodurlo».
 - **Tema a 2 colori (03/08/2026):** scuro = bianco/nero puro; chiaro = nero + celeste molto
   lieve ("negativo" dello scuro). COLORATE solo le pill semantiche: fasce orarie
   (mattina/pomeriggio/notte, incluse le toggle pill del dialog turno) e stagioni ferie
@@ -1833,3 +1840,167 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   «Il cambio 16–30 Giu (2026) con …» è identico a prima), tranne i due messaggi
   d'interesse, che è il fix richiesto. La spec del pannello
   (`tests/notifiche.spec.ts`) controlla l'anteprima dell'interesse nel browser.
+- **COLORI DELLE CARD: PRESET, SELETTORE NOSTRO E DEFAULT PER TEMA (17/09/2026).**
+  Tre pezzi, tutti in `/tuoturno` → FAB → «Personalizza»:
+  1. **Selettore nostro** (`components/ui/color-picker.tsx`) al posto di
+     `<input type="color">`: quello apriva la finestra del SISTEMA (diversa su
+     Windows/Android/iOS), senza tinte pronte. Ora c'è tinta rapida
+     (`QUICK_SWATCHES`), campo esadecimale validato, «Contrasto basso» con
+     rapporto WCAG e «Testo leggibile». La matematica sta in `lib/color.ts`
+     (funzioni pure, provate senza browser).
+  2. **Palette pronte** (`lib/card-palettes.ts`, pannello
+     `components/sala/card-color-panel.tsx`): Tema, Pastello, Fluo, Carta, Notte,
+     Contrasto — complete (sette tipologie) e leggibili AA, tranne `tema` e
+     `notte` che SONO il tema dell'app. `cardPaletteStore.apply()` le scrive in
+     un colpo solo (set() sette volte = sette scritture e sette render).
+     Da una palette pronta ogni singola tipologia resta modificabile.
+  3. **DEFAULT CHE SEGUE IL TEMA:** in chiaro le card mostrano `tema`, in scuro
+     `notte` — senza scrivere nulla in `tuoturno-colori` (il default non è una
+     personalizzazione, e il pannello lo dice: badge «predefinita» sulla palette
+     in vigore, `themePaletteFor(modo)`/`defaultPresetId(modo)`). «Notte» non è
+     una tinta a piacere: sono i colori del tema scuro di `globals.css`
+     (`--cell-*-bg/text`), e `tests/palette-colori.spec.ts` lo fissa così se il
+     tema cambia ce ne accorgiamo. Verificato dal vivo: in scuro
+     `Palette Notte`→`aria-pressed=true`, il badge su Notte (non su Tema),
+     `localStorage` vuoto e la cella di riposo a `rgb(36,40,46)`.
+  **EFFETTO COLLATERALE DA SAPERE, nel test:** aprire il menu del FAB e subito
+  dopo la voce non è un'operazione sola. Il menu è di `bottom-nav`, l'ascoltatore
+  del `CustomEvent` che apre il pannello è di `tuoturno-client`: se il click
+  arriva mentre l'effetto della pagina non è ancora agganciato (dev server
+  FREDDO, più browser che compilano), l'evento cade nel vuoto — menu chiuso,
+  niente pannello, falso rosso. Gli aiuti `apriVoceFab` /
+  `apriVoceFabConRitentativo` in `tests/tuoturno.ts` riprovano la voce fino a che
+  il pannello non c'è (controllo negativo: buttando via il primo evento, il
+  pannello si apre al secondo tentativo). Vale la pena ricordarlo perché è una
+  corsa vera anche per l'utente: due tap entro l'idratazione e il pannello non si
+  apre. Una soluzione di prodotto sarebbe uno store condiviso (come
+  `cardPaletteStore`) invece del `CustomEvent`.
+
+## 17/09/2026 — Sonda colori (l'admin tocca un elemento e sa da dove viene il colore)
+
+Richiesta: «non sono bravo coi colori, voglio individuare gli elementi, vedere di che colore
+sono e comunicarteli, o provarli». Ricognizione: QUESTA FUNZIONALITÀ ERA GIÀ ESISTITA e fu
+rimossa di proposito il 03/08/2026 (commit `824f689`, migration 014: `app/admin/colori`,
+`color-inspector`, `/api/admin/save-colors`, `ColorThemeProvider`, colonna `color_overrides`).
+Era un buon impianto (override di variabili per tema, iniettati come `:root{}`/`.dark{}`) e
+`knowledge.md` diceva di non reintrodurlo: il tema era stato ridotto a 2 colori e gli override
+sporcano quel patto.
+DECISIONE CON L'UTENTE (due domande, due risposte): **niente override nel database** — la
+sonda ANTEPRIMA sul dispositivo e PREPARA LA RICHIESTA, i colori definitivi restano in
+`globals.css`; e l'accensione è **un interruttore in /admin che resta acceso mentre si
+naviga** (il tocco è anche il modo di navigare la PWA, quindi catturarlo va dichiarato).
+Come funziona, in breve:
+- `lib/theme-inspector.ts` (puro): nomi leggibili delle variabili (`--cell-rest-bg` → «Cella
+  rest — sfondo», da una mappa di AREE/PARTI e non da una tabella di 323 voci che invecchia),
+  colori leggibili, `previewCss`, `richiestaTesto`, selettore leggibile, filtro delle classi
+  Tailwind (per FORMA, non per lista: `my-period-border` sopravvive a `my-*`, cosa che un
+  filtro a prefissi si mangiava).
+- `lib/theme-inspector-dom.ts` (browser): legge l'elemento e dice **da dove viene** ogni
+  colore — 1) la regola che lo imposta, `var()` compresi (shorthand come `border: 1px solid …`);
+  2) la classe che lo porta (`bg-primary/10` → `--primary`); 3) un token con lo stesso valore,
+  ma SOLO se è l'unico (in questa app `--card-foreground` e `--popover-foreground` sono lo
+  stesso nero: sceglierne uno a caso manderebbe a cambiare il token sbagliato).
+  Mostra solo i colori che si VEDONO (bordi a larghezza 0, outline senza stile, caret fuori
+  da un campo, i `--tw-*` di Tailwind: tutti fuori). Colori fuori gamma (oklch/lab/color-mix)
+  → un pixel di canvas, che è sempre sRGB, perché `getComputedStyle` risponde `lab(…)`.
+- `components/admin/theme-inspector.tsx`: **vedi la seconda versione qui sotto** — quella del
+  mattino prendeva i tocchi (banner in alto, pausa, barra in basso): cancellata la sera.
+  L'anteprima si legge sempre SENZA il foglio addosso (`leggiPulito`): altrimenti i colori
+  nuovi verrebbero letti come fossero quelli di partenza e il «da» sparirebbe.
+- Montata nel layout dentro il `QueryProvider` (usa `useCurrentUser`) ma dietro `armata`: chi
+  non la usa non paga né la query del profilo né i listener. NIENTE toast all'accensione: i
+  toast dell'app stanno in alto al centro, cioè sopra il banner, e si mangerebbero il tocco.
+- `Colori · variabili come`, dal pannello /turnisala **non** è questa sonda: quella è la
+  personalizzazione per-card già esistente. Questa è diagnostica + richiesta.
+Prove: `tests/sonda-colori-logica.spec.ts` (contratto puro, 0,7 s) e `tests/sonda-colori.spec.ts`
+(4 prove browser: controllo negativo «senza la sonda il tocco naviga», accensione + pausa che
+libera la pagina, dal colore alla richiesta con azzeramento, e in tema scuro l'anteprima che
+finisce in `.dark` e non in `:root`). Suite completa verde, 97 passed / 5 skipped in ~65 s.
+
+### 17/09/2026 (sera) — seconda versione: la sonda NON prende più i tocchi
+
+Feedback dell'utente: «questo sistema è scomodo perché non mi permette di navigare all'interno
+delle pagine (premere bottoni, estendere card, aprire popup) e dovendo modificare a mano i
+colori devo ricordarli a memoria, quando il mio focus è verificare la coerenza di un tema fra
+pagine diverse». Due difetti di impostazione, due correzioni:
+
+1. **Il tocco torna all'app; la cattura è una PRESSIONE LUNGA (650 ms).** La prima versione
+   fermava gli eventi in fase di cattura sul `document` (`stopPropagation` + `preventDefault`):
+   per usare l'app bisognava «sospendere» la sonda — cioè il gesto che serve a guardare un tema
+   (navigare e confrontare) era proprio quello tolto. Ora non si ascolta più niente in
+   cattura: si guarda `pointerdown`/`pointerup`/`pointercancel`/`pointermove` per contare la
+   pressione (annullata da uno scorrimento oltre 12 px) e si cattura al timer. **L'unica cosa
+   che si toglie all'app è il `click` che segue una cattura** (al rilascio il browser lo manda
+   comunque, e si navigherebbe per sbaglio). La soglia è 650 ms e non 450 per non pestare i
+   500 ms che l'app usa da sé sul pulsante «Turni Sala e Ferie». Con la pressione lunga
+   spariscono il banner, la pausa, la barra in basso e lo stato `pausa` (via anche dallo store:
+   `partialize` tiene solo `armata`/`voci`/`campioni`), perché non c'è più nessuna modalità da
+   dichiarare. Resta una **pillola** in basso a sinistra (conta le modifiche e i campioni,
+   apre il pannello, spegne la sonda): è l'unico ingombro fisso, e sta fuori dalla barra di
+   navigazione e dal pulsante flottante, che ora funzionano sempre.
+   Nota per usarla: la pressione non deve diventare «seleziona testo» né aprire il menù di
+   sistema — mentre la sonda è accesa un `<style>` spegne `-webkit-touch-callout` e
+   `user-select`, lasciandoli accesi a `input`/`textarea`.
+2. **Il CAMPIONARIO: guardare invece di modificare.** Un pulsante ＋ su ogni riga di colore
+   fotografa il colore (nome, pagina, tema, valore, variabile, selettore) e lo tiene scritto
+   fra una pagina e l'altra — così il confronto non è a memoria. `campioneDaSlot`,
+   `confrontoCampione` e `raggruppaCampioni`/`campionarioTesto` stanno nella logica pura; la
+   riga di colore mostra da sé il confronto con la stessa etichetta vista altrove («= #f8fbfd
+   su /turnisala» oppure «≠ … ») e il pannello ha la vista che raggruppa per nome+tema,
+   segnala i gruppi con più valori e permette di rinominarli (rinominare un campione = dire
+   «questi sono la stessa cosa»). Il tema fa parte della chiave del gruppo: chiaro e scuro sono
+   due insiemi di variabili diversi, confrontarli sarebbe rumore.
+Prove: la logica cresce di tre test (campione, confronto, raggruppamento) e il browser di due
+(«con la sonda accesa il tocco naviga ancora» e «il campionario confronta lo stesso elemento
+fra due pagine», che usa la barra di navigazione perché è l'unico elemento identico su tutte le
+pagine). Le prove della prima versione (pausa, banner) sono state riscritte.
+
+## 18/09/2026 — Le preferenze di /tuoturno sono UNA PER TEMA (chiaro e scuro)
+
+Richiesta: «ogni utente abbia per il tema scuro e il tema chiaro una config di personalizzazione
+di /tuoturno diversa… per evitare che ciò che va bene visto col tema chiaro diventi illeggibile
+col tema scuro». Prima la personalizzazione era UNA SOLA e valeva in entrambi i temi: chi
+sceglieva una tinta leggibile sul chiaro se la ritrovava — identica — sul fondo scuro.
+
+COSA È CAMBIATO (`lib/person-cycle.ts`), tutte e tre le preferenze di aspetto:
+- **palette dei colori** (`cardPaletteStore`): `getFor(modo)` / `setFor(modo, kind, colors)` /
+  `applyFor(modo, palette)` / `resetFor(modo)` / `resetAll()`;
+- **stile dei giorni diversi dal teorico** (`mismatchStyleStore`) e **contorno «da confermare»**
+  (`pendingRingStore`): `getFor(modo)` / `setFor(modo, v)` / `resetAll()`. Sono state incluse
+  perché sono scelte che si fanno GUARDANDO lo schermo (una cornice gialla su fondo chiaro e su
+  fondo scuro non è la stessa cosa da vedere), e il pannello è uno solo.
+- `modo` = `resolvedTheme` di next-themes (segue la preferenza del sistema). Il tema **non** è
+  una chiave dell'utente: è la chiave con cui si leggono le preferenze di questo dispositivo.
+
+FORMATO SU DISCO (una busta per chiave): `tuoturno-colori`, `tuoturno-mismatch`,
+`tuoturno-pending-ring` contengono `{ light: …, dark: … }`. Un tema senza voce vuol dire «non ho
+scelto niente, vale il default» — e in quel caso la chiave non si scrive affatto: il default non
+è una personalizzazione, è quello che l'app mostra comunque (in chiaro la palette «Tema», in
+scuro «Notte», `themePaletteFor`/`defaultPresetId`). Le tre `resetAll()` tolgono le chiavi.
+MIGRAZIONE dal formato vecchio (una preferenza sola, valida in entrambi i temi): si legge e si
+copia nei due, così chi aveva già personalizzato non perde niente. DUE TRAPPOLE vere, entrambe
+coperte da un test: (1) la palette vecchia è una mappa piatta (`{rest: {bg, text}}`): si
+riconosce perché NON ha le chiavi `light`/`dark`; (2) le due preferenze a stringa sono state
+scritte per anni come valore NUDO (`localStorage.setItem(k, 'strike')`, non `JSON.stringify`) e
+`JSON.parse` ci va in errore: se il testo non è JSON si usa il testo così com'è (è il caso che
+tests/pages.spec.ts usava da sempre con `addInitScript`).
+
+EFFETTO PRATICO: cambiando tema, il pannello cambia configurazione (e lo dichiara: «tema scuro ·
+predefinita Notte»), «Ripristina i colori di questo tema» tocca SOLO il tema che si sta
+guardando, e le celle portano gli override inline solo dove quel tema è personalizzato.
+Prove: `tests/colori-card.spec.ts` — «una per tema, e non si pestano» (in chiaro Contrasto, in
+scuro Fluo, e le due scelte convivono), «il formato vecchio si legge ancora» (palette piatta +
+stringhe nude, applicate in entrambi i temi) e il default che segue il tema.
+
+### La riga di versione in Impostazioni (`lib/app-version.ts`)
+
+Era una riga scritta a mano («v1.226 · 6eb0c28 — ultimo aggiornamento: 26/08/2026 13:10») e
+invecchiava in silenzio. Ora è `V5 · <commit> · ultimo aggiornamento: <data e ora>`, con commit e
+momento della **build** cotti in `next.config.ts` (`env`: `NEXT_PUBLIC_APP_COMMIT` da
+`VERCEL_GIT_COMMIT_SHA`, `NEXT_PUBLIC_APP_BUILD_TIME` = adesso): su Vercel la riga dice la verità
+da sola, su entrambi i deploy. Ora di Roma dichiarata (`Intl.DateTimeFormat` con
+`timeZone: 'Europe/Rome'`), non quella del dispositivo: la riga dice quando è stato pubblicato
+l'aggiornamento. Il fallback scritto a mano serve solo a chi compila in locale (verificato: sul
+dev server la riga a schermo mostra l'ora di avvio del server, non il fallback → l'iniezione
+delle env funziona anche con Turbopack). Prova: `tests/versione.spec.ts` (formattazione pura,
+comprese ora legale e solare, + la riga vera su /impostazioni che non deve più contenere «v1.226»).
