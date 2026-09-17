@@ -839,7 +839,7 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   config `playwright.config.ts`): NESSUN testo di card troncato e NESSUNA scroll orizzontale nel
   Confronto di /tuoturno, a 320px e 390px. Tre bersagli: i due mockup (`mockups/confronta-320px.html`,
   `confronta-dashed-e-due-righe.html` — statici via `file://`, la rete di regressione vera) e l'APP
-  REALE su localhost:3000 (dev server già attivo, vedi `.freebuff/run.md`). «Troncato» =
+  REALE su localhost:3000 (dev server già attivo; porta alternativa via `E2E_BASE_URL`). «Troncato» =
   `scrollWidth > clientWidth` su una riga truncata. AUTH del test «app reale»: `tests/.auth-state.json`
   (git-ignored) iniettato come storageState — si genera con credenziali E2E_EMAIL/E2E_PASSWORD
   (progetto «auth», login dal form) oppure esportando la sessione dal browser e passando da
@@ -1674,3 +1674,128 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   il ripristino torna verde — sonda
   `scripts/.dbg-controllo-negativo-rotondo.mjs` (try/finally: ripristina anche
   se qualcosa va storto).
+- **LA SUITE E2E DA 6-8 MINUTI A 55 SECONDI (17/09/2026) — e prima ancora non
+  partiva.** Tre cose, in ordine di guadagno:
+  (1) LE ATTESE FISSE DI `openBoard` (tests/sala-board.ts): ogni navigazione
+  costava 400 ms (mese/anno) + 1300 ms (dopo il giorno) + 800 ms (dopo il turno) +
+  il sondaggio del dialog «Novità» (400 ms × fino a 5 × 2 chiamate) = **8,0 s**
+  MISURATI (sonda usa-e-getta `tests/probe-nav.spec.ts`, 3 navigazioni). Ora è
+  **1,5 s**: il giorno è confermato dal TESTO del trigger della data, il turno dal
+  marcatore `sala-toolbar-chip` del bottone prescelto, e le misure aspettano due
+  frame (`riposa`). Il mese che cambia aspetta la risposta di `sala_schedule` con
+  un tetto di 400 ms (i mesi teorici si generano in locale e non fanno richieste).
+  (2) DUE POPUP DELL'APP RENDEVANO LA SUITE IMPOSSIBILE, non solo lenta: il
+  promemoria permessi notifiche (a 2,5 s, con `Notification.permission` che in
+  headless è SEMPRE 'denied' — anche con `grantPermissions(['notifications'])`,
+  verificato) e il changelog (a 1,5 s). Il loro overlay copre la pagina e
+  intercetta i click: il 17/09 il primo test di `chip-gialle.spec.ts` moriva a 5
+  minuti sul click del giorno. Ora `tests/browser-setup.ts` li spegne dal contesto
+  (chiave di snooze `push-reminder-dismissed` + blocco di `GET /api/changelog`),
+  installati dalla fixture AUTOMATICA in `tests/fixtures.ts` — così valgono per
+  ogni spec, anche futura, e `dismissChangelog` diventa un no-op immediato.
+  (3) PROCESSI: `fullyParallel` + `workers: 4` (i test sono letture su persone
+  diverse) e i due script `test:logic` / `test:boards` per le corsie rapide.
+  `minimi.spec.ts` è l'eccezione: è l'unico che SCRIVE (piantina) e per giunta in
+  modo globale (un minimo «valido dal 17/9» vale anche i giorni che gli altri
+  spec leggono) → vive in un progetto suo, `mode: 'serial'` e `dependencies:
+  ['chromium']`, così parte quando il resto ha finito. Esito: **62 passed / 5
+  skipped / 0 failed in 55 s** (erano 62/5 con test che si piantavano).
+  DUE INSIDIE TROVATE STRADA FACENDO, entrambe coperte:
+  · il giorno GIÀ selezionato non si può cliccare: react-day-picker in modalità
+  «single» risponde `undefined` (deselezione) e la board ignora quel click, quindi
+  il pannello restava APERTO col suo backdrop sopra i bottoni del turno. Succede
+  quando il giorno cercato è oggi (17/09/2026). Ora si legge il marcatore del
+  calendario (`data-selected-single`) e in quel caso si chiude il pannello dal suo
+  backdrop (`element.click()`, senza hit-test);
+  · IL LINK MAGICO È A POSTO UNICO PER UTENTE (GoTrue ne conserva uno solo): con 4
+  worker che entrano come lo STESSO dipendente, i token si invalidavano a vicenda
+  («Email link is invalid or has expired», vista davvero in una run). Ora la
+  sessione si crea UNA VOLTA per dipendente per run: cache in memoria per processo
+  + FILE condiviso fra worker (`tests/.sessions/`, git-ignored, vale mezz'ora) + LOCK
+  fra processi (`mkdir` atomico) — chi arriva secondo legge la sessione già pronta
+  invece di rigenerare un link che invaliderebbe quello del primo.
+- **GUARDIA DI VELOCITÀ (`tests/perf.spec.ts`, progetto `perf`) — 17/09/2026:** una
+  misura di TEMPO, che è l'unica cosa che difende le ottimizzazioni di cui sopra.
+  3 navigazioni di `openBoard` (più un riscaldamento non misurato), si prende la
+  MEDIANA e si fallisce sopra **3,5 s** (misurato ~1,3-1,5 s: margine per una
+  macchina lenta, non per un `waitForTimeout` rimesso). Vive nel progetto `perf`,
+  seriale e in `dependencies: ['chromium']` perché quattro worker che compilano e
+  navigano insieme sporcherebbero la misura; per lanciarla da sola serve
+  `--no-deps` (`npx playwright test --project=perf --no-deps`) — senza, Playwright
+  esegue anche la dipendenza, cioè tutto il progetto chromium. CONTROLLO NEGATIVO
+  fatto: con un `waitForTimeout(3000)` rimesso in `openBoard` la guardia diventa
+  ROSSA con mediana 4285 ms e il messaggio dice dove guardare; tolto quello, verde.
+- **NIENTE TEXTURE SUL CORPO DELLA CARD DEL PROPRIO PERIODO (/turniferie):**
+  l'highlight della card in cui compare l'utente loggato era bordo + testata + una
+  TINTA del corpo (`--my-period-content-bg`, `#eaf3fb` nel chiaro e
+  `rgba(255,255,255,0.06)` nello scuro) che velava i nomi della sezione. La tinta
+  non c'è più: via la classe `my-period-content` dal corpo (app/(app)/turniferie/
+  page.tsx) e via la regola CSS e le due variabili (nessun uso altrove). Restano
+  l'highlight sul BORDO `.my-period-border` (colore + anello box-shadow 1px, la
+  stessa tecnica di `.desk-card-highlight` di /turnisala) e la TESTATA tinta.
+  Verificato dal vivo su /turniferie come Smeragliuolo (il suo periodo è il 4):
+  `.my-period-content` = 0 elementi, bordo `rgb(28,28,28)` con anello 1px, fondo
+  del corpo `rgba(0,0,0,0)` (cioè quello della card, una tinta sola).
+- **ELIMINARE IL PROPRIO CAMBIO FERIE NON FUNZIONAVA (17/09/2026): mancava la
+  policy di DELETE.** La card cancella lato client (`vacation_requests.delete()`
+  con chiave anon e sessione dell'utente), ma la 011 aveva dato a quella tabella
+  solo SELECT, INSERT (own) e UPDATE (own): senza policy di DELETE la RLS non
+  toglie NESSUNA riga e — questa è la parte che ha ingannato tutti — PostgREST NON
+  restituisce errore, quindi la card diceva «Richiesta eliminata» su una richiesta
+  ancora in elenco. Riprodotto dal vivo con `scripts/.dbg-ferie-delete.mjs`
+  (crea una richiesta di prova per l'utente, prova a cancellarla come fa l'app e
+  la rimuove): `data=[]`, `error=nessuno`, riga ancora in tabella. FIX su due
+  livelli: la migration **033_vacation_request_delete_policy.sql** (delete della
+  PROPRIA richiesta; l'admin che cancella quella altrui continua a passare dalla
+  route server) e — perché un errore così non possa più nascondersi — la card ora
+  usa `.select('id')` e tratta «zero righe» come errore (`Errore eliminazione`)
+  invece di annunciare un successo. **DA APPLICARE la 033 al progetto Supabase**,
+  altrimenti resta l'errore onesto ma la riga non sparisce.
+- **RITOCCHI UX (17/09/2026):** (a) BORDO sul pulsante «Elimina» delle card di
+  cambi turno e cambi ferie (`border-destructive/50`): la variante `destructive` è
+  solo tinta di fondo + testo rosso, senza contorno non si distingueva nella card
+  espansa (il bordo della pill di conferma del delete NON è stato toccato);
+  (b) NIENTE TASTIERA AUTOMATICA in /tuoturno: tolti i due `autoFocus` dagli input
+  di ricerca del selettore «Turni di chi?» e del dialog «Confronta i turni» — sul
+  telefono la tastiera copriva metà lista proprio mentre si sceglie la persona. NB:
+  togliere `autoFocus` NON BASTA, perché è il Dialog che porta il focus sul primo
+  elemento focalizzabile: serve `initialFocus={false}` su entrambi i `DialogContent`
+  (base-ui). Verificato dal vivo col focus: resta sul BOTTONE che ha aperto il
+  selettore, e sul body per il confronto.
+- **HOUSEKEEPING DEL REPO (17/09/2026):** `.gitignore` copre il rumore locale che
+  VSCode mostrava fra i file non tracciati: `.freebuff/` (tutto: log, worktree,
+  run doc — è stato del tool, non del progetto, e i file tracciati NON lo
+  citavano più), `.agents/`, `skills-lock.json`, `package-lock.json` (il gestore è
+  pnpm), `scripts/.dbg-*` (sonde usa-e-getta) e `Turni esempio/`, più
+  `tests/.sessions/` (i cookie di sessione dei dipendenti condivisi fra worker,
+  come `.auth-state.json`). Da 114 voci a 22.
+  I file VERI che erano rimasti fuori perché non tracciati ora sono nel repo:
+  `tests/notifiche.spec.ts`, `tests/browser-setup.ts`, `tests/perf.spec.ts`,
+  `scripts/sala-gialli-mese.mjs` e la migrazione
+  `supabase/migrations/033_vacation_request_delete_policy.sql`. Obiettivo: aprendo
+  il progetto in VSCode non si vede NESSUN file non tracciato o modificato a
+  vuoto (le sonde `tests/probe-*.spec.ts` e `scripts/.dbg-*.mjs` si cancellano
+  appena finito, non si committano: è la ragione per cui sono in `.gitignore`).
+- **LA «X» DEL DIALOG DEI CAMBI TURNO NON STA (PIÙ) SUL DATEPICKER (17/09/2026):**
+  lo `ShiftDialog` è un popup `p-0` col contenuto che arriva fino ai bordi e
+  scorre, mentre la X arrivava dall'involucro come elemento ASSOLUTO in alto a
+  destra (`components/ui/dialog.tsx`: `absolute top-2 right-2` sulla X di
+  `DialogContent`). La X cadeva sulla freccia «mese successivo» del calendario —
+  misurato a 390 px: X a x 351-379 / y 121-149, freccia a x 330-358 / y 142-170,
+  cioè 7×7 px di intersezione, quindi la freccia perdeva l'angolo in alto a destra
+  — e scorrendo finiva sui numeri dei giorni. FIX: `showCloseButton={false}` sul
+  `DialogContent` dello shift dialog e una X NOSTRA (`DialogClose` + `Button`
+  `variant="ghost" size="icon-sm"`) in una RIGA SUA, fuori dall'area che scorre;
+  il contenuto passa da `pt-5` a `pt-2` e il `gap-0` annulla il `gap-4` ereditato,
+  così l'altezza spesa in più resta ~10 px. Per costruzione la X sta sopra il
+  bordo superiore dell'area che scorre, quindi nessun elemento scorrendo può più
+  arrivarle sotto.
+  GUARDIA `tests/shift-dialog.spec.ts` (a 320 e 390 px, ~4 s): (a) intersezione
+  fra il rettangolo della X e quello dei controlli TAGLIATO su ciò che si vede
+  (catena dei contenitori che scorrono + finestra — senza taglio la guardia
+  accuserebbe elementi invisibili, e con un controllo «chi c'è sotto il CENTRO»
+  non vedrebbe mai un difetto di 7×7 px sull'angolo); (b) sonda sui 5 punti della
+  X con `elementFromPoint` (la X non deve essere coperta). Le misure si ripetono
+  col contenuto scorrato in fondo e il test finisce cliccando la X. CONTROLLO
+  NEGATIVO fatto: rimettendo la X dell'involucro il test diventa ROSSO con «Go to
+  the Next Month … 7×7 px» a entrambe le larghezze; con il fix, verde.

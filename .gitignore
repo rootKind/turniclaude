@@ -18,6 +18,8 @@ test-results/
 playwright-report/
 tests/.auth-state.json
 tests/.sb-session.json
+# sessioni dei dipendenti condivise fra i worker (tests/employee-session.ts)
+tests/.sessions/
 
 # next.js
 /.next/
@@ -70,3 +72,27 @@ iphone.jpg
 .vercel
 .env*
 .env.e2e
+
+# ---------------------------------------------------------------------------
+# RUMORE LOCALE (17/09/2026) — roba generata o temporanea: non deve comparire in
+# VSCode fra i file non tracciati, né finire per sbaglio in un commit.
+# ---------------------------------------------------------------------------
+
+# Freebuff: log di anteprima, worktree, run doc e stato del tool. È stato LOCALE del
+# tool, non del progetto: niente referenze nei file tracciati e niente voci
+# «non tracciate» in VSCode.
+.freebuff/
+
+# Cartelle e lockfile di altri tool (agenti, skills): generati.
+.agents/
+skills-lock.json
+
+# Lockfile di npm: il gestore del progetto è pnpm (pnpm-lock.yaml è quello vero).
+package-lock.json
+
+# Script-sonda usa-e-getta (scripts/.dbg-*.mjs): si scrivono per una verifica,
+# si cancellano dopo. Gli script tracciati (scripts/*.mjs) restano fuori da qui.
+scripts/.dbg-*
+
+# Materiale di lavoro dell'ufficio (PDF di esempio): dati, non codice.
+Turni esempio/

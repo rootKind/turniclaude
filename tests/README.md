@@ -7,9 +7,71 @@ barra di scorrimento orizzontale, a 320px e 390px.
 npx playwright test
 ```
 
+Con il dev server già avviato la suite completa dura **~1 minuto** (17/09/2026:
+prima erano 6-8 minuti, e prima ancora i test della board si PIANTAVANO — vedi
+«Perché la suite è veloce»). Corsie rapide, per non pagare tutto a ogni modifica:
+
+```bash
+pnpm test:logic    # logica pura + dati (secondi, niente browser)
+pnpm test:boards   # le prove VISIVE di /turnisala
+pnpm test          # tutto: le prove che SCRIVONO girano per ultime
+```
+
+## Perché la suite è veloce (17/09/2026)
+
+Tre cose, in ordine di guadagno.
+
+**1. Le attese fisse di `openBoard` sono diventate CONDIZIONI.** Ogni navigazione
+sulla board costava 400 ms (mese/anno) + 1300 ms (dopo il giorno) + 800 ms (dopo
+il turno) + il sondaggio del dialog del changelog (fino a 4 s): **8,0 s misurati**
+(una sonda usa-e-getta, `tests/probe-nav.spec.ts`, faceva 3 navigazioni e
+stampava i tempi). Ora è **1,5 s**: il giorno lo conferma il TESTO del trigger
+della data, il turno il marcatore `sala-toolbar-chip` del bottone prescelto, e le
+misure aspettano due frame (`riposa`, in `tests/sala-board.ts`). Quando il mese
+CAMBIA si aspetta la risposta di `sala_schedule` (con un tetto di 400 ms: i mesi
+teorici si generano in locale e non fanno richieste).
+
+**2. Due popup dell'app rendevano la suite impossibile** (non solo lenta): il
+promemoria dei permessi di notifica (a 2,5 s) e «Novità di questa versione» (a
+1,5 s). Il loro overlay copre la pagina e intercetta i click: il 17/09/2026 il
+primo test di `chip-gialle.spec.ts` moriva a 5 minuti sul click del giorno.
+`tests/browser-setup.ts` li spegne dal CONTESTO e la fixture automatica in
+`tests/fixtures.ts` lo fa per ogni spec (anche futura):
+
+- la chiave di snooze `push-reminder-dismissed` (lo stato di chi ha detto «Non
+  ora») — serve perché in headless `Notification.permission` è SEMPRE `denied`,
+  anche dopo `grantPermissions(['notifications'])` (verificato con una sonda);
+- il blocco di `GET /api/changelog`: il popup non si apre e sparisce il sondaggio
+  da 2 s che ogni `openBoard` faceva per chiuderlo. Nessuno spec verifica quel
+  popup, quindi non si perde copertura; chi lo vuole provare toglie il blocco dal
+  contesto (`context.unroute`, col glob del route in `browser-setup.ts`).
+
+**3. In PARALLELO** (`fullyParallel` + `workers: 4` nel config): i test sono
+letture su persone diverse. Le sessioni dei dipendenti si creano UNA volta per
+dipendente per run: cache in memoria per processo, file condiviso
+(`tests/.sessions/`, git-ignored, vale mezz'ora) e un lock fra processi — perché
+il link magico è a POSTO UNICO per utente (GoTrue ne conserva uno solo) e due
+worker che entrano insieme come la stessa persona si invalidavano il token.
+`minimi.spec.ts` fa eccezione al parallelismo: è l'unico spec che SCRIVE, e in
+modo globale — vive in un progetto suo, seriale, con `dependencies: ['chromium']`
+per partire quando il resto ha finito.
+
+### La guardia sulla velocità (`tests/perf.spec.ts`, progetto `perf`)
+
+```bash
+npx playwright test --project=perf --no-deps
+```
+
+Misura il tempo di UNA navigazione di `openBoard` (3 giri, mediana) e FALLISCE se
+torna sopra **3,5 s**: il misurato è ~1,5 s, quindi c'è margine per una macchina
+lenta ma non per un `waitForTimeout` rimesso dentro. Con il messaggio di errore
+suggerisce dove guardare (attese fisse in `sala-board.ts`, un popup che copre la
+pagina in `browser-setup.ts`). Gira da sola e dopo tutto il resto: quattro worker
+che compilano e navigano insieme sporcherebbero la misura.
+
 ## Prerequisiti
 
-- **Dev server su porta 3000** per i test «app reale» (`.freebuff/run.md`):
+- **Dev server su porta 3000** per i test «app reale»:
   `npm run dev` in questo worktree. Per usare un'altra porta basta
   `E2E_BASE_URL=http://localhost:56540 npx playwright test` — la rispettano tutti
   gli spec sulla board (`employee-session.ts`), incluso il vecchio
@@ -32,6 +94,8 @@ npx playwright test
 | minimi per card (admin) | `http://localhost:3000/turnisala` | `minimi.spec.ts`: dal mini-Fab admin al salvataggio fino alla segnalazione «— scoperto» (chip o testo); include il caso PERIODO per casella (a 0 = scoperta da programma). SCRIVE e RIPRISTINA la piantina |
 | card scoperte (logica T/S) | nessuno — logica pura | `sala-scoperto.spec.ts` (sezione «titolare o sussidio» e «periodi per casella»): quale POSTO manca, confini dei periodi (inizio dal proprio turno, fine inclusa), precedenza periodo > voce > default |
 | rotazione della squadra | nessuno — dati veri (service-role) | `squadra-rosa.spec.ts`: ROTONDO gira come i compagni (56 turni su 84, zero «G», riposi allineati), la griglia copre 4/6/7/10 e il pattern riproduce il teorico dei PDF 71/71 |
+| dialog del cambio turno | `http://localhost:3000/dashboard?new=1` | `shift-dialog.spec.ts`: la X non si sovrappone a nessun controllo del datepicker (era sulla freccia «mese successivo») né resta coperta, a 320px e 390px e anche dopo lo scorrimento |
+| velocità di `openBoard` | nessuno — misura | `perf.spec.ts` (progetto `perf`): mediana di 3 navigazioni sotto 3,5 s |
 
 ## Autenticazione del test «app reale»
 
@@ -49,6 +113,12 @@ quello serve una **sessione Supabase**, in uno di due modi:
    in `tests/.sb-session.json` (oggetto sessione di supabase-js), poi:
    `node scripts/make-auth-state.mjs` (legge il ref da `.env.local` e riscrive
    il cookie nel formato esatto di `@supabase/ssr`, bypass PWA incluso).
+
+Il **link magico è a posto unico per utente** (GoTrue ne conserva uno solo per
+persona): due test in parallelo che entrano come lo STESSO dipendente si
+invalidano il token a vicenda («Email link is invalid or has expired»).
+`sessionForEmployee` lo sa: tiene le sessioni in cache per processo e riprova 3
+volte con un po' di jitter (17/09/2026, da quando la suite gira su 4 worker).
 
 `tests/.auth-state.json` è LOCALE e git-ignored (contiene token validi). Senza
 sessione il test «app reale» si AUTOSALTA (skip, non fallimento); i mockup sono
@@ -82,6 +152,13 @@ formato/chunk ESATTI dell'app e si iniettano nel contesto del test. Serve
 > Il link magico NON va fatto consumare al browser: `/auth/confirm` scambia
 > solo `?code` (PKCE) e il link admin torna coi token nel fragment — atterrerebbe
 > su `/login?error=auth-error`. Da qui il cookie-jar.
+
+Attenzione a un caso che sembra un dettaglio e non lo è: il giorno **già
+selezionato** non si può cliccare. react-day-picker in modalità «single» risponde
+`undefined` (deselezione), la board ignora quel click e il pannello resta APERTO
+col suo backdrop sopra i bottoni del turno — succede cercando il giorno di oggi.
+`openBoard` lo riconosce dal marcatore `data-selected-single` e in quel caso
+chiude il pannello dal suo backdrop (`element.click()`, senza hit-test).
 
 `tests/sala-board.ts` chiude il resto: aprire un giorno+turno (`openBoard`, che
 ritorna `false` se la pagina non è autenticata così il test può saltare),
@@ -162,8 +239,14 @@ altri test sulla board:
 ## Minimi per card: dal mini-Fab alla chip (`tests/minimi.spec.ts`)
 
 ```bash
-E2E_BASE_URL=http://localhost:3000 npx playwright test tests/minimi.spec.ts
+E2E_BASE_URL=http://localhost:3000 npx playwright test --project=minimi --no-deps
 ```
+
+(Il progetto `minimi` è dichiarato a parte dal `chromium` e dipende da lui: nella
+suite completa parte DOPO tutto il resto, perché è l'unico spec che scrive sulla
+piantina — e un minimo «valido dal 17/9» vale anche i giorni che gli altri spec
+leggono. `--no-deps` è quello che permette di lanciare SOLO lui: senza, Playwright
+esegue prima anche la dipendenza, cioè tutto il progetto `chromium`.)
 
 Il giro completo, che è l'unica cosa che le prove di logica non possono dire:
 mini-Fab admin → evento → pannello precompilato → salvataggio su Supabase → la
@@ -319,6 +402,34 @@ l'intestazione («21 messaggi push dell'app · N modificati»: il conteggio è u
 non la metà delle chiavi di override) e l'editor di un messaggio ferie con le sue
 variabili (`{periodo} {anno}`, mai `{turno}`) e l'anteprima coi valori d'esempio.
 È in **sola lettura**: non salva override (sarebbero globali per tutti gli utenti).
+
+## La «X» del dialog del cambio turno (`tests/shift-dialog.spec.ts`)
+
+Lo `ShiftDialog` è un popup `p-0`: il contenuto arriva fino ai bordi e scorre,
+mentre la X arrivava dall'involucro come elemento ASSOLUTO in alto a destra
+(`components/ui/dialog.tsx`, `absolute top-2 right-2`). La X cadeva addosso alla
+freccia «mese successivo» del calendario — a schermo 390 px: X a x 351-379 /
+y 121-149, freccia a x 330-358 / y 142-170, cioè **7×7 px** di intersezione — e
+scorrendo finiva sopra i numeri dei giorni. Ora la X ha una riga sua, fuori
+dall'area che scorre (e il contenuto parte da `pt-2` al posto di `pt-5`, così
+l'altezza spesa in più resta ~10 px).
+
+La guardia misura DUE cose, perché una sola non basta:
+
+- **la X non si sovrappone a nessun altro controllo**: intersezione fra il suo
+  rettangolo e quello dei controlli (bottoni, campi) TAGLIATO su ciò che si vede
+  davvero — catena dei contenitori che scorrono + finestra. Serve il taglio,
+  perché il rettangolo di un elemento uscito dallo scorrimento resta dov'è; e
+  serve l'intersezione vera, non «chi c'è sotto il centro»: il difetto era di
+  7×7 px sull'angolo della freccia, col centro della freccia libero;
+- **la X non è coperta da nessuno**: sonda sui suoi 5 punti (`elementFromPoint`),
+  come fa Playwright per dire «element intercepts pointer events».
+
+Le misure si ripetono anche col contenuto scorrato in fondo — è scorrendo che la
+X finiva sui giorni — e il test conclude cliccando la X per verificare che chiuda
+ancora il dialog (la X ora è nostra, non più quella dell'involucro).
+**Controllo negativo fatto**: con la X dell'involucro rimessa, il test diventa
+ROSSO indicando le due intersezioni da 7×7 px; tolta quella, verde. Costo: ~4 s.
 
 ## Limitazioni note
 
