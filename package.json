@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "playwright test",
+    "test:logic": "playwright test tests/sala-scoperto.spec.ts tests/squadra-rosa.spec.ts",
+    "test:boards": "playwright test --project=chromium tests/chip-gialle.spec.ts tests/dipendente.spec.ts tests/tuoturno.spec.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

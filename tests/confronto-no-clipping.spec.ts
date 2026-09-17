@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { E2E_BASE_URL } from './employee-session'
@@ -87,7 +88,9 @@ test.describe('Confronto: nessun testo di card troncato', () => {
       // del check auth. Il guard salva il bypass in localStorage e toglie il
       // parametro dall'URL.
       await page.goto(`${E2E_BASE_URL}/tuoturno?dev=rootkind-dev-2026`, { waitUntil: 'domcontentloaded' })
-      await page.waitForTimeout(1_500) // il guard decide dopo il mount
+      // Il guard decide dopo il mount: si aspetta la pagina (o il redirect),
+      // invece di dormire 1,5 s.
+      await page.locator('main').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => null)
       if (!page.url().includes('/tuoturno')) {
         test.skip(true, `app non autenticata in questo browser di test: ${page.url()}`)
       }

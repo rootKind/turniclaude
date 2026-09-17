@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 
@@ -97,6 +97,67 @@ export async function findEmployee(who: Employee | string): Promise<{ id: string
 }
 
 /**
+ * Le sessioni sono CACHATE per processo (17/09/2026): i test dello stesso file
+ * chiedono piu volte la stessa persona (un candidato per test, i tre turni, i
+ * due temi) e ogni giro faceva link magico + verifyOtp, cioe due andate e
+ * ritorno di rete per niente. La sessione dura ~1 h: quanto basta a un run.
+ */
+const sessioni = new Map<string, EmployeeSession>()
+
+/**
+ * Dove i WORKER si passano le sessioni già pronte (una per dipendente): file JSON
+ * di cookie a vita breve, come `tests/.auth-state.json` — cartella git-ignored.
+ */
+const CARTELLA_SESSIONI = 'tests/.sessions'
+/** Una sessione salvata vale mezz'ora (la vita vera è ~1 h): mai riusare token scaduti. */
+const VITA_SESSIONE_SALVATA_MS = 30 * 60 * 1000
+
+function sessioneSalvata(id: string): EmployeeSession | null {
+  try {
+    const salvata = JSON.parse(readFileSync(`${CARTELLA_SESSIONI}/${id}.json`, 'utf8')) as { salvata: number; session: EmployeeSession }
+    if (Date.now() - salvata.salvata > VITA_SESSIONE_SALVATA_MS) return null
+    return salvata.session
+  } catch { return null }
+}
+
+function salvaSessione(session: EmployeeSession): void {
+  try {
+    mkdirSync(CARTELLA_SESSIONI, { recursive: true })
+    writeFileSync(`${CARTELLA_SESSIONI}/${session.id}.json`, JSON.stringify({ salvata: Date.now(), session }))
+  } catch { /* cartella non scrivibile: si resta con la cache in memoria */ }
+}
+
+/**
+ * LOCK fra processi per il link magico, che è a POSTO UNICO per utente.
+ *
+ * GoTrue tiene UNA sola `recovery_token` per persona: due worker che entrano come
+ * lo STESSO dipendente si invalidano il token a vicenda — «Email link is invalid
+ * or has expired», visto il 17/09/2026 appena la suite è passata a 4 worker in
+ * parallelo. Con `mkdir` (atomico: fallisce se la cartella esiste) chi arriva
+ * secondo aspetta, e siccome il primo SALVA la sessione, il secondo la trova già
+ * pronta invece di rigenerare il link: una generazione per dipendente per run.
+ * Un lock più vecchio di 30 s è di un processo morto e si butta.
+ */
+async function conLock<T>(nome: string, azione: () => Promise<T>): Promise<T> {
+  const lock = `${CARTELLA_SESSIONI}/${nome}.lock`
+  const scadenza = Date.now() + 30_000
+  for (;;) {
+    try {
+      mkdirSync(CARTELLA_SESSIONI, { recursive: true })
+      mkdirSync(lock)
+      break
+    } catch {
+      try {
+        if (Date.now() - statSync(lock).mtimeMs > 30_000) rmSync(lock, { recursive: true, force: true })
+      } catch { /* il lock è sparito da solo: si ritenta */ }
+      if (Date.now() > scadenza) throw new Error(`lock ${nome} non acquisito in 30 s (file ${lock} stantio?)`)
+      await new Promise(r => setTimeout(r, 40 + Math.random() * 80))
+    }
+  }
+  try { return await azione() } finally { try { rmSync(lock, { recursive: true, force: true }) } catch { /* già tolto */ } }
+}
+
+/**
  * Sessione pronta per il dipendente: crea il token (admin), lo verifica con lo
  * stesso `@supabase/ssr` dell'app e restituisce i cookie da iniettare. Lancia un
  * errore descrittivo se qualcosa manca: i test lo traducono in uno skip.
@@ -108,7 +169,26 @@ export async function sessionForEmployee(who: Employee | string): Promise<Employ
   if (!sb || !url || !anon) throw new Error('manca SUPABASE_SERVICE_ROLE_KEY / NEXT_PUBLIC_SUPABASE_* (.env.local): login dei dipendenti non disponibile')
   const employee = await findEmployee(who)
   if (!employee) throw new Error(`dipendente non trovato in anagrafica: ${typeof who === 'string' ? who : `${who.cognome} ${who.nome ?? ''}`.trim()}`)
+  const inMemoria = sessioni.get(employee.id)
+  if (inMemoria) return inMemoria
 
+  return conLock(`sessione-${employee.id}`, async () => {
+    // Un altro worker può averla creata mentre aspettavamo il lock: la si legge
+    // SUBITO (prima di generare un link che invaliderebbe il suo).
+    const pronta = sessioneSalvata(employee.id) ?? (await creaSessione(sb, url, anon, employee))
+    sessioni.set(employee.id, pronta)
+    salvaSessione(pronta)
+    return pronta
+  })
+}
+
+/** Un giro completo: link magico admin + `verifyOtp` con cookie-jar in memoria. */
+async function creaSessione(
+  sb: SupabaseClient,
+  url: string,
+  anon: string,
+  employee: { id: string; email: string; cognome: string; nome: string },
+): Promise<EmployeeSession> {
   const { data: link, error } = await sb.auth.admin.generateLink({ type: 'magiclink', email: employee.email })
   const tokenHash = link?.properties?.hashed_token
   if (error || !tokenHash) throw new Error(`link magico non generato: ${error?.message ?? 'token assente'}`)

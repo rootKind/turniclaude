@@ -20,7 +20,14 @@ import { readSalaLayout, writeSalaLayout, writeSalaLayoutValue, type LayoutSnaps
  *
  * L'utente autenticato è l'ADMIN vero (Minino Davide — è la sua anagrafica a
  * portare l'uuid di ADMIN_ID): il pannello è riservato a lui.
+ *
+ * SERIALE, anche se la suite gira in parallelo (playwright.config.ts): questo è
+ * l'unico spec che SCRIVE sulla piantina condivisa, e `beforeAll`/`afterAll`
+ * girano una volta per WORKER — in parallelo copia e ripristino si
+ * accavallerebbero (e gli altri spec potrebbero leggere la piantina modificata).
  */
+test.describe.configure({ mode: 'serial' })
+
 test.describe('turnisala: minimi per card', () => {
   test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local (vedi tests/README.md)')
   test.setTimeout(180_000)

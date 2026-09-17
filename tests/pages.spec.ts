@@ -1,5 +1,7 @@
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { E2E_BASE_URL } from './employee-session'
+import { riposa } from './sala-board'
 
 /**
  * Smoke delle PAGINE (autenticate, vedi tests/README.md per la sessione):
@@ -18,7 +20,13 @@ import { E2E_BASE_URL } from './employee-session'
 
 async function requirePage(page: Page, path: string, h1: RegExp) {
   await page.goto(`${E2E_BASE_URL}${path}?dev=rootkind-dev-2026`, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(1_500) // il PwaGuard decide dopo il mount
+  // Il PwaGuard decide dopo il mount: o compare la pagina, o si finisce su
+  // /login (o /installa). Si aspetta il PRIMO dei due eventi invece di dormire
+  // 1,5 s a ogni test — la pagina è pronta in ~300 ms.
+  await Promise.race([
+    page.locator('main h1').first().waitFor({ state: 'visible', timeout: 20_000 }).catch(() => null),
+    page.waitForURL(u => !u.pathname.startsWith(path), { timeout: 20_000 }).catch(() => null),
+  ])
   if (!page.url().includes(path)) test.skip(true, `non autenticato: ${page.url()}`)
   await expect(page.locator('main h1').filter({ hasText: h1 })).toBeVisible()
 }
@@ -51,8 +59,10 @@ test.describe('Pagine: turniferie scorrevole + tratteggio uniforme', () => {
       await page.addInitScript(() => localStorage.setItem('tuoturno-pending-ring', 'yellow-dashed'))
       await page.setViewportSize({ width, height: 800 })
       await requirePage(page, '/tuoturno', /Il tuo turno/)
-      await page.waitForTimeout(1_000)
-      const pendings = await page.locator('.cell-day.is-pend').count()
+      // La griglia si disegna con i dati del mese: si aspetta una cella, non un secondo.
+    await page.locator('.cell-day').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
+    await riposa(page)
+    const pendings = await page.locator('.cell-day.is-pend').count()
       if (pendings === 0) test.skip(true, 'nessun giorno «da confermare» nel mese corrente')
       const r = await page.evaluate(() => {
         const split = document.querySelector('.cell-day.cell-split.is-pend > .cell-half')

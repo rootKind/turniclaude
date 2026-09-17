@@ -1,9 +1,38 @@
 import { expect, type Page } from '@playwright/test'
 import { E2E_BASE_URL } from './employee-session'
+import { browserPreparato } from './browser-setup'
 
 /** Helper di /turnisala per i test E2E: aprire un giorno+turno e leggere le card. */
 
 const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
+
+/** Il bottone della data nella toolbar (testo «GIO 25 SETTEMBRE 2026»). */
+const TRIGGER_DATA = 'button:has(svg.lucide-chevron-down)'
+
+/** Prime tre lettere dei mesi, come le mostra il trigger (maiuscole, 3 lettere). */
+const MESI_BREVI = ['GEN', 'FEB', 'MAR', 'APR', 'MAG', 'GIU', 'LUG', 'AGO', 'SET', 'OTT', 'NOV', 'DIC']
+
+/**
+ * Lascia disegnare al browser DUE frame.
+ *
+ * Serve dove conta la MISURA (rettangoli delle chip, scrollWidth, righe di
+ * testo): React ha gia committato, ma il layout no. E il rimpiazzo esatto delle
+ * attese fisse che questa suite usava per «aspettare che si assesti» (200-350 ms
+ * a bottone, per decine di bottone → minuti buttati).
+ */
+export async function riposa(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
+}
+
+/** Mese e anno che la board sta mostrando ADESSO, letti dal trigger della data. */
+async function dataMostrata(page: Page): Promise<{ mese: number; anno: number } | null> {
+  const testo = await page.locator(TRIGGER_DATA).first().innerText().catch(() => '')
+  const maiuscolo = testo.toUpperCase()
+  const anno = maiuscolo.match(/\b(20\d{2})\b/)
+  const mese = MESI_BREVI.findIndex(m => maiuscolo.includes(m))
+  if (!anno || mese < 0) return null
+  return { mese: mese + 1, anno: Number(anno[1]) }
+}
 
 /** Le chip gialle sono gli span con lo stile inline della fill trasferte. */
 export const CHIP_SELECTOR = 'span[style*="altri-pill"]'
@@ -84,6 +113,10 @@ export function scopertiIn(card: BoardCard): number {
  * autenticata (es. i test di /tuoturno).
  */
 export async function dismissChangelog(page: Page) {
+  // Con il contesto preparato (tests/browser-setup.ts) i dati del changelog sono
+  // bloccati: il dialog non si apre MAI e questo sondaggio costerebbe 2 s a vuoto
+  // a ogni navigazione — era la voce piu cara dell'intera suite.
+  if (browserPreparato(page)) return
   const dialog = page.locator('[data-slot="dialog-content"]', { hasText: 'Novità di questa versione' })
   const overlay = page.locator('[data-slot="dialog-overlay"]')
   for (let i = 0; i < 5 && !(await dialog.count()); i++) await page.waitForTimeout(400)
@@ -94,6 +127,26 @@ export async function dismissChangelog(page: Page) {
     else await overlay.first().click({ position: { x: 4, y: 4 } }).catch(() => {})
     await overlay.first().waitFor({ state: 'detached', timeout: 2500 }).catch(() => {})
   }
+}
+
+/**
+ * Chiude il pannello dei giorni senza scegliere niente.
+ *
+ * Il pannello non risponde a Escape e il suo backdrop (`div.fixed.inset-0.z-40`)
+ * copre anche il trigger che l'ha aperto: il click si consegna DIRETTAMENTE
+ * all'elemento (`element.click()`), senza l'hit-test di Playwright — la stessa
+ * mossa di `openSalaAdminFab` per la pressione lunga del mini-Fab.
+ */
+async function chiudiDayPicker(page: Page): Promise<void> {
+  const consegnato = await page.evaluate(() => {
+    const panel = document.querySelector('.cal-panel')
+    const backdrop = panel?.parentElement?.querySelector('div.fixed.inset-0') as HTMLElement | null
+    if (!backdrop) return false
+    backdrop.click()
+    return true
+  })
+  if (!consegnato) await page.keyboard.press('Escape')   // rete di sicurezza
+  await expect(page.locator('.cal-panel')).toHaveCount(0)
 }
 
 /**
@@ -126,29 +179,73 @@ export async function openBoard(page: Page, target: BoardTarget, baseUrl = E2E_B
   await dismissChangelog(page)
 
   if (target.day) {
+    const anno = target.year ?? 2026
+    const prima = await dataMostrata(page)
+    // Selettore mese/anno: le tendine sono dentro il pannello e la griglia si
+    // ridisegna da sola, quindi non serve nessuna attesa fissa (`expect(giorno)`
+    // sotto e gia un'attesa).
     await openDayPicker(page)
     await page.selectOption('select[aria-label="Scegli mese"]', String(target.month - 1))
-    await page.selectOption('select[aria-label="Scegli anno"]', String(target.year ?? 2026))
-    await page.waitForTimeout(400)
-    const giorno = page.locator(`.cal-panel button[aria-label*=" ${target.day} ${MESI[target.month - 1]} ${target.year ?? 2026}"]`).first()
+    await page.selectOption('select[aria-label="Scegli anno"]', String(anno))
+    const giorno = page.locator(`.cal-panel button[aria-label*=" ${target.day} ${MESI[target.month - 1]} ${anno}"]`).first()
     await expect(giorno).toBeVisible()
-    await giorno.click()
-    await page.waitForTimeout(1300)
+
+    // Cambiare GIORNO dentro il mese a schermo e stato locale (i dati del mese
+    // sono gia in memoria: nessuna rete, nessuna attesa). Cambiare MESE ricarica
+    // il mese (IndexedDB + riconvalida): li si aspetta la risposta, con un tetto
+    // di 400 ms per il caso «mese teorico», che si genera in locale.
+    const cambiaMese = !prima || prima.mese !== target.month || prima.anno !== anno
+    const ricarica = cambiaMese
+      ? page.waitForResponse(r => r.url().includes('/rest/v1/sala_schedule'), { timeout: 2000 }).catch(() => null)
+      : null
+
+    // Sul giorno GIÀ scelto il click non fa niente: react-day-picker in modalità
+    // «single» risponde `undefined` (deselezione) e la board, che ignora il click
+    // vuoto, NON chiude il pannello → si resta appesi col suo backdrop sopra i
+    // bottoni del turno. Caso reale, non teorico: cercare il giorno di OGGI
+    // (17/09/2026 lo era), che è già quello selezionato.
+    const giaScelto = await giorno.evaluate(
+      el => el.hasAttribute('data-selected-single') || el.getAttribute('aria-selected') === 'true',
+    )
+    if (giaScelto) {
+      await chiudiDayPicker(page)
+    } else {
+      await giorno.click()
+      // Conferma del cambio giorno: il trigger della data scrive «GIO 25
+      // SETTEMBRE 2026». Era un'attesa fissa di 1,3 s a ogni navigazione.
+      await expect
+        .poll(() => page.locator(TRIGGER_DATA).first().innerText(), {
+          timeout: 5000,
+          message: `il trigger della data non è passato al ${target.day} ${MESI[target.month - 1]} ${anno}`,
+        })
+        // `\s*` tollera il testo reso con a capo fra i pezzi («VEN 25 SETTEMBRE»)
+        // e quello incollato di `textContent` («VEN25SETTEMBRE»).
+        .toMatch(new RegExp(`${target.day}\\s*${MESI_BREVI[target.month - 1]}`, 'i'))
+    }
+    if (ricarica) await Promise.race([ricarica, page.waitForTimeout(400)])
+    await riposa(page)
   }
 
   if (target.shift) {
-    await dismissChangelog(page)   // può aprirsi a metà navigazione (timer 1,5 s)
-    await page.locator('button', { hasText: new RegExp(`^${target.shift}$`) }).first().click()
-    await page.waitForTimeout(800)
+    await selectShift(page, target.shift)
   }
   return true
 }
 
 /** Seleziona il turno nella toolbar della board, senza ricaricare la pagina. */
 export async function selectShift(page: Page, shift: 'M' | 'P' | 'N'): Promise<void> {
+  // Il changelog puo aprirsi a metà navigazione (timer 1,5 s): con il contesto
+  // preparato questa chiamata è gratuita, senza è la rete di sicurezza.
+  await dismissChangelog(page)
   await page.locator('button', { hasText: new RegExp(`^${shift}$`) }).first().click()
-  // I chip cambiano con il turno: il render è immediato ma le misure no.
-  await page.waitForTimeout(600)
+  // Il turno e stato locale: il bottone prescelto prende la classe
+  // `sala-toolbar-chip` (il marcatore del turno attivo), e `riposa` lascia rifare
+  // le misure di chip e card. Era un'attesa fissa di 600 ms a ogni cambio.
+  await expect(
+    page.locator('button.sala-toolbar-chip', { hasText: new RegExp(`^${shift}$`) }).first(),
+    `il turno ${shift} non risulta selezionato`,
+  ).toBeVisible({ timeout: 5000 })
+  await riposa(page)
 }
 
 export interface BoardChip {

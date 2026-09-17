@@ -1,5 +1,5 @@
 import { test, expect, E2E_BASE_URL, findEmployee } from './fixtures'
-import { boardChipColors, boardChips, cardBodyGaps, openBoard, selectShift } from './sala-board'
+import { boardChipColors, boardChips, cardBodyGaps, openBoard, riposa, selectShift } from './sala-board'
 import { giorniGialli } from './sala-gialli'
 
 /**
@@ -218,7 +218,7 @@ test('/turnisala scorre in verticale sui display bassi', async ({ asEmployee }) 
 
   for (const h of [380, 500, 1280]) {
     await page.setViewportSize({ width: 1280, height: h })
-    await page.waitForTimeout(350)
+    await riposa(page)
     const prima = await page.evaluate(() => ({
       doc: document.documentElement.scrollHeight,
       view: window.innerHeight,
@@ -229,7 +229,7 @@ test('/turnisala scorre in verticale sui display bassi', async ({ asEmployee }) 
     expect([prima.html, prima.body], 'overflow-y del documento non deve essere hidden').not.toContain('hidden')
 
     await page.evaluate(() => window.scrollTo(0, 99999))
-    await page.waitForTimeout(250)
+    await riposa(page)
     const dopo = await page.evaluate(() => ({
       y: Math.round(window.scrollY),
       max: Math.round(document.documentElement.scrollHeight - window.innerHeight),

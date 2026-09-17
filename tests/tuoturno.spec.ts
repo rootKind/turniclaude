@@ -1,5 +1,6 @@
 import { test, expect, findEmployee } from './fixtures'
 import { LARGHEZZE, cellCodes, openCalendar } from './tuoturno'
+import { riposa } from './sala-board'
 
 /**
  * CODICI LUNGHI nel calendario di /tuoturno (richiesta 15/09/2026).
@@ -24,7 +25,9 @@ for (const chi of PERSONE) {
     const visti = new Map<string, number>()
     for (const w of LARGHEZZE) {
       await page.setViewportSize({ width: w, height: 900 })
-      await page.waitForTimeout(220)
+      // La griglia è a container query: le misure cambiano al resize, quindi si
+      // aspetta che il layout sia ridisegnato (due frame) e non 220 ms fissi.
+      await riposa(page)
       const codici = await cellCodes(page)
       const tagliati = codici.filter(c => c.clipped)
       const lunghi = codici.filter(c => c.label.length >= 5)

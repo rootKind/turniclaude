@@ -53,9 +53,11 @@ export async function openCalendar(
   if (!who) return
   await page.getByLabel('Scegli di chi vedere i turni').click()
   await page.getByPlaceholder('Cerca cognome o nome…').fill(who)
-  await page.waitForTimeout(250)
   const voce = page.locator('[data-slot="dialog-content"] button', { hasText: new RegExp(`^${who}`, 'i') }).first()
-  if (!(await voce.count())) {
+  // La lista si filtra mentre si scrive: si ASPETTA la voce (era un'attesa fissa
+  // di 250 ms, che su una ricerca lenta diventava un falso «non trovato»).
+  const trovata = await voce.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false)
+  if (!trovata) {
     await page.keyboard.press('Escape')
     await page.locator('[data-slot="dialog-overlay"]').first().waitFor({ state: 'detached', timeout: 3000 }).catch(() => {})
     throw new Error(`«${who}» non è nel selettore di /tuoturno (serve un utente dell'anagrafica)`)

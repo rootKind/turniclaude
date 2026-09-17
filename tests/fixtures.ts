@@ -1,5 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test'
 import { asPlaywrightCookies, sessionForEmployee, type Employee } from './employee-session'
+import { preparaBrowser } from './browser-setup'
 
 /**
  * FIXTURE «ENTRA COME DIPENDENTE» (27/09/2026).
@@ -26,7 +27,18 @@ import { asPlaywrightCookies, sessionForEmployee, type Employee } from './employ
 export const test = base.extend<{
   /** Autentica il contesto del test COME quel dipendente e restituisce la pagina. */
   asEmployee: (who: Employee | string) => Promise<Page>
+  /** Fixture automatica: prepara il contesto (vedi tests/browser-setup.ts). */
+  browserPronto: void
 }>({
+  // AUTOMATICA, e prima delle altre: spegne i due popup dell'app che altrimenti
+  // coprono la pagina e intercettano i click (promemoria permessi notifiche e
+  // «Novità di questa versione»), e toglie di mezzo il sondaggio da 2 s che ogni
+  // navigazione faceva per chiudere il secondo.
+  browserPronto: [async ({ context }, use) => {
+    await preparaBrowser(context)
+    await use()
+  }, { auto: true }],
+
   asEmployee: async ({ context, page }, use) => {
     // `use` è il callback delle fixture Playwright, non un Hook React: la regola
     // dei React Hooks qui non si applica.
