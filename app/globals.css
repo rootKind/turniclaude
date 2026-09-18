@@ -735,9 +735,17 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
 
   /* Pop «molla» per mini-Fab e pannello mese/anno: entra con overshoot (spring),
-     stallima breve e atterraggio morbido. Nota per .month-pop: il pannello usa
-     -translate-x-1/2 per centrarsi — i keyframe ricompongono la STESSA traslazione
-     (-50%) più la scala, così l'animazione non sposta il perimetro. */
+     stallima breve e atterraggio morbido.
+
+     TRAPPOLA (bug 18/09/2026, pannello mese/anno di /tuoturno mezzo fuori dallo
+     schermo a sinistra): con Tailwind 4 la utility `-translate-x-1/2` NON scrive
+     `transform` ma la proprietà `translate`; i keyframe qui sotto scrivono
+     `transform`. Le due si COMPONGONO (l'ordine CSS è: translate, rotate, scale,
+     poi transform) → la traslazione del -50% entrava DUE volte e il pannello
+     finiva spostato di un'intera larghezza. Il pannello ora si centra con un
+     margine (`-ml-[120px]`, metà dei suoi 240px): i keyframe animano solo
+     opacità, translateY e scala, e nessun transform deve più «ricomporre» il
+     centraggio. */
   @keyframes fab-mini-pop {
     0% { opacity: 0; transform: translateY(12px) scale(.55); }
     60% { opacity: 1; transform: translateY(-2px) scale(1.07); }
@@ -746,9 +754,9 @@
   }
   .fab-mini-pop { animation: fab-mini-pop .34s cubic-bezier(.34, 1.56, .64, 1) both; }
   @keyframes month-pop {
-    0% { opacity: 0; transform: translate(-50%, -7px) scale(.9); }
-    60% { opacity: 1; transform: translate(-50%, 1px) scale(1.02); }
-    100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    0% { opacity: 0; transform: translateY(-7px) scale(.9); }
+    60% { opacity: 1; transform: translateY(1px) scale(1.02); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
   }
   .month-pop { animation: month-pop .28s cubic-bezier(.34, 1.56, .64, 1) both; }
   @media (prefers-reduced-motion: reduce) {

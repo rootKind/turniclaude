@@ -1248,10 +1248,15 @@ function MonthYearPicker({ month, uploadedMonths, onPick, onClose }: {
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
   }, [onClose])
+  // Il pannello si centra con un MARGINE (‑ml-[120px], metà dei 240px di larghezza)
+  // e non con `-translate-x-1/2`: l'animazione `.month-pop` scrive `transform`,
+  // mentre in Tailwind 4 la utility di traslazione scrive la proprietà `translate`,
+  // e le due si COMPORREBBERO (→ pannello spostato di una larghezza intera a
+  // sinistra, mezzo fuori dallo schermo: bug 18/09/2026).
   return (
     <div
       ref={ref}
-      className="month-pop absolute left-1/2 top-full z-30 mt-2 w-[240px] -translate-x-1/2 rounded-xl border border-border bg-card p-2 shadow-lg"
+      className="month-pop absolute left-1/2 top-full z-30 mt-2 -ml-[120px] w-[240px] rounded-xl border border-border bg-card p-2 shadow-lg"
     >
       {/* Niente teste «Mese»/«Anno»: le colonne si spiegano da sole (l'anno è
           una lista di numeri) e il menù parte direttamente dal bottone. */}

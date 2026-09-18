@@ -2098,3 +2098,30 @@ ciclo 84) VOLUTAMENTE escluso:** la sua teoria stampata cambia schema da fine ma
 (RC sabato + RI domenica, giorni lavorativi in 'G' da confermare) mentre il pattern 84gg
 del DB è fedele a marzo-aprile (riposi ogni 3gg) — divergenza strutturale che richiede una
 decisione di pianificazione, non un fix puntuale.
+
+## 18/09/2026 — Pannello mese/anno di /tuoturno: mezza fuori dallo schermo a sinistra
+
+**Il bug** (segnalato dall'utente: «il datepicker in /tuoturno e nel confronta invece di
+essere a centro pagina è per metà fuori sul lato sinistro»): il pannello `.month-pop`
+(`MonthYearPicker`) si centrava con `left-1/2 -translate-x-1/2` mentre l'animazione
+`@keyframes month-pop` (globals.css) porta anche lei una traslazione orizzontale
+(`transform: translate(-50%, …) scale(…)`) per «ricomporre» il centraggio.
+
+**Perché si rompe ADESSO (Tailwind 4):** in v4 la utility di traslazione non scrive più
+`transform` ma la proprietà `translate` (`translate: var(--tw-translate-x) var(--tw-translate-y)`,
+verificato in `node_modules/tailwindcss/dist/lib.js`). Le proprietà individuali si
+COMPONGONO con `transform` (ordine: translate → rotate → scale → transform), quindi il −50%
+entrava due volte e il pannello finiva spostato di un'INTERA larghezza (240px) a sinistra:
+misurato a 320px, `[-80, 160]` con il bottone centrato a 160. Con Tailwind 3 la utility
+scriveva `transform` e l'animazione lo sovrascriveva: il centraggio reggeva per caso.
+
+**Fix** (`app/globals.css` + `app/(app)/tuoturno/tuoturno-client.tsx`): il pannello si
+centra con la GEOMETRIA (`-ml-[120px]` = metà dei suoi `w-[240px]`), i keyframe animano solo
+opacità, translateY e scala. Regola generale: **mai far coesistere una utility `translate-*`
+di Tailwind 4 con keyframe che scrivono `transform: translate(…)`** — si sommano.
+
+**Regressione E2E:** `tests/month-picker-centrato.spec.ts` — entra come dipendente, apre il
+pannello e verifica a 320/360/375/390/414/512/768/1280px che sia dentro la finestra e
+centrato sul bottone (scarto ≤2px). Verificato anche in modalità CONFRONTO (stesso header,
+stesso pannello): 390px → `[75, 315]`, centro 195 = centro del bottone. Il selettore mese di
+/turnisala (desk-board) usa `<select>` nativi: non era toccato.
