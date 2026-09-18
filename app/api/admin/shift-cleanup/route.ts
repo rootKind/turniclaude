@@ -188,7 +188,9 @@ export async function POST(req: NextRequest) {
   }
 
   const results = await Promise.allSettled(
-    [...payloads.entries()].map(([userId, p]) => pushToUser(userId, { ...p, type: 'system' })),
+    // Pulizia dei cambi (admin): tipo 'cleanup' → sezione «Pulizia cambi turno»
+    // in bacheca, non più mescolata alle comunicazioni admin (NOTIF_TYPES).
+    [...payloads.entries()].map(([userId, p]) => pushToUser(userId, { ...p, type: 'cleanup' })),
   )
   const notified = results.reduce((n, r) => n + (r.status === 'fulfilled' ? r.value : 0), 0)
 

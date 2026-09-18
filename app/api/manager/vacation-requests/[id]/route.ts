@@ -6,6 +6,10 @@ import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import { VACATION_PERIOD_LABELS_SHORT } from '@/lib/vacations'
 import type { VacationPeriod } from '@/types/database'
 
+// Notifiche d'ESITO di un cambio ferie (scorte, approvato, superato, cancellato):
+// tipo 'vacation_outcome' → sezione «Esito delle tue ferie» in bacheca
+// (elenco condiviso: NOTIF_TYPES in types/database.ts).
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -77,8 +81,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         periodo: periodLabel, anno: yearLabel, cognome_attore: winnerName,
       })
       await Promise.allSettled([
-        pushToUser(vacReq.user_id as string, { title: msg.title, body: msg.body, type: 'system' }),
-        pushToUser(winnerId, { title: msg.title, body: msg.body, type: 'system' }),
+        pushToUser(vacReq.user_id as string, { title: msg.title, body: msg.body, type: 'vacation_outcome' }),
+        pushToUser(winnerId, { title: msg.title, body: msg.body, type: 'vacation_outcome' }),
       ])
     }
     await adminSupabase.from('vacation_requests').update({ is_pending: true }).eq('id', requestId)
@@ -105,7 +109,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     await pushToUser(vacReq.user_id as string, {
       title: msg.title,
       body: msg.body,
-      type: 'system',
+      type: 'vacation_outcome',
     }).catch(() => {})
   } else {
     const winnerId = typeof selectedUserId === 'string' ? selectedUserId : (interestedUserIds[0] ?? null)
@@ -136,12 +140,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         pushToUser(vacReq.user_id as string, {
           title: msgCreator.title,
           body: msgCreator.body,
-          type: 'system',
+          type: 'vacation_outcome',
         }),
         pushToUser(winnerId, {
           title: msgWinner.title,
           body: msgWinner.body,
-          type: 'system',
+          type: 'vacation_outcome',
         }),
       ])
     }
@@ -152,7 +156,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         pushToUser(id, {
           title: msgOthers.title,
           body: msgOthers.body,
-          type: 'system',
+          type: 'vacation_outcome',
         })
       ))
     }

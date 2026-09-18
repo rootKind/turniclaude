@@ -259,6 +259,90 @@ try {
   assert.ok(used.size >= 21, `i route usano il registro (${used.size} chiavi)`)
   assert.deepEqual(unused, [], 'ogni messaggio del registro è usato da un route')
 
+  // ── TIPI DI NOTIFICA: la lista condivisa, e la bacheca che li mostra tutti ───
+  // Bug del 18/09/2026: il push «novità» del changelog partiva col tipo
+  // 'changelog_new' mentre la bacheca /notifiche conosceva solo gli altri cinque
+  // tipi. La push arrivava, la voce finiva in localStorage e la bacheca la
+  // scartava in silenzio (nessun errore, nessuna traccia): l'utente vedeva la
+  // notifica sul telefono e non la ritrovava più. Qui si difende il contratto:
+  // ogni tipo INVIATO da una push e ogni tipo DICHIARATO dal registro deve
+  // stare in NOTIF_TYPES (types/database.ts), e la bacheca deve rendere ognuno
+  // di quei tipi (mappa `Record<NotifType, …>`: esaustiva per tipo, non per
+  // volontà di chi scrive).
+  {
+    writeFileSync(join(dir, 'database.js'), transpile(readFileSync('types/database.ts', 'utf8')))
+    const { NOTIF_TYPES } = await import(pathToFileURL(join(dir, 'database.js')).href)
+    const tipi = new Set(NOTIF_TYPES)
+    assert.ok(tipi.size >= 6, `la lista condivisa dei tipi di notifica c'è (${tipi.size})`)
+
+    for (const t of NOTIF_TEMPLATES) {
+      assert.ok(tipi.has(t.type), `${t.key}: il tipo dichiarato «${t.type}» è in NOTIF_TYPES`)
+    }
+
+    const sorgenti = []
+    const raccogli = (d) => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        const p = join(d, e.name)
+        if (e.isDirectory()) raccogli(p)
+        else if (e.name.endsWith('.ts') || e.name.endsWith('.tsx')) sorgenti.push(p)
+      }
+    }
+    for (const d of ['app', 'lib', 'components']) raccogli(d)
+    for (const f of sorgenti) {
+      const src = readFileSync(f, 'utf8')
+      // Il payload viaggia negli stessi argomenti della chiamata: si guarda la
+      // coda della chiamata. Allargare la finestra non fa danni (stringe e
+      // basta) e `\btype:` NON cattura `event_type:`.
+      const inviati = new Set()
+      for (const call of src.matchAll(/\bpush(?:TemplateToUsers?|ToUser)\(/g)) {
+        for (const m of src.slice(call.index, call.index + 900).matchAll(/\btype:\s*'([a-z_]+)'/g)) {
+          assert.ok(
+            tipi.has(m[1]),
+            `${f}: la push usa il tipo «${m[1]}», che non è in NOTIF_TYPES — la bacheca non avrebbe dove mostrarlo`,
+          )
+          inviati.add(m[1])
+        }
+      }
+      // E il tipo deve essere QUELLO DICHIARATO dal registro per i messaggi che
+      // il file usa: è il legame che era rotto (la rotta del changelog mandava
+      // 'changelog_new' mentre il registro dichiarava 'system'). Si salta il
+      // file che non risolve nessun messaggio del registro (es. la push generica
+      // dell'admin, che manda testo libero).
+      const dichiarati = new Set()
+      for (const m of src.matchAll(/\b(?:messageFor|pushTemplateToUsers?)\(\s*[A-Za-z_$][\w$]*\s*,\s*'([^']+)'/g)) {
+        const def = NOTIF_TEMPLATE_BY_KEY.get(m[1])
+        if (def) dichiarati.add(def.type)
+      }
+      if (dichiarati.size > 0) {
+        for (const t of inviati) {
+          assert.ok(
+            dichiarati.has(t),
+            `${f}: manda il tipo «${t}» ma i messaggi del registro che usa sono di tipo ${[...dichiarati].map(x => `«${x}»`).join(', ')}`,
+          )
+        }
+      }
+    }
+
+    // La bacheca: se un tipo nuovo non trovasse la sua sezione, il compilatore si
+    // lamenta (SEZIONE_DI è un Record<NotifType, SezioneId>); qui si difende che
+    // il raggruppamento resti quello giusto — POCHE sezioni larghe, non una per
+    // tipo (18/09/2026: nove sezioni erano un indice, non una bacheca) — e che
+    // la rete di sicurezza per i tipi sconosciuti non sparisca.
+    const bacheca = readFileSync('components/notifications/notification-list.tsx', 'utf8')
+    assert.ok(
+      /SEZIONE_DI\s*:\s*Record<NotifType,\s*SezioneId>/.test(bacheca),
+      'la bacheca mappa OGNI tipo su una sezione (Record<NotifType, SezioneId>: esaustivo per costruzione)',
+    )
+    assert.ok(/Altre notifiche/.test(bacheca), 'la bacheca ha la sezione di sicurezza per i tipi sconosciuti')
+    const union = bacheca.match(/type SezioneId = ([^\n]+)/)?.[1] ?? ''
+    const quante = ((union.match(/'/g) ?? []).length) / 2
+    assert.equal(
+      quante,
+      4,
+      `la bacheca ha 4 sezioni (${union.trim() || 'SezioneId non trovato'}): se ne cambi il numero, aggiorna anche tests/bacheca-notifiche.spec.ts`,
+    )
+  }
+
   // ── override ─────────────────────────────────────────────────────────────────
   const ovr = { 'pending.title': { title: 'ATTESA', body: 'Scorte per {turno} del {data}' } }
   const resolved = resolveTemplates(ovr)
@@ -317,7 +401,7 @@ try {
   const rendered = renderNotifTemplate('{cognome_attore} è interessato al tuo {turno} del {data}', ctx)
   assert.equal(rendered, 'Rossi è interessato al tuo Mattina del 15/05', 'flusso completo attore→destinatario')
 
-  console.log('OK — registry, override, variabili, contesto destinatario e suggerimenti coerenti')
+  console.log('OK — registry, override, variabili, contesto destinatario, tipi di notifica e bacheca coerenti')
 } finally {
   rmSync(dir, { recursive: true, force: true })
 }

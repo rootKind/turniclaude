@@ -5,6 +5,11 @@ import { pushToUser } from '@/lib/push/send-to-user'
 import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import { formatDateShort } from '@/lib/utils'
 
+// Notifiche d'ESITO di un cambio turno (scorte, approvato, superato, cancellato):
+// tipo 'shift_outcome' → in bacheca stanno nella sezione «Esito dei tuoi cambi
+// turno», separate sia dalle richieste nuove sia dalle comunicazioni admin
+// (elenco condiviso: NOTIF_TYPES in types/database.ts).
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -70,8 +75,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         turno: shift.offered_shift ?? '', data: dateLabel, cognome_attore: winnerName,
       })
       await Promise.allSettled([
-        pushToUser(shift.user_id as string, { title: msg.title, body: msg.body, type: 'system' }),
-        pushToUser(winnerId, { title: msg.title, body: msg.body, type: 'system' }),
+        pushToUser(shift.user_id as string, { title: msg.title, body: msg.body, type: 'shift_outcome' }),
+        pushToUser(winnerId, { title: msg.title, body: msg.body, type: 'shift_outcome' }),
       ])
     }
     await adminSupabase.from('shifts').update({ is_pending: true }).eq('id', shiftId)
@@ -97,7 +102,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     await pushToUser(shift.user_id as string, {
       title: msg.title,
       body: msg.body,
-      type: 'system',
+      type: 'shift_outcome',
     }).catch(() => {})
   } else {
     const winnerId = typeof selectedUserId === 'string' ? selectedUserId : (interestedUserIds[0] ?? null)
@@ -125,8 +130,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         turno: shift.offered_shift ?? '', data: dateLabel, cognome_attore: creatorName,
       })
       await Promise.allSettled([
-        pushToUser(shift.user_id as string, { title: msgCreator.title, body: msgCreator.body, type: 'system' }),
-        pushToUser(winnerId, { title: msgWinner.title, body: msgWinner.body, type: 'system' }),
+        pushToUser(shift.user_id as string, { title: msgCreator.title, body: msgCreator.body, type: 'shift_outcome' }),
+        pushToUser(winnerId, { title: msgWinner.title, body: msgWinner.body, type: 'shift_outcome' }),
       ])
     }
 
@@ -134,7 +139,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const overrides = await loadNotifOverrides()
       const msg = messageFor(overrides, 'others.title', {})
       await Promise.allSettled(otherIds.map((id: string) =>
-        pushToUser(id, { title: msg.title, body: msg.body, type: 'system' })
+        pushToUser(id, { title: msg.title, body: msg.body, type: 'shift_outcome' })
       ))
     }
   }

@@ -43,6 +43,35 @@ export interface Shift {
   shift_interested_users: ShiftInterestedUser[]
 }
 
+/**
+ * TIPI DI NOTIFICA — una sola lista per tutta l'app (18/09/2026).
+ *
+ * Vive qui perché la usano TRE mondi che devono restare d'accordo:
+ *  - chi INVIA (i route che chiamano pushToUser / pushTemplateToUsers);
+ *  - chi DICHIARA (lib/notification-templates.ts, il registro dei messaggi);
+ *  - chi MOSTRA (la bacheca /notifiche: una sezione per ogni tipo).
+ *
+ * Il tipo viaggia DENTRO la push, il service worker lo copia nella voce salvata
+ * sul dispositivo (public/sw.js) e la bacheca lo usa per raggruppare. Un tipo
+ * che non compare qui — o che compare in un elenco solo — fa sparire la
+ * notifica dalla bacheca senza alcun errore: è il bug del changelog del
+ * 18/09/2026, quando la rotta mandava «changelog_new» mentre la bacheca
+ * conosceva solo gli altri cinque.
+ */
+export const NOTIF_TYPES = [
+  'system',            // comunicazioni dell'admin (avvisi, test, comunicazioni manuali)
+  'changelog_new',     // «novità nell'app»: nuova versione del changelog
+  'shift_outcome',     // esito di un TUO cambio turno (scorte, approvato, superato, cancellato)
+  'interest',          // qualcuno è interessato a un tuo cambio turno
+  'new_shift',         // nuovo cambio turno pubblicato
+  'vacation_outcome',  // esito di un TUO cambio ferie
+  'vacation_interest', // interesse su un tuo cambio ferie
+  'new_vacation',      // nuovo cambio ferie pubblicato
+  'cleanup',           // pulizia dei cambi (admin): richieste eliminate in blocco
+] as const
+
+export type NotifType = (typeof NOTIF_TYPES)[number]
+
 export interface NotificationEntry {
   id: string
   title: string
@@ -50,7 +79,7 @@ export interface NotificationEntry {
   timestamp: number                 // Date.now()
   shiftId?: number
   read: boolean
-  type?: 'system' | 'interest' | 'new_shift' | 'vacation_interest' | 'new_vacation'
+  type?: NotifType
 }
 
 // ── Vacanze ─────────────────────────────────────────────────────────────────

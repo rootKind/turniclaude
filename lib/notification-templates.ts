@@ -8,9 +8,12 @@
 // resolveMessage (override admin → default) e popolano le variabili per OGNI
 // destinatario con pushTemplateToUsers (lib/push/send-with-template.ts); le
 // variabili senza contesto restano letterali (debug-friendly).
-import type { VacationPeriod } from '@/types/database'
+import type { NotifType, VacationPeriod } from '@/types/database'
 
-export type NotifType = 'system' | 'interest' | 'new_shift' | 'vacation_interest' | 'new_vacation'
+// I tipi di notifica sono definiti in UN posto solo (types/database.ts,
+// NOTIF_TYPES) perché li condivide con la bacheca /notifiche: qui si
+// ri-esportano per chi importa il tipo da questo modulo.
+export type { NotifType }
 
 /**
  * Variabili disponibili nei template admin, con descrizione e valore d'esempio.
@@ -138,49 +141,49 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
   {
     key: 'pending.title', title: 'Cambio in attesa di conferma',
     body: 'Il cambio {turno} del {data} con {cognome_attore} non può essere ancora accettato perché ci sono scorte disponibili',
-    label: 'Cambio in attesa (scorte)', type: 'system', source: 'Conferma manager con scorte',
+    label: 'Cambio in attesa (scorte)', type: 'shift_outcome', source: 'Conferma manager con scorte',
     context: 'A creatore e vincitore del cambio',
   },
   {
     key: 'approved.creator.title', title: 'Cambio turno approvato',
     body: 'Il turnista ha approvato la tua richiesta di cambio {turno} del {data} con {cognome_attore}',
-    label: 'Cambio approvato → richiedente', type: 'system', source: 'Conferma manager',
+    label: 'Cambio approvato → richiedente', type: 'shift_outcome', source: 'Conferma manager',
     context: 'A chi aveva ceduto il turno',
   },
   {
     key: 'approved.winner.title', title: 'Cambio turno approvato',
     body: 'Il turnista ha approvato il cambio {turno} del {data} con {cognome_attore}',
-    label: 'Cambio approvato → vincitore', type: 'system', source: 'Conferma manager',
+    label: 'Cambio approvato → vincitore', type: 'shift_outcome', source: 'Conferma manager',
     context: 'A chi aveva manifestato interesse',
   },
   {
     key: 'others.title', title: 'Cambio turno assegnato ad altri',
     body: 'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.',
-    label: 'Interesse superato', type: 'system', source: 'Conferma manager',
+    label: 'Interesse superato', type: 'shift_outcome', source: 'Conferma manager',
     context: 'Agli altri interessati non vincitori',
   },
   {
     key: 'rejected.title', title: 'Richiesta di cambio cancellata',
     body: 'Il turnista ha cancellato la tua richiesta di cambio {turno} del {data} {motivo}',
-    label: 'Richiesta cancellata dal turnista', type: 'system', source: 'Rifiuto manager',
+    label: 'Richiesta cancellata dal turnista', type: 'shift_outcome', source: 'Rifiuto manager',
     context: 'Al creatore della richiesta; {motivo} se indicato',
   },
   {
     key: 'cleanup.done.title', title: 'Cambio turno già registrato',
     body: 'La richiesta di cambio del {data} ({turno} → {turno_cercati}) è stata eliminata: {dettaglio} {extra}',
-    label: 'Pulizia: già registrato', type: 'system', source: 'Pulizia cambi (admin)',
+    label: 'Pulizia: già registrato', type: 'cleanup', source: 'Pulizia cambi (admin)',
     context: 'Al richiedente, quando il cambio è già nei turni caricati ({dettaglio} spiega il caso)',
   },
   {
     key: 'cleanup.partner.title', title: 'Cambio turno completato',
     body: 'Il cambio del {data} con {cognome_attore} è andato a buon fine: risulti in {turno}.',
-    label: 'Pulizia: cambio completato', type: 'system', source: 'Pulizia cambi (admin)',
+    label: 'Pulizia: cambio completato', type: 'cleanup', source: 'Pulizia cambi (admin)',
     context: 'All’ex partner del cambio',
   },
   {
     key: 'cleanup.gone.title', title: 'Cambio turno non più disponibile',
     body: 'La richiesta di cambio {turno} → {turno_cercati} del {data} di {cognome_attore} è stata eliminata: il turno non è più disponibile.',
-    label: 'Pulizia: non più disponibile', type: 'system', source: 'Pulizia cambi (admin)',
+    label: 'Pulizia: non più disponibile', type: 'cleanup', source: 'Pulizia cambi (admin)',
     context: 'Agli interessati non partner',
   },
   // ── Ferie (app/api/push/notify + vacanze) ────────────────────────────────
@@ -218,31 +221,31 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
   {
     key: 'vacation_pending.title', title: 'Cambio ferie in attesa di conferma',
     body: 'Il cambio {periodo} ({anno}) con {cognome_attore} non può essere ancora accettato perché ci sono scorte disponibili',
-    label: 'Cambio ferie in attesa (scorte)', type: 'system', source: 'Conferma manager ferie',
+    label: 'Cambio ferie in attesa (scorte)', type: 'vacation_outcome', source: 'Conferma manager ferie',
     context: 'A creatore e vincitore del cambio ferie',
   },
   {
     key: 'vacation_approved.creator.title', title: 'Cambio ferie approvato',
     body: 'Il turnista ha approvato la tua richiesta di cambio ferie {periodo} ({anno}) con {cognome_attore}',
-    label: 'Cambio ferie approvato → richiedente', type: 'system', source: 'Conferma manager ferie',
+    label: 'Cambio ferie approvato → richiedente', type: 'vacation_outcome', source: 'Conferma manager ferie',
     context: 'A chi aveva offerto il periodo',
   },
   {
     key: 'vacation_approved.winner.title', title: 'Cambio ferie approvato',
     body: 'Il turnista ha approvato il cambio ferie {periodo} ({anno}) con {cognome_attore}',
-    label: 'Cambio ferie approvato → vincitore', type: 'system', source: 'Conferma manager ferie',
+    label: 'Cambio ferie approvato → vincitore', type: 'vacation_outcome', source: 'Conferma manager ferie',
     context: 'A chi ha preso il periodo',
   },
   {
     key: 'vacation_rejected.title', title: 'Richiesta di cambio ferie cancellata',
     body: 'Il turnista ha cancellato la tua richiesta di cambio ferie {periodo} ({anno}) {motivo}',
-    label: 'Cambio ferie cancellato dal turnista', type: 'system', source: 'Rifiuto manager ferie',
+    label: 'Cambio ferie cancellato dal turnista', type: 'vacation_outcome', source: 'Rifiuto manager ferie',
     context: 'Al creatore della richiesta; {motivo} se indicato',
   },
   {
     key: 'vacation_others.title', title: 'Cambio ferie assegnato ad altri',
     body: 'Il tuo interesse è stato superato: è stato fatto il cambio con altri interessati.',
-    label: 'Cambio ferie assegnato ad altri', type: 'system', source: 'Conferma manager ferie',
+    label: 'Cambio ferie assegnato ad altri', type: 'vacation_outcome', source: 'Conferma manager ferie',
     context: 'Agli altri interessati non vincitori',
   },
   // ── Changelog (app/api/admin/changelog) ──────────────────────────────────
@@ -251,7 +254,11 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
   {
     key: 'changelog_new.title', title: 'Novità nell\'app',
     body: 'Pubblicata la versione {versione} del changelog: guarda cosa è cambiato.',
-    label: 'Nuova versione del changelog', type: 'system', source: 'Changelog (admin)',
+    // Tipo PROPRIO, non 'system': in bacheca le novità dell'app hanno una
+    // sezione loro («Novità dell'app»), così non si confondono con gli avvisi
+    // admin. Il valore deve esistere in NOTIF_TYPES (lo verifica
+    // scripts/check-notif-templates.mjs).
+    label: 'Nuova versione del changelog', type: 'changelog_new', source: 'Changelog (admin)',
     context: 'A tutti con le notifiche attive, alla creazione di una nuova versione',
   },
 ]

@@ -2,10 +2,10 @@
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
-import { BellOff, Megaphone, Heart, CalendarPlus, Check, Trash2, TreePalm } from 'lucide-react'
+import { ArrowLeftRight, Bell, BellOff, Check, Megaphone, Sparkles, Trash2, TreePalm } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import type { NotificationEntry } from '@/types/database'
+import type { NotifType, NotificationEntry } from '@/types/database'
 import type { LucideIcon } from 'lucide-react'
 
 interface Section {
@@ -13,6 +13,45 @@ interface Section {
   label: string
   Icon: LucideIcon
   entries: NotificationEntry[]
+}
+
+// ── Sezioni della bacheca ─────────────────────────────────────────────────────
+// Quattro, una per FAMIGLIA di notifiche. Il tipo dice COSA è successo e resta
+// preciso (lo usano la deduplica, le preferenze e i test): qui si decide solo
+// come raggrupparlo. Aggiungere un tipo NON aggiunge una sezione.
+type SezioneId = 'admin' | 'sistema' | 'turni' | 'ferie'
+
+const SEZIONI: Record<SezioneId, { label: string; Icon: LucideIcon }> = {
+  admin:   { label: 'Comunicazioni admin', Icon: Megaphone },
+  sistema: { label: 'Sistema',             Icon: Sparkles },
+  turni:   { label: 'Cambi turno',         Icon: ArrowLeftRight },
+  ferie:   { label: 'Cambi ferie',         Icon: TreePalm },
+}
+
+/** Ordine di lettura in bacheca. */
+const ORDINE_SEZIONI: SezioneId[] = ['admin', 'sistema', 'turni', 'ferie']
+
+/**
+ * Ogni tipo finisce in UNA sezione: è un `Record<NotifType, SezioneId>`, quindi
+ * un tipo aggiunto a NOTIF_TYPES senza la sua sezione NON COMPILA — nessuna
+ * notifica può restare invisibile (era il caso del changelog, che arrivava con
+ * un tipo che nessuno rendeva).
+ *
+ * Dove va cosa: le comunicazioni manuali dell'admin in «Comunicazioni admin»,
+ * gli avvisi automatici dell'app (novità della versione) in «Sistema», tutto ciò
+ * che riguarda un cambio turno — richieste, interessi, esiti, pulizia — in
+ * «Cambi turno», e tutto ciò che riguarda le ferie in «Cambi ferie».
+ */
+const SEZIONE_DI: Record<NotifType, SezioneId> = {
+  system:            'admin',
+  changelog_new:     'sistema',
+  shift_outcome:     'turni',
+  interest:          'turni',
+  new_shift:         'turni',
+  cleanup:           'turni',
+  vacation_outcome:  'ferie',
+  vacation_interest: 'ferie',
+  new_vacation:      'ferie',
 }
 
 export function NotificationList() {
@@ -57,33 +96,44 @@ export function NotificationList() {
     )
   }
 
-  const groups = {
-    system:            history.filter(e => !e.type || e.type === 'system'),
-    interest:          history.filter(e => e.type === 'interest'),
-    new_shift:         history.filter(e => e.type === 'new_shift'),
-    vacation_interest: history.filter(e => e.type === 'vacation_interest'),
-    new_vacation:      history.filter(e => e.type === 'new_vacation'),
+  // Voci raggruppate per SEZIONE (poche e larghe), non per tipo: nove sezioni
+  // erano un indice, non una bacheca (richiesta dell'utente 18/09/2026).
+  const vociPerSezione = new Map<SezioneId, NotificationEntry[]>()
+  const ignote: NotificationEntry[] = []
+  for (const e of history) {
+    // Voce senza tipo = salvata da una versione precedente al campo: è una
+    // comunicazione dell'admin, come faceva il filtro di prima.
+    const tipo = e.type ?? 'system'
+    const sezione = (SEZIONE_DI as Record<string, SezioneId | undefined>)[tipo]
+    if (!sezione) { ignote.push(e); continue }
+    const voci = vociPerSezione.get(sezione)
+    if (voci) voci.push(e)
+    else vociPerSezione.set(sezione, [e])
   }
 
-  const sections: Section[] = [
-    { key: 'system',            label: 'Notifiche admin',              Icon: Megaphone,  entries: groups.system },
-    { key: 'interest',          label: 'Interessati ai tuoi cambi turno',           Icon: Heart,      entries: groups.interest },
-    { key: 'new_shift',         label: 'Nuove richieste cambi turno',             Icon: CalendarPlus, entries: groups.new_shift },
-    { key: 'vacation_interest', label: 'Interessati ai tuoi cambi ferie',    Icon: Heart,      entries: groups.vacation_interest },
-    { key: 'new_vacation',      label: 'Nuove richieste cambi ferie',                Icon: TreePalm,   entries: groups.new_vacation },
-  ].filter(s => s.entries.length > 0)
+  const sections: Section[] = ORDINE_SEZIONI
+    .filter(id => (vociPerSezione.get(id)?.length ?? 0) > 0)
+    .map(id => ({ key: id as string, ...SEZIONI[id], entries: vociPerSezione.get(id)! }))
+
+  // RETE DI SICUREZZA: un tipo SCONOSCIUTO (voce salvata da una build più nuova
+  // dell'app, o scritta a mano) si mostra lo stesso, in fondo. Meglio una
+  // sezione generica che una notifica sparita in silenzio.
+  if (ignote.length > 0) {
+    sections.push({ key: 'altre', label: 'Altre notifiche', Icon: Bell, entries: ignote })
+  }
 
   return (
     <div className="flex flex-col gap-4">
       {sections.map(({ key, label, Icon, entries }, index) => (
         <motion.div
           key={key}
+          data-notif-sezione={key}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.15, delay: index * 0.04, ease: 'easeOut' }}
           className="flex flex-col"
         >
-          <div className="flex items-center gap-2 mb-1 px-1">
+          <div data-notif-sezione-titolo className="flex items-center gap-2 mb-1 px-1">
             <Icon size={13} className="text-muted-foreground flex-shrink-0" />
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               {label}
