@@ -14,7 +14,7 @@ import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import { decodeSalaMonth, scopertiDetailForDay, yellowForDay, type SalaSlotKind, type ScopertoInfo, type YellowEntry } from '@/lib/sala-month'
 import { SALA_SHIFTS, minValuesForDay, withMinimoEntry } from '@/lib/sala-minimi'
 import type { SalaMinimoPeriod } from '@/types/database'
-import { NON_SECTION_DUTIES, isPresentNoSection, isShiftWorkCode, parseShiftCode } from '@/lib/shift-tokens'
+import { NON_SECTION_DUTIES, SALA_FLASH_MS, SALA_SHIFT_LABEL, isPresentNoSection, isShiftWorkCode, parseShiftCode, type SalaFocus } from '@/lib/shift-tokens'
 import { MinimiPanel } from './minimi-panel'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName, matchesCognome } from '@/lib/utils'
@@ -34,6 +34,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
+
+/** Tetto di attesa dell'evidenzia se il mese di destinazione tarda a caricare:
+ *  meglio niente flash che un flash eterno (vedi l'effetto in DeskBoard). */
+const SALA_FLASH_ATTESA_MAX_MS = 12_000
 
 function DroppableCell({ id, children, isEditing }: { id: string; children: React.ReactNode; isEditing: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id })
@@ -145,6 +149,11 @@ interface Props {
   onUploadBatch: (items: Array<{ file: File; month: string }>) => Promise<void>
   onDeleteMonth: (month: string) => Promise<void>
   onColorChange?: (month: string, day: number, name: string, color: string | null) => void
+  /** «Vengo da qui» (18/09/2026): arrivo da una card di cambio in dashboard.
+   *  La board apre quel GIORNO e quel TURNO e illumina per 5s la card della
+   *  persona che cede il cambio; se non la trova, avvisa invece di far credere
+   *  che sia un errore di navigazione. Vedi lib/shift-tokens (SalaFocus). */
+  focus?: SalaFocus | null
 }
 
 export function DeskBoard({
@@ -164,6 +173,7 @@ export function DeskBoard({
   onUploadBatch,
   onDeleteMonth,
   onColorChange,
+  focus = null,
 }: Props) {
   const canUpload = isAdmin || isManager
   const duplicateCognomi = useAllDuplicateCognomi()
@@ -191,6 +201,16 @@ export function DeskBoard({
 
   const [selectedDay, setSelectedDay] = useState(() => getInitialShiftAndDay(currentMonth).day)
   const [selectedShift, setSelectedShift] = useState<SalaShiftType>(() => getInitialShiftAndDay(currentMonth).shift)
+  /* Flash «vengo da qui» (18/09/2026): la richiesta in arrivo da dashboard. */
+  const [flash, setFlash] = useState<SalaFocus | null>(null)
+  const focusAppliedRef = useRef<string | null>(null)
+  // Richieste di «vengo da qui» già segnalate come «persona non in sala»: l'avviso
+  // si mostra una volta per navigazione, non a ogni render.
+  const notFoundRef = useRef<Set<string>>(new Set())
+  /* Ultimo arrivo da una card applicato dalla board (`consumed` = il «non tornare a
+     oggi» è già stato usato una volta per quel mese). Vedi la guardia nell'effetto
+     di cambio mese: serve perché il mese può arrivare DOPO la pulizia della URL. */
+  const focusHonoredRef = useRef<{ month: string; consumed: boolean } | null>(null)
   const [showDayPicker, setShowDayPicker] = useState(false)
   const [uploading, setUploading] = useState(false)
 
@@ -339,10 +359,31 @@ export function DeskBoard({
       pickerMonthChangeRef.current = false
       return
     }
+    // ARRIVO DA UNA CARD DI CAMBIO (18/09/2026): c'è un arrivo già applicato e
+    // non ancora «consumato»? Allora giorno e turno di QUEL mese li decide la
+    // card: questo reset non deve toccarli né sul mese di destinazione né su
+    // quello di partenza (che stiamo per lasciare).
+    //
+    // PERCHÉ NON BASTA GUARDARE IL MESE DELLA URL: l'arrivo si applica al mount,
+    // quando il mese della card non è ancora a schermo; un attimo dopo qualcosa
+    // rimette il giorno di oggi (in sviluppo React invoca gli effetti DUE volte —
+    // la seconda passata del reset arriva dopo l'arrivo — e un mese lento arriva
+    // quando la URL è già stata ripulita) e si finiva sul mese giusto al GIORNO
+    // SBAGLIATO (9 → 19). Consumato una volta, i cambi mese tornano normali.
+    const arrivo = focusHonoredRef.current && !focusHonoredRef.current.consumed
+      ? focusHonoredRef.current.month
+      : null
+    if (arrivo) {
+      if (arrivo === currentMonth) focusHonoredRef.current!.consumed = true
+      return
+    }
     const { shift, day } = getInitialShiftAndDay(currentMonth)
     setSelectedDay(day)
     setSelectedShift(shift)
     setShowDayPicker(false)
+    // Dipendenze VOLUTE: solo il mese. L'arrivo da una card si legge dal ref
+    // (`focusHonoredRef`), quindi non serve rimetterlo fra le dipendenze — e
+    // mettercelo farebbe ripartire il reset quando il flash si spegne.
   }, [currentMonth])
 
   const updateCard = useCallback((updated: DeskCardType) => {
@@ -865,6 +906,67 @@ export function DeskBoard({
     ? [1, 2, 3, 4, 5]
     : [...new Set(displayCards.map(c => c.row ?? 1))].sort((a, b) => a - b)
 
+  /* ── «Vengo da qui»: dalla card di un cambio al SUO posto in sala ───────────
+     Arrivo da dashboard (focus, vedi lib/shift-tokens): la board salta su giorno
+     e turno della card tappata e illumina per 5s la card che contiene la persona
+     che cede il cambio. L'evidenzia è quella di `isFocusPerson`; qui sotto c'è
+     solo la regia: applica, scorri in vista, avvisa se non c'è nessuno da
+     illuminare. */
+  useEffect(() => {
+    if (!focus) return
+    if (focusAppliedRef.current === focus.token) return
+    focusAppliedRef.current = focus.token
+    focusHonoredRef.current = { month: focus.month, consumed: false }
+    setSelectedDay(focus.day)
+    setSelectedShift(focus.shift)
+    setFlash(focus)
+  }, [focus])
+
+  // Spegnimento del flash: legato a `flash` e NON alla richiesta in arrivo — la
+  // pagina pulisce la URL dopo l'evidenzia (focus → null) e il timer deve
+  // sopravvivere a quella pulizia, altrimenti la card resterebbe accesa.
+  //
+  // I 5s partono quando il mese di destinazione è DAVVERO a schermo: se il
+  // caricamento è lento, l'evidenzia non si consuma mentre la board mostra ancora
+  // il mese precedente (l'utente non vedrebbe niente). Tetto di 12s per non
+  // lasciare la card accesa per sempre se il mese non arriva mai.
+  useEffect(() => {
+    if (!flash) return
+    const mesePronto = schedule?.month === flash.month
+    const t = setTimeout(() => setFlash(null), mesePronto ? SALA_FLASH_MS : SALA_FLASH_ATTESA_MAX_MS)
+    return () => clearTimeout(t)
+  }, [flash, schedule?.month])
+
+  // La persona del flash è in QUESTA card? (stessa regola dell'evidenzia della
+  // card dell'utente loggato: cognomi della sezione, tirocinanti e gialli).
+  const isFocusPerson = useCallback(
+    (card: DeskCardType) => !!flash && (
+      matchesCognome(card.surnames, flash.cognome, flash.nome, duplicateCognomi, bareOwners) ||
+      matchesCognome(card.tirocinanti ?? [], flash.cognome, flash.nome, duplicateCognomi, bareOwners) ||
+      matchesCognome(yellowNamesByCard.get(card.id) ?? [], flash.cognome, flash.nome, duplicateCognomi, bareOwners)
+    ),
+    [flash, duplicateCognomi, bareOwners, yellowNamesByCard],
+  )
+
+  // Il flash può essere chiesto PRIMA che il mese di destinazione sia a schermo
+  // (il mese si carica dal DB/cache): si aspetta di avere il mese giusto, poi si
+  // scorre alla card. Una persona non trovata NON deve restare un mistero
+  // (richiesta 18/09/2026): un avviso spiega cosa manca, una volta sola.
+  useEffect(() => {
+    if (!flash || isEditing) return
+    if (!schedule || schedule.month !== flash.month) return
+    const found = displayCards.some(isFocusPerson)
+    if (found) {
+      document.querySelector('.desk-card-flash')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    if (notFoundRef.current.has(flash.token)) return
+    notFoundRef.current.add(flash.token)
+    toast.warning(
+      `${flash.nome ? `${flash.nome} ` : ''}${flash.cognome} non è in sala nel turno ${SALA_SHIFT_LABEL[flash.shift]} del ${flash.day} — la card è quella del cambio, ma la persona non compare in questa sezione.`,
+    )
+  }, [flash, isEditing, schedule, displayCards, isFocusPerson])
+
   return (
     <div className="flex flex-col gap-2 p-4">
       {/* Schedule header — hidden during layout edit */}
@@ -1025,6 +1127,7 @@ export function DeskBoard({
                         key={card.id}
                         card={card}
                         isEditing={isEditing}
+                        flash={!isEditing && isFocusPerson(card)}
                         highlighted={!isEditing && (
                           matchesCognome(card.surnames, userCognome, userNome, duplicateCognomi, bareOwners) ||
                           matchesCognome(card.tirocinanti ?? [], userCognome, userNome, duplicateCognomi, bareOwners) ||

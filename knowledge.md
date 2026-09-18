@@ -2125,3 +2125,221 @@ pannello e verifica a 320/360/375/390/414/512/768/1280px che sia dentro la fines
 centrato sul bottone (scarto ≤2px). Verificato anche in modalità CONFRONTO (stesso header,
 stesso pannello): 390px → `[75, 315]`, centro 195 = centro del bottone. Il selettore mese di
 /turnisala (desk-board) usa `<select>` nativi: non era toccato.
+
+## 18/09/2026 — Bacheca notifiche: ogni tipo ha la sua sezione (il changelog era invisibile)
+
+**Il dubbio dell'utente** («le notifiche del changelog non ci sono in bacheca?»): confermato,
+ed era un intero tipo di notifica a sparire. Il push «novità» del changelog
+(`app/api/admin/changelog/route.ts`) partiva col tipo `'changelog_new'`, mentre la bacheca
+(`components/notifications/notification-list.tsx`) raggruppava SOLO cinque tipi e **senza
+alcun fallback**: `system`, `interest`, `new_shift`, `vacation_interest`, `new_vacation`.
+La catena è: il route invia la push → il service worker copia il tipo nella voce salvata in
+localStorage (`public/sw.js`, `type = 'system'` di default) → la bacheca filtra per tipo.
+Con un tipo fuori elenco la notifica arrivava sul telefono e poi **spariva dall'elenco in
+silenzio**: nessun errore, nessuna traccia (è anche il motivo per cui il registro
+`lib/notification-templates.ts` dichiarava quella voce come `type: 'system'` mentre il route
+mandava `changelog_new`: due elenchi di tipi scollegati).
+
+**Prova che il test lo cattura:** rilanciato `tests/bacheca-notifiche.spec.ts` con la bacheca
+VECCHIA (stash temporaneo del solo componente) → fallisce su `changelog_new: la voce deve
+comparire` (elemento inesistente); con la nuova passa.
+
+**Fix, tre pezzi:**
+1. **una lista sola** — `NOTIF_TYPES` + `NotifType` in `types/database.ts` (l'elenco che chi
+   invia, chi dichiara e chi mostra devono condividere); il registro dei messaggi lo importa
+   invece di ridefinirlo;
+2. **la bacheca non può più dimenticare un tipo** — le sezioni sono una mappa
+   `Record<NotifType, {label, Icon}>`: un tipo nuovo senza sezione NON COMPILA. Il changelog ha
+   la sua sezione **«Novità dell'app»** (nuova, con l'icona Sparkles) e resta una **rete di
+   sicurezza** («Altre notifiche», icona Bell) per le voci con un tipo SCONOSCIUTO — quelle
+   salvate da una build più nuova dell'app non spariscono più;3. **il contratto nei check** — `scripts/check-notif-templates.mjs` ora pretende tre cose:
+   (a) ogni `type:` letterale passato a una push (app/, lib/, components/) e ogni tipo
+   dichiarato dal registro stiano in `NOTIF_TYPES`; (b) in ogni file, i tipi MANDATI dalle push
+   siano quelli DICHIARATI dal registro per i messaggi che quel file usa — è il legame che era
+   rotto (la rotta del changelog mandava `changelog_new` mentre il registro diceva `system`);
+   (c) la bacheca usi la lista condivisa con la mappa esaustiva e la sezione di sicurezza.
+   Controprova fatta: rimettendo `type: 'system'` sulla pulizia, il check fallisce con
+   «manda il tipo «system» ma i messaggi del registro che usa sono di tipo «cleanup»».
+
+**Nomi:** il tipo del changelog resta `'changelog_new'` (come la chiave del template
+`changelog_new.title` e come le voci già salvate sui dispositivi): così quelle già in giro
+diventano visibili subito, senza migrazione.
+
+### Le categorie: QUATTRO sezioni larghe (scelta dell'utente, 18/09/2026)
+
+`'system'` era un contenitore generico: ci finivano 13 messaggi di natura diversa (esiti dei
+cambi, esiti delle ferie, pulizia dei turni e le comunicazioni vere dell'admin). Primo passo:
+visto che il tipo era fuori elenco, il changelog si è preso il suo tipo e la pulizia pure,
+con una sezione per tipo → NOVE sezioni. L'utente le ha giudicate subito troppo confuse
+(«penso che dobbiamo creare meno sezioni») e ha indicato la direzione: Admin / Sistema /
+Cambi turno / Cambi ferie.
+
+**Come è fatto adesso:** i TIPI del filo restano precisi (dicono cosa è successo: servono a
+preferenze, deduplica e test), il RAGGRUPPAMENTO è una mappa a parte in
+`components/notifications/notification-list.tsx`:
+
+```
+SEZIONE_DI: Record<NotifType, SezioneId>   // ogni tipo → UNA sezione (esaustivo per costruzione)
+type SezioneId = 'admin' | 'sistema' | 'turni' | 'ferie'
+```
+
+| sezione | tipi che ci finiscono | chi li manda |
+|---|---|---|
+| Comunicazioni admin | `system` | dialog notifiche admin, push generica |
+| Sistema | `changelog_new` | `app/api/admin/changelog` (novità della versione) |
+| Cambi turno | `new_shift`, `interest`, `shift_outcome`, `cleanup` | pubblicazione, «Mi interessa», esiti del manager, pulizia |
+| Cambi ferie | `new_vacation`, `vacation_interest`, `vacation_outcome` | pubblicazione, interessi/catena, esiti del manager ferie |
+| Altre notifiche | *(tipo sconosciuto)* | rete di sicurezza: mai nascondere una voce |
+
+Conseguenza da sapere: **aggiungere un tipo NON aggiunge una sezione** (basta assegnarlo in
+`SEZIONE_DI`: se manca, non compila). La pulizia dei cambi è in «Cambi turno» perché parla di
+richieste di cambio (se la si vuole altrove, è una riga della mappa). Attenzione alle voci GIÀ
+salvate sui dispositivi: la storia vive in localStorage, quindi una notifica arrivata PRIMA di
+questo cambio porta ancora il tipo vecchio (`system`) e si vede sotto «Comunicazioni admin»
+finché non viene riscritta da una push nuova.
+
+**Il test difende il NUMERO di sezioni**: `tests/bacheca-notifiche.spec.ts` legge le
+intestazioni da `[data-notif-sezione-titolo]` e pretende l'elenco ESATTO in ordine
+(«Comunicazioni admin», «Sistema», «Cambi turno», «Cambi ferie», «Altre notifiche»), oltre a
+verificare che ogni voce stia nella sua sezione; `scripts/check-notif-templates.mjs` controlla
+che la mappa resti `Record<NotifType, SezioneId>` e che le sezioni siano 4. Verifiche: `tsc`,
+`eslint`, `check-notif-templates` e i 3 spec Playwright verdi.
+
+---
+
+## 19/09/2026 — Dalla card di un cambio al SUO posto in sala (`/turnisala`)
+
+Richiesta dell'utente: nella dashboard dei cambi, la colonna della DATA (o l'ordinale «2°» del
+secondo cambio dello stesso giorno) non apre più la card ma porta in `/turnisala` sul giorno e
+sul turno M/P/N del turno OFFERTO («cedo Mattina» → turno M), facendo «respirare» per 3s la card
+della persona che cede il cambio. È il modo in cui si verifica a occhio una richiesta: «chi prende
+questo turno cosa trova in sala quel giorno?».
+
+**MA SE QUEL TURNO NON RISULTA, LA DASHBOARD NON SI MUOVE (revisione 19/09/2026).** Prima di
+navigare si chiede ai turni (`getUserShiftOnDate` di `lib/shift-compat`, la stessa fonte che
+alimenta la board: PDF del mese, altrimenti rotazione teorica) se quella persona ha davvero quel
+turno quel giorno; se non ce l'ha si resta QUI e si dice «**Dai turni non risulta che Piccirillo
+abbia Mattina il giorno 19**» (toast sonner, `toast.info`). Mandare l'utente su una board che non
+illumina niente era peggio che non muoversi. Costo: il tap aspetta la risposta (~0,5-0,9s), e la
+card mostra `aria-busy`/`opacity-60` nel frattempo. La rete di sicurezza dentro `/turnisala`
+(l'avviso «non è in sala…») resta: serve a chi ci arriva da un URL condiviso o da una push.
+
+**Il contratto vive in UN posto: `lib/shift-tokens.ts`.**
+
+```
+SHIFT_TO_SALA: Record<ShiftType, SalaShiftType>   // Mattina→M, Pomeriggio→P, Notte→N
+SALA_SHIFT_LABEL: Record<SalaShiftType, ShiftType> // M→Mattina (per i messaggi)
+SALA_FLASH_MS = 3000                               // durata del «respiro»
+buildSalaFocusUrl({shiftDate, offeredShift, cognome, nome, from})  // chi MANDA (dashboard)
+parseSalaFocus(searchParams): SalaFocus | null                     // chi RICEVE (/turnisala)
+```
+
+Parametri URL: `m=YYYY-MM`, `d=giorno`, `t=M|P|N`, `c=cognome`, `n=nome`. La persona viaggia per
+COGNOME (non per `user_id`) perché la board riconosce le persone coi nomi del PDF
+(`matchesCognome`): è l'unica chiave che sa usare. `from` porta dietro i parametri di contesto
+della pagina di partenza (bypass `dev=…` del guard PWA, impersonazione `as=…`): un salto non deve
+far perdere il contesto in cui si stava lavorando. `SalaFocus.token` è l'impronta della
+richiesta: serve a non riapplicarla a ogni render (e a non ripetere l'avviso).
+
+**Chi fa cosa:** la pagina (`sala-page-client`) cambia MESE (è l'unica che sa caricare un mese dal
+DB/cache); la board (`DeskBoard`, prop `focus`) applica GIORNO e TURNO, illumina la card e avvisa
+se la persona non c'è. La URL si ripulisce da sola dopo il flash (`SALA_FLASH_MS + 1,5s`): chi
+ricarica o torna indietro non rientra «da una card» senza spiegazione.
+
+**Tre trappole trovate facendo questo lavoro (tutte verificate in browser):**
+
+1. **LA CORSA DEL RESET MESE→OGGI (la più insidiosa).** In `DeskBoard` un effetto su
+   `[currentMonth]` riporta la board al giorno/turno «iniziali» (oggi) a ogni cambio mese. Il
+   giorno/turno lo applica invece l'effetto del `focus`, al MOUNT — cioè quando il mese della card
+   non è ancora a schermo: bastava che il reset passasse dopo e si finiva sul mese giusto al
+   GIORNO SBAGLIATO. Succede in DUE modi: in sviluppo React invoca gli effetti due volte (la
+   seconda passata del reset arriva dopo l'arrivo), e nel passaggio a un ALTRO mese il reset del
+   mese di partenza gira quando la URL è già stata ripulita. Il rimedio è `focusHonoredRef`
+   (`{month, consumed}`): l'arrivo è «onorato» una volta, e finché non è consumato l'effetto di
+   cambio mese NON tocca giorno e turno — né sul mese di destinazione né su quello di partenza.
+   Consumato, i cambi mese tornano a comportarsi come sempre. **Non semplificare quella guardia:**
+   senza, l'utente atterra sul giorno di oggi (9 ottobre → 19 ottobre).
+2. **I 3s partono quando il MESE È A SCHERMO**, non quando arriva la richiesta: se il caricamento
+   è lento, il flash non si consuma mentre la board mostra ancora il mese precedente (l'utente
+   non vedrebbe niente). Tetto di 12s se il mese non arriva mai.
+3. **«Non succede niente» è il modo in cui questa feature fallisce in silenzio.** Se la persona non
+   compare in nessuna card del giorno/turno (richiesta vecchia, PDF cambiato, persona non in sala)
+   esce un avviso sonner che lo dice; la card che contiene la persona si illumina altrimenti.
+   La ricerca copre gli STESSI posti dell'evidenzia della card propria: equipaggio, tirocinanti e
+   chip gialle.
+
+**Gli ordinali («2°», «3°»… fino a «5°»):** dal secondo cambio di una data il blocco non mostra il
+giorno ma `{dateIndex + 1}°`. È lo STESSO bottone (l'ordinale è solo l'etichetta dentro) e il
+gestore del click non legge mai l'indice: usa `shift_date` e `offered_shift` della card, quindi il
+salto è corretto per qualunque ordinale. **Verificato con 5 richieste sulla stessa data**
+(22/09/2026, create ad hoc sul DB di dev con `scripts/richieste-demo.mjs` e poi rimosse):
+blocco-data, «2°», «3°», «4°», «5°» → ognuno ha aperto il SUO turno. L'aria-label porta comunque
+la DATA vera («turno Pomeriggio del 22 set di Cicia»): l'ordinale da solo non direbbe il giorno.
+Attenzione: l'indice si calcola sulla lista FILTRATA (`components/shifts/shift-list.tsx`), e un DCO
+normale vede solo una parte dei cambi — per vedere gli ordinali in dashboard serve un DCO+ (vista
+completa), ed è così che li verifica lo spec.
+
+**Dati DEMO per provare le schermate che chiedono più cambi sulla stessa data:**
+`node scripts/richieste-demo.mjs --crea --apply` (dry-run senza `--apply`, `--giorno=`/`--quante=`
+per scegliere) e `--pulisci --apply` per toglierle. Rifiuta di scrivere se il progetto configurato è
+quello di PRODUZIONE, non tocca le righe che non ha creato (le tiene in
+`scripts/.dbg-richieste-demo.json`) e nessuna push parte da qui (le notifiche le manda l'app, non il DB).
+
+**Stile del flash — «RESPIRO» di 3s, TRE volte (revisione 19/09/2026):** `.desk-card-flash`
+(app/globals.css) = contorno di 2px nel colore dell'evidenzia (bordo ricolorato + anello 1px, la
+ricetta di casa) con attorno un alone morbido che si allarga e si dissolve (`box-shadow` con
+blur+spread, `color-mix(… 40%, transparent)`): UNA animazione da 3s (`animation: desk-card-flash
+3s ease-in-out both`) con 7 fotogrammi = 3 respiri (picchi di blur a 16,6%, 50% e 83,3%) e
+l'ULTIMO fotogramma che porta a zero alone **e contorno insieme**. Due cose da non disfare:
+(a) il contorno NON è nella regola di base ma solo DENTRO i keyframes — così, quando React toglie
+la classe, non resta niente da spegnere a mano (prima il bordo sopravviveva al respiro, in un
+momento separato: il difetto che l'utente ha visto); (b) `fill: both` tiene l'ultimo fotogramma
+finché la classe è lì. Verificato DAL VIVO con la Web Animations API
+(`el.getAnimations()[0].effect.getKeyframes()`): blur dei tre picchi 14px e anello 0px a offset 1.
+Controprova strutturale nello spec: i fotogrammi si leggono dal CSSOM (ricerca RICORSIVA dentro i
+`@layer` di Tailwind 4) e si pretende che i picchi siano TRE e che l'ultimo spenga anello e alone. **NIENTE `@media (prefers-reduced-motion:
+reduce) { animation: none }` su questa classe**: la PRIMA versione lo aveva e l'utente — che ha
+«riduci animazioni» attivo sul dispositivo (verificato: `matchMedia('(prefers-reduced-motion:
+reduce)').matches === true` e `animation: none` applicato) — non vedeva alcun movimento, solo un
+contorno fisso per 3s, che sembrava un difetto. Il respiro è un movimento lento e continuo
+(nessun lampeggio, nessuno strobo): resta anche lì, ed è coperto da uno spec che emula
+`reducedMotion: 'reduce'`.
+
+**Avviso ROSSO e «istantaneo» (richiesta 19/09/2026).** Il messaggio «Dai turni non risulta che X
+abbia Y il giorno N.» è un `toast.error` (non `info`): con `richColors` acceso su `<Toaster>`
+(`app/layout.tsx`) l'errore è l'unico tono rosso e porta il fondo della libreria — in CHIARO
+`rgb(255,240,240)` con testo `rgb(230,0,0)`, in SCURO `hsl(358 76% 10%)` con testo
+`hsl(358 100% 81%)`: nessun CSS nostro. In tema chiaro il rosso di sonner è un rosa TENUE: è la
+scelta della libreria, e lo spec pretende «rosso e non neutro» (R sopra G e B di almeno 8 punti)
+su fondo E testo, in ENTRAMBI i temi (`emulateMedia({ colorScheme })`). Il testo dei popup ha
+`text-wrap: balance` (`toastOptions.classNames.title/description` in `components/ui/sonner.tsx`):
+se la frase ci sta resta su UNA riga (verificato: 299px in 356px di popup), se non ci sta va a capo
+in due righe PARI invece di lasciare l'ultima parola da sola.
+
+**Il salto è ISTANTANEO (`lib/sala-jump.ts`).** La verifica del turno costa ~0,5-0,6s (misurato:
+561ms dal click) e prima si pagava TUTTA dopo il tap. Ora: (a) parte già al
+`onPointerDown` della colonna data (più l'equivalente da tastiera), (b) la promessa è CONDIVISA fra
+pointerdown e click, (c) l'esito resta in memoria per `userId|giorno` con TTL di 60s
+(`SHIFT_LOOKUP_TTL_MS`) — non «per sempre»: un cambio confermato sposta la persona e un PDF nuovo
+riscrive il mese. Gli ERRORI non si memorizzano (il prossimo tap riprova). Se l'esito è già in
+memoria la card NON mostra nemmeno l'opacità di attesa. La memoria vive nel modulo, quindi è per
+sessione di pagina. Nello spec si contano le richieste `sala_schedule?select=schedule` (questa forma
+è SOLO di `getUserShiftOnDate`: board e «il tuo turno» chiedono `month, schedule, …`, URL diversa):
+una parte al pointerdown, ZERO al click, e l'effetto (navigazione o messaggio) entro 600ms.
+
+**Test:** `tests/card-cambio-to-sala.spec.ts` (5 spec). Difendono: (a) la DECISIONE del click —
+naviga solo se quella persona è in sala in quel turno — confrontata con una lettura INDIPENDENTE
+della board (aperta da zero sulla stessa URL): se la board accende, la dashboard deve navigare con
+quei parametri; se non accende, la dashboard deve RESTARE e mostrare il messaggio ROSSO col punto
+(il ramo «resta» verifica fondo e testo in chiaro e scuro). È il test che vale di più, perché le due
+strade sono indipendenti (altrimenti una dashboard che dice sempre «non risulta» passerebbe);
+(b) la persona presa DALLA BOARD si accende davvero — contorno nel colore dell'evidenzia,
+`desk-card-flash 3s x1` misurato sul computed style CON `reducedMotion: 'reduce'` emulato, alone che
+si allarga, ancora acceso dopo 1,2s e spento entro 5s, e i TRE picchi + l'ultimo fotogramma a zero
+letti dal CSSOM; (c) un blocco con l'ORDINALE porta al giorno giusto o dice perché (entra come DCO+,
+è l'unico che vede tutta la lista); (d) una persona inesistente su URL diretto produce l'avviso in
+board e nessuna card accesa; (e) il salto è ISTANTANEO (prefetch al pointerdown, nessuna seconda
+richiesta al click, effetto entro 600ms, secondo tap sulla stessa card senza nuove richieste).
+Verifiche: `tsc`, `eslint` (nessun problema nuovo), 61 spec
+esistenti verdi (tuoturno, dipendente, chip-gialle, month-picker, notifiche, bacheca, sala-scoperto,
+confronto, colori-card, shift-dialog, pages).

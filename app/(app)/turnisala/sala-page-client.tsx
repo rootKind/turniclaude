@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 /** «2026-09» → «set 2026» per i toast del batch (etichetta breve). */
 function formatMonthShort(month: string): string {
@@ -19,6 +20,7 @@ import {
 import { generateTheoreticalMonth } from '@/lib/turni-teorici'
 import { useShiftTeamTreeData } from '@/hooks/use-users'
 import { buildScheduleFromMonthData, isSalaMonthData } from '@/lib/sala-month'
+import { SALA_FLASH_MS, parseSalaFocus, type SalaFocus } from '@/lib/shift-tokens'
 import { DeskBoard, MONTHS_IT } from '@/components/sala/desk-board'
 import { ShiftCleanupDialog } from '@/components/admin/shift-cleanup-dialog'
 import type { ShiftCleanupCandidate } from '@/lib/queries/shift-cleanup'
@@ -66,6 +68,13 @@ export function SalaPageClient({
   initialShiftTree,
 }: Props) {
   useLandscapeLock()
+
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  /* «Vengo da qui» (18/09/2026): la dashboard  apre questa pagina sui parametri
+     m/d/t/c/n (vedi lib/shift-tokens). La richiesta è DERIVATA dalla URL — chi la
+     applica in fondo è la board, che riconosce le persone coi nomi del PDF. */
+  const focus: SalaFocus | null = useMemo(() => parseSalaFocus(searchParams), [searchParams])
 
   useEffect(() => {
     localStorage.setItem('turni-last-page', '/turnisala')
@@ -171,6 +180,30 @@ export function SalaPageClient({
       // Rete giù: la copia cache (se c'era) resta a schermo.
     }
   }
+
+  /* Mese di destinazione di «vengo da qui»: se la card viene da un altro mese,
+     la pagina lo carica (dal DB, dalla cache o generandolo se teorico). La board
+     applica giorno/turno da sé: qui si sistema SOLO il mese. */
+  useEffect(() => {
+    if (!focus) return
+    if (focus.month === currentMonthRef.current) return
+    handleMonthChange(focus.month)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus])
+
+  /* Pulizia della URL un attimo DOPO l'evidenzia: chi ricarica o torna indietro
+     non deve ritrovarsi l'arrivo da dashboard (senza il flash sarebbe una
+     navigazione misteriosa). Il flash vive nello stato della board, quindi
+     spegnere i parametri non lo interrompe. */
+  useEffect(() => {
+    if (!focus) return
+    const t = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      for (const key of ['m', 'd', 't', 'c', 'n']) params.delete(key)
+      router.replace(params.size > 0 ? `/turnisala?${params.toString()}` : '/turnisala')
+    }, SALA_FLASH_MS + 1500)
+    return () => clearTimeout(t)
+  }, [focus, router, searchParams])
 
   // Realtime (20/09/2026): quando un admin pubblica/elimina un PDF, CHI è
   // già sulla pagina vede il mese aggiornarsi senza ricaricare (push, non
@@ -354,6 +387,7 @@ export function SalaPageClient({
         onUploadBatch={handleUploadBatch}
         onDeleteMonth={handleDeleteMonth}
         onColorChange={handleColorChange}
+        focus={focus}
       />
 
       {cleanup && (

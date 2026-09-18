@@ -12,6 +12,12 @@ interface Props {
   card: DeskCardType
   isEditing: boolean
   highlighted?: boolean
+  /** FLASH «vengo da qui» (18/09/2026; «respiro» di 3s ×3 dal 19/09/2026): la
+   *  card contiene la persona che ha ceduto il cambio tappato in dashboard.
+   *  Contorno 2px + alone che respira tre volte; l'ultimo respiro porta via anche
+   *  il contorno (.desk-card-flash). Diverso da `highlighted`, che è la card
+   *  dell'utente LOGGATO: i due possono coesistere (cedo io → card mia E in flash). */
+  flash?: boolean
   minWidth: number
   scheduleSections: string[]
   onUpdate: (card: DeskCardType) => void
@@ -108,7 +114,7 @@ function isCustomColor(color: string | null | undefined): boolean {
   return !!color && color !== 'green' && color !== 'salmon'
 }
 
-export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowByCard, duplicateCognomi, scoperti = 0, scopertoSlots, scopertoAsText = false, isOwn }: Props) {
+export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth, scheduleSections, onUpdate, onDelete, isDragOverlay, canEditColors, onColorChange, theoCompare, nameDisplay, yellowByCard, duplicateCognomi, scoperti = 0, scopertoSlots, scopertoAsText = false, isOwn }: Props) {
   const firstTirRef = useRef<HTMLDivElement>(null)
   const tirocinanti: string[] = card.tirocinanti ?? (card.hasTirocinante ? [card.tirocinante ?? ''] : [])
   const tirCount = tirocinanti.length
@@ -360,7 +366,7 @@ export function DeskCard({ card, isEditing, highlighted, minWidth, scheduleSecti
       // containment in linea la farebbe collassare a zero.
       className={`sala-card-bg sala-card-border rounded-lg overflow-hidden flex flex-col h-full border transition-opacity ${
         isDragOverlay ? '' : 'sala-card-fit'
-      } ${highlighted ? 'desk-card-highlight' : ''} ${isDragging && !isDragOverlay ? 'opacity-40' : ''}`}
+      } ${highlighted ? 'desk-card-highlight' : ''} ${flash ? 'desk-card-flash' : ''} ${isDragging && !isDragOverlay ? 'opacity-40' : ''}`}
     >
       {/* Main area */}
       <div className="flex flex-col flex-1 min-h-0" style={{ minWidth: `${minWidth}px` }}>

@@ -1,8 +1,102 @@
-import type { DaySchedule, SalaShiftType, SectionShiftData } from '@/types/database'
+import type { DaySchedule, SalaShiftType, SectionShiftData, ShiftType } from '@/types/database'
 
 // ─── codici turno ────────────────────────────────────────────────────────────
 // Logica condivisa tra il parser PDF (lib/pdf-parser.ts) e la generazione dei
 // mesi teorici (lib/turni-teorici.ts).
+
+/**
+ * Il turno di un cambio («Mattina/Pomeriggio/Notte») nel codice della BOARD della
+ * sala («M/P/N»): è il ponte fra la dashboard dei cambi e /turnisala.
+ *
+ * Vive QUI (modulo senza dipendenze server) e non in lib/queries/shift-cleanup,
+ * perché lo usa anche il client: dalla card di un cambio si salta al turno
+ * corrispondente della board (feature 18/09/2026). shift-cleanup lo ri-esporta.
+ */
+export const SHIFT_TO_SALA: Record<ShiftType, SalaShiftType> = {
+  Mattina: 'M',
+  Pomeriggio: 'P',
+  Notte: 'N',
+}
+
+/**
+ * DA UNA CARD DI CAMBIO AL TURNO IN SALA — un solo contratto, due lati
+ * (feature 18/09/2026).
+ *
+ * Chi MANDA (la card in dashboard) costruisce la URL con `buildSalaFocusUrl`;
+ * chi RICEVE (/turnisala) la legge con `parseSalaFocus`. Vivono qui, accanto alla
+ * mappa M/P/N, perché i due lati devono restare d'accordo sui nomi dei
+ * parametri: scriverli a mano in due file è come si rompono queste cose.
+ *
+ * Parametri: m=YYYY-MM, d=giorno, t=M|P|N, c=cognome, n=nome (facoltativo).
+ * La persona viaggia per COGNOME+NOME (non per user_id) perché la board
+ * riconosce le persone con i nomi del PDF (`matchesCognome`): è l'unica chiave
+ * che la board sa usare.
+ */
+/** Il nome per esteso del turno di sala («M» → «Mattina»): serve ai messaggi
+ *  (avviso «non è in sala nel turno …») e a tutto ciò che parla all'utente. */
+export const SALA_SHIFT_LABEL: Record<SalaShiftType, ShiftType> = {
+  M: 'Mattina',
+  P: 'Pomeriggio',
+  N: 'Notte',
+}
+
+/** Quanto dura il FLASH di «vengo da qui» (/turnisala): 3s (richiesta
+ *  19/09/2026 — lampeggio, non un contorno statico che resta). Lo leggono la
+ *  board (spegnimento) e la pagina (pulizia della URL, poco dopo) → una sola
+ *  durata, un solo posto. Deve restare allineata a `.desk-card-flash`
+ *  (app/globals.css): 4 battiti da 0,75s = 3s. */
+export const SALA_FLASH_MS = 3000
+
+export interface SalaFocus {
+  /** Mese della board da aprire (YYYY-MM). */
+  month: string
+  day: number
+  shift: SalaShiftType
+  cognome: string
+  nome: string | null
+  /** Impronta della richiesta: identifica «questa» navigazione (per non
+   *  riapplicarla a ogni render e per non ripetere l'avviso se non trovato). */
+  token: string
+}
+
+export function buildSalaFocusUrl(input: {
+  shiftDate: string
+  offeredShift: ShiftType
+  cognome: string
+  nome?: string | null
+  /** Parametri di CONTESTO della pagina di partenza da portarsi dietro (es. il
+   *  bypass del guard PWA `dev=…`, o l'impersonazione `as=…`): il salto non deve
+   *  far perdere il contesto in cui l'utente sta lavorando. I parametri della
+   *  feature (m/d/t/c/n) vincono sempre. */
+  from?: URLSearchParams | null
+}): string | null {
+  const month = input.shiftDate.slice(0, 7)
+  const day = Number(input.shiftDate.slice(8, 10))
+  const shift = SHIFT_TO_SALA[input.offeredShift]
+  if (!/^\d{4}-\d{2}$/.test(month) || !Number.isFinite(day) || day < 1 || !shift) return null
+  const params = new URLSearchParams({ m: month, d: String(day), t: shift, c: input.cognome })
+  if (input.nome) params.set('n', input.nome)
+  for (const [key, value] of input.from ?? []) {
+    if (!params.has(key)) params.set(key, value)
+  }
+  return `/turnisala?${params.toString()}`
+}
+
+export function parseSalaFocus(search: string | URLSearchParams): SalaFocus | null {
+  const params = typeof search === 'string'
+    ? new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
+    : search
+  const month = params.get('m') ?? ''
+  const day = Number(params.get('d'))
+  const shift = params.get('t') as SalaShiftType | null
+  const cognome = params.get('c') ?? ''
+  if (!/^\d{4}-\d{2}$/.test(month)) return null
+  if (!Number.isFinite(day) || day < 1 || day > 31) return null
+  if (shift !== 'M' && shift !== 'P' && shift !== 'N') return null
+  if (!cognome) return null
+  const nome = params.get('n')
+  return { month, day, shift, cognome, nome: nome || null, token: `m=${month}&d=${day}&t=${shift}&c=${cognome}&n=${nome ?? ''}` }
+}
 
 export interface ParsedShift {
   shift: SalaShiftType

@@ -896,6 +896,39 @@
     box-shadow: 0 0 0 1px var(--sala-highlight-border);
   }
 
+  /* FLASH «vengo da qui» (/turnisala, 18/09/2026; «respiro» dal 19/09/2026): la
+     card della persona che ha ceduto il cambio tappato in dashboard.
+     Il contorno è quello di casa (bordo ricolorato + anello 1px SUL bordo = 2px
+     solidi, come .desk-card-highlight); attorno pulsa un alone morbido che si
+     allarga e si dissolve (blur + spread). TRE respiri in una sola animazione da
+     3s = SALA_FLASH_MS lato JS.
+     L'ultima tappa (100%) porta a zero l'alone E il contorno/lo stesso anello
+     dello stesso fotogramma: così il bordo non sopravvive alla fine del respiro
+     (richiesta 19/09/2026: prima il contorno spariva in un momento separato,
+     quando React toglieva la classe). Per la stessa ragione il contorno NON è
+     nella regola di base ma solo dentro i keyframes: finita l'animazione non
+     resta niente da spegnere a mano (fill `both`: l'ultimo frame resta finché la
+     classe è lì).
+     position/z-index: la card emerge sulle vicine mentre l'alone sborda.
+     NIENTE `prefers-reduced-motion: none` qui: provato dal vivo, l'utente non
+     vedeva PIÙ il flash (macchina con «riduci animazioni» attivo) e restava solo
+     il contorno, che sembrava un difetto. Il respiro è un movimento lento e
+     continuo (nessun lampeggio, nessuno strobo), quindi resta anche lì. */
+  @keyframes desk-card-flash {
+    0%       { border-color: var(--sala-highlight-border); box-shadow: 0 0 0 1px var(--sala-highlight-border), 0 0 0 0 color-mix(in srgb, var(--sala-highlight-border) 40%, transparent); }
+    16.666%  { border-color: var(--sala-highlight-border); box-shadow: 0 0 0 1px var(--sala-highlight-border), 0 0 14px 4px color-mix(in srgb, var(--sala-highlight-border) 40%, transparent); }
+    33.333%  { border-color: var(--sala-highlight-border); box-shadow: 0 0 0 1px var(--sala-highlight-border), 0 0 0 0 color-mix(in srgb, var(--sala-highlight-border) 40%, transparent); }
+    50%      { border-color: var(--sala-highlight-border); box-shadow: 0 0 0 1px var(--sala-highlight-border), 0 0 14px 4px color-mix(in srgb, var(--sala-highlight-border) 40%, transparent); }
+    66.666%  { border-color: var(--sala-highlight-border); box-shadow: 0 0 0 1px var(--sala-highlight-border), 0 0 0 0 color-mix(in srgb, var(--sala-highlight-border) 40%, transparent); }
+    83.333%  { border-color: var(--sala-highlight-border); box-shadow: 0 0 0 1px var(--sala-highlight-border), 0 0 14px 4px color-mix(in srgb, var(--sala-highlight-border) 40%, transparent); }
+    100%     { border-color: transparent; box-shadow: 0 0 0 1px transparent, 0 0 0 0 transparent; }
+  }
+  .desk-card-flash {
+    position: relative;
+    z-index: 1;
+    animation: desk-card-flash 3s ease-in-out both;
+  }
+
   /* Card turni/ferie (dashboard, vacanze) — highlight temporaneo (3s), stessa tecnica
      di .desk-card-highlight (/turnisala): bordo nel colore dell'highlight + anello
      box-shadow 1px SUL bordo → contorno solido di 2px coincidente col bordo.

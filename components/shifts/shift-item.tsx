@@ -1,8 +1,13 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Pencil, Trash2, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import { getUserShiftOnDate } from '@/lib/shift-compat'
+import { buildSalaFocusUrl } from '@/lib/shift-tokens'
+import { loadShiftOnce, rememberedShift, shiftLookupKey } from '@/lib/sala-jump'
 import { formatShiftDate, formatRelativeTime, formatDisplayName, getShiftItemState, SHIFT_STATE_CLASSES, SHIFT_DATE_CLASSES, SHIFT_PILL_CLASSES } from '@/lib/utils'
 import { isAdmin } from '@/types/database'
 import type { Shift, ShiftType } from '@/types/database'
@@ -33,7 +38,12 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showRing, setShowRing] = useState(isHighlighted)
+  /* Il tap sulla data interroga i turni prima di muoversi: evita il doppio tocco
+     mentre la risposta è in volo. Da qui parte anche l'attesa VISIVA (opacità
+     della colonna) — solo quando la risposta non è già in memoria. */
+  const [verificando, setVerificando] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
   // Manager-specific state
   const [managerAction, setManagerAction] = useState<'reject' | 'confirm' | 'pending' | null>(null)
   const [rejectReason, setRejectReason] = useState('')
@@ -232,6 +242,74 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
 
   const displayName = formatDisplayName(shift.user, duplicateCognomi)
 
+  /**
+   * DALLA CARD AL TURNO IN SALA (richiesta 18/09/2026).
+   *
+   * Tap sulla colonna della DATA (o sull'ordinale, per i cambi successivi dello
+   * stesso giorno) → /turnisala aperta sul GIORNO della card e sul turno M/P/N del
+   * turno OFFERTO («cedo Mattina» → turno M), con la persona che cede evidenziata:
+   * la board trova la sua card di sezione e la illumina.
+   *
+   * PRIMA DI PARTIRE si CHIEDE AI TURNI se quella persona ha davvero quel turno
+   * quel giorno (PDF del mese, altrimenti rotazione teorica: la stessa fonte che
+   * alimenta /turnisala). Se non ce l'ha si RESTA QUI e lo si dice — mandare
+   * l'utente su una board che non illumina niente è peggio che non muoversi
+   * (richiesta 19/09/2026).
+   * Il resto della card continua ad aprire il pannello come prima.
+   *
+   * ISTANTANEO (richiesta 19/09/2026): la verifica PARTE GIÀ al pointerdown e il
+   * suo esito resta in memoria per persona+giorno (`lib/sala-jump.ts`), così il
+   * click è un salto senza attesa: la promessa è la stessa che il dito ha già
+   * avviato (o la risposta è già lì).
+   */
+  const salaKey = shift.shift_date ? shiftLookupKey(shift.user_id, shift.shift_date) : ''
+  const loadShift = () => {
+    const date = shift.shift_date
+    if (!date) return Promise.resolve<ShiftType | null>(null)
+    return getUserShiftOnDate(createClient(), shift.user_id, date).then(s => s.shift)
+  }
+  /** Scalda la verifica (pointerdown / tastiera); se la risposta è già nota non
+   *  tocca la rete. Gli errori li decide il click, che rilancia la stessa promessa. */
+  function scaldaVerifica() {
+    if (!salaKey || verificando) return
+    void loadShiftOnce(salaKey, loadShift).catch(() => {})
+  }
+  async function vaiInSala() {
+    if (!salaKey || verificando) return
+    // Risposta già in memoria: nessun segnale d'attesa da mostrare, il salto è
+    // immediato (l'await di una promessa risolta si chiude nello stesso tick).
+    setVerificando(rememberedShift(salaKey) === undefined)
+    const apriSala = () => {
+      const url = buildSalaFocusUrl({
+        shiftDate: shift.shift_date,
+        offeredShift: shift.offered_shift,
+        cognome: shift.user?.cognome ?? '',
+        nome: shift.user?.nome,
+        // Contesto della dashboard (bypass del guard PWA, impersonazione): senza,
+        // il salto in un browser normale (anteprima, desktop) atterra sul guard.
+        from: new URLSearchParams(window.location.search),
+      })
+      if (url) router.push(url)
+    }
+    try {
+      const turno = await loadShiftOnce(salaKey, loadShift)
+      if (turno !== shift.offered_shift) {
+        // toast.error, NON info: è un avvertimento (richiesta 19/09/2026) e con
+        // `richColors` acceso su <Toaster> l'errore è l'unico tono ROSSO, in
+        // chiaro e in scuro senza CSS nostro.
+        toast.error(`Dai turni non risulta che ${displayName} abbia ${shift.offered_shift} il giorno ${day}.`)
+        return
+      }
+      apriSala()
+    } catch {
+      // Rete o mese illeggibile: si va comunque in sala (la board sa spiegarsi
+      // da sé se non trova nessuno).
+      apriSala()
+    } finally {
+      setVerificando(false)
+    }
+  }
+
   return (
     <div
       ref={cardRef}
@@ -271,13 +349,32 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
             shift.is_pending && 'pending-overlay',
           )}
           onClick={() => setExpanded(v => !v)}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
+        onKeyDown={e => {
+          // Solo la RIGA stessa: senza questo guard, Enter/Space su un controllo
+          // dentro la card (la data che porta in sala, «Mi interessa») risaliva
+          // fino a qui e apriva ANCHE il pannello.
+          if (e.target !== e.currentTarget) return
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) }
+        }}
       >
-        {/* Date block */}
-        <div className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass,
-          // A riposo (25/08/2026) niente separatore nella colonna data: il gruppo di card
-          // dello stesso giorno è un blocco unico, nessuna linea identifica la parte compressa.
-        )}>
+        {/* Date block — È UN BOTTONE (richiesta 18/09/2026): tappare qui NON apre
+            la card, porta al turno corrispondente in /turnisala. Vale anche per
+            l'ordinale («2°») dei cambi successivi nello stesso giorno. */}
+        <button
+          type="button"
+          // Il dito che scende sulla data avvia la verifica: quando il click
+          // arriva, la risposta è già in memoria o in volo (salto istantaneo).
+          onPointerDown={scaldaVerifica}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') scaldaVerifica() }}
+          onClick={e => { e.stopPropagation(); void vaiInSala() }}
+          disabled={verificando}
+          aria-busy={verificando}
+          aria-label={`Vedi in sala: turno ${shift.offered_shift} del ${day} ${month} di ${displayName}`}
+          className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3 cursor-pointer',
+            verificando && 'opacity-60', dateBgClass,
+            // A riposo (25/08/2026) niente separatore nella colonna data: il gruppo di card
+            // dello stesso giorno è un blocco unico, nessuna linea identifica la parte compressa.
+          )}>
           {!shift.is_pending && isManagerView && hasInterest && <span className="absolute inset-0 confirm-overlay pointer-events-none" />}
           {shift.is_pending && <span className="absolute inset-0 pending-overlay pointer-events-none" />}
           {dateIndex > 0 ? (
@@ -291,7 +388,7 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
               <span className="text-[9px] uppercase tracking-wide text-muted-foreground mt-0.5">{month}</span>
             </>
           )}
-        </div>
+        </button>
 
         {/* Content */}
         <div className={cn('flex items-center gap-2 px-3 py-2.5 flex-1 min-w-0',

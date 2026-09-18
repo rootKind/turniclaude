@@ -39,6 +39,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast: "cn-toast",
+          // Testo dei popup: se la frase non ci sta in una riga, va a capo in
+          // modo EQUILIBRATO (due righe di lunghezza simile) invece di lasciare
+          // l'ultima parola da sola su una seconda riga (richiesta 19/09/2026).
+          // `text-wrap: balance` non AGGIUNGE righe: se la frase ci sta, resta
+          // su una riga; se non ci sta, la divide in parti pari.
+          title: "text-balance",
+          description: "text-balance",
         },
       }}
       {...props}

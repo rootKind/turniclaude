@@ -4,6 +4,11 @@ import { buildDuplicateCognomi, matchesCognome } from '@/lib/utils'
 import { buildBareOwners } from '@/lib/shift-teams-matching'
 import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { buildScheduleFromMonthData, isSalaMonthData } from '@/lib/sala-month'
+// La mappa vive in lib/shift-tokens (modulo senza dipendenze server): la usa anche
+// il client, per saltare dalla card di un cambio al turno della board. Qui si
+// ri-esporta per non cambiare i punti di import esistenti.
+import { SHIFT_TO_SALA } from '@/lib/shift-tokens'
+export { SHIFT_TO_SALA }
 
 /**
  * La colonna `sala_schedule.schedule` contiene il formato compatto v2
@@ -42,12 +47,6 @@ export interface ShiftRequestRow {
   shift_date: string
   requested_shifts: ShiftType[]
   user: Pick<UserProfile, 'id' | 'nome' | 'cognome'> | null
-}
-
-export const SHIFT_TO_SALA: Record<ShiftType, SalaShiftType> = {
-  Mattina: 'M',
-  Pomeriggio: 'P',
-  Notte: 'N',
 }
 
 const SHIFT_SELECT = `

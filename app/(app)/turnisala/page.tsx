@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/types/database'
 
@@ -39,18 +40,23 @@ export default async function TurniSalaPage() {
       : null
 
   return (
-    <SalaPageClient
-      layout={layout}
-      isAdmin={admin}
-      isManager={manager}
-      userId={user?.id ?? ''}
-      userCognome={userProfile?.cognome ?? undefined}
-      userNome={userProfile?.nome ?? undefined}
-      initialSchedule={initialSchedule}
-      initialMonth={initialMonth}
-      scheduleMonths={scheduleMonths}
-      theoreticalMonths={theoreticalMonths}
-      initialShiftTree={shiftTree}
-    />
+    // Suspense: SalaPageClient legge i parametri della URL (arrivo da una card di
+    // cambio, «vengo da qui»). Senza confine, una pagina con useSearchParams non
+    // può essere prerenderizzata (stesso schema della dashboard).
+    <Suspense fallback={null}>
+      <SalaPageClient
+        layout={layout}
+        isAdmin={admin}
+        isManager={manager}
+        userId={user?.id ?? ''}
+        userCognome={userProfile?.cognome ?? undefined}
+        userNome={userProfile?.nome ?? undefined}
+        initialSchedule={initialSchedule}
+        initialMonth={initialMonth}
+        scheduleMonths={scheduleMonths}
+        theoreticalMonths={theoreticalMonths}
+        initialShiftTree={shiftTree}
+      />
+    </Suspense>
   )
 }
