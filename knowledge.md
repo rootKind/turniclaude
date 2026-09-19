@@ -2796,8 +2796,8 @@ inerte, quindi il fallimento non poteva venire da 6c). Ora l'attesa è 45s, il t
 240s, e il messaggio di fallimento porta con sé la DIAGNOSI: il mese a schermo della toolbar e gli
 avvisi presenti. Sul giro successivo: **180 passati / 8 saltati**, zero falliti.
 
-Stato: i punti 1–5 e 6–6b sono **committati e pushati su dev** (`e1b1f9d`, 14 file). Il punto 6c
-(la regola del roster estesa alle schermate) è su disco **non committato**:
+Stato: i punti 1–5 e 6–6b sono in `e1b1f9d` (14 file), i punti 6c–6d in `df6c967` (11 file) —
+entrambi **pushati su dev**, nessun merge su `master`. I file di 6c/6d sono:
 `lib/shift-teams-matching.ts`, `lib/person-shift.ts`, `lib/shift-compat.ts`,
 `app/(app)/tuoturno/page.tsx`, `components/sala/desk-board.tsx`,
 `components/shifts/shift-dialog.tsx`, `lib/queries/shift-cleanup.ts`,
