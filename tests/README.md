@@ -77,7 +77,15 @@ che compilano e navigano insieme sporcherebbero la misura.
   gli spec sulla board (`employee-session.ts`), incluso il vecchio
   `pages.spec.ts` che prima aveva `:3000` scritto dentro. I test sui MOCKUP
   invece sono file statici (`file://`): girano anche senza server.
-- **Browser**: `npx playwright install chromium` (una volta per macchina).
+- **Browser**: `npx playwright install chromium` **e** `npx playwright install webkit` (una volta
+  per macchina). Servono entrambi: il progetto **`ios`** (25/09/2026) rifà su WebKit — il motore di
+  Safari/iPhone — le spec del salto in sala e della board (`card-cambio-to-sala`, `sala-mese-da-cache`,
+  `sala-card-presence`, `dipendente`, `chip-gialle`), con un iPhone 13 emulato. Su WebKit il service
+  worker dell'app prende il controllo della pagina: il progetto lo blocca (`serviceWorkers: 'block'`),
+  altrimenti le richieste NON passano dai `route` del contesto e il popup del changelog che
+  `browser-setup.ts` spegne si riapre, rendendo inerte la pagina e bloccando i click dei test. Le
+  stesse spec girano su entrambi i motori: un comportamento che regge solo su uno è un difetto che non
+  abbiamo (dettagli e storia in `knowledge.md`, «Il motore di iOS entra nella suite»).
 
 ## Cosa copre
 
@@ -89,7 +97,7 @@ che compilano e navigano insieme sporcherebbero la misura.
 | gialli + evidenzia | `http://localhost:3000/turnisala` | `dipendente.spec.ts`: entrando COME il dipendente, la sua card si evidenzia (giallo richiedente e sostituto) e niente falsi positivi |
 | codici lunghi | `http://localhost:3000/tuoturno` | `tuoturno.spec.ts`: MM3M40/MDCCM… non tagliati nella griglia dei giorni, da 320px a 1280px |
 | chip gialle + scroll | `http://localhost:3000/turnisala` | `chip-gialle.spec.ts`: le chip non escono dalla card (320→1280px) e la pagina scorre sui display bassi |
-| pannello notifiche | `http://localhost:3000/admin` | `notifiche.spec.ts`: il registry mostra anche i messaggi ferie decisi dal manager (etichette, variabili e anteprima). Sola lettura. Il contratto (`scripts/check-notif-templates.mjs`) copre anche il push «novità» del changelog e l'interesse compatibile (23 messaggi) |
+| pannello notifiche | `http://localhost:3000/admin` | `notifiche.spec.ts`: il registry mostra anche i messaggi ferie decisi dal manager (etichette, variabili e anteprima). Sola lettura. Il contratto (`scripts/check-notif-templates.mjs`) copre anche il push «novità» del changelog e il nuovo turno compatibile col filtro «solo se posso coprirlo» (23 messaggi; verifica anche che il route del nuovo turno risolva INSIEME il generico e il dedicato) |
 | card scoperte (regola) | nessuno — logica pura | `sala-scoperto.spec.ts`: sotto il minimo è scoperta, il giallo non si somma al minimo, storia datata dei minimi (1 s, nessun DB) |
 | minimi per card (admin) | `http://localhost:3000/turnisala` | `minimi.spec.ts`: dal mini-Fab admin al salvataggio fino alla segnalazione «— scoperto» (chip o testo); include il caso PERIODO per casella (a 0 = scoperta da programma). SCRIVE e RIPRISTINA la piantina |
 | card scoperte (logica T/S) | nessuno — logica pura | `sala-scoperto.spec.ts` (sezione «titolare o sussidio» e «periodi per casella»): quale POSTO manca, confini dei periodi (inizio dal proprio turno, fine inclusa), precedenza periodo > voce > default |

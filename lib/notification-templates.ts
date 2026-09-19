@@ -114,6 +114,18 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
     label: 'Nuovo turno (senza data)', type: 'new_shift', source: 'Pubblica cambio (dashboard)',
     context: 'Quando la data del turno non è nota',
   },
+  // Variante FILTRATA (richiesta 25/09/2026): chi ha «Solo se posso coprirlo»
+  // (notify_shift_filter) riceve il nuovo turno solo se il SUO turno del giorno
+  // offerto è fra i turni cercati — e il messaggio lo DICE, col turno effettivo.
+  // Prima il filtro agiva ma il testo restava quello generico: chi lo riceveva
+  // non sapeva perché, né vedeva il proprio turno. È la variante che vive SOLO
+  // qui (l'interesse non ha una variante compatibile: vedi la nota più sotto).
+  {
+    key: 'new_shift.compatible.title', title: 'Nuovo turno che puoi coprire',
+    body: '{cognome_attore} cede {turno} il {data}: quel giorno sei in {turno_effettivo}, uno dei turni che cerca ({turno_cercati})',
+    label: 'Nuovo turno compatibile col tuo turno', type: 'new_shift', source: 'Pubblica cambio (dashboard)',
+    context: 'Ai dipendenti con «Solo se posso coprirlo» attivo, quando il LORO turno del giorno offerto è fra i turni cercati',
+  },
   {
     key: 'interest.title', title: 'Nuovo interesse al tuo turno',
     // «cerca» senza soggetto si leggeva come se fosse l'INTERESSATO a cercare i
@@ -129,15 +141,11 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
     label: 'Interesse (senza dettagli)', type: 'interest', source: 'Pulsante «Mi interessa»',
     context: 'Quando data/turni non sono noti',
   },
-  // Variante FILTRATA (richiesta 16/09/2026): per chi ha «Solo se posso coprirlo»
-  // (notify_shift_filter), l'interesse arriva solo se il turno del destinatario
-  // nel giorno offerto è fra i turni cercati — e il messaggio lo dice.
-  {
-    key: 'interest.compatible.title', title: 'Interesse su un cambio che puoi coprire',
-    body: '{cognome_attore} è interessato al tuo {turno} del {data}: il {data} sei in {turno_effettivo}, uno dei turni che cercavi ({turno_cercati})',
-    label: 'Interesse compatibile col tuo turno', type: 'interest', source: 'Pulsante «Mi interessa» (filtro attivo)',
-    context: 'Al creatore con «Solo se posso coprirlo» attivo, quando la sua compatibilità è vera',
-  },
+  // NESSUN messaggio «compatibile» per l'INTERESSE (rimosso il 25/09/2026): chi si
+  // interessa alla mia proposta mi dà uno dei turni che avevo chiesto, quindi la
+  // compatibilità è implicita nel gesto — non c'è niente da filtrare né da spiegare.
+  // Il filtro «solo se posso coprirlo» (notify_shift_filter) vive solo sui NUOVI
+  // turni, dove invece spiega perché la notifica è arrivata (new_shift.compatible).
   {
     key: 'pending.title', title: 'Cambio in attesa di conferma',
     body: 'Il cambio {turno} del {data} con {cognome_attore} non può essere ancora accettato perché ci sono scorte disponibili',

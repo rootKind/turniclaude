@@ -139,27 +139,34 @@ export function SalaPageClient({
   // Il restore da IDB può essere leggermente meno fresco dell'SSR solo se un
   // ALTRO dispositivo ha modificato le squadre mentre l'app era chiusa: la
   // finestra è ≤6h (poi riconvalida) e guarisce al primo evento realtime.
-  const refreshedTree = useShiftTeamTreeData()
-  useEffect(() => {
-    if (!refreshedTree) return
-    setShiftTree(refreshedTree)
-    // Il mese corrente è teorico e non è ancora stato generato: rigenera ora.
-    if (!scheduleRef.current) {
-      mettiMese(generateTheoreticalMonth(currentMonthRef.current, refreshedTree, refreshedTree.adjustments))
-    }
-  }, [refreshedTree])
-
-  const handleSaveLayout = async (updated: SalaLayout) => {
-    const supabase = createClient()
-    await upsertSalaLayout(supabase, updated, userId)
-  }
-
   const isTheoretical = (month: string) => theoreticalMonths.includes(month)
   // Mese caricato a mano nel DB (PDF): per questi ha senso interrogare la tabella.
   // TUTTI gli altri (anche fuori dalla lista finita theoreticalMonths, che copre
   // solo mese−1..+12) sono teorici: generarli e NON sovrascriverli con il
   // risultato del fetch (che per mesi mai caricati è null = board vuota).
   const isUploaded = (month: string) => availableMonths.includes(month)
+
+  const refreshedTree = useShiftTeamTreeData()
+  useEffect(() => {
+    if (!refreshedTree) return
+    setShiftTree(refreshedTree)
+    // Il mese corrente è teorico e non è ancora stato generato: rigenera ora.
+    // SOLO se il mese NON è caricato (è il caso per cui questo effetto esiste):
+    // per un mese con PDF questa era una copia PREVISTA messa a schermo mentre la
+    // vera stava ancora arrivando — e la board ci GIUDICAVA SOPRA: l'avviso «non è
+    // in sala» su una persona che nel PDF c'è (riprodotto su 2026-03: pillola
+    // accesa e avviso insieme). La copia locale già non decide (scheduleFresco);
+    // una copia INVENTATA non deve decidere ancora di più.
+    if (!scheduleRef.current && !isUploaded(currentMonthRef.current)) {
+      mettiMese(generateTheoreticalMonth(currentMonthRef.current, refreshedTree, refreshedTree.adjustments))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshedTree])
+
+  const handleSaveLayout = async (updated: SalaLayout) => {
+    const supabase = createClient()
+    await upsertSalaLayout(supabase, updated, userId)
+  }
 
   const handleMonthChange = async (month: string) => {
     setCurrentMonth(month)
@@ -189,7 +196,12 @@ export function SalaPageClient({
         if (userId) writeCachedSchedule(userId, data)
       } else if (!cached && shiftTree) {
         // Mese rimosso dal DB ma non più in cache: fallback teorico.
-        mettiMese(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments))
+        // NON confermato (`false`): è una PREVISIONE su un mese che il DB dà per
+        // caricato (il caso tipico è un PDF cancellato da un altro dispositivo,
+        // con l'elenco dei mesi ancora vecchio). Marcarla fresca la farebbe
+        // GIUDICARE dalla board — «non è in sala» su una persona che nel PDF
+        // c'era, la stessa famiglia di bug dell'inventato (vedi sopra).
+        mettiMese(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments), false)
       }
     } catch {
       // Rete giù: la copia cache (se c'era) resta a schermo.

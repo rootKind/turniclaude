@@ -1,5 +1,5 @@
 import type { DaySchedule, SalaMonthData } from '@/types/database'
-import { NON_SECTION_DUTIES, applyTokenToDay, isPresentNoSection, isShiftWorkCode, parseShiftCode } from '@/lib/shift-tokens'
+import { NON_SECTION_DUTIES, applyTokenToDay, isPresentNoSection, isShiftWorkCode, parseShiftCode, sectionTurnOf } from '@/lib/shift-tokens'
 import { matchesCognome } from '@/lib/utils'
 import { personNameMatches, type PersonRef } from '@/lib/person-shift'
 import type { BareOwnerMap } from '@/lib/shift-teams-matching'
@@ -165,6 +165,37 @@ export function salaCodeInfo(token: string | null | undefined): SalaCodeInfo {
 export interface PersonDayShift extends SalaCodeInfo {
   /** Giorno con sfondo giallo nel PDF: «turno da confermare». */
   pending: boolean
+}
+
+/**
+ * LA FRASE DELL'AVVISO QUANDO LA BOARD NON DISEGNA LA PERSONA (richiesta
+ * 19/09/2026). Prima si diceva sempre la stessa cosa — «la persona non compare in
+ * questa sezione» — anche quando il PDF diceva benissimo perché: riposo, ferie,
+ * una sezione senza card nella piantina, un codice che la board non mostra. Ora si
+ * nomina il CODICE del giorno, che è l'informazione che serve a chi guarda.
+ *
+ * `suUnaCard` = la sezione di quel codice HA una card nella piantina: allora la
+ * persona c'è ma sotto un altro turno (o con un nome che la board non ha saputo
+ * riconoscere) e la frase lo dice. Fuori da quel caso non serve.
+ */
+export function spiegaCodiceNonMostrato(code: string, suUnaCard = false): string {
+  const info = salaCodeInfo(code)
+  if (info.kind === 'rest') return `quel giorno è di riposo (${code})`
+  if (info.kind === 'availability') return `quel giorno è in disponibilità (${code})`
+  if (info.kind === 'absence') {
+    // «Altre presenze» e «Assenza» sono già assenze: «assente per assenza (AG)»
+    // sarebbe una frase che non dice niente.
+    const etichetta = info.label.toLowerCase()
+    const per = etichetta === 'altre presenze' || etichetta === 'assenza' ? '' : ` per ${etichetta}`
+    return `quel giorno è assente${per} (${code})`
+  }
+  const sez = sectionTurnOf(code)
+  if (sez) {
+    return suUnaCard
+      ? `quel giorno è in sezione «${sez.section}» (${code})`
+      : `quel giorno è in sezione «${sez.section}» (${code}), che non ha una card sulla board`
+  }
+  return `quel giorno ha «${code}» in turni, un codice che la board non mostra`
 }
 
 /**

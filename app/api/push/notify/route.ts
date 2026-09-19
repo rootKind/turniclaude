@@ -78,11 +78,13 @@ export async function POST(req: Request) {
     // restano fuori da questo controllo.
     const requestedList = Array.isArray(requestedShifts) ? (requestedShifts as ShiftType[]) : []
     const filterIds = eligible.filter(t => t.notify_shift_filter === true).map(t => t.id)
-    const compatByUser = new Map<string, boolean>()
+    // Del turno trovato si tiene anche QUALE turno è: il messaggio dedicato lo
+    // dice all'utente («quel giorno sei in …»), come fa l'interesse compatibile.
+    const compatByUser = new Map<string, { copre: boolean; shift: ShiftType | null }>()
     if (filterIds.length && shiftDate && typeof shiftDate === 'string' && requestedList.length) {
       await Promise.all(filterIds.map(async id => {
         const mine = await getUserShiftOnDate(supabase, id, shiftDate)
-        compatByUser.set(id, userCoversRequest(mine.shift, requestedList))
+        compatByUser.set(id, { copre: userCoversRequest(mine.shift, requestedList), shift: mine.shift })
       }))
     }
 
@@ -90,25 +92,37 @@ export async function POST(req: Request) {
       const dateLabel = shiftDate ? formatDateShort(shiftDate as string) : ''
       // Applica il filtro di compatibilità (default false = riceve tutto, come prima).
       const finalTargets = eligible.filter(t =>
-        t.notify_shift_filter !== true || compatByUser.get(t.id) === true,
+        t.notify_shift_filter !== true || compatByUser.get(t.id)?.copre === true,
       )
       const requestedLabel = Array.isArray(requestedShifts) ? (requestedShifts as string[]).join('/') : ''
       // Testo da registry (override admin → default), con caduta «senza data».
       const overrides = await loadNotifOverrides()
       const actor = typeof actorName === 'string' ? actorName : ''
       const offered = typeof offeredShift === 'string' ? offeredShift : ''
-      const msg = dateLabel
+      const generico = dateLabel
         ? messageFor(overrides, 'new_shift.title', {
             cognome_attore: actor, data: dateLabel, turno: offered, turno_cercati: requestedLabel,
           })
         : messageFor(overrides, 'new_shift.fallback.title', { cognome_attore: actor })
-      const payload = {
-        title: msg.title,
-        body: msg.body,
-        type: 'new_shift',
-        shiftId: shiftId ? Number(shiftId) : null,
-      }
-      await Promise.allSettled(finalTargets.map(t => pushToUser(t.id, payload)))
+      // Il messaggio si sceglie PER DESTINATARIO: chi è passato attraverso il filtro
+      // «solo se posso coprirlo» riceve il testo DEDICATO, che spiega perché lo sta
+      // ricevendo e gli dice il proprio turno di quel giorno. Prima il filtro agiva
+      // e il testo restava generico (richiesta 25/09/2026).
+      await Promise.allSettled(finalTargets.map(t => {
+        const compat = t.notify_shift_filter === true ? compatByUser.get(t.id) : undefined
+        const msg = dateLabel && compat?.copre && compat.shift
+          ? messageFor(overrides, 'new_shift.compatible.title', {
+              cognome_attore: actor, turno: offered, data: dateLabel,
+              turno_effettivo: compat.shift, turno_cercati: requestedLabel,
+            })
+          : generico
+        return pushToUser(t.id, {
+          title: msg.title,
+          body: msg.body,
+          type: 'new_shift',
+          shiftId: shiftId ? Number(shiftId) : null,
+        })
+      }))
     }
   } else if (type === 'interest') {
     // Notify the shift owner if they have the master switch + interest opt-in
@@ -124,7 +138,7 @@ export async function POST(req: Request) {
 
     const { data: owner } = await supabase
       .from('users')
-      .select('id, notify_on_interest, notification_enabled, notify_shift_filter')
+      .select('id, notify_on_interest, notification_enabled')
       .eq('id', shift.user_id)
       .single()
 
@@ -139,30 +153,12 @@ export async function POST(req: Request) {
     const actor = typeof actorName === 'string' ? actorName : ''
     const offered = (shift.offered_shift as string) ?? ''
 
-    // FILTRO «solo se posso coprirlo» anche sull'INTERESSE (richiesta 16/09/2026):
-    // il proprietario con notify_shift_filter riceve l'avviso solo se il SUO turno
-    // del giorno offerto (reale dal PDF, altrimenti teorico) è fra i turni cercati
-    // — la stessa nozione di compatibilità del filtro sui nuovi turni. Il messaggio
-    // dedicato dice ANCHE il turno che il proprietario ha quel giorno.
-    if (owner.notify_shift_filter === true && shift.shift_date && typeof shift.shift_date === 'string' && Array.isArray(shift.requested_shifts) && shift.requested_shifts.length) {
-      const mine = await getUserShiftOnDate(supabase, owner.id, shift.shift_date)
-      const copre = userCoversRequest(mine.shift, shift.requested_shifts as ShiftType[])
-      if (!copre) return NextResponse.json({ sent: 0, filtered: true })
-      const msg = dateLabel
-        ? messageFor(overrides, 'interest.compatible.title', {
-            cognome_attore: actor, turno: offered, data: dateLabel,
-            turno_effettivo: mine.shift ?? '', turno_cercati: requestedLabel,
-          })
-        : messageFor(overrides, 'interest.fallback.title', { cognome_attore: actor })
-      await pushToUser(owner.id, {
-        title: msg.title,
-        body: msg.body,
-        type: 'interest',
-        shiftId: Number(shiftId),
-      })
-      return NextResponse.json({ ok: true, filtered: true })
-    }
-
+    // L'INTERESSE NON È FILTRATO — e non ha un messaggio «compatibile» (25/09/2026).
+    // Il filtro «solo se posso coprirlo» serve a chi riceve una PROPOSTA NUOVA altrui:
+    // lì dire «quel giorno sei in X, uno dei turni che cerca» spiega perché la
+    // notifica arriva. Sull'INTERESSE la compatibilità è implicita nel gesto: chi si
+    // interessa alla mia proposta mi dà uno dei turni che ho chiesto, quindi non c'è
+    // niente da filtrare né da spiegare — la variante dedicata era codice morto.
     const msg = dateLabel
       ? messageFor(overrides, 'interest.title', {
           cognome_attore: actor, turno: offered, data: dateLabel, turno_cercati: requestedLabel,

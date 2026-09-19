@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test'
+import { defineConfig, devices } from '@playwright/test'
 import { existsSync, readFileSync } from 'node:fs'
 
 // Playwright non legge i file .env: carica .env.e2e (git-ignored) se presente,
@@ -42,6 +42,15 @@ const authState = 'tests/.auth-state.json'
  * giunta in modo GLOBALE (un minimo «valido dal 17/9» vale anche per i giorni
  * che gli altri spec leggono). Per questo vive in un progetto suo, dichiarato
  * DOPO gli altri: la dipendenza lo fa partire quando il resto ha finito.
+ *
+ * IL MOTORE DI iOS (25/09/2026): il progetto `ios` rifà su WebKit — il motore di
+ * Safari/iPhone — le spec del SALTO IN SALA e della BOARD. Non è pignoleria: su
+ * WebKit cambiano proprio le cose su cui si giocano i difetti segnalati dai
+ * telefoni (IndexedDB cancellato da ITP, timer sospesi della pagina in pausa,
+ * navigazioni di storia), e senza questo progetto quelle strade erano coperte da
+ * una config temporanea, una volta sola. Si installa con
+ * `npx playwright install webkit` (una volta per macchina) e i file elencati
+ * girano su ENTRAMBI i motori (chromium e ios): è la stessa spec, due engine.
  */
 export default defineConfig({
   testDir: './tests',
@@ -60,6 +69,28 @@ export default defineConfig({
       name: 'chromium',
       testIgnore: [/auth\.setup\.ts/, /minimi\.spec\.ts/, /perf\.spec\.ts/],
       use: { browserName: 'chromium' },
+    },
+    {
+      // SALTO IN SALA + BOARD sul motore di iOS (vedi l'intestazione): WebKit con
+      // un iPhone emulato. Le stesse spec girano anche in `chromium` — un
+      // comportamento che regge solo su un motore è un difetto che non abbiamo.
+      name: 'ios',
+      testMatch: [
+        /card-cambio-to-sala\.spec\.ts/,
+        /sala-mese-da-cache\.spec\.ts/,
+        /sala-card-presence\.spec\.ts/,
+        /dipendente\.spec\.ts/,
+        /chip-gialle\.spec\.ts/,
+      ],
+      // `serviceWorkers: 'block'` NON è un dettaglio: su WebKit il service worker
+      // dell'app (quello delle push) prende il controllo della pagina e le sue
+      // richieste NON passano da `context.route` — quindi il blocco di
+      // `/api/changelog` che in `tests/browser-setup.ts` spegne il popup «Novità di
+      // questa versione» NON lo spegneva: il popup si apriva, il suo overlay rendeva
+      // inerte la pagina e i click dei test restavano appesi fino al timeout
+      // (25/09/2026, tre spec di `dipendente.spec.ts` bloccate così). Le push non
+      // sono coperte da queste spec: il worker si può bloccare senza perdere niente.
+      use: { ...devices['iPhone 13'], browserName: 'webkit', serviceWorkers: 'block' },
     },
     {
       // Scrive nel database: seriale e dopo tutto il resto (vedi sopra).

@@ -1491,6 +1491,12 @@ proxy.ts        middleware di Next.js 16 (in Next 16 middleware.ts è rinominato
   nuovi turni — e riceve il messaggio DEDICATO `interest.compatible.title`, che
   dice anche il turno effettivo: «il 23/09 sei in Pomeriggio». Messaggi in
   registry: 23. Nota: `filtered: true` nella risposta quando il filtro scarta.
+  **RIMOSSO il 25/09/2026** per decisione dell'utente: sull'interesse la
+  compatibilità è implicita nel gesto (chi si interessa alla mia proposta mi dà
+  uno dei turni che ho chiesto), quindi non c'è niente da filtrare né da
+  spiegare — l'interesse torna a essere SEMPRE generico e il filtro
+  `notify_shift_filter` vive solo sui nuovi turni altrui
+  (`new_shift.compatible.title`).
   (3) PROMEMORIA PERMESSI: `components/providers/push-permission-prompt.tsx`,
   montato nel layout (app): a 2,5 s dall'avvio, se `Notification.permission` è
   `default` o `denied` (con snooze 7 giorni via localStorage
@@ -2443,10 +2449,195 @@ codici senza turno (`SpN`, `ISpNw`, `DisCas`, `GTUTOR`) no. In `tests/card-cambi
 spec nuova «chi è presente senza sezione si accende nella PILLOLA e l'avviso giallo non esce»: prende
 dai mesi veri una persona con token senza sezione (nella dev di oggi: PASSANNANTI `SpN` al 18/03),
 apre la URL del focus, pretende che l'evidenzia sia la pillola (non dentro `.sala-card-bg`,
-`animationName` = `desk-card-flash`) e CAMPIONA due volte l'assenza dell'avviso — appena appare
-l'evidenzia e alla fine del respiro. **Come si scrive questo test (lezione):** `toHaveCount(0)` qui
-NON morde — aspettando la scomparsa di un avviso già comparso passerebbe comunque, e l'avviso esce
-INSIEME all'evidenzia (~600 ms, misurato con una sonda a 250 ms); servono campioni puntuali
-(`expect(await locator.count()).toBe(0)`). Verificato che morda: con `flashInAltri` disattivato
-fallisce con «la board ha dichiarato «non è in sala» su una persona che era lì (avviso uscito con
-l'evidenzia)».
+`animationName` = `desk-card-flash`) e che in TUTTA la vita della pagina nessun avviso dica «non è in
+sala» (vedi «COME SI GUARDA UN POPUP CHE SPARISCE» qui sotto). Morso verificato: con `flashInAltri`
+disattivato la spec fallisce proprio su quell'elenco, mostrando anche il testo dell'avviso («quel giorno
+ha «SpN» in turni, un codice che la board non mostra»).
+
+**COME SI GUARDA UN POPUP CHE SPARISCE (lezione di test, 19/09/2026).** Le due letture puntuali
+(`expect(await avviso.count()).toBe(0)`) NON bastavano: l'avviso poteva uscire in un istante non
+campionato (è quello che è successo: falliva 1 volta su 4, e non sempre allo stesso punto). Ora la spec
+della pillola installa un **MutationObserver PRIMA che l'app parta** (`page.addInitScript`) che registra
+OGNI `[data-sonner-toast]` inserito, con una seconda lettura a 200 ms; alla fine si pretende che
+nessuno di quelli registrati dica «non è in sala». Due trappole già pagate: (a) `innerText` di un nodo
+STACCATO è vuoto — sonner smonta il popup e la raccolta resterebbe muta (falso verde): si legge
+`textContent`; (b) il popup può essere inserito prima del testo — da qui la seconda lettura. La stessa
+spec rallenta di 1,2 s la richiesta del mese (caso vero: link condiviso, mese mai aperto, rete lenta).
+
+**L'AVVISO RESIDUO DICE DOVE LA PERSONA È (richiesta 19/09/2026, stesso giro).** Quando la board non
+ha niente da accendere, la frase non è più il generico «la card è quella del cambio, ma la persona non
+compare in questa sezione»: nomina il CODICE del giorno tradotto in parole. La traduzione vive in una
+funzione PURA, `spiegaCodiceNonMostrato(code, suUnaCard)` in `lib/sala-month.ts` (accanto a
+`salaCodeInfo`, da cui prende l'etichetta), così ogni forma è coperta da test di logica e non serve un
+browser: `RI`/`RC`/`RM` → «quel giorno è di riposo (RI)», `D` → «in disponibilità (D)», `A`/`AG7` →
+«assente (A)» (NIENTE «assente per assenza», che non dice niente: «Altre presenze» e «Assenza» non
+prendono il «per»), `F`/`F.E.` → «assente per ferie (F)», `VS` → «assente per visita sanitaria (VS)»,
+sezione con card → «è in sezione «7» (M7S)» (la persona c'è ma sotto un ALTRO turno, o con un nome che
+la board non ha riconosciuto), sezione SENZA card → «…, che non ha una card sulla board», codice che la
+board non disegna (`G`, `GIAP`, `MSb`, `12.14`, `Na`) → «ha «G» in turni, un codice che la board non
+mostra». Se il codice non c'è affatto (mese teorico, nome non trovato): «quel giorno non risulta in
+turno in questo mese».
+
+Il codice si legge dai dati del MESE A SCHERMO (`decodeSalaMonth(schedule.data)`, la stessa fonte di
+gialli e assenti) con la regola della VERIFICA (`personNameMatches`): così la frase non è mai più
+severa del salto che ha portato lì, e un omonimo che la board non ha saputo evidenziare viene comunque
+nominato con la sua sezione. `suUnaCard` lo calcola la board dai `displayCards` (`sectionKey ?? title`),
+cioè la piantina. Prove: `tests/sala-card-presence.spec.ts` (9 spec: la nuova
+«quando la board non disegna la persona, l'avviso dice DOVE la persona è» copre tutte le forme, incluse
+le due della sezione e i codici invisibili) e in `tests/card-cambio-to-sala.spec.ts` la spec E2E
+«quando non c'è niente da accendere, l'avviso dice DOVE la persona è davvero», che prende una richiesta
+VERA la cui persona non è disegnata dalla board (nella dev di oggi: Piscopo, 29/09, codice `A`) e
+pretende il codice fra parentesi, nessuna frase generica e il punto finale — misurato dal vivo:
+«Nicola Piscopo non è in sala nel turno Notte del 29 — quel giorno è assente (A).» Per un mese
+GENERATO dal tree (`schedule.data` assente) la frase cambia: «nel mese teorico quel giorno non
+risulta in turno» — è una previsione, non un fatto del PDF.
+
+**UNA COPIA INVENTATA NON GIUDICA (19/09/2026 — trovato inseguendo un test instabile, ed è la causa
+più insidiosa del giallo).** La spec della pillola falliva 1 volta su 4, sempre alla PRIMA lettura,
+con la pillola accesa E l'avviso a schermo. La sonda con i log della decisione (`found`, `flashInAltri`,
+`pills`, `fresco`) ha mostrato la sequenza: `{found:false, fresco:true, mese:'2026-03', selectedDay:18,
+pills:0}` seguito da `{found:true, flashInAltri:true, pills:4}`. Cioè: la board ha giudicato su un
+mese TEORICO **generato per un mese che ha il PDF** — `useShiftTeamTreeData` risolve mentre il mese
+vero (cache/DB) è ancora in volo, e l'effetto «il mese corrente è teorico e non è ancora stato
+generato: rigenera ora» dipingeva una copia PREVISTA di 2026-03, con `mettiMese(...)` fresco=true →
+l'effetto dell'avviso trovava 0 pillole e diceva «non è in sala» su una persona che nel PDF c'è (e la
+frase era quella nuova, «non risulta in turno in questo mese»). Il rimedio è una riga in
+sala-page-client: quell'effetto rigenera SOLO se `!isUploaded(currentMonthRef.current)` — è il caso per
+cui esiste; per un mese caricato la copia vera sta arrivando. (Le altre strade del teorico restano
+fresche: il ramo «mese non caricato» di `handleMonthChange`, il fallback dopo un `data === null`
+— mese cancellato — e la cancellazione del mese: lì il generato È la risposta finale.)
+REGOLA DA NON DIMENTICARE: la copia in IndexedDB già non decideva (`scheduleFresco`), una copia
+INVENTATA non deve decidere ancora di più. **CACCIA CHIUSA il 25/09/2026: la corsa È riproducibile a
+comando.** Basta togliere la guardia e rilanciare la spec della pillola (`--repeat-each=3`, che rallenta
+di 1,2 s il mese): **3 fallimenti su 3**, sempre con la stessa frase — «PASSANNANTI non è in sala nel
+turno Pomeriggio del 18 — **nel mese teorico** quel giorno non risulta in turno», su un 2026-03 che ha
+il PDF. Il `nel mese teorico` nella frase è la firma del difetto: se un utente legge quella parola su un
+mese che ha il PDF, la board sta giudicando una copia inventata. Con la guardia: 3 su 3 verdi. (La
+versione precedente di questa nota diceva che la corsa non era forzabile: era sbagliata, e il modo per
+provarla era disattivare la riga invece di cercare di indovinare i tempi.)
+
+---
+
+## 25/09/2026 — Due difetti dai telefoni: il giallo dopo lo swipe-back e il testo del turno «che puoi coprire»
+
+Segnalazione dell'utente, la prima su iOS (Android da verificare): (1) si tappa la data di un cambio, si
+arriva in `/turnisala` e — facendo swipe-back per tornare in dashboard — compare il popup GIALLO «non è in
+sala» per un cambio che esiste; (2) il filtro «solo se posso coprirlo» sui NUOVI turni agisce, ma la
+notifica che arriva è quella GENERICA, non il messaggio dedicato ai cambi compatibili.
+
+**(1) IL GIALLO DOPO IL RITORNO — due cause, due rimedi.** La board non è mai stata la pagina che
+sbagliava: sbagliava il MOMENTO in cui giudicava e il FATTO che l'avviso vivesse più della board.
+
+- *Giudizio su un mese inventato* (la causa vera, quella già sospettata il 19/09): mentre il mese del PDF
+era in volo, l'albero squadre risolveva e la board dipingeva una copia TEORICA dello stesso mese, marcata
+fresca, e ci giudicava sopra. Su iOS è molto più probabile che su Android: Safari **cancella** la cache
+IndexedDB (tetto ITP a 7 giorni di storage script-writable), quindi `readCachedSchedule` torna vuoto
+(`mettiMese(null)`) e la finestra senza dati veri è larga. Guardia: l'effetto rigenera solo se
+`!isUploaded(...)` (vedi la sezione qui sopra). Rinforzo dello stesso giro: anche il FALLBACK teorico per
+un mese che il DB dà per caricato (riga mancante, elenco mesi vecchio) ora è `mettiMese(gen, false)` — è
+una previsione, non può accusare nessuno.
+- *L'avviso sopravvive alla pagina*: il toaster di sonner vive nel layout RADICE, quindi un «non è in sala»
+emesso dalla board resta a schermo sulla pagina in cui si va — ed è esattamente quello che l'utente
+vede: «torno in dashboard e il giallo c'è». Su iOS è peggio: la pagina in pausa **sospende i timer**, così
+il popup resta congelato oltre la sua durata e riappare al ritorno. Rimedi in `desk-board`: l'avviso ha un
+id FISSO (`SALA_FOCUS_WARNING_ID`) e viene SPENTO quando la board si smonta (`toast.dismiss`) — un avviso
+sul posto di una persona in sala è un'informazione di QUELLA pagina; e la board NON giudica mentre la
+pagina è nascosta (`visibilitychange` → stato `pageVisible`), perché in quel momento non ha un lettore:
+al ritorno visibile l'effetto rigira e il giudizio ARRIVA (se il respiro è ancora in vita: se è già
+scaduto, l'avviso non ha più contesto e non esce — scelta voluta).
+
+Prove (chiave `SUPABASE_SERVICE_ROLE_KEY`, server dev su :58922, suite intera dopo le modifiche: **124
+passati / 8 saltati**):
+- `tests/card-cambio-to-sala.spec.ts` — **«tornando indietro dal salto non esce nessun «non è in sala»»**:
+dalla dashboard si tappa la data di una richiesta VERA (delle prime tre persone con una card visibile),
+si aspetta l'arrivo in `/turnisala` (con il mese rallentato di 1,2 s) e si torna indietro col gesto di
+sistema — `page.goBack`, cioè la stessa navigazione di storia dello swipe — in DUE momenti: subito (300
+ms, mese ancora in volo) e dopo il respiro. Un MutationObserver registra ogni popup comparso: nessuno
+deve dire «non è in sala», e sulla dashboard non deve restare nessun avviso.
+- **«la board non giudica mentre la pagina è nascosta: lo fa quando torna visibile»**: lo stato di
+visibilità è finto con `addInitScript` (come lo legge la board) — la pagina nasce `hidden`, il mese
+arriva (rallentato di 1,5 s), la board tace; poi `__vis('visible')` e l'avviso ARRIVA. Verificato che
+morda: con la guardia disattivata fallisce con «la board ha dichiarato «non è in sala» mentre la pagina
+era nascosta».
+- La spegnitura alla partenza è provata dentro la spec «quando non c'è niente da accendere, l'avviso dice
+DOVE la persona è davvero»: dopo l'avviso si esce da `/turnisala` con una navigazione CLIENT (Link
+«Cambi» della bottom-nav, click DISPACCIATO: in `next dev` l'indicatore di Next copre la bottom-nav e
+intercetta i click veri) e si pretende che il popup sparisca entro **0,8 s** — ne vive 4 e il click è ~1 s
+dopo la sua comparsa, quindi una finestra così corta non può essere soddisfatta dalla scadenza naturale:
+solo dalla spegnitura. Verificato che morda: con `toast.dismiss` disattivata fallisce.
+- Il giallo-su-mese-inventato è provato dalla spec della pillola con la guardia tolta: **3/3 fallimenti**
+(vedi la sezione precedente).
+
+**(2) IL NUOVO TURNO COMPATIBILE HA IL SUO MESSAGGIO.** Il filtro `notify_shift_filter` sceglieva bene i
+destinatari ma il testo era UNO per tutti: `new_shift.title`, «X cede Y il gg/mm, cerca …». Chi lo
+riceveva non sapeva perché lo stava ricevendo. Ora in `lib/notification-templates.ts` c'è
+`new_shift.compatible.title` — titolo «Nuovo turno che puoi coprire», testo «{cognome_attore} cede {turno}
+il {data}: quel giorno sei in {turno_effettivo}, uno dei turni che cerca ({turno_cercati})» — e
+`app/api/push/notify/route.ts` sceglie il messaggio **PER DESTINATARIO**: chi è passato dal filtro
+riceve il dedicato, gli altri il generico (con caduta «senza data»). La variante su cui si era copiata,
+`interest.compatible.title`, è stata **RIMOSSA nello stesso giro** perché era codice morto: sull'interesse
+la compatibilità è implicita nel gesto (chi si interessa alla mia proposta mi dà uno dei turni che ho
+chiesto), quindi l'interesse è sempre generico e il filtro vive SOLO sui nuovi turni altrui. Registry:
+23 messaggi (+1 nuovo turno compatibile, −1 interesse compatibile). Per farlo basta che la mappa della compatibilità porti anche QUALE
+turno è (`{ copre, shift }` invece del solo booleano) — niente query in più. Contratto:
+`scripts/check-notif-templates.mjs` verifica il testo reso con i valori d'esempio e che il route risolva
+INSIEME generico e dedicato (se qualcuno riscrivesse l'invio per destinatario, la variante sparirebbe in
+silenzio e il difetto tornerebbe). Messaggi in registry: **24**.
+
+**IL GIRO RIFATTO SUL MOTORE DI iOS (25/09/2026, WebKit 26.6 via Playwright).** Le due guardie
+«engine-agnostiche» sono state provate sul browser vero di iPhone, non solo a 320px su Chromium.Prima WebKit non era nemmeno installato (`npx playwright install webkit` → `webkit-2359` nella cache di
+Playwright, fuori dal repo) e `playwright.config.ts` aveva un solo progetto, chromium: il giro era stato
+fatto con una config temporanea, cancellata dopo la corsa. Adesso è un PROGETTO VERO (vedi la sezione
+«Il motore di iOS entra nella suite»), così non è più una prova una tantum. Risultato: le **quattro**
+spec dello stesso cantiere verdi su iPhone 13 emulato (pillola, «dove la persona è davvero», «tornando
+indietro», «nascosta») — e le controprove mordono anche lì: con `toast.dismiss` disattivata fallisce con
+«l'avviso della board è sopravvissuto all'uscita da /turnisala» (il sintomo esatto dell'utente), con la
+guardia di visibilità disattivata fallisce con «la board ha dichiarato «non è in sala» mentre la pagina
+era nascosta».
+
+**Nota onesta sulla CORSA del mese inventato: su WebKit NON si riproduce** (con la guardia tolta e il
+mese rallentato prima 1,2 s e poi 3 s: 1 verde su 1, contro 3 fallimenti su 3 su Chromium). La ragione è
+che la corsa è un fatto di ORDINE: serve che l'albero squadre (ripristinato da IndexedDB + staleTime
+6h) risolva DOPO che il mese di destinazione è stato azzerato dal cache-miss (`mettiMese(null)`). Su
+WebKit l'albero è già lì al primo render, quindi l'effetto gira quando a schermo c'è ancora il mese
+dell'SSR (non nullo) e non dipinge mai la copia inventata; su Chromium (e su iOS vero, dove Safari
+CANCELLA l'IndexedDB col tetto ITP di 7 giorni) l'ordine è l'altro. Questo è coerente con la
+segnalazione «succede su iOS»: non è una differenza di codice ma di quando arrivano i due dati. Quindi:
+la guardia è provata su Chromium e dai log reali del 19/09, su WebKit è « innocua e tutto verde» — non
+«riprodotta».
+
+**IL MOTORE DI iOS ENTRA NELLA SUITE (25/09/2026).** Nuovo progetto `ios` in `playwright.config.ts`:
+WebKit con `devices['iPhone 13']`, `testMatch` sulle spec del SALTO IN SALA e della BOARD
+(`card-cambio-to-sala`, `sala-mese-da-cache`, `sala-card-presence`, `dipendente`, `chip-gialle`). Le
+stesse spec restano nel progetto `chromium` (un comportamento che regge su un solo motore è un difetto
+che non abbiamo): suite intera **155 passati / 8 saltati in 3,2 minuti**, di cui **31 su WebKit in 1,3
+minuti**. Serve `npx playwright install webkit` una volta per macchina (documentato in tests/README.md).
+
+**IL SERVICE WORKER MANDAVA IN TILT IL BANCO DI PROVA (trovato proprio qui, e vale la pena saperlo).**
+Tre spec di `dipendente.spec.ts` su WebKit morivano a 180 s sul click della linguetta del turno:
+`<div data-slot="dialog-overlay" data-base-ui-inert …>` intercettava i click — il popup «Novità di
+questa versione». Eppure `tests/browser-setup.ts` blocca `/api/changelog` con `context.route(...)`:
+su WebKit il dialog si apriva lo stesso (verificato con una sonda: chromium 0 overlay, WebKit 1, con il
+testo del changelog). La causa è che il service worker dell'app (quello delle push) **prende il
+controllo della pagina** e le richieste che fa lui NON passano da `context.route` — quindi il blocco
+non c'era più. Rimedio: `serviceWorkers: 'block'` sul progetto `ios` (le push non sono coperte da
+quelle spec). Lezione generale: quando un test si pianta su un overlay che non dovrebbe esserci, la
+prima domanda è «chi l'ha riportato in vita?» — e con un SW di mezzo la risposta può essere «non il
+codice, ma il fatto che l'intercettazione non lo vede».
+
+**RIMOSSO `interest.compatible.title` (25/09/2026, decisione dell'utente).** Era codice morto:
+sull'INTERESSE la compatibilità è implicita nel gesto (chi si interessa alla mia proposta mi dà uno dei
+turni che avevo chiesto), quindi non c'è niente da filtrare né da spiegare. L'interesse torna SEMPRE
+generico (`interest.title` o la caduta «senza dettagli»), sparisce il ramo filtrato dal route (e la
+colonna `notify_shift_filter` dalla select del proprietario), e il filtro «solo se posso coprirlo» vive
+solo sui NUOVI turni altrui (`new_shift.compatible.title`). Registry: 23 messaggi — invariato rispetto
+all'inizio della giornata (+1 nuovo turno compatibile, −1 interesse compatibile). Il contratto
+(`scripts/check-notif-templates.mjs`) non chiede più la chiave rimossa e verifica la coesistenza, nel
+route, di generico + dedicato + caduta per il nuovo turno.
+
+Stato: modifiche NON committate (`app/api/push/notify/route.ts`, `lib/notification-templates.ts`,
+`components/sala/desk-board.tsx`, `app/(app)/turnisala/sala-page-client.tsx`, `playwright.config.ts`,
+`scripts/check-notif-templates.mjs`, i due spec, tests/README.md e questo diario) + il WIP preesistente
+su `scripts/check-assenti.mjs` (crasha, fuori dai piedi). Su Android il gesto non esiste (back di sistema o
+toolbar): la navigazione di storia è la stessa e le due guardie valgono lì come su iOS — verificato su
+Chromium E su un Pixel 7 emulato (le due spec nuove verdi in entrambi i casi).

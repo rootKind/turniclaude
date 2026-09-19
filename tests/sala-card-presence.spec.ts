@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { applyTokenToDay, boardPlacementOf, isSectionTurnToken, parseShiftCode, sectionTurnOf } from '../lib/shift-tokens'
-import { salaCodeInfo } from '../lib/sala-month'
+import { salaCodeInfo, spiegaCodiceNonMostrato } from '../lib/sala-month'
 import { salaTokenToShiftType } from '../lib/shift-compat'
 import { matchesCognome } from '../lib/utils'
 import { matchesFocusPerson } from '../lib/person-shift'
@@ -104,6 +104,32 @@ test.describe('«sta su una card» ha una sola definizione', () => {
     for (const token of ['SpN', 'ISpNw', 'DisCas', 'GTUTOR']) {
       expect(boardPlacementOf(token)?.kind, `«${token}»: la board lo mostra in pillola`).toBe('altri')
       expect(salaTokenToShiftType(token), `«${token}» non è un turno M/P/N`).toBeNull()
+    }
+  })
+
+  test('quando la board non disegna la persona, l’avviso dice DOVE la persona è', () => {
+    // Il vecchio avviso diceva sempre «la persona non compare in questa sezione».
+    // Ora nomina il CODICE del giorno e lo traduce, in una frase che si può leggere.
+    expect(spiegaCodiceNonMostrato('RI')).toBe('quel giorno è di riposo (RI)')
+    expect(spiegaCodiceNonMostrato('RC')).toBe('quel giorno è di riposo (RC)')
+    expect(spiegaCodiceNonMostrato('RM')).toBe('quel giorno è di riposo (RM)')
+    expect(spiegaCodiceNonMostrato('D')).toBe('quel giorno è in disponibilità (D)')
+    // Le assenze: la frase non si contraddice («assente per assenza» non esiste).
+    expect(spiegaCodiceNonMostrato('A')).toBe('quel giorno è assente (A)')
+    expect(spiegaCodiceNonMostrato('AG7')).toBe('quel giorno è assente (AG7)')
+    expect(spiegaCodiceNonMostrato('F')).toBe('quel giorno è assente per ferie (F)')
+    expect(spiegaCodiceNonMostrato('F.E.')).toBe('quel giorno è assente per ferie (F.E.)')
+    expect(spiegaCodiceNonMostrato('VS')).toBe('quel giorno è assente per visita sanitaria (VS)')
+    // La sezione: con una card nella piantina (c'è, ma sotto un altro turno) e senza.
+    expect(spiegaCodiceNonMostrato('M7S', true)).toBe('quel giorno è in sezione «7» (M7S)')
+    expect(spiegaCodiceNonMostrato('MIApT')).toContain('che non ha una card sulla board')
+    // I codici che la board non disegna per decisione utente: si dice anche quello.
+    for (const code of ['G', 'GIAP', 'MSb', '12.14', 'Na']) {
+      expect(spiegaCodiceNonMostrato(code), `«${code}»`).toContain('un codice che la board non mostra')
+    }
+    // E la frase vecchia non torna da nessuna parte.
+    for (const code of ['RI', 'A', 'F', 'M7S', 'G']) {
+      expect(spiegaCodiceNonMostrato(code)).not.toContain('non compare in questa sezione')
     }
   })
 

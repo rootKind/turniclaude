@@ -181,13 +181,35 @@ try {
   // i turni che cerca LA RICHIESTA DEL DESTINATARIO (chi prende il tuo turno te
   // ne dà uno che avevi chiesto tu). Un «cerca …» senza soggetto si leggeva come
   // se a cercare fosse l'interessato: è la segnalazione del 17/09/2026.
-  for (const key of ['interest.title', 'interest.compatible.title']) {
+  for (const key of ['interest.title']) {
     const testo = renderNotifTemplate(resolveMessage({}, key).body, samples)
     assert.ok(
       !/\(?cerca [A-Za-z]/.test(testo),
       key + ': i turni cercati sono del DESTINATARIO, il verbo deve avere il soggetto («' + testo + '»)',
     )
     assert.ok(/tu cerchi|che cercavi/.test(testo), key + ': dice di chi sono i turni cercati («' + testo + '»)')
+  }
+
+  // IL FILTRO «SOLO SE POSSO COPRIRLO» HA IL SUO MESSAGGIO (25/09/2026). Il
+  // filtro sui nuovi turni agiva ma il testo inviato restava quello generico:
+  // chi lo riceveva non sapeva PERCHÉ, né vedeva il proprio turno. Qui si
+  // inchioda il testo del messaggio dedicato e la sua COESISTENZA nel route col
+  // generico (se qualcuno riscrivesse l'invio per destinatario, la variante
+  // dedicata sparirebbe in silenzio e il difetto tornerebbe).
+  {
+    const { body } = resolveMessage({}, 'new_shift.compatible.title')
+    assert.equal(
+      renderFlowTemplate(body, {
+        cognome_attore: 'Bianchi', turno: 'Mattina', data: '15/05',
+        turno_effettivo: 'Pomeriggio', turno_cercati: 'Pomeriggio/Notte',
+      }),
+      'Bianchi cede Mattina il 15/05: quel giorno sei in Pomeriggio, uno dei turni che cerca (Pomeriggio/Notte)',
+      'new_shift.compatible.title: testo del nuovo turno compatibile',
+    )
+    const route = readFileSync('app/api/push/notify/route.ts', 'utf8')
+    for (const k of ['new_shift.title', 'new_shift.compatible.title', 'new_shift.fallback.title']) {
+      assert.ok(route.includes(`'${k}'`), `app/api/push/notify/route.ts: risolve «${k}» (generico e dedicato coesistono)`)
+    }
   }
 
   // ── variabili FACOLTATIVE vuote: il testo inviato non deve avere residui ─────

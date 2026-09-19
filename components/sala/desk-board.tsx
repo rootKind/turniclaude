@@ -11,14 +11,14 @@ import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
-import { decodeSalaMonth, scopertiDetailForDay, yellowForDay, type SalaSlotKind, type ScopertoInfo, type YellowEntry } from '@/lib/sala-month'
+import { decodeSalaMonth, scopertiDetailForDay, spiegaCodiceNonMostrato, yellowForDay, type SalaSlotKind, type ScopertoInfo, type YellowEntry } from '@/lib/sala-month'
 import { SALA_SHIFTS, minValuesForDay, withMinimoEntry } from '@/lib/sala-minimi'
 import type { SalaMinimoPeriod } from '@/types/database'
-import { NON_SECTION_DUTIES, SALA_FLASH_MS, SALA_SHIFT_LABEL, isPresentNoSection, isShiftWorkCode, parseShiftCode, type SalaFocus } from '@/lib/shift-tokens'
+import { NON_SECTION_DUTIES, SALA_FLASH_MS, SALA_SHIFT_LABEL, isPresentNoSection, isShiftWorkCode, parseShiftCode, sectionTurnOf, type SalaFocus } from '@/lib/shift-tokens'
 import { MinimiPanel } from './minimi-panel'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName, matchesCognome } from '@/lib/utils'
-import { matchesFocusPerson } from '@/lib/person-shift'
+import { matchesFocusPerson, personNameMatches } from '@/lib/person-shift'
 import { buildBareOwners, lookupNameDisplay, type BareOwnerMap } from '@/lib/shift-teams-matching'
 import { GRUPPO_EXTRA_KEY, assentiPerTurno, normName, theoRealSectionCompare, surnameKey, type AssenteDelTurno, type TheoRealSectionCompare } from '@/lib/turni-teorici'
 import { useAllDuplicateCognomi, useAllUsersForNames } from '@/hooks/use-users'
@@ -39,6 +39,13 @@ import {
 /** Tetto di attesa dell'evidenzia se il mese di destinazione tarda a caricare:
  *  meglio niente flash che un flash eterno (vedi l'effetto in DeskBoard). */
 const SALA_FLASH_ATTESA_MAX_MS = 12_000
+
+/** Id dell'avviso «la persona del salto non è in sala». È FISSO perché l'avviso
+ *  appartiene a questa board: il toaster vive nel layout radice, quindi senza
+ *  spegnerlo alla partenza un «non è in sala» sopravvive alla navigazione e si
+ *  legge su un'altra pagina (segnalazione 25/09/2026: iOS, si torna indietro dal
+ *  salto e il giallo compare sulla dashboard). */
+const SALA_FOCUS_WARNING_ID = 'sala-focus-non-in-sala'
 
 function DroppableCell({ id, children, isEditing }: { id: string; children: React.ReactNode; isEditing: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id })
@@ -216,6 +223,17 @@ export function DeskBoard({
   // Richieste di «vengo da qui» già segnalate come «persona non in sala»: l'avviso
   // si mostra una volta per navigazione, non a ogni render.
   const notFoundRef = useRef<Set<string>>(new Set())
+  /* SI STA GUARDANDO LA BOARD? La board non giudica mentre la pagina è nascosta:
+     su iOS il gesto di ritorno la mette in pausa e sospende i timer, quindi un
+     avviso emesso in quel momento resta congelato a schermo e riemerge dove non
+     c'entra (segnalazione 25/09/2026). Al ritorno visibile l'effetto rigira. */
+  const [pageVisible, setPageVisible] = useState(true)
+  useEffect(() => {
+    const onVisibility = () => setPageVisible(document.visibilityState !== 'hidden')
+    onVisibility()
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
   /* Ultimo arrivo da una card applicato dalla board (`consumed` = il «non tornare a
      oggi» è già stato usato una volta per quel mese). Vedi la guardia nell'effetto
      di cambio mese: serve perché il mese può arrivare DOPO la pulizia della URL. */
@@ -987,6 +1005,40 @@ export function DeskBoard({
     [flash, duplicateCognomi, bareOwners, yellowNamesByCard],
   )
 
+  /**
+   * DOVE È DAVVERO LA PERSONA — la frase che ha preso il posto del generico «la
+   * persona non compare in questa sezione» (richiesta 19/09/2026): quando la board
+   * non ha NIENTE da accendere, l'avviso dice il codice del giorno tradotto in
+   * parole — riposo, ferie, sezione senza card, codice che la board non disegna —
+   * oppure ammette che quel giorno non risulta in turno. La fonte è il mese a
+   * schermo (lo stesso che la board disegna), letto con la regola della VERIFICA
+   * (`personNameMatches`): così la frase non può essere più severa del salto che ha
+   * portato qui, e un omonimo che la board non ha saputo evidenziare viene comunque
+   * nominato con la sua sezione.
+   */
+  const doveEPersona = useCallback((f: SalaFocus): string => {
+    // Un mese GENERATO dal tree (nessun dato del PDF) è una previsione: dirlo è
+    // più onesto che far passare la rotazione per un fatto del PDF.
+    const nonNelMese = schedule?.data
+      ? 'quel giorno non risulta in turno in questo mese'
+      : 'nel mese teorico quel giorno non risulta in turno'
+    if (!schedule?.schedule?.[f.day]) return nonNelMese
+    // Il codice del giorno, dai dati del mese (v1 e v2, decodificati come fa la
+    // board per i gialli e per gli assenti).
+    let code = ''
+    if (schedule.data) {
+      const persona = decodeSalaMonth(schedule.data).find(p =>
+        personNameMatches(p.name, { cognome: f.cognome, nome: f.nome }, duplicateCognomi, bareOwners))
+      code = persona?.days[f.day - 1] ?? ''
+    }
+    if (!code) return nonNelMese
+    // La sezione ha una card? Se sì la persona c'è ma sotto un ALTRO turno (o con un
+    // nome che la board non ha saputo riconoscere): il codice lo dice.
+    const sez = sectionTurnOf(code)
+    const suUnaCard = !!sez && displayCards.some(c => (c.sectionKey ?? c.title) === sez.section)
+    return spiegaCodiceNonMostrato(code, suUnaCard)
+  }, [schedule, displayCards, duplicateCognomi, bareOwners])
+
   // Il flash può essere chiesto PRIMA che il mese di destinazione sia a schermo
   // (il mese si carica dal DB/cache): si aspetta di avere il mese giusto, poi si
   // scorre alla card. Una persona non trovata NON deve restare un mistero
@@ -1006,12 +1058,20 @@ export function DeskBoard({
     // caso del collega (copia in cache più vecchia del PDF, persona che c'era).
     // L'effetto rigira quando la riconvalida arriva (deps sotto).
     if (!scheduleFresco) return
+    // Pagina nascosta (iOS: swipe-back / app in background): il giudizio non ha
+    // un lettore, e un avviso emesso ora resterebbe a schermo al ritorno.
+    if (!pageVisible) return
     if (notFoundRef.current.has(flash.token)) return
     notFoundRef.current.add(flash.token)
     toast.warning(
-      `${flash.nome ? `${flash.nome} ` : ''}${flash.cognome} non è in sala nel turno ${SALA_SHIFT_LABEL[flash.shift]} del ${flash.day} — la card è quella del cambio, ma la persona non compare in questa sezione.`,
+      `${flash.nome ? `${flash.nome} ` : ''}${flash.cognome} non è in sala nel turno ${SALA_SHIFT_LABEL[flash.shift]} del ${flash.day} — ${doveEPersona(flash)}.`,
+      { id: SALA_FOCUS_WARNING_ID },
     )
-  }, [flash, isEditing, schedule, displayCards, isFocusPerson, scheduleFresco, flashInAltri])
+  }, [flash, isEditing, schedule, displayCards, isFocusPerson, scheduleFresco, pageVisible, flashInAltri, doveEPersona])
+
+  // L'avviso se ne va con la board: è un'informazione sul posto di quella
+  // persona QUI, non una notizia da portarsi dietro (vedi SALA_FOCUS_WARNING_ID).
+  useEffect(() => () => { toast.dismiss(SALA_FOCUS_WARNING_ID) }, [])
 
   return (
     <div className="flex flex-col gap-2 p-4">

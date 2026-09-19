@@ -3,7 +3,7 @@ import { E2E_BASE_URL, type Employee } from './employee-session'
 import type { Page } from '@playwright/test'
 import { adminClient } from './supabase-admin'
 import { boardCards, openBoard } from './sala-board'
-import { decodeSalaMonth, isSalaMonthData } from '../lib/sala-month'
+import { decodeSalaMonth, findMonthPerson, isSalaMonthData } from '../lib/sala-month'
 import { boardPlacementOf } from '../lib/shift-tokens'
 
 /**
@@ -403,9 +403,53 @@ test('chi è presente senza sezione si accende nella PILLOLA e l\'avviso giallo 
   const page = await asEmployee('Di Monda')
   const iniziale = (caso!.token[0] ?? '').toUpperCase()
   const shift = (iniziale === 'M' || iniziale === 'P' || iniziale === 'N' ? iniziale : 'P') as 'M' | 'P' | 'N'
+
+  /* NESSUN AVVISO, IN NESSUN MOMENTO. Un MutationObserver registrato PRIMA che
+     l'app parta cattura ogni popup che compare — anche quello che sparisce prima
+     che il test guardi. È la rete che ha preso il difetto più insidioso: mentre il
+     mese vero era in volo, la board generava un mese TEORICO di comodo dello stesso
+     mese e ci giudicava sopra («non è in sala» su una persona che il PDF ha), e
+     quell'avviso viveva pochi secondi — un campione poteva non vederlo. In più si
+     RALLENTA la richiesta del mese (1,2s): la finestra in cui l'albero squadre può
+     risolvere prima del mese vero è larga, quindi la regressione non può passare
+     per fortuna. */
+  await page.addInitScript(() => {
+    const w = window as unknown as { __avvisiSala?: string[] }
+    w.__avvisiSala = []
+    const annota = (el: HTMLElement) => {
+      const testo = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
+      if (testo) w.__avvisiSala!.push(testo)
+      // Il testo può essere committato un istante dopo l'inserimento: una seconda
+      // lettura lo prende comunque (l'elemento può già essere smontato, e per un
+      // nodo staccato `innerText` è vuoto — per questo si legge `textContent`).
+      setTimeout(() => {
+        const dopo = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
+        if (dopo && !w.__avvisiSala!.includes(dopo)) w.__avvisiSala!.push(dopo)
+      }, 200)
+    }
+    const osserva = () => new MutationObserver(aggiunte => {
+      for (const a of aggiunte) {
+        for (const n of Array.from(a.addedNodes)) {
+          if (n instanceof HTMLElement) {
+            if (n.hasAttribute('data-sonner-toast')) annota(n)
+            for (const dentro of n.querySelectorAll('[data-sonner-toast]')) annota(dentro as HTMLElement)
+          }
+        }
+      }
+    }).observe(document.body, { childList: true, subtree: true })
+    if (document.body) osserva()
+    else document.addEventListener('DOMContentLoaded', () => { osserva() })
+  })
+  // Il MESE arriva tardi (è il caso vero del link condiviso: mese mai aperto, rete
+  // lenta): la finestra in cui la board potrebbe giudicare su dati non ancora
+  // arrivati si allarga, e il registro qui sotto la copre tutta.
+  await page.route('**/rest/v1/sala_schedule**', async route => {
+    await new Promise(r => setTimeout(r, 1200))
+    await route.continue()
+  })
+
   // La stessa URL che costruisce la dashboard dalla card di un cambio. Si entra
-  // DIRETTAMENTE qui (come fa chi arriva da un link condiviso): è il giro in cui
-  // l'avviso, se c'è, esce insieme all'evidenzia e non dopo.
+  // DIRETTAMENTE qui (come fa chi arriva da un link condiviso).
   await page.goto(
     `${E2E_BASE_URL}/turnisala?${DEV}&m=${caso!.mese}&d=${caso!.giorno}&t=${shift}&c=${caso!.cognome}&n=${caso!.nome}`,
     { waitUntil: 'domcontentloaded' },
@@ -414,7 +458,6 @@ test('chi è presente senza sezione si accende nella PILLOLA e l\'avviso giallo 
   test.skip(!caricata, 'board non autenticata')
 
   const flash = page.locator('.desk-card-flash')
-  const avviso = page.locator('[data-sonner-toast]').filter({ hasText: /non è in sala/i })
   await expect(
     flash,
     `${caso!.cognome} (token «${caso!.token}») è nel giorno a schermo: qualcosa doveva accendersi`,
@@ -433,23 +476,14 @@ test('chi è presente senza sezione si accende nella PILLOLA e l\'avviso giallo 
     'la pillola accesa non è quella della persona cercata',
   ).toContain(caso!.cognome.toLowerCase())
 
-  // IL DIFETTO: il vecchio avviso giallo «non è in sala…» non deve uscire — c'era
-  // qualcosa da accendere, e si è acceso.
-  // IL DIFETTO — due CAMPIONI, non due attese: l'avviso esce INSIEME all'evidenzia
-  // (misurato: stessi ~600 ms), quindi in questi due istanti o c'è o non c'è mai
-  // stato. `toHaveCount(0)` qui non servirebbe: aspettando la scomparsa di un
-  // avviso già comparso passerebbe comunque (un falso verde).
-  expect(
-    await avviso.count(),
-    'la board ha dichiarato «non è in sala» su una persona che era lì (avviso uscito con l’evidenzia)',
-  ).toBe(0)
-  // Secondo campione alla FINE del respiro: il respiro dura 3s dalla conferma del
-  // mese (non dal primo disegno), quindi copre anche la riconvalida in background.
+  // IL DIFETTO, dal registro del browser: nessun avviso in tutta la vita della
+  // pagina (compresi i secondi in cui il mese vero arrivava).
   await expect(flash, 'il respiro è durato più di 12s: il mese non è mai stato confermato').toHaveCount(0, { timeout: 20_000 })
+  const comparsi = await page.evaluate(() => (window as unknown as { __avvisiSala?: string[] }).__avvisiSala ?? [])
   expect(
-    await avviso.count(),
-    'la board ha dichiarato «non è in sala» su una persona che era lì (avviso uscito alla riconvalida)',
-  ).toBe(0)
+    comparsi.filter(t => /non è in sala/i.test(t)),
+    `la board ha dichiarato «non è in sala» su una persona che era lì: ${JSON.stringify(comparsi)}`,
+  ).toEqual([])
 })
 
 test('anche il blocco con l\'ordinale (2°, 3°…) porta al turno giusto', async ({ asEmployee }) => {
@@ -503,6 +537,90 @@ test('anche il blocco con l\'ordinale (2°, 3°…) porta al turno giusto', asyn
   }
 })
 
+test('quando non c\'è niente da accendere, l\'avviso dice DOVE la persona è davvero', async ({ asEmployee }) => {
+  test.setTimeout(120_000)
+  // Il vecchio avviso diceva sempre la stessa frase («la persona non compare in
+  // questa sezione»), anche quando il PDF diceva benissimo perché: riposo, ferie,
+  // una sezione senza card, un codice che la board non disegna. Ora nomina il
+  // CODICE del giorno. Qui si prende una richiesta vera la cui persona, quel
+  // giorno, non è disegnata da nessuna parte (`boardPlacementOf` = nessun posto).
+  const sb = adminClient()
+  test.skip(!sb, 'service-role assente in .env.local')
+  const { data: shifts } = await sb!
+    .from('shifts')
+    .select('shift_date, offered_shift, user:users!shifts_user_id_fkey(cognome, nome)')
+    .order('shift_date', { ascending: true })
+    .limit(200)
+  const { data: mesi } = await sb!.from('sala_schedule').select('month, schedule')
+  const perMese = new Map<string, ReturnType<typeof decodeSalaMonth>>()
+  for (const m of mesi ?? []) {
+    if (isSalaMonthData(m.schedule)) perMese.set(String(m.month), decodeSalaMonth(m.schedule))
+  }
+  let caso: { cognome: string; nome: string; mese: string; giorno: number; shift: 'M' | 'P' | 'N'; code: string } | null = null
+  for (const row of shifts ?? []) {
+    const u = row.user as unknown as { cognome: string | null; nome: string | null } | null
+    const mese = String(row.shift_date).slice(0, 7)
+    const people = perMese.get(mese)
+    const shift = NOME_TURNO[row.offered_shift as string]
+    if (!people || !u?.cognome || !shift) continue
+    const p = findMonthPerson(people, { cognome: u.cognome, nome: u.nome ?? '' })
+    const code = p?.days[Number(String(row.shift_date).slice(8, 10)) - 1] ?? ''
+    // Solo chi la board NON disegna: card e pillole sono già un'altra storia.
+    if (!code || boardPlacementOf(code) !== null) continue
+    caso = {
+      cognome: u.cognome, nome: (u.nome ?? '').trim(), mese,
+      giorno: Number(String(row.shift_date).slice(8, 10)), shift, code,
+    }
+    break
+  }
+  test.skip(!caso, 'nessuna richiesta con la persona non disegnata dalla board')
+
+  const page = await asEmployee('Di Monda')
+  await page.goto(
+    `${E2E_BASE_URL}/turnisala?${DEV}&m=${caso!.mese}&d=${caso!.giorno}&t=${caso!.shift}&c=${caso!.cognome}&n=${caso!.nome}`,
+    { waitUntil: 'domcontentloaded' },
+  )
+  const caricata = await page.waitForSelector('.sala-card-bg', { timeout: 25_000 }).then(() => true).catch(() => false)
+  test.skip(!caricata, 'board non autenticata')
+
+  const avviso = page.locator('[data-sonner-toast]').filter({ hasText: /non è in sala/i })
+  await expect(avviso, `${caso!.cognome} non è disegnata: la board doveva spiegare`).toBeVisible({ timeout: 20_000 })
+  const testo = (await avviso.innerText()).replace(/\s+/g, ' ').trim()
+  expect(testo, `l'avviso non dice il codice del giorno («${caso!.code}»): «${testo}»`).toContain(`(${caso!.code})`)
+  expect(testo, `l'avviso usa ancora la frase generica: «${testo}»`).not.toContain('non compare in questa sezione')
+  // La frase dice DOVE, in una delle forme previste — non un codice nudo e nemmeno
+  // un nonsenso come «assente per assenza».
+  expect(testo, `l'avviso non spiega dove la persona è: «${testo}»`)
+    .toMatch(/quel giorno (è di riposo|è in disponibilità|è assente|è in sezione|ha «)/)
+  expect(testo, `l'avviso si contraddice: «${testo}»`).not.toMatch(/assente per (assenza|altre presenze)/)
+  expect(testo, `l'avviso non chiude col punto: «${testo}»`).toMatch(/\.$/)
+  expect(await page.locator('.desk-card-flash').count(), 'non c\'era niente da accendere').toBe(0)
+
+  /* L'AVVISO SE NE VA CON LA BOARD (segnalazione 25/09/2026, iOS). Il toaster
+     vive nel layout RADICE: un avviso emesso dalla board sopravvive alla
+     navigazione e si legge su un'altra pagina — è il «torno indietro e vedo il
+     giallo» del collega (su iOS la pagina in pausa sospende i timer, quindi
+     resta congelato e riappare al ritorno). Si esce con una navigazione CLIENT
+     (il Link «Cambi» della bottom-nav: il documento NON si ricarica) e si
+     pretende che l'avviso sparisca IN FRETTA: ne vive 4s e il click avviene
+     ~1s dopo la sua comparsa, quindi una finestra di 0,8s non può essere
+     soddisfatta dalla scadenza naturale — solo dalla spegnitura alla partenza.
+     Un `toHaveCount(0)` con il timeout lungo non morderebbe (passerebbe
+     aspettando che il popup scada da sé). */
+  // Il click è DISPACCIATO, non simulato dal puntatore: in `next dev` l'indicatore
+  // di Next copre la bottom-nav e intercetta i click veri (solo in sviluppo).
+  await page.locator('a[aria-label="Cambi"]').first().dispatchEvent('click')
+  await expect
+    .poll(() => new URL(page.url()).pathname, { timeout: 20_000, message: 'si doveva uscire da /turnisala' })
+    .not.toBe('/turnisala')
+  await expect
+    .poll(() => page.locator('[data-sonner-toast]').count(), {
+      timeout: 800,
+      message: "l'avviso della board è sopravvissuto all'uscita da /turnisala",
+    })
+    .toBe(0)
+})
+
 test('una persona che non c\'è: la board aperta a mano lo dice e non accende niente', async ({ asEmployee }) => {
   test.setTimeout(60_000)
   const page = await asEmployee('Di Monda')
@@ -523,6 +641,170 @@ test('una persona che non c\'è: la board aperta a mano lo dice e non accende ni
   await expect
     .poll(() => page.url(), { timeout: 15_000, message: 'i parametri della card restano nella URL' })
     .not.toMatch(/[?&](m|d|t|c)=/)
+})
+
+/**
+ * SI TORNA INDIETRO DAL SALTO: NESSUN «NON È IN SALA» (segnalazione 25/09/2026,
+ * iOS).
+ *
+ * Il caso vero: si tappa la data di un cambio, si arriva in `/turnisala`
+ * (il salto riesce) e — tornando indietro col gesto di sistema — il popup
+ * GIALLO «…non è in sala…» compare sulla DASHBOARD, per un cambio che esiste.
+ *
+ * Le cause sono due, e qui si difendono entrambe sulla stessa strada:
+ *  1. la board non deve GIUDICARE su un mese che non è ancora arrivato. Mentre
+ *     il mese del PDF è in volo, l'albero squadre è già pronto e la board
+ *     generava una copia TEORICA dello stesso mese, marcata fresca: la pillola o
+ *     la card della persona non c'erano, e l'avviso partiva («nel mese teorico
+ *     quel giorno non risulta in turno» — misurato: senza la guardia in
+ *     `sala-page-client` questo test fallisce 3 volte su 3);
+ *  2. l'avviso appartiene alla board: il toaster vive nel layout RADICE, quindi
+ *     senza spegnerlo alla partenza il giallo resta a schermo sulla pagina in cui
+ *     si torna. Su iOS è peggio (la pagina in pausa sospende i timer: il popup
+ *     resta congelato e riappare al ritorno).
+ *
+ * Il registro dei popup è un MutationObserver installato PRIMA che l'app parta:
+ * un avviso che compare e sparisce durante la transizione viene catturato lo
+ * stesso (le letture puntuali, qui, non mordono).
+ */
+test('tornando indietro dal salto non esce nessun «non è in sala»', async ({ asEmployee }) => {
+  test.setTimeout(180_000)
+  const richieste = await richiesteDalDb()
+  test.skip(richieste.length === 0, 'nessuna richiesta di cambio nel DB (o service-role assente in .env.local)')
+  const trovato = await dashboardConCambio(asEmployee, richieste)
+  test.skip(!trovato, 'nessuna card di cambio visibile per le prime persone con un cambio (limite cambi?)')
+  const { page, richieste: mie } = trovato!
+
+  await page.addInitScript(() => {
+    const w = window as unknown as { __avvisiSala?: string[] }
+    w.__avvisiSala = []
+    const annota = (el: HTMLElement) => {
+      const testo = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
+      if (testo) w.__avvisiSala!.push(testo)
+    }
+    const osserva = () => new MutationObserver(aggiunte => {
+      for (const a of aggiunte) {
+        for (const n of Array.from(a.addedNodes)) {
+          if (n instanceof HTMLElement) {
+            if (n.hasAttribute('data-sonner-toast')) annota(n)
+            for (const dentro of n.querySelectorAll('[data-sonner-toast]')) annota(dentro as HTMLElement)
+          }
+        }
+      }
+    }).observe(document.body, { childList: true, subtree: true })
+    if (document.body) osserva()
+    else document.addEventListener('DOMContentLoaded', () => { osserva() })
+  })
+  // Il mese arriva tardi (rete lenta, mese mai aperto): la finestra in cui la
+  // board potrebbe giudicare su dati non ancora arrivati si allarga, così la
+  // regressione non passa per fortuna.
+  await page.route('**/rest/v1/sala_schedule**', async route => {
+    await new Promise(r => setTimeout(r, 1200))
+    await route.continue()
+  })
+
+  let verificati = 0
+  for (const r of mie.slice(0, 3)) {
+    for (const attesa of ['subito', 'dopo il respiro'] as const) {
+      await page.goto(`${E2E_BASE_URL}/dashboard?${DEV}`, { waitUntil: 'domcontentloaded' })
+      const blocchi = page.locator('button[aria-label^="Vedi in sala"]')
+      await blocchi.first().waitFor({ state: 'visible', timeout: 20_000 })
+      // La card di QUESTA richiesta (data e persona nell'aria-label).
+      let indice = -1
+      for (let i = 0; i < await blocchi.count(); i++) {
+        const label = (await blocchi.nth(i).getAttribute('aria-label')) ?? ''
+        const letto = label.match(/turno\s+(\w+)\s+del\s+(\d{1,2})\s+([A-Za-z]+)\s+di\s+(.+)$/)
+        if (!letto) continue
+        if (NOME_TURNO[letto[1]] === r.shift && Number(letto[2]) === Number(r.shiftDate.slice(8, 10)) &&
+            letto[4].includes(r.cognome)) { indice = i; break }
+      }
+      if (indice < 0) continue
+      await blocchi.nth(indice).click()
+      // Se la dashboard RESTA (persona non illuminabile: lo dice col rosso) non
+      // c'è nessun salto da cui tornare: questo caso non serve.
+      const navigato = await page.waitForURL(/\/turnisala\?/, { timeout: 25_000 }).then(() => true).catch(() => false)
+      if (!navigato) continue
+      verificati++
+      if (attesa === 'dopo il respiro') {
+        await page.locator('.desk-card-flash').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
+      } else {
+        // Il dito è appena partito: si torna indietro mentre il mese è ancora in
+        // volo — è la condizione in cui l'avviso usciva.
+        await page.waitForTimeout(300)
+      }
+
+      // IL GESTO DI SISTEMA (iOS): una navigazione di storia all'indietro.
+      await page.goBack({ waitUntil: 'domcontentloaded' })
+      expect(new URL(page.url()).pathname, 'non si è tornati in dashboard').toBe('/dashboard')
+      // Il tempo in cui un avviso tardivo comparirebbe (o in cui quello già
+      // comparso si vedrebbe ancora: ne vive 4s, qui non ne deve restare nessuno).
+      await page.waitForTimeout(1200)
+      const comparsi = await page.evaluate(() => (window as unknown as { __avvisiSala?: string[] }).__avvisiSala ?? [])
+      expect(
+        comparsi.filter(t => /non è in sala/i.test(t)),
+        `${r.cognome} è in sala (la dashboard ha navigato) e invece la board ha detto: ${JSON.stringify(comparsi)}`,
+      ).toEqual([])
+      expect(
+        await page.locator('[data-sonner-toast]').filter({ hasText: /non è in sala/i }).count(),
+        'l\'avviso della board è sopravvissuto al ritorno in dashboard',
+      ).toBe(0)
+    }
+  }
+  expect(verificati, 'nessuna card utile per provare il ritorno indietro').toBeGreaterThan(0)
+})
+
+/**
+ * CON LA PAGINA NASCOSTA LA BOARD NON GIUDICA (segnalazione 25/09/2026, iOS).
+ *
+ * Il gesto di ritorno di iOS mette la pagina in pausa MENTRE il mese è in volo; la
+ * pagina in pausa sospende anche i timer, quindi un avviso emesso in quel momento
+ * resta congelato a schermo e riappare dove non c'entra (la dashboard). Qui la
+ * pagina è «nascosta» fin dal primo render (lo stato è finto con addInitScript,
+ * come lo vede la board) e la board non deve dire niente: poi si torna a guardare
+ * e il giudizio ARRIVA lo stesso — il silenzio è rimandato, non perso.
+ */
+test('la board non giudica mentre la pagina è nascosta: lo fa quando torna visibile', async ({ asEmployee }) => {
+  test.setTimeout(90_000)
+  const page = await asEmployee('Di Monda')
+  const sb = adminClient()
+  const { data: mesi } = sb ? await sb.from('sala_schedule').select('month') : { data: null }
+  const mese = (mesi ?? []).map(r => String(r.month)).sort().at(-1)
+  test.skip(!mese, 'nessun mese caricato nel DB')
+
+  await page.addInitScript(() => {
+    const w = window as unknown as { __vis?: (s: 'hidden' | 'visible') => void }
+    let stato: 'hidden' | 'visible' = 'hidden'
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => stato })
+    w.__vis = s => { stato = s; document.dispatchEvent(new Event('visibilitychange')) }
+  })
+
+  // Il mese arriva tardi (1,5s): così il momento in cui la board GIUDICHEREBBE
+  // cade dopo l'inizio dell'attesa, e l'attesa qui sotto è una prova vera — non
+  // un caso che passa perché la decisione non era ancora stata presa.
+  await page.route('**/rest/v1/sala_schedule**', async route => {
+    await new Promise(r => setTimeout(r, 1500))
+    await route.continue()
+  })
+
+  // Persona inesistente: la board non ha NIENTE da accendere, quindi la frase
+  // «non è in sala» è dovuta — è il caso in cui il silenzio si nota.
+  await page.goto(`${E2E_BASE_URL}/turnisala?${DEV}&m=${mese}&d=15&t=P&c=Zzznonesistemai`, {
+    waitUntil: 'domcontentloaded',
+  })
+  await expect(page.locator('.sala-card-bg').first()).toBeVisible({ timeout: 25_000 })
+  const avviso = page.locator('[data-sonner-toast]').filter({ hasText: /non è in sala/i })
+
+  // Mese arrivato (≈1,5s) e decisione presa: la pagina è nascosta, quindi muta.
+  await page.waitForTimeout(2200)
+  expect(
+    await avviso.count(),
+    'la board ha dichiarato «non è in sala» mentre la pagina era nascosta (il gesto di ritorno di iOS)',
+  ).toBe(0)
+
+  // Si torna a guardare DENTRO la vita del respiro (3s da quando il mese è a
+  // schermo): il giudizio arrivato in ritardo si recupera, non si perde.
+  await page.evaluate(() => (window as unknown as { __vis: (s: 'hidden' | 'visible') => void }).__vis('visible'))
+  await expect(avviso, 'tornando a guardare la pagina la board doveva spiegare').toBeVisible({ timeout: 15_000 })
 })
 
 test('salto istantaneo: la verifica parte al pointerdown e il click non la rifà', async ({ asEmployee }) => {
