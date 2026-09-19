@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { getUserShiftOnDate } from '@/lib/shift-compat'
 import { buildSalaFocusUrl } from '@/lib/shift-tokens'
-import { loadShiftOnce, rememberedShift, shiftLookupKey } from '@/lib/sala-jump'
+import { boardSectionKeys, loadEsitoOnce, rememberedEsito, shiftLookupKey, type EsitoSala } from '@/lib/sala-jump'
 import { formatShiftDate, formatRelativeTime, formatDisplayName, getShiftItemState, SHIFT_STATE_CLASSES, SHIFT_DATE_CLASSES, SHIFT_PILL_CLASSES } from '@/lib/utils'
 import { isAdmin } from '@/types/database'
 import type { Shift, ShiftType } from '@/types/database'
@@ -252,9 +252,22 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
    *
    * PRIMA DI PARTIRE si CHIEDE AI TURNI se quella persona ha davvero quel turno
    * quel giorno (PDF del mese, altrimenti rotazione teorica: la stessa fonte che
-   * alimenta /turnisala). Se non ce l'ha si RESTA QUI e lo si dice — mandare
-   * l'utente su una board che non illumina niente è peggio che non muoversi
-   * (richiesta 19/09/2026).
+   * alimenta /turnisala) E DOVE LA BOARD LA MOSTRA. Le due domande sono diverse e
+   * la seconda mancava (revisione 19/09/2026: il collega vedeva il vecchio avviso
+   * giallo «non è in sala…» anche nei mesi col PDF, perché la board non ha
+   * nessuna card per chi è «presente senza sezione»).
+   *
+   * Se il turno non torna si RESTA QUI e lo si dice. Se il turno c'è si va in
+   * sala OVUNQUE la board sappia accendere qualcosa: la card di sezione, oppure la
+   * PILLOLA della riga «Altre attività» (turno «nudo» M/N/P, trasferta `NDis*`,
+   * `TUTOR`/`MTUTOR`…), che ora respira come una card. Si resta qui solo quando la
+   * board non mostrerebbe la persona in nessun posto: la sezione non è collegata a
+   * una card della piantina, oppure il codice non compare affatto (invisibile per
+   * decisione utente: `G`, `MSb`, `12.14`…).
+   *
+   * Le due regole vivono in un posto solo: `boardPlacementOf` (lib/shift-tokens),
+   * che è lo STESSO ramo di `applyTokenToDay` con cui la board decide dove scrive
+   * un nome — così verifica e board non possono più contraddirsi.
    * Il resto della card continua ad aprire il pannello come prima.
    *
    * ISTANTANEO (richiesta 19/09/2026): la verifica PARTE GIÀ al pointerdown e il
@@ -263,22 +276,28 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
    * avviato (o la risposta è già lì).
    */
   const salaKey = shift.shift_date ? shiftLookupKey(shift.user_id, shift.shift_date) : ''
-  const loadShift = () => {
+  const loadEsito = (): Promise<EsitoSala> => {
     const date = shift.shift_date
-    if (!date) return Promise.resolve<ShiftType | null>(null)
-    return getUserShiftOnDate(createClient(), shift.user_id, date).then(s => s.shift)
+    if (!date) return Promise.resolve({ shift: null, token: '', placement: null, section: null })
+    const supabase = createClient()
+    // La piantina si scalda insieme alla verifica: serve alla decisione, non al
+    // salto, ed è una lettura per sessione di pagina (vedi boardSectionKeys).
+    void boardSectionKeys(supabase)
+    return getUserShiftOnDate(supabase, shift.user_id, date).then(s => ({
+      shift: s.shift, token: s.token, placement: s.placement, section: s.section,
+    }))
   }
   /** Scalda la verifica (pointerdown / tastiera); se la risposta è già nota non
    *  tocca la rete. Gli errori li decide il click, che rilancia la stessa promessa. */
   function scaldaVerifica() {
     if (!salaKey || verificando) return
-    void loadShiftOnce(salaKey, loadShift).catch(() => {})
+    void loadEsitoOnce(salaKey, loadEsito).catch(() => {})
   }
   async function vaiInSala() {
     if (!salaKey || verificando) return
     // Risposta già in memoria: nessun segnale d'attesa da mostrare, il salto è
     // immediato (l'await di una promessa risolta si chiude nello stesso tick).
-    setVerificando(rememberedShift(salaKey) === undefined)
+    setVerificando(rememberedEsito(salaKey) === undefined)
     const apriSala = () => {
       const url = buildSalaFocusUrl({
         shiftDate: shift.shift_date,
@@ -292,12 +311,33 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
       if (url) router.push(url)
     }
     try {
-      const turno = await loadShiftOnce(salaKey, loadShift)
-      if (turno !== shift.offered_shift) {
+      const esito = await loadEsitoOnce(salaKey, loadEsito)
+      if (esito.shift !== shift.offered_shift) {
         // toast.error, NON info: è un avvertimento (richiesta 19/09/2026) e con
         // `richColors` acceso su <Toaster> l'errore è l'unico tono ROSSO, in
         // chiaro e in scuro senza CSS nostro.
         toast.error(`Dai turni non risulta che ${displayName} abbia ${shift.offered_shift} il giorno ${day}.`)
+        return
+      }
+      // Il turno c'è. La PILLOLA delle «Altre attività» non dipende dalla
+      // piantina: se la board mostra la persona lì, si va (l'evidenzia c'è).
+      if (esito.placement?.kind === 'altri') {
+        apriSala()
+        return
+      }
+      // Altrimenti la board avrebbe una card da illuminare? Se la piantina non si
+      // legge (`null`) si torna al comportamento di prima — un errore di rete non
+      // deve bloccare i salti legittimi.
+      const sezioni = await boardSectionKeys(createClient())
+      const suCard = esito.placement?.kind === 'card' &&
+        (sezioni === null || sezioni.has(esito.section ?? ''))
+      if (!suCard) {
+        // Due motivi, due frasi — entrambe vere, nessun codice grezzo addosso
+        // all'utente: la sezione non è collegata a una card, oppure la board non
+        // mostra affatto quel codice (invisibile per decisione utente).
+        toast.error(esito.placement?.kind === 'card'
+          ? `${displayName} il giorno ${day} è in sezione «${esito.section ?? ''}», che non ha una card sulla board.`
+          : `${displayName} il giorno ${day} non compare in nessuna sezione della board.`)
         return
       }
       apriSala()

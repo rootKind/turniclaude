@@ -3,6 +3,7 @@ import type { SalaMonthData, ShiftType } from '@/types/database'
 import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { decodeSalaMonth, findMonthPerson, salaCodeInfo } from '@/lib/sala-month'
 import { theoreticalTokenFor } from '@/lib/person-shift'
+import { boardPlacementOf, type BoardPlacement } from '@/lib/shift-tokens'
 import { buildDuplicateCognomi } from '@/lib/utils'
 import { buildBareOwners } from '@/lib/shift-teams-matching'
 
@@ -30,6 +31,20 @@ export interface UserShiftOnDate {
   shift: ShiftType | null
   source: 'real' | 'theoretical' | 'none'
   token: string
+  /** DOVE LA BOARD MOSTRA QUESTO TOKEN (`boardPlacementOf`): su una CARD di
+   *  sezione, nella riga «Altre attività» (pillola) o da nessuna parte.
+   *  `shift` da solo non basta: `MTUTOR`, `M` «nudo», `NDisNa` sono letti come
+   *  turno M/P/N (`salaCodeInfo` → `work`) ma la board non li mette su nessuna
+   *  card — la loro evidenzia è la PILLOLA (richiesta 19/09/2026). */
+  placement: BoardPlacement | null
+  /** Sezione del token (`7`, `DCIF`, `M3M40`…) quando sta su una card. */
+  section: string | null
+}
+
+/** Com'è la board a vedere questo token: card, pillola o niente. */
+function conDestinazione(info: Omit<UserShiftOnDate, 'placement' | 'section'>): UserShiftOnDate {
+  const dove = boardPlacementOf(info.token)
+  return { ...info, placement: dove, section: dove?.kind === 'card' ? dove.section : null }
 }
 
 /**
@@ -64,8 +79,8 @@ export async function getUserShiftOnDate(
       const person = findMonthPerson(people, { id: userId, nome: u?.nome, cognome: u?.cognome }, undefined, bareOwners)
       const token = person?.days[Number(dateISO.slice(8, 10)) - 1] ?? ''
       const shift = salaTokenToShiftType(token)
-      if (shift) return { shift, source: 'real', token }
-      if (token) return { shift: null, source: 'real', token } // riposo/assenza: non copre nulla
+      if (shift) return conDestinazione({ shift, source: 'real', token })
+      if (token) return conDestinazione({ shift: null, source: 'real', token }) // riposo/assenza: non copre nulla
     }
   } catch {
     /* PDF mancante o formato vecchio: si passa al teorico */
@@ -81,14 +96,14 @@ export async function getUserShiftOnDate(
       const me = (users ?? []).find(u => u.id === userId)
       const token = theoreticalTokenFor(tree, me ?? { id: userId }, dateISO, duplicateCognomi, bareOwners)
       const shift = salaTokenToShiftType(token)
-      if (shift) return { shift, source: 'theoretical', token }
-      if (token) return { shift: null, source: 'theoretical', token }
+      if (shift) return conDestinazione({ shift, source: 'theoretical', token })
+      if (token) return conDestinazione({ shift: null, source: 'theoretical', token })
     }
   } catch {
     /* squadre non disponibili: nessuna verifica possibile */
   }
 
-  return { shift: null, source: 'none', token: '' }
+  return conDestinazione({ shift: null, source: 'none', token: '' })
 }
 
 /**

@@ -112,6 +112,37 @@ export function theoreticalTokenFor(
   return tokenForMember(ref.type, ref.member, ref.team.id, tree.adjustments, dateISO)
 }
 
+/**
+ * IL FLASH «VENGO DA QUI»: la persona cercata è in questo elenco di nomi?
+ * (richiesta 19/09/2026, dal caso del collega che vedeva «non è in sala» su una
+ * persona che c'era).
+ *
+ * Prima la regola STRETTA della board (`matchesCognome`: per gli omonimi serve
+ * l'iniziale del nome, e `bareOwners` decide chi possiede una riga col solo
+ * cognome), poi la regola della VERIFICA (`personNameMatches`, che accetta anche
+ * la riga col solo cognome). È la stessa domanda che ha già autorizzato il salto,
+ * quindi le due non possono più contraddirsi: senza questo ripiego bastava un
+ * elenco utenti o un albero squadre incompleto nel browser — il fetch client può
+ * tornare 0 righe sotto RLS, è documentato in `useShiftTeamTreeData`) perché
+ * `bareOwners` risultasse vuoto e il flash non riconoscesse un omonimo con la
+ * riga «ROMANO» (senza iniziale), mentre la verifica lo riconosceva.
+ *
+ * Effetto collaterale accettato: con la riga col solo cognome e DUE omonimi in
+ * sala si accendono entrambe le card (il PDF non dice quale). Meglio due card
+ * accese che un «non è in sala» falso.
+ */
+export function matchesFocusPerson(
+  names: string[] | undefined,
+  cognome: string | null | undefined,
+  nome: string | null | undefined,
+  duplicateCognomi?: Set<string>,
+  bareOwners?: BareOwnerMap | null,
+): boolean {
+  if (!names?.length || !cognome) return false
+  if (matchesCognome(names, cognome, nome, duplicateCognomi, bareOwners)) return true
+  return names.some(n => personNameMatches(n, { cognome, nome }, duplicateCognomi, bareOwners))
+}
+
 export interface RealShiftInfo {
   token: string | null          // es. «M7S», «N10TIR»
   shift: SalaShiftType | null

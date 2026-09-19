@@ -3,6 +3,8 @@ import { E2E_BASE_URL, type Employee } from './employee-session'
 import type { Page } from '@playwright/test'
 import { adminClient } from './supabase-admin'
 import { boardCards, openBoard } from './sala-board'
+import { decodeSalaMonth, isSalaMonthData } from '../lib/sala-month'
+import { boardPlacementOf } from '../lib/shift-tokens'
 
 /**
  * DALLA CARD DI UN CAMBIO AL SUO POSTO IN SALA (feature 18/09/2026, revisione 19/09).
@@ -15,6 +17,21 @@ import { boardCards, openBoard } from './sala-board'
  * SE LA PERSONA QUEL TURNO NON CE L'HA, LA DASHBOARD NON SI MUOVE: lo dice e
  * basta («Dai turni non risulta che … abbia Notte il giorno 22»). Mandare
  * l'utente su una board che non illumina niente era peggio che non muoversi.
+ *
+ * E SE IL TURNO C'È, LA BOARD DEVE AVERE QUALCOSA DA ACCENDERE: la card della
+ * sezione OPPURE la PILLOLA della riga «Altre attività» (revisione 19/09/2026).
+ * Chi è «presente senza sezione» — turno «nudo» M/N/P (SPAGNULO), trasferta
+ * `NDis*`, `MTUTOR`, corso `Sp*` — su nessuna card c'è, ma nella riga «Altre
+ * attività» sì: da qui il salto parte e la pillola respira, invece del vecchio
+ * avviso giallo «la persona non compare in questa sezione».
+ *
+ * DOVE SI RESTA: quando la board non mostrerebbe la persona in NESSUN posto
+ * (sezione non collegata a una card della piantina, oppure codice invisibile per
+ * decisione utente: `G`, `MSb`, `12.14`). Le due domande («che turno ha?» e «dove
+ * la board la mostra?») devono avere UNA risposta: `boardPlacementOf` in
+ * lib/shift-tokens è presa dallo stesso ramo di `applyTokenToDay` con cui la
+ * board decide dove scrive un nome, e qui si pretende che la decisione della
+ * dashboard concordi con la lettura della board.
  *
  * Qui si difendono, con dati veri (le richieste di cambio nel DB, la board del
  * mese):
@@ -120,6 +137,18 @@ async function dashboardConCambio(
   return null
 }
 
+/**
+ * L'avviso ROSSO che tiene la dashboard ferma: «Dai turni non risulta…»,
+ * «… è in sala senza sezione…» o «… è in sezione «IAP», che non ha una card…».
+ * Tutti `toast.error` (unico tono rosso con `richColors`): qui si prende il
+ * popup per TONO, non per testo, così una frase nuova non fa fallire il test —
+ * ciò che conta è che si resti in dashboard e che il messaggio sia un avviso.
+ */
+function avvisoDashboard(page: Page) {
+  return page.locator('[data-sonner-toast][data-type="error"]')
+    .filter({ hasText: /Dai turni non risulta|senza sezione|non ha una card|nessuna sezione della board/ })
+}
+
 /** La persona compare nella board (equipaggio, tirocinanti o chip gialle)? */
 function personaInBoard(cards: Awaited<ReturnType<typeof boardCards>>, cognome: string): boolean {
   const ago = cognome.toLowerCase()
@@ -198,14 +227,18 @@ test('il click sulla data naviga solo se la persona è in sala: la decisione com
       await expect(page.locator('.desk-card-flash')).toContainText(r.cognome)
     } else {
       // Deve RESTARE in dashboard, con un messaggio che dice perché.
-      const avviso = page.locator('[data-sonner-toast]').filter({ hasText: 'Dai turni non risulta' })
+      const avviso = avvisoDashboard(page)
       await expect(
         avviso,
-        `${cognome} non è in sala in quel turno: la dashboard doveva dirlo invece di navigare`,
+        `${cognome} non è illuminabile in quel turno: la dashboard doveva dirlo invece di navigare`,
       ).toBeVisible({ timeout: 20_000 })
       await expect(avviso).toContainText(r.cognome)
-      // L'avvertimento è ROSSO in chiaro e in scuro, e finisce col punto.
-      await expect(avviso).toContainText('il giorno ' + Number(r.shiftDate.slice(8, 10)) + '.')
+      // L'avvertimento è ROSSO in chiaro e in scuro, nomina il giorno e chiude
+      // col punto (l'utente lo ha chiesto così).
+      const testo = (await avviso.innerText()).trim()
+      expect(testo, `l'avviso non nomina il giorno: «${testo}»`)
+        .toContain('il giorno ' + Number(r.shiftDate.slice(8, 10)))
+      expect(testo, `l'avviso non chiude col punto: «${testo}»`).toMatch(/\.$/)
       await avvisoRossoInEntrambiITemi(page, avviso)
       await expect(page.locator('.desk-card-flash')).toHaveCount(0)
       expect(new URL(page.url()).pathname, 'la dashboard non doveva cambiare pagina').toBe('/dashboard')
@@ -333,6 +366,92 @@ test('la persona che è in sala si accende: «respiro» di 3s, anche con «riduc
   await expect(flash, 'la card è rimasta accesa (durata attesa 3s)').toHaveCount(0, { timeout: 5000 })
 })
 
+test('chi è presente senza sezione si accende nella PILLOLA e l\'avviso giallo non esce', async ({ asEmployee }) => {
+  test.setTimeout(120_000)
+  const sb = adminClient()
+  test.skip(!sb, 'service-role assente in .env.local')
+
+  // Una persona VERA con un token che la board mostra nella riga «Altre attività»
+  // (turno «nudo», trasferta, corso, TUTOR…): è il caso del collega. Si cerca nei
+  // mesi caricati, sui dati veri, e si preferisce un cognome senza omonimi.
+  const { data: mesi } = await sb!
+    .from('sala_schedule').select('month, schedule').order('month', { ascending: false }).limit(8)
+  // Cognomi che nel DB sono UNICI: il flash non deve dipendere dagli omonimi
+  // (quello è un altro test).
+  const { data: utenti } = await sb!.from('users').select('cognome')
+  const quanti = new Map<string, number>()
+  for (const u of utenti ?? []) {
+    const k = (u.cognome ?? '').toUpperCase()
+    quanti.set(k, (quanti.get(k) ?? 0) + 1)
+  }
+  let caso: { mese: string; giorno: number; cognome: string; nome: string; token: string } | null = null
+  for (const row of (mesi ?? []).slice().reverse()) {
+    if (!isSalaMonthData(row.schedule)) continue
+    const people = decodeSalaMonth(row.schedule)
+    for (const p of people) {
+      const giorno = p.days.findIndex((token: string) => boardPlacementOf(token)?.kind === 'altri')
+      if (giorno < 0) continue
+      const [cognome, ...resto] = (p.name ?? '').trim().split(/\s+/)
+      if (!cognome || quanti.get(cognome.toUpperCase()) !== 1) continue
+      caso = { mese: String(row.month), giorno: giorno + 1, cognome, nome: resto.join(' '), token: p.days[giorno] }
+      break
+    }
+    if (caso) break
+  }
+  test.skip(!caso, 'nessuna persona «presente senza sezione» nei mesi caricati')
+
+  const page = await asEmployee('Di Monda')
+  const iniziale = (caso!.token[0] ?? '').toUpperCase()
+  const shift = (iniziale === 'M' || iniziale === 'P' || iniziale === 'N' ? iniziale : 'P') as 'M' | 'P' | 'N'
+  // La stessa URL che costruisce la dashboard dalla card di un cambio. Si entra
+  // DIRETTAMENTE qui (come fa chi arriva da un link condiviso): è il giro in cui
+  // l'avviso, se c'è, esce insieme all'evidenzia e non dopo.
+  await page.goto(
+    `${E2E_BASE_URL}/turnisala?${DEV}&m=${caso!.mese}&d=${caso!.giorno}&t=${shift}&c=${caso!.cognome}&n=${caso!.nome}`,
+    { waitUntil: 'domcontentloaded' },
+  )
+  const caricata = await page.waitForSelector('.sala-card-bg', { timeout: 25_000 }).then(() => true).catch(() => false)
+  test.skip(!caricata, 'board non autenticata')
+
+  const flash = page.locator('.desk-card-flash')
+  const avviso = page.locator('[data-sonner-toast]').filter({ hasText: /non è in sala/i })
+  await expect(
+    flash,
+    `${caso!.cognome} (token «${caso!.token}») è nel giorno a schermo: qualcosa doveva accendersi`,
+  ).toBeVisible({ timeout: 20_000 })
+
+  const pillola = await flash.first().evaluate(el => ({
+    fuoriDalleCard: el.closest('.sala-card-bg') === null,
+    classi: el.className,
+    respiro: getComputedStyle(el).animationName,
+  }))
+  expect(pillola.fuoriDalleCard, 'l’evidenzia doveva essere la PILLOLA delle «Altre attività», non una card').toBe(true)
+  expect(pillola.classi, 'la pillola del gruppo conserva la sua tinta').toMatch(/altri-pill-|desk-own-badge/)
+  expect(pillola.respiro, 'la pillola respira come una card').toBe('desk-card-flash')
+  expect(
+    (await flash.first().innerText()).toLowerCase(),
+    'la pillola accesa non è quella della persona cercata',
+  ).toContain(caso!.cognome.toLowerCase())
+
+  // IL DIFETTO: il vecchio avviso giallo «non è in sala…» non deve uscire — c'era
+  // qualcosa da accendere, e si è acceso.
+  // IL DIFETTO — due CAMPIONI, non due attese: l'avviso esce INSIEME all'evidenzia
+  // (misurato: stessi ~600 ms), quindi in questi due istanti o c'è o non c'è mai
+  // stato. `toHaveCount(0)` qui non servirebbe: aspettando la scomparsa di un
+  // avviso già comparso passerebbe comunque (un falso verde).
+  expect(
+    await avviso.count(),
+    'la board ha dichiarato «non è in sala» su una persona che era lì (avviso uscito con l’evidenzia)',
+  ).toBe(0)
+  // Secondo campione alla FINE del respiro: il respiro dura 3s dalla conferma del
+  // mese (non dal primo disegno), quindi copre anche la riconvalida in background.
+  await expect(flash, 'il respiro è durato più di 12s: il mese non è mai stato confermato').toHaveCount(0, { timeout: 20_000 })
+  expect(
+    await avviso.count(),
+    'la board ha dichiarato «non è in sala» su una persona che era lì (avviso uscito alla riconvalida)',
+  ).toBe(0)
+})
+
 test('anche il blocco con l\'ordinale (2°, 3°…) porta al turno giusto', async ({ asEmployee }) => {
   test.setTimeout(60_000)
   // Dal secondo cambio in poi una data non mostra il giorno ma un ordinale: il
@@ -446,7 +565,7 @@ test('salto istantaneo: la verifica parte al pointerdown e il click non la rifà
   // I due esiti possibili (si naviga / resta il messaggio) si aspettano IN
   // PARALLELO: misurare l'uno e poi l'altro falserebbe il tempo (il timeout del
   // primo lo farebbe sembrare lento).
-  const avviso = page.locator('[data-sonner-toast]').filter({ hasText: 'Dai turni non risulta' })
+  const avviso = avvisoDashboard(page)
   const esitoP = Promise.race([
     page.waitForURL(/\/turnisala\?/, { timeout: 6000 }).then(() => 'navigato' as const),
     avviso.waitFor({ state: 'visible', timeout: 6000 }).then(() => 'messaggio' as const),

@@ -913,7 +913,10 @@
      NIENTE `prefers-reduced-motion: none` qui: provato dal vivo, l'utente non
      vedeva PIÙ il flash (macchina con «riduci animazioni» attivo) e restava solo
      il contorno, che sembrava un difetto. Il respiro è un movimento lento e
-     continuo (nessun lampeggio, nessuno strobo), quindi resta anche lì. */
+     continuo (nessun lampeggio, nessuno strobo), quindi resta anche lì.
+     La STESSA classe veste anche la PILLOLA delle «Altre attività» (richiesta
+     19/09/2026): chi è presente senza sezione non ha una card, e la sua pillola
+     ha già un bordo di 1px → il respiro le dà l'anello + l'alone identici. */
   @keyframes desk-card-flash {
     0%       { border-color: var(--sala-highlight-border); box-shadow: 0 0 0 1px var(--sala-highlight-border), 0 0 0 0 color-mix(in srgb, var(--sala-highlight-border) 40%, transparent); }
     16.666%  { border-color: var(--sala-highlight-border); box-shadow: 0 0 0 1px var(--sala-highlight-border), 0 0 14px 4px color-mix(in srgb, var(--sala-highlight-border) 40%, transparent); }

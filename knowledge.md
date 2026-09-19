@@ -2316,6 +2316,70 @@ su fondo E testo, in ENTRAMBI i temi (`emulateMedia({ colorScheme })`). Il testo
 se la frase ci sta resta su UNA riga (verificato: 299px in 356px di popup), se non ci sta va a capo
 in due righe PARI invece di lasciare l'ultima parola da sola.
 
+**UNA SOLA REGOLA PER «STA SU UNA CARD» (revisione 19/09/2026, dal caso del collega col giallo).**
+Un collega (Romano Raffaele) vedeva il VECCHIO avviso GIALLO («…la persona non compare in questa
+sezione») su OGNI card, anche su richieste di settembre col PDF caricato. Non era una versione
+vecchia dell'app: erano due domande diverse. `salaCodeInfo` (lib/sala-month) chiama `work` — quindi
+`salaTokenToShiftType` risponde M/P/N — anche token che la board NON mette su nessuna card:
+`MTUTOR`/`PTUTOR` (attività TUTOR), i turni «nudi» `M`/`N`/`P` (es. SPAGNULO), le trasferte `NDis*`.
+Verificato coi moduli REALI (`scripts/.dbg-kinds.mjs`, caricati con `scripts/.dbg-alias-loader.mjs`
+che risolve `@/` e le estensioni .ts: niente più copie a mano delle funzioni), token per token:
+`MTUTOR → work/Mattina` per l'app ma `«altri presenti»` per la board. Così la verifica diceva «sì»,
+il salto partiva, e la board rispondeva col giallo. Stesso buco per chi sta in una sezione SENZA
+card nella piantina (`IAP`, `5T10`: la board rende solo le chiavi `card.sectionKey ?? card.title`).
+Rimedio: UNA definizione in `lib/shift-tokens.ts` — `sectionTurnOf(token)` / `isSectionTurnToken` —
+presa dallo STESSO ramo di `applyTokenToDay` che decide dove la board scrive un nome (nudo, `Sp*`,
+`Dis*`/`NDis*`, `TUTOR` restano fuori). `getUserShiftOnDate` riporta anche `sectionTurn` e `section`;
+la card in dashboard naviga solo se il turno torna E la board avrebbe una card
+(`lib/sala-jump.ts` → `boardSectionKeys`: la piantina, una volta per sessione; `null` = illeggibile →
+comportamento di prima, così un errore di rete non blocca i salti legittimi). Se non c'è card la
+dashboard resta e dice il vero: «X il giorno N è in sala senza sezione: non c'è nessuna card da
+mostrare.» oppure «X il giorno N è in sezione «IAP», che non ha una card sulla board.» — coprire una
+sezione resta una decisione dell'admin (basta aggiungere una card col sectionKey giusto).
+**L'AVVISO GIALLO NON È STATO RIMOSSO — e non va rimosso.** È il messaggio della BOARD
+(`desk-board.tsx`, `toast.warning`, l'unico dell'app) e resta la rete di sicurezza per chi arriva su
+una persona che la board non sa mostrare: link condiviso, push, URL scritto a mano. La revisione del
+19/09 ha tolto la VIA più comune (la dashboard non manda più in board se non ha una card da
+illuminare), non il messaggio.
+
+**IL MESE DALLA CACHE NON DECIDE (19/09/2026 — seconda causa del giallo, quella che spiegava «stesso
+commit, due dispositivi diversi»).** La board disegna SUBITO la copia del mese in IndexedDB e
+riconvalida in background (`handleMonthChange` → `readCachedSchedule` → `getSalaSchedule`): se quella
+copia è più vecchia del PDF — basta un ricaricamento del mese fatto dopo la sua ultima visita, e i PDF
+si ricaricano spesso — il nome cercato non c'è. Risultato: «non è in sala» su una persona presente, e
+il respiro di 3s partito su dati vecchi (consumato prima che arrivasse il mese vero). Il dispositivo
+dell'utente, con la copia fresca, non vedeva niente. Ora `SalaPageClient` passa `scheduleFresco` a
+DeskBoard (unico punto che mette un mese a schermo: `mettiMese(m, fresco)`, `false` SOLO per la copia
+da cache; SSR, rete e mesi teorici generati sono freschi): con la copia non riconvalidata la board non
+giudica — né avvisa né fa partire il timer — e quando la riconvalida arriva l'effetto rigira e decide
+sul dato vero. Se la rete fallisce la copia resta a schermo e il giallo NON esce (meglio il silenzio di
+un «non è in sala» falso). Test: `tests/sala-mese-da-cache.spec.ts` (apre il mese fresco → la card
+deve accendersi; CORROMPE la copia in cache togliendo la persona dal giorno; rallenta la rete di 1,5s;
+riapre la URL → nessun avviso nella finestra sulla copia vecchia, e la card si accende col mese vero).
+Verificato che morda: con la guardia disattivata fallisce con «la board ha dichiarato «non è in sala»
+guardando la copia in cache non riconvalidata».
+
+**E il flash non dipende più dagli input fragili del browser (stessa revisione).** Il match del flash
+usava la regola STRETTA (`matchesCognome`): per gli omonimi serve l'iniziale del nome e `bareOwners`
+decide chi possiede la riga col solo cognome — ma `bareOwners` nasce dall'albero squadre, che nel
+browser può tornare vuoto (documentato in `useShiftTeamTreeData`: RLS «authenticated»). Senza albero,
+«ROMANO» (riga bare) non era trovato mentre la verifica (`personNameMatches`, che accetta la riga col
+solo cognome) lo riconosceva → giallo su una persona presente. Ora il flash usa `matchesFocusPerson`
+(lib/person-shift): regola stretta + ripiego con la regola della verifica, cioè la stessa domanda che
+autorizza il salto. Effetto collaterale accettato: riga bare + due omonimi in sala → si accendono
+entrambe le card (il PDF non dice quale). Nel DB dev gli omonimi sono Loni, Esposito, Romano, Nevano,
+Caiazzo, Di Napoli, Esposito A. Coperto in `tests/sala-card-presence.spec.ts`.
+
+Prove: `tests/sala-card-presence.spec.ts` (5 spec di logica) pretende che `sectionTurnOf` coincida
+con `applyTokenToDay` su 29 token rappresentativi — è il contratto che impedisce la deriva — e che
+`MTUTOR`/`M`/`NDisNa` restino turni per il resto dell'app ma non per il salto;
+`scripts/.dbg-classifica.mjs` classifica TUTTE le richieste del DB (in dev: 59 casi «turno letto ma
+non su una card» + 3 sezioni senza card). Prova dal vivo, fatta e poi rimossa: richiesta demo su
+NERI Luigi 28/09 (`PTUTOR`) → la card resta in dashboard con «Neri il giorno 28 è in sala senza
+sezione…», mentre la board aperta sulla stessa URL risponde
+`warning (rgb(255,252,240)) «Luigi Neri non è in sala nel turno Pomeriggio del 28…»` — cioè
+esattamente il popup del collega.
+
 **Il salto è ISTANTANEO (`lib/sala-jump.ts`).** La verifica del turno costa ~0,5-0,6s (misurato:
 561ms dal click) e prima si pagava TUTTA dopo il tap. Ora: (a) parte già al
 `onPointerDown` della colonna data (più l'equivalente da tastiera), (b) la promessa è CONDIVISA fra
@@ -2342,4 +2406,47 @@ board e nessuna card accesa; (e) il salto è ISTANTANEO (prefetch al pointerdown
 richiesta al click, effetto entro 600ms, secondo tap sulla stessa card senza nuove richieste).
 Verifiche: `tsc`, `eslint` (nessun problema nuovo), 61 spec
 esistenti verdi (tuoturno, dipendente, chip-gialle, month-picker, notifiche, bacheca, sala-scoperto,
-confronto, colori-card, shift-dialog, pages).
+confronto, colori-card, shift-dialog, pages). Dopo la revisione del 19/09 sulla regola «sta su una
+card» la suite completa è **116 passati / 8 saltati** (`tsc` + `eslint` puliti; restano i 2 `any`
+preesistenti del lock landscape in sala-page-client).
+
+**LA PILLOLA DELLE «ALTRE ATTIVITÀ» RESPIRA (richiesta 19/09/2026 — il giallo del collega: la
+causa che RESTAVA, dopo la cache e i match fragili).** Chi il PDF registra come presente SENZA
+sezione — turno «nudo» `M`/`N`/`P` (SPAGNULO), corsi `Sp*`/`SPW`, istruttori `ISp*`, trasferte
+`Dis*`/`NDis*`, `TUTOR`/`MTUTOR`/`GTUTOR` — non ha nessuna card, ma la board lo MOSTRA: è la
+pillola della riga «Trasferte / Corsi / Istruttori / Altre attività». Lì non si accendeva niente,
+quindi la board non aveva altra scelta che avvisare («la persona non compare in questa sezione») su
+persone che nel PDF c'erano — anche su richieste di settembre col PDF caricato (caso reale del
+collega). Ora la pillola riceve la STESSA `.desk-card-flash` della card (ha già un bordo di 1px →
+anello + alone identici, nessun CSS nuovo oltre al commento) e la board considera «trovata» la
+persona con `displayCards.some(isFocusPerson) || flashInAltri`: l'avviso esce SOLO quando la board
+non mostrerebbe la persona da nessuna parte. Dettaglio che serviva: i nomi dei GIALLI restano fuori
+dai sottogruppi (il pallino sulla loro card li rappresenta già), ma se la persona del flash è un
+giallo la sua pillola DEVE esserci — l'eccezione è nel filtro (`!yellowPeople.has(...) ||
+isFlashGroupName(...)`), altrimenti lo stesso buco si sarebbe riaperto per i gialli.
+
+**Regola unica ampliata: DOVE LA BOARD METTE UN TOKEN.** `boardPlacementOf(token)` in lib/shift-tokens
+(`{kind:'card', section}` | `{kind:'altri'}` | `null`) replica ramo per ramo `applyTokenToDay`;
+`sectionTurnOf`/`isSectionTurnToken` sono ora suoi casi particolari (contratto invariato per i
+chiamanti). `getUserShiftOnDate` riporta `placement` (al posto di `sectionTurn: boolean`) e la
+dashboard, quando il turno combacia, va in sala ANCHE se la destinazione è la pillola; resta ferma
+solo se la board non mostrerebbe la persona in nessun posto — sezione senza card nella piantina,
+codice invisibile per decisione utente (`G`, `MSb`, `12.14`, `Na`) — col messaggio nuovo «… il giorno
+N non compare in nessuna sezione della board.» (prima «… è in sala senza sezione: non c'è nessuna
+card da mostrare.», che per questi casi era diventato falso).
+
+**Test.** `tests/sala-card-presence.spec.ts` (8 spec): `boardPlacementOf` deve coincidere con
+`applyTokenToDay` su 29 token rappresentativi (card / pillola / nessun posto), i presenti-senza-sezione
+devono risultare `altri` (mai `card`), gli invisibili `null`, e i token in pillola che PORTANO un
+turno (`MTUTOR`, `PTUTOR`, `M`, `N`, `P`) devono restare raggiungibili dalla dashboard mentre i
+codici senza turno (`SpN`, `ISpNw`, `DisCas`, `GTUTOR`) no. In `tests/card-cambio-to-sala.spec.ts` la
+spec nuova «chi è presente senza sezione si accende nella PILLOLA e l'avviso giallo non esce»: prende
+dai mesi veri una persona con token senza sezione (nella dev di oggi: PASSANNANTI `SpN` al 18/03),
+apre la URL del focus, pretende che l'evidenzia sia la pillola (non dentro `.sala-card-bg`,
+`animationName` = `desk-card-flash`) e CAMPIONA due volte l'assenza dell'avviso — appena appare
+l'evidenzia e alla fine del respiro. **Come si scrive questo test (lezione):** `toHaveCount(0)` qui
+NON morde — aspettando la scomparsa di un avviso già comparso passerebbe comunque, e l'avviso esce
+INSIEME all'evidenzia (~600 ms, misurato con una sonda a 250 ms); servono campioni puntuali
+(`expect(await locator.count()).toBe(0)`). Verificato che morda: con `flashInAltri` disattivato
+fallisce con «la board ha dichiarato «non è in sala» su una persona che era lì (avviso uscito con
+l'evidenzia)».

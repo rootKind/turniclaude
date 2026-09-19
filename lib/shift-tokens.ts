@@ -187,7 +187,63 @@ export function isPresentNoSection(token: string): boolean {
  */
 export const NON_SECTION_DUTIES = new Set(['TUTOR'])
 
-/** Token del quale registrare la presenza senza sezione (per il raggruppamento). */
+/**
+ * DOVE LA BOARD METTE UN TOKEN — l'unica risposta a «dove lo vedo?»
+ * (richiesta 19/09/2026: la verifica e la board devono rispondere la STESSA cosa).
+ *
+ * Riproduce, ramo per ramo, `applyTokenToDay` — l'unico posto in cui la board
+ * decide DOVE scrive un nome:
+ *   `card`  → una card di SEZIONE (l'unica cosa che si illumina come card);
+ *   `altri` → la pillola della riga «Trasferte/Corsi/Istruttori/Altre attività»
+ *             (presente in sala, nessuna sezione: turni «nudi» `M`/`N`/`P` es.
+ *             SPAGNULO, `Sp*`, `ISp*`, `Dis*`/`NDis*` trasferte, `TUTOR`/`MTUTOR`);
+ *   `null`  → la board non lo mostra affatto (riposi, assenze, codici invisibili
+ *             per decisione utente: `G`, `MSb`, `12.14`, `Na`…).
+ *
+ * PERCHÉ esiste: la verifica del salto in sala chiedeva «che turno ha questa
+ * persona?» a `salaCodeInfo`, che chiama `work` anche `MTUTOR`/`M`/`NDisNa`
+ * (prima lettera M/N/P) → rispondeva «Mattina» e faceva partire il salto, ma la
+ * board non ha nessuna card con quel nome → vecchio avviso GIALLO «non è in sala
+ * …», anche nei mesi col PDF caricato.
+ */
+export type BoardPlacement =
+  | { kind: 'card'; section: string }
+  | { kind: 'altri' }
+
+export function boardPlacementOf(token: string | null | undefined): BoardPlacement | null {
+  const t = (token ?? '').trim()
+  if (!t || ABSENT_CODES.has(t)) return null
+  if (/^[MNP]$/.test(t)) return { kind: 'altri' }
+  if (isPresentNoSection(t)) return { kind: 'altri' }
+  if (isAltriPresentiToken(t)) return { kind: 'altri' }
+  if (!isShiftCode(t)) return null
+  const { section } = parseShiftCode(t)
+  if (NON_SECTION_DUTIES.has(section.toUpperCase())) return { kind: 'altri' }
+  return { kind: 'card', section }
+}
+
+/** Sezione (e turno) del token, quando la board lo mette su una CARD. */
+export function sectionTurnOf(
+  token: string | null | undefined,
+): { section: string; shift: SalaShiftType } | null {
+  const dove = boardPlacementOf(token)
+  if (dove?.kind !== 'card') return null
+  return { section: dove.section, shift: parseShiftCode((token ?? '').trim()).shift }
+}
+
+/** true se il token finisce in una card di SEZIONE della board (vedi `sectionTurnOf`). */
+export function isSectionTurnToken(token: string | null | undefined): boolean {
+  return boardPlacementOf(token)?.kind === 'card'
+}
+
+/** true se il token finisce nella riga «Altre attività» (pillola), non su una card. */
+export function isAltriPresentiPlacementToken(token: string | null | undefined): boolean {
+  return boardPlacementOf(token)?.kind === 'altri'
+}
+
+/**
+ * Token del quale registrare la presenza senza sezione (per il raggruppamento).
+ */
 export function isAltriPresentiToken(token: string): boolean {
   if (ABSENT_CODES.has(token)) return false
   // TUTOR con qualunque turno, incluse le guardie (GTUTOR — utente 22/09/2026;

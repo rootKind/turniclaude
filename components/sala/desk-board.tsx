@@ -18,6 +18,7 @@ import { NON_SECTION_DUTIES, SALA_FLASH_MS, SALA_SHIFT_LABEL, isPresentNoSection
 import { MinimiPanel } from './minimi-panel'
 import type { UploadHistoryEntry } from '@/lib/queries/sala-schedule'
 import { formatDisplayName, matchesCognome } from '@/lib/utils'
+import { matchesFocusPerson } from '@/lib/person-shift'
 import { buildBareOwners, lookupNameDisplay, type BareOwnerMap } from '@/lib/shift-teams-matching'
 import { GRUPPO_EXTRA_KEY, assentiPerTurno, normName, theoRealSectionCompare, surnameKey, type AssenteDelTurno, type TheoRealSectionCompare } from '@/lib/turni-teorici'
 import { useAllDuplicateCognomi, useAllUsersForNames } from '@/hooks/use-users'
@@ -154,6 +155,13 @@ interface Props {
    *  persona che cede il cambio; se non la trova, avvisa invece di far credere
    *  che sia un errore di navigazione. Vedi lib/shift-tokens (SalaFocus). */
   focus?: SalaFocus | null
+  /** Il mese a schermo è stato CONFERMATO dalla rete (o generato dal tree)?
+   *  `false` = è la copia in IndexedDB non ancora riconvalidata: può essere più
+   *  vecchia del PDF, quindi non si dichiara «non è in sala» e non si fa partire
+   *  il respiro su di lei (richiesta 19/09/2026 — il collega che vedeva il giallo
+   *  su persone che c'erano). Default `true`: chi non lo passa si comporta come
+   *  prima. */
+  scheduleFresco?: boolean
 }
 
 export function DeskBoard({
@@ -174,6 +182,7 @@ export function DeskBoard({
   onDeleteMonth,
   onColorChange,
   focus = null,
+  scheduleFresco = true,
 }: Props) {
   const canUpload = isAdmin || isManager
   const duplicateCognomi = useAllDuplicateCognomi()
@@ -883,6 +892,19 @@ export function DeskBoard({
       })
     : cards
 
+  /* LA PILLOLA DEL FLASH: la persona cercata sta nella riga «Altre attività»?
+     (richiesta 19/09/2026 — chi è presente nel PDF senza sezione non è su nessuna
+     card: turni «nudi» M/N/P es. SPAGNULO, trasferte `NDis*`, `TUTOR`/`MTUTOR`,
+     corsi `Sp*`… Senza questa evidenzia la board non aveva niente da accendere e
+     rispondeva col vecchio avviso giallo «la persona non compare in questa
+     sezione», anche nei mesi col PDF caricato.) La regola del match è la stessa
+     delle card (`matchesFocusPerson`), così la pillola non può essere più
+     difficile da trovare di una card. */
+  const isFlashGroupName = useCallback(
+    (name: string) => !!flash && matchesFocusPerson([name], flash.cognome, flash.nome, duplicateCognomi, bareOwners),
+    [flash, duplicateCognomi, bareOwners],
+  )
+
   // Raggruppamento per tipologia (richiesta 22/09/2026): i token espliciti
   // arrivano dal day schedule (v2 ricostruita, parser o teorico); i mesi v1
   // storici non hanno token → ricadono nel gruppo «Altre attività».
@@ -895,11 +917,22 @@ export function DeskBoard({
     // non hanno token → entry senza codice, gruppo «Altre attività».
     // Persona GIALLA (v3, 25/09/2026): resta FUORI dai sottogruppi — il pallino
     // giallo sulla sua card teorica la rappresenta già (vale per tutti i
-    // gruppi: SPCA giallo non finisce nei «Corsi», ecc.).
+    // gruppi: SPCA giallo non finisce nei «Corsi», ecc.). UNICA eccezione: la
+    // persona del FLASH — se è lì, la sua pillola DEVE esserci, altrimenti la
+    // board non avrebbe niente da accendere e tornerebbe l'avviso giallo.
     return groupAltriPresenti(day)
-      .map(g => ({ ...g, entries: g.entries.filter(e => !yellowPeople.has(normName(e.name))) }))
+      .map(g => ({
+        ...g,
+        entries: g.entries.filter(e => !yellowPeople.has(normName(e.name)) || isFlashGroupName(e.name)),
+      }))
       .filter(g => g.entries.length > 0)
-  }, [schedule, selectedDay, isEditing, yellowPeople])
+  }, [schedule, selectedDay, isEditing, yellowPeople, isFlashGroupName])
+
+  /** La persona del flash è in una pillola delle «Altre attività» (non su una card)? */
+  const flashInAltri = useMemo(
+    () => altriGruppi.some(g => g.entries.some(e => isFlashGroupName(e.name))),
+    [altriGruppi, isFlashGroupName],
+  )
 
   // Build grid: rows 1-4, cols left/center/right
   const usedRows: number[] = isEditing
@@ -932,18 +965,24 @@ export function DeskBoard({
   // lasciare la card accesa per sempre se il mese non arriva mai.
   useEffect(() => {
     if (!flash) return
-    const mesePronto = schedule?.month === flash.month
+    // «Pronto» = c'è il mese E la sua copia è confermata: sulla copia in cache il
+    // respiro si consumerebbe guardando dati vecchi (la card si accenderebbe per
+    // un istante e poi sparirebbe mentre la riconvalida arriva).
+    const mesePronto = schedule?.month === flash.month && scheduleFresco
     const t = setTimeout(() => setFlash(null), mesePronto ? SALA_FLASH_MS : SALA_FLASH_ATTESA_MAX_MS)
     return () => clearTimeout(t)
-  }, [flash, schedule?.month])
+  }, [flash, schedule?.month, scheduleFresco])
 
   // La persona del flash è in QUESTA card? (stessa regola dell'evidenzia della
   // card dell'utente loggato: cognomi della sezione, tirocinanti e gialli).
+  // `matchesFocusPerson` (lib/person-shift) = regola stretta della board + ripiego
+  // con la regola della VERIFICA: elenco utenti o albero incompleti nel browser
+  // non possono più far rispondere «non è in sala» a una persona che c'è.
   const isFocusPerson = useCallback(
     (card: DeskCardType) => !!flash && (
-      matchesCognome(card.surnames, flash.cognome, flash.nome, duplicateCognomi, bareOwners) ||
-      matchesCognome(card.tirocinanti ?? [], flash.cognome, flash.nome, duplicateCognomi, bareOwners) ||
-      matchesCognome(yellowNamesByCard.get(card.id) ?? [], flash.cognome, flash.nome, duplicateCognomi, bareOwners)
+      matchesFocusPerson(card.surnames, flash.cognome, flash.nome, duplicateCognomi, bareOwners) ||
+      matchesFocusPerson(card.tirocinanti ?? [], flash.cognome, flash.nome, duplicateCognomi, bareOwners) ||
+      matchesFocusPerson(yellowNamesByCard.get(card.id) ?? [], flash.cognome, flash.nome, duplicateCognomi, bareOwners)
     ),
     [flash, duplicateCognomi, bareOwners, yellowNamesByCard],
   )
@@ -955,17 +994,24 @@ export function DeskBoard({
   useEffect(() => {
     if (!flash || isEditing) return
     if (!schedule || schedule.month !== flash.month) return
-    const found = displayCards.some(isFocusPerson)
+    // «Trovata» = su una card di sezione OPPURE in una pillola delle «Altre
+    // attività»: in entrambi i casi c'è qualcosa da accendere, quindi non si
+    // avvisa (richiesta 19/09/2026).
+    const found = displayCards.some(isFocusPerson) || flashInAltri
     if (found) {
       document.querySelector('.desk-card-flash')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
+    // Mese non ancora confermato: NON si dice «non è in sala» — è esattamente il
+    // caso del collega (copia in cache più vecchia del PDF, persona che c'era).
+    // L'effetto rigira quando la riconvalida arriva (deps sotto).
+    if (!scheduleFresco) return
     if (notFoundRef.current.has(flash.token)) return
     notFoundRef.current.add(flash.token)
     toast.warning(
       `${flash.nome ? `${flash.nome} ` : ''}${flash.cognome} non è in sala nel turno ${SALA_SHIFT_LABEL[flash.shift]} del ${flash.day} — la card è quella del cambio, ma la persona non compare in questa sezione.`,
     )
-  }, [flash, isEditing, schedule, displayCards, isFocusPerson])
+  }, [flash, isEditing, schedule, displayCards, isFocusPerson, scheduleFresco, flashInAltri])
 
   return (
     <div className="flex flex-col gap-2 p-4">
@@ -1196,13 +1242,21 @@ export function DeskBoard({
               {gruppo.entries.map((e, i) => {
                 const isMe = isOwn(e.name)
                 const da = gruppoProvenienza?.get(normName(e.name))
+                // La pillola della persona arrivata dalla dashboard respira come
+                // una card (richiesta 19/09/2026): è l'unica evidenzia possibile
+                // per chi è presente senza sezione.
+                const flashPill = isFlashGroupName(e.name)
                 return (
                   <span
                     key={i}
                     // La pill dell'utente loggato è in GRASSETTO e con il bordo
                     // spesso (richiesta 16/09/2026): si riconosce a colpo d'occhio
                     // anche in mezzo a una riga di trasferte.
-                    className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge desk-own-badge-strong' : gruppo.colorClass}`}
+                    className={[
+                      'text-xs px-2 py-0.5 rounded-full',
+                      isMe ? 'desk-own-badge desk-own-badge-strong' : gruppo.colorClass,
+                      flashPill ? 'desk-card-flash' : '',
+                    ].filter(Boolean).join(' ')}
                   >
                     {displayForPdfName(e.name)}
                     {e.code && <span className="tabular-nums font-semibold opacity-80"> {e.code}</span>}

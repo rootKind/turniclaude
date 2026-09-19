@@ -81,6 +81,19 @@ export function SalaPageClient({
   }, [])
 
   const [schedule, setSchedule] = useState<SalaSchedule | null>(initialSchedule)
+  /* IL MESE A SCHERMO È CONFERMATO? (19/09/2026 — il caso del collega che vedeva
+     «non è in sala» su persone che c'erano). La board disegna SUBITO la copia in
+     IndexedDB e riconvalida in background: se quella copia è più vecchia del PDF
+     (basta un ricaricamento del mese fatto dopo la sua ultima visita) il nome
+     cercato può non esserci — e la board direbbe «non è in sala». `false` = mese
+     dalla cache, non ancora confermato: la board aspetta a giudicare (e a far
+     partire il respiro). */
+  const [scheduleFresco, setScheduleFresco] = useState(true)
+  /** Unico punto che mette un mese a schermo: `fresco: false` = copia locale. */
+  const mettiMese = (m: SalaSchedule | null, fresco = true) => {
+    setScheduleFresco(fresco)
+    setSchedule(m)
+  }
   const [currentMonth, setCurrentMonth] = useState(initialMonth)
   const [availableMonths, setAvailableMonths] = useState(initialMonths)
   // Cache-first (20/09/2026): il server renderizza il primo mese e IDB copre
@@ -132,7 +145,7 @@ export function SalaPageClient({
     setShiftTree(refreshedTree)
     // Il mese corrente è teorico e non è ancora stato generato: rigenera ora.
     if (!scheduleRef.current) {
-      setSchedule(generateTheoreticalMonth(currentMonthRef.current, refreshedTree, refreshedTree.adjustments))
+      mettiMese(generateTheoreticalMonth(currentMonthRef.current, refreshedTree, refreshedTree.adjustments))
     }
   }, [refreshedTree])
 
@@ -153,15 +166,17 @@ export function SalaPageClient({
     if (!isUploaded(month)) {
       // Mese teorico: si genera al volo. Se l'albero squadre non è ancora
       // arrivato, l'effetto di caricamento iniziale rigenera appena arriva.
-      setSchedule(shiftTree ? generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments) : null)
+      mettiMese(shiftTree ? generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments) : null)
       return
     }
     // Cache-first: disegna SUBITO il mese da IndexedDB, poi riconvalida in
     // background. A caldo zero attese; se la cache non c'è la rete decide.
     let cached: SalaSchedule | null = null
     if (userId) cached = await readCachedSchedule(userId, month)
-    if (cached) setSchedule(cached)
-    else setSchedule(null)
+    // La copia locale NON è confermata: la board aspetta la riconvalida prima di
+    // dire «non è in sala» (vedi scheduleFresco).
+    if (cached) mettiMese(cached, false)
+    else mettiMese(null)
 
     const supabase = createClient()
     try {
@@ -170,11 +185,11 @@ export function SalaPageClient({
       // in volo: non sovrascrivere il mese attualmente a schermo.
       if (currentMonthRef.current !== month) return
       if (data) {
-        setSchedule(data)
+        mettiMese(data)
         if (userId) writeCachedSchedule(userId, data)
       } else if (!cached && shiftTree) {
         // Mese rimosso dal DB ma non più in cache: fallback teorico.
-        setSchedule(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments))
+        mettiMese(generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments))
       }
     } catch {
       // Rete giù: la copia cache (se c'era) resta a schermo.
@@ -225,7 +240,7 @@ export function SalaPageClient({
           if (userId) deleteCachedSchedule(userId, month)
           if (currentMonthRef.current === month) {
             const tree = shiftTreeRef.current
-            setSchedule(tree ? generateTheoreticalMonth(month, tree, tree.adjustments) : null)
+            mettiMese(tree ? generateTheoreticalMonth(month, tree, tree.adjustments) : null)
           }
           return
         }
@@ -245,7 +260,7 @@ export function SalaPageClient({
           ...(row.colored_persons ? { coloredPersons: row.colored_persons } : {}),
         }
         if (userId) writeCachedSchedule(userId, incoming)
-        if (currentMonthRef.current === row.month) setSchedule(incoming)
+        if (currentMonthRef.current === row.month) mettiMese(incoming)
       })
       .subscribe()
 
@@ -297,7 +312,7 @@ export function SalaPageClient({
       const first = months.sort((a, b) => a.localeCompare(b))[0]
       const data = await getSalaSchedule(supabase, first)
       if (data && userId) await writeCachedSchedule(userId, data)
-      setSchedule(data)
+      mettiMese(data)
       setCurrentMonth(first)
       toast.success(`${months.length} mes${months.length === 1 ? 'e caricato' : 'i caricati'}: ${months.map(formatMonthShort).join(', ')}`)
     }
@@ -355,7 +370,7 @@ export function SalaPageClient({
         if (fallback) {
           handleMonthChange(fallback)
         } else {
-          setSchedule(null)
+          mettiMese(null)
           setCurrentMonth(
             (() => {
               const now = new Date()
@@ -388,6 +403,7 @@ export function SalaPageClient({
         onDeleteMonth={handleDeleteMonth}
         onColorChange={handleColorChange}
         focus={focus}
+        scheduleFresco={scheduleFresco}
       />
 
       {cleanup && (
