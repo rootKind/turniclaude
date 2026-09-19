@@ -34,9 +34,11 @@ export default async function TuoTurnoPage() {
 
   const users = usersRes.data ?? []
   const duplicateCognomi = buildDuplicateCognomi(users)
-  // Omonimi con membro LEGATO via user_id (caso NEVANO P./G.): la riga PDF con
-  // il solo cognome appartiene al legato (Pietro), gli altri solo con l'iniziale.
-  const bareOwners = buildBareOwners(tree, duplicateCognomi)
+  // Omonimi e righe NUDE (caso NEVANO P./G.): di chi è il solo cognome lo decide
+  // il ROSTER — l'unico collega IN TURNO con quel cognome (chi è fuori dai turni
+  // non rende ambiguo il cognome di chi ci sta). Il membro legato serve per
+  // l'iniziale; l'identità basta quando l'iniziale non c'è.
+  const bareOwners = buildBareOwners(tree, duplicateCognomi, users)
 
   // Mesi PDF in forma compatta v2: servono le righe «teorico» del parser.
   const pdfMonths = new Map<string, SalaMonthData>()

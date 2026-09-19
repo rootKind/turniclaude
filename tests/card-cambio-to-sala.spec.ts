@@ -434,7 +434,7 @@ test('la persona che è in sala si accende: «respiro» di 3s, anche con «riduc
 })
 
 test('un salto verso un ALTRO mese accende lo stesso: l\'evidenzia non muore mentre il mese arriva', async ({ asEmployee }) => {
-  test.setTimeout(120_000)
+  test.setTimeout(240_000)
   /* IL BUCO DELLA PRIMA GUARDIA (25/09/2026). La board si apre sul mese di OGGI e
      solo dopo raggiunge il mese dell'arrivo (l'effetto in `sala-page-client`
      chiama `handleMonthChange(focus.month)`): per un istante `currentMonth` NON è
@@ -500,16 +500,26 @@ test('un salto verso un ALTRO mese accende lo stesso: l\'evidenzia non muore men
   const flash = page.locator('.desk-card-flash')
   let acceso: (typeof candidati)[number] | null = null
   let ultimoErrore = ''
+  /* L'attesa è generosa DI PROPOSITO, e con la diagnosi dentro.
+     Sotto carico (4 worker × WebKit × il DB di dev) l'avvio della board può
+     superare i 20s usati qui prima: la spec è già caduta due volte su due giri
+     pieni con «nessuno si è acceso» e NESSUN avviso, cioè senza che la board
+     avesse ancora giudicato l'arrivo — non è una card che non si accende, è un
+     verdetto che non era ancora arrivato. Isolata la spec dura 4,5s. Se ricapita,
+     il messaggio dice ADESSO a che punto era (mese a schermo e avvisi). */
   for (const c of candidati.slice(0, 3)) {
     await page.goto(urls(c.giorno, c.turno, c.cognome, c.iniziale), { waitUntil: 'domcontentloaded' })
-    const ok = await flash.first().waitFor({ state: 'visible', timeout: 20_000 }).then(() => true).catch(() => false)
+    const ok = await flash.first().waitFor({ state: 'visible', timeout: 45_000 }).then(() => true).catch(() => false)
     if (ok) { acceso = c; break }
-    ultimoErrore = await page.locator('[data-sonner-toast]').allInnerTexts().then(t => t.join(' | ')).catch(() => '')
+    const avvisi = await page.locator('[data-sonner-toast]').allInnerTexts().then(t => t.join(' | ')).catch(() => '')
+    const board = await giornoTurnoBoard(page).then(b => (b ? `${b.anno}-${String(b.mese).padStart(2, '0')} (giorno ${b.giorno})` : 'toolbar non letta')).catch(() => 'toolbar non letta')
+    ultimoErrore = `ultimo tentativo ${c.cognome} ${c.giorno}/${c.turno}: mese a schermo ${board}`
+      + (avvisi ? ` · avviso «${avvisi}»` : ' · nessun avviso')
   }
   expect(
     acceso,
     `nessuno fra ${candidati.slice(0, 3).map(c => `${c.cognome} ${c.giorno}/${c.turno}`).join(', ')} del ${altro} si è acceso`
-    + (ultimoErrore ? ` (ultimo avviso: «${ultimoErrore}»)` : ''),
+    + (ultimoErrore ? ` (${ultimoErrore})` : ''),
   ).not.toBeNull()
   await expect(flash).toContainText(acceso!.cognome)
   expect(await page.locator('[data-sonner-toast]').filter({ hasText: /non è in sala/i }).count(),

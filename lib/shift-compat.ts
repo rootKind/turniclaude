@@ -92,8 +92,9 @@ export async function getUserShiftOnDate(
   const certo = !ambigua && (!proprietarioId || proprietarioId === userId)
 
   const duplicateCognomi = buildDuplicateCognomi(users)
-  // Mappa «riga nuda → proprietario» (richiede il legame membro↔utente nel roster).
-  const bareOwners = buildBareOwners(tree, duplicateCognomi)
+  // Mappa «riga nuda → proprietario»: la decide il ROSTER (l'unico collega in
+  // turno con quel cognome), con l'elenco utenti a disposizione.
+  const bareOwners = buildBareOwners(tree, duplicateCognomi, users)
 
   // 1. REALE: riga del PDF del mese, se caricata.
   try {

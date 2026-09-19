@@ -4,7 +4,8 @@ import { salaCodeInfo, spiegaCodiceNonMostrato } from '../lib/sala-month'
 import { salaTokenToShiftType } from '../lib/shift-compat'
 import { matchesCognome } from '../lib/utils'
 import { matchesFocusPerson } from '../lib/person-shift'
-import type { DaySchedule } from '../types/database'
+import { buildBareOwners, ownsBareNameFor } from '../lib/shift-teams-matching'
+import type { DaySchedule, ShiftTeamTree } from '../types/database'
 
 /**
  * VERIFICA E BOARD DEVONO RISPONDERE LA STESSA COSA (19/09/2026).
@@ -172,5 +173,76 @@ test.describe('«sta su una card» ha una sola definizione', () => {
     expect(sectionTurnOf('piaptir')?.section).toBe('IAP')
     expect(sectionTurnOf('Mric')?.section).toBe('RIC')
     expect(sectionTurnOf('piaptir')?.shift).toBe('P')
+  })
+})
+
+test.describe('di chi è la riga NUDA: lo dice il roster (25/09/2026)', () => {
+  const utenti = [
+    { id: 'pietro', nome: 'Pietro', cognome: 'Nevano' },
+    { id: 'giuseppe', nome: 'Giuseppe', cognome: 'Nevano' },
+  ]
+  const dup = new Set(['Nevano'])
+  /** Membro di squadra: `userId` null = non legato nell'albero. */
+  const albero = (fullName: string, userId: string | null, attivo = true) =>
+    ({
+      types: [{
+        is_active: true, cycle_days: 28, pattern_start: '2026-09-14',
+        teams: [{ id: 't1', name: 'Rilievo D', members: [{ is_active: attivo, full_name: fullName, user_id: userId, pattern: ['M4S'] }] }],
+      }],
+    }) as unknown as ShiftTeamTree
+
+  test('un solo collega IN TURNO: la riga nuda è sua, e solo sua', () => {
+    // IL CASO REALE: dev ha «NEVANO P.» legato a Pietro; Giuseppe è fuori dai
+    // turni (nessun membro) e i PDF scrivono «NEVANO» senza iniziale.
+    const bareOwners = buildBareOwners(albero('NEVANO P.', 'pietro'), dup, utenti)
+    expect(bareOwners.get('nevano')?.userId, 'il proprietario lo decide il roster').toBe('pietro')
+    expect(bareOwners.get('nevano')?.initial, 'l\'iniziale arriva dal nome del membro').toBe('p')
+    // Chi è in turno: la riga nuda è la sua — per identità E per iniziale.
+    expect(ownsBareNameFor({ id: 'pietro', nome: 'Pietro', cognome: 'Nevano' }, bareOwners)).toBe(true)
+    expect(matchesCognome(['NEVANO'], 'Nevano', 'Pietro', dup, bareOwners)).toBe(true)
+    // Chi è fuori dai turni: no, e non per l'iniziale ma per l'identità.
+    expect(ownsBareNameFor({ id: 'giuseppe', nome: 'Giuseppe', cognome: 'Nevano' }, bareOwners)).toBe(false)
+    expect(matchesCognome(['NEVANO'], 'Nevano', 'Giuseppe', dup, bareOwners)).toBe(false)
+  })
+
+  test('membro nudo ma LEGATO (produzione dopo il clic): vale l\'identità, non l\'iniziale', () => {
+    // Il membro di produzione si chiama «NEVANO»: legandolo a Pietro l'owner ha
+    // userId ma NESSUNA iniziale. Col solo confronto di iniziale la riga nuda non
+    // sarebbe di nessuno (né di Pietro né di Giuseppe); con l'identità è di Pietro.
+    const bareOwners = buildBareOwners(albero('NEVANO', 'pietro'), dup, utenti)
+    expect(bareOwners.get('nevano')?.initial, 'il nome del membro non porta iniziale').toBe('')
+    expect(ownsBareNameFor({ id: 'pietro', nome: 'Pietro', cognome: 'Nevano' }, bareOwners)).toBe(true)
+    expect(matchesCognome(['NEVANO'], 'Nevano', 'Pietro', dup, bareOwners), 'senza iniziale la regola stretta non basta').toBe(false)
+    expect(ownsBareNameFor({ id: 'giuseppe', nome: 'Giuseppe', cognome: 'Nevano' }, bareOwners)).toBe(false)
+  })
+
+  test('due colleghi IN TURNO: la riga nuda non è di nessuno dei due', () => {
+    const due = {
+      types: [{
+        is_active: true, cycle_days: 28, pattern_start: '2026-09-14',
+        teams: [{
+          id: 't1', name: 'Rilievo D',
+          members: [
+            { is_active: true, full_name: 'NEVANO P.', user_id: 'pietro', pattern: ['M4S'] },
+            { is_active: true, full_name: 'NEVANO G.', user_id: 'giuseppe', pattern: ['M4S'] },
+          ],
+        }],
+      }],
+    } as unknown as ShiftTeamTree
+    const bareOwners = buildBareOwners(due, dup, utenti)
+    expect(bareOwners.size, 'con due in turno non si attribuisce niente').toBe(0)
+    expect(ownsBareNameFor({ id: 'pietro', nome: 'Pietro', cognome: 'Nevano' }, bareOwners)).toBe(false)
+  })
+
+  test('membro SPENTO: non è in turno, quindi resta la regola del solo legame', () => {
+    // La produzione di oggi: nessun legame (o legame su un membro spento) e due
+    // utenti con lo stesso cognome → si tace, e la riga nuda non è di nessuno.
+    const spento = buildBareOwners(albero('NEVANO P.', 'pietro', false), dup, utenti)
+    expect(spento.size).toBe(0)
+    // Senza l'elenco utenti si torna alla regola di prima (solo legame).
+    const senzaUtenti = buildBareOwners(albero('NEVANO P.', 'pietro'), dup)
+    expect(senzaUtenti.get('nevano')?.userId).toBe('pietro')
+    // Cognome non omonimo: nessuna mappa, nessuna domanda.
+    expect(buildBareOwners(albero('NEVANO P.', 'pietro'), new Set(['Rossi']), utenti).size).toBe(0)
   })
 })

@@ -617,14 +617,16 @@ export function DeskBoard({
      diversa: altro turno, riposo, non in scheda).
      Niente più strisce «≠»/«←»: tropo largo su schermo stretto. */
   const theoDiffEnabled = !!(isAdmin && showTheoDiff && shiftTree && schedule && schedule.source !== 'theoretical')
-  // Omonimi con membro LEGATO via user_id (caso NEVANO P./G.): la riga PDF con
-  // il solo cognome («NEVANO») appartiene al legato, gli altri omonimi solo con
-  // l'iniziale. Mappa calcolata una volta per albero+anagrafica.
-  const bareOwners: BareOwnerMap = useMemo(
-    () => buildBareOwners(shiftTree, duplicateCognomi),
-    [shiftTree, duplicateCognomi],
-  )
   const usersForNames = useAllUsersForNames()
+  // Omonimi e righe NUDE (caso NEVANO P./G.): di chi è «NEVANO» lo decide il
+  // ROSTER — l'unico collega IN TURNO con quel cognome (Giuseppe è fuori dai
+  // turni, quindi non rende ambiguo il cognome di Pietro). Il membro legato serve
+  // per l'INIZIALE, e l'identità basta quando l'iniziale non c'è. Mappa calcolata
+  // una volta per albero+anagrafica.
+  const bareOwners: BareOwnerMap = useMemo(
+    () => buildBareOwners(shiftTree, duplicateCognomi, usersForNames),
+    [shiftTree, duplicateCognomi, usersForNames],
+  )
   // Iniziali negli OMONIMI (richiesta 14/09/2026): dove appare il solo cognome
   // (card, altri presenti, righe teorico≠reale) i Nevano diventano «Nevano P.»
   // / «Nevano G.». La mappa copre le TRE forme con cui un nome può comparire:

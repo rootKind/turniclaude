@@ -2765,11 +2765,45 @@ prende l'equipaggio del mese sbagliato. Ora si aspetta anche che le card abbiano
 fino a tre candidati e si pretende che ALMENO UNO si accenda (un candidato può non accendersi per un
 motivo legittimo: il PDF scrive il nome in un altro modo).
 
-Stato: modifiche NON committate in `app/(app)/turniferie/page.tsx`, `app/api/shift-compat/route.ts`,
-`app/globals.css`, `components/sala/desk-board.tsx`, `components/shifts/shift-dialog.tsx`,
-`lib/shift-compat.ts`, `lib/shift-teams-matching.ts`, `playwright.config.ts`, gli spec
-(`card-cambio-to-sala`, `shift-dialog`, `shift-compat-offerta` e `turniferie-anno`),
-`tests/README.md` e questo diario — più il WIP preesistente su `scripts/check-assenti.mjs` (crasha,
-fuori dai piedi). **Aperto, da decidere con l'utente:** il legame membro↔utente su PRODUZIONE (una
-`UPDATE` su `shift_team_members`: `user_id` di Pietro sulla riga `NEVANO`) — è l'ultimo passo perché
+**6c. LA REGOLA DEL ROSTER VALE OVUNQUE SI LEGGA UN NOME NUDO (25/09/2026, notte).** Fino a qui il
+roster decideva solo dentro la verifica (`certain`), mentre la MATCHING delle schermate della sala
+usava ancora la regola vecchia: «cognome duplicato fra gli UTENTI + un membro legato», con il
+proprietario pescato come *il primo membro legato* del cognome. Ora `buildBareOwners(tree,
+duplicati, users?)` prende l'anagrafica e chiede al roster: il proprietario è l'unico collega IN
+TURNO con quel cognome; se in turno ce ne sono due o più il nome nudo **non è di nessuno** (prima
+vinceva l'ordine dell'albero — arbitrario); se il roster non è legato resta la regola del solo
+legame (produzione: nessuna attribuzione). E l'attribuzione non dipende più solo dall'INIZIALE:
+`ownsBareNameFor(user, bareOwners)` guarda l'**identità** (`user.id` contro `owner.userId`) e ripiega
+sull'iniziale solo quando l'id non c'è. Serve al caso produzione: legando il membro «NEVANO» a
+Pietro **senza rinominarlo** l'owner ha un userId e nessuna iniziale, quindi la verifica (che passa
+un id) risponde lo stesso; la BOARD invece confronta nomi, quindi lì l'iniziale serve ancora — ed è
+esattamente il rinomino che il dialog admin propone («NEVANO» → «NEVANO P.»).
+
+I punti dove la mappa si costruisce ora passano tutti l'anagrafica: `lib/shift-compat`,
+`app/(app)/tuoturno/page.tsx`, `components/sala/desk-board.tsx` (chip gialle, assenze, evidenzia),
+`components/shifts/shift-dialog.tsx` (pillole del datepicker) e `lib/queries/shift-cleanup.ts` (la
+pulizia dei turni). Misurato sui dati veri di dev dopo la modifica: owner `NEVANO P.` → Pietro,
+Pietro possiede la riga nuda (25/09 → `N5T`, certo), Giuseppe no (nessuna riga, non certo) — cioè
+il comportamento di prima, ma deciso dal roster invece che dall'ordine dei membri nell'albero.
+
+**6d. IL FLASH FRA MESI AVEVA UN'ATTESA TROPPO CORTA, NON UN DIFETTO.** Due giri pieni di suite
+(4 worker × WebKit × il DB di dev) hanno fatto cadere **una volta ciascuno** una spec diversa della
+famiglia del salto, entrambe con «nessuno fra … si è acceso» e **nessun avviso**: cioè senza che la
+board avesse ancora giudicato l'arrivo. Isolate durano 4,5s, sotto carico l'avvio della board
+supera i 20s di attesa che avevo messo lì — insufficienza della PROVA, non della card (nessuna delle
+tre persone del caso è un omonimo: con `bareOwners` vuoto per quei cognomi la regola del roster è
+inerte, quindi il fallimento non poteva venire da 6c). Ora l'attesa è 45s, il timeout della spec
+240s, e il messaggio di fallimento porta con sé la DIAGNOSI: il mese a schermo della toolbar e gli
+avvisi presenti. Sul giro successivo: **180 passati / 8 saltati**, zero falliti.
+
+Stato: i punti 1–5 e 6–6b sono **committati e pushati su dev** (`e1b1f9d`, 14 file). Il punto 6c
+(la regola del roster estesa alle schermate) è su disco **non committato**:
+`lib/shift-teams-matching.ts`, `lib/person-shift.ts`, `lib/shift-compat.ts`,
+`app/(app)/tuoturno/page.tsx`, `components/sala/desk-board.tsx`,
+`components/shifts/shift-dialog.tsx`, `lib/queries/shift-cleanup.ts`,
+`tests/sala-card-presence.spec.ts`, `tests/card-cambio-to-sala.spec.ts` (6d) e questo diario.
+Fuori da tutto resta il WIP preesistente su
+`scripts/check-assenti.mjs` (crasha, fuori dai piedi). **Aperto, da decidere con l'utente:** il
+legame membro↔utente su PRODUZIONE (un clic in Admin → Squadre: lega `NEVANO` a Pietro, e per la
+board il rinomino «NEVANO» → «NEVANO P.» che il dialog stesso propone) — è l'ultimo passo perché
 la regola del roster valga anche lì.

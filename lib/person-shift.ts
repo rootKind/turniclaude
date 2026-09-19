@@ -8,7 +8,7 @@ import type {
   ShiftTypeGroup,
 } from '@/types/database'
 import { matchesCognome } from '@/lib/utils'
-import { isBareOwnedName, userOwnsBareName, type BareOwnerMap } from '@/lib/shift-teams-matching'
+import { isBareOwnedName, ownsBareNameFor, type BareOwnerMap } from '@/lib/shift-teams-matching'
 import { tokenForMember } from '@/lib/turni-teorici'
 import { isShiftWorkCode } from '@/lib/shift-tokens'
 
@@ -47,8 +47,9 @@ export function personNameMatches(
   const cognome = user.cognome.trim().toLowerCase()
   if (!fn || !cognome) return false
   // Nome BARE (solo cognome) con proprietario nell'albero: matcha solo il
-  // proprietario legato (Pietro per «NEVANO», Giuseppe no).
-  if (isBareOwnedName(fn, bareOwners)) return userOwnsBareName(user.cognome, user.nome, bareOwners)
+  // proprietario (Pietro per «NEVANO», Giuseppe no). L'identità vale più
+  // dell'iniziale: se l'id c'è, decide quello (`ownsBareNameFor`).
+  if (isBareOwnedName(fn, bareOwners)) return ownsBareNameFor(user, bareOwners)
   if (fn === cognome) return true
 
   const prefixed = fn.match(/^(.*)\s+([a-z]+)\.$/)

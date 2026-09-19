@@ -555,6 +555,13 @@ Tre cose imparate scrivendo queste spec, che valgono per qualsiasi spec della bo
    il pulsante scrive «**MAR** 4 Ago 2026» e per il martedì rispondeva marzo. Il lettore
    (`giornoTurnoBoard`) ora legge `4 Ago 2026`: era una trappola che si sarebbe ripresentata una
    volta a settimana.
+5. **L'attesa dell'evidenzia non è la misura dell'avvio della board** (25/09/2026). La spec del
+   salto fra mesi chiedeva il flash entro 20s dal `goto`: isolata vive in 4,5s, ma in un giro
+   pieno (4 worker × WebKit × il DB di dev) l'avvio può superare i 20s, e la spec cadeva con
+   «nessuno si è acceso» **senza nessun avviso** — cioè su un verdetto non ancora arrivato, non
+   su una card spenta. Ora l'attesa è 45s, il timeout della spec 240s, e il messaggio di
+   fallimento porta la diagnosi: il mese che la toolbar mostra in quel momento e gli avvisi
+   presenti.
 
 ## La sonda colori (`tests/sonda-colori.spec.ts`, `tests/sonda-colori-logica.spec.ts`)
 

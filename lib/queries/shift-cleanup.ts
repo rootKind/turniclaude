@@ -155,10 +155,13 @@ export async function computeShiftCleanup(
   if (shiftsRes.error) throw shiftsRes.error
   if (usersRes.error) throw usersRes.error
 
-  // Omonimi con LEGATO (caso NEVANO): la riga PDF bare appartiene al legato.
+  // Omonimi e righe NUDE (caso NEVANO): di chi è il solo cognome lo decide il
+  // ROSTER — l'unico collega in turno con quel cognome (chi è fuori dai turni non
+  // rende ambiguo il cognome di chi ci sta).
   let bareOwners: ReturnType<typeof buildBareOwners> | undefined
   try {
-    bareOwners = buildBareOwners(await fetchShiftTeamTree(supabase), buildDuplicateCognomi(usersRes.data ?? []))
+    const users = (usersRes.data ?? []) as Array<{ id: string; cognome: string | null }>
+    bareOwners = buildBareOwners(await fetchShiftTeamTree(supabase), buildDuplicateCognomi(users), users)
   } catch { /* albero non disponibile: matching standard */ }
 
   return findFulfilledShiftRequests(
@@ -175,7 +178,7 @@ export interface ShiftLookupContext {
   duplicateCognomi: Set<string>
   usersById: Map<string, Pick<UserProfile, 'id' | 'nome' | 'cognome'>>
   schedules: Map<string, Record<number, DaySchedule>>
-  /** Omonimi con membro LEGATO (caso NEVANO): opzionale, da loadShiftLookup-
+  /** Omonimi e righe NUDE (caso NEVANO): opzionale, da loadShiftLookup-
    *  ContextWithTree; senza, il matching resta per cognome puro. */
   bareOwners?: ReturnType<typeof buildBareOwners>
 }
@@ -220,7 +223,10 @@ export async function loadShiftLookupContextWithTree(
   months: string[],
 ): Promise<ShiftLookupContext & { bareOwners: ReturnType<typeof buildBareOwners> }> {
   const [ctx, tree] = await Promise.all([loadShiftLookupContext(supabase, months), fetchShiftTeamTree(supabase)])
-  return { ...ctx, bareOwners: buildBareOwners(tree, ctx.duplicateCognomi) }
+  // Stessa regola del roster delle schermate della sala: di chi è «NEVANO» lo
+  // decide l'unico collega IN TURNO con quel cognome (l'anagrafica ce l'ha il
+  // contesto). Senza `users` la mappa tornerebbe al solo legame.
+  return { ...ctx, bareOwners: buildBareOwners(tree, ctx.duplicateCognomi, [...ctx.usersById.values()]) }
 }
 
 /** Turni reali (M/P/N) di un utente in una data YYYY-MM-DD, secondo il calendario caricato. */

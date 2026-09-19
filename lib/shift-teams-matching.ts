@@ -45,16 +45,26 @@ export function cognomeKeyOf(fullName: string): string {
 }
 
 /**
- * Costruisce la mappa «cognome → bare owner». Serve la CONGIUNZIONE di due
- * segnali: la omonimia fra UTENTI (duplicateCognomi, da buildDuplicateCognomi)
- * e il membro di squadra LEGATO a un utente (user_id) con quel cognome — il
- * suo full_name porta l'iniziale che identifica il proprietario («NEVANO P.»).
- * Cognomi non duplicati non entrano (il matching per cognome già funziona);
- * cognomi duplicati senza membro legato non entrano (il bare resta ambiguo).
+ * Costruisce la mappa «cognome → bare owner», cioè DI CHI È una riga PDF ridotta
+ * al solo cognome («NEVANO»). Serve la CONGIUNZIONE di due segnali: la omonimia
+ * fra UTENTI (duplicateCognomi, da buildDuplicateCognomi) e il membro di squadra
+ * LEGATO a un utente (user_id) con quel cognome. Cognomi non duplicati non
+ * entrano (il matching per cognome già funziona); cognomi duplicati senza membro
+ * legato non entrano (il nudo resta ambiguo).
+ *
+ * CON L'ELENCO UTENTI (`users`) LA DECISIONE È DEL ROSTER (25/09/2026): il
+ * proprietario è l'unico COLLEGA IN TURNO con quel cognome, e il nome nudo NON è
+ * di nessuno quando in turno ce ne sono due o più (lì servono le iniziali). È la
+ * stessa regola di `omonimiaInSala`, applicata alla MATCHING di ogni schermata
+ * della sala: chi è fuori dai turni — Giuseppe Nevano, assente dai PDF — non
+ * rende ambiguo il cognome di chi ci sta. Quando invece il roster non è legato a
+ * nessun utente (la produzione di oggi: 87 membri, zero `user_id`) si torna alla
+ * regola del solo legame: non si sa chi lavora, quindi non si attribuisce.
  */
 export function buildBareOwners(
   tree: Pick<ShiftTeamTree, 'types'> | null | undefined,
   duplicateCognomi?: Set<string> | null,
+  users?: Array<{ id?: string | null; cognome?: string | null }> | null,
 ): BareOwnerMap {
   const out: BareOwnerMap = new Map()
   if (!tree?.types || !duplicateCognomi?.size) return out
@@ -77,8 +87,38 @@ export function buildBareOwners(
       }
     }
   }
+  // Chi è IN TURNO per cognome: se l'elenco utenti c'è, decide lui.
+  const inTurnoPerCognome = new Map<string, string[]>()
+  if (users) {
+    const rosterIds = buildRosterUserIds(tree)
+    for (const u of users) {
+      if (!u.id || !u.cognome || !rosterIds.has(u.id)) continue
+      const k = normNameKey(u.cognome)
+      inTurnoPerCognome.set(k, [...(inTurnoPerCognome.get(k) ?? []), u.id])
+    }
+  }
+
   for (const [cognomeKey, members] of byCognome) {
-    const owner = members.find(m => m.bound)
+    let owner: (typeof members)[number] | undefined
+    if (users) {
+      const inTurno = inTurnoPerCognome.get(cognomeKey) ?? []
+      // Due o più colleghi in turno con lo stesso cognome: il nome nudo non è di
+      // nessuno dei due (si distinguono solo con l'iniziale).
+      if (inTurno.length > 1) continue
+      if (inTurno.length === 1) {
+        // Il proprietario lo dice il roster; il membro serve per l'INIZIALE, e se
+        // il suo nome non ce l'ha (produzione: membro «NEVANO» legato a Pietro)
+        // resta comunque proprietario — il match passa dall'id (`ownsBareNameFor`).
+        owner = members.find(m => m.userId === inTurno[0])
+          ?? { fullName: '', norm: '', bound: true, userId: inTurno[0] }
+      } else {
+        // Nessun collega IN TURNO con quel cognome: il roster non è legato (o
+        // non lo porta), quindi vale la regola del solo legame.
+        owner = members.find(m => m.bound)
+      }
+    } else {
+      owner = members.find(m => m.bound)
+    }
     if (!owner || !owner.userId) continue
     // iniziale dal full_name («nevano p.» → «p»); '' se il membro è bare
     const tail = owner.norm.slice(cognomeKey.length).trim()
@@ -108,19 +148,33 @@ export function isBareOwnedName(name: string, bareOwners?: BareOwnerMap | null):
 }
 
 /**
- * L'UTENTE (cognome+nome) è il proprietario del nome bare del suo cognome?
- * Riconosciuto per iniziale («NEVANO P.» → Pietro); con membro bare senza
- * iniziale non c'è modo di distinguere: l'omonimo NON è considerato proprietario.
+ * L'UTENTE è il proprietario del nome bare del suo cognome?
+ *
+ * Prima si guarda l'IDENTITÀ (`user.id` contro `owner.userId`): è il segnale
+ * forte, e non dipende da come è scritto il nome del membro in squadra (25/09/2026:
+ * un membro «NEVANO» legato a Pietro è comunque di Pietro, senza doverlo
+ * rinominare). Quando l'id non c'è — o il proprietario non ha un id — si ripiega
+ * sull'INIZIALE («NEVANO P.» → Pietro), come si faceva prima: con un membro nudo
+ * e senza legame l'omonimo NON è considerato proprietario.
  */
+export function ownsBareNameFor(
+  user: { id?: string | null; nome?: string | null; cognome?: string | null } | null | undefined,
+  bareOwners?: BareOwnerMap | null,
+): boolean {
+  const owner = user?.cognome && bareOwners?.size ? bareOwners.get(normNameKey(user.cognome)) : undefined
+  if (!owner) return false
+  if (user?.id && owner.userId) return owner.userId === user.id
+  if (!owner.initial) return false
+  return (user?.nome ?? '').trim().charAt(0).toLowerCase() === owner.initial
+}
+
+/** Solo cognome + nome (nessun id): vedi `ownsBareNameFor`. */
 export function userOwnsBareName(
   cognome: string | null | undefined,
   nome: string | null | undefined,
   bareOwners?: BareOwnerMap | null,
 ): boolean {
-  const owner = bareOwners?.size && cognome ? bareOwners.get(normNameKey(cognome)) : undefined
-  if (!owner) return false
-  if (!owner.initial) return false
-  return (nome ?? '').trim().charAt(0).toLowerCase() === owner.initial
+  return ownsBareNameFor({ nome, cognome }, bareOwners)
 }
 
 /**

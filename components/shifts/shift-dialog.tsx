@@ -5,7 +5,7 @@ import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { cn, todayRome, formatDisplayName, formatRelativeTime, SHIFT_PILL_CLASSES } from '@/lib/utils'
-import { useDuplicateCognomi } from '@/hooks/use-users'
+import { useAllUsersForNames, useDuplicateCognomi } from '@/hooks/use-users'
 import { createShift, findCompatibleShifts, toggleInterest } from '@/lib/queries/shifts'
 import { getSalaSchedule, listScheduleMonths } from '@/lib/queries/sala-schedule'
 import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
@@ -66,6 +66,9 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
   const { profile } = useCurrentUser()
   const { data: shifts = [] } = useShifts(isSecondary, isDcoPlus)
   const duplicateCognomi = useDuplicateCognomi(isSecondary, isDcoPlus)
+  // Anagrafica per la regola del ROSTER sulle righe nude (vedi buildBareOwners):
+  // stessa cache degli altri lettori, nessuna richiesta in più.
+  const usersForNames = useAllUsersForNames()
   const appSettings = useAppSettings()
 
   const effectiveUserId = impersonatingUserId ?? profile?.id ?? ''
@@ -101,8 +104,9 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
         if (cancelled) return
         const pdfMonths = new Set(monthsRes ?? [])
         const map = new Map<string, ReturnType<typeof shiftCodePill>>()
-        // Omonimi con LEGATO (caso NEVANO): la riga PDF bare è del legato.
-        const bareOwners = treeRes ? buildBareOwners(treeRes, duplicateCognomi) : undefined
+        // Omonimi e righe NUDE (caso NEVANO): di chi è il solo cognome lo decide
+        // il ROSTER — l'unico collega in turno con quel cognome.
+        const bareOwners = treeRes ? buildBareOwners(treeRes, duplicateCognomi, usersForNames) : undefined
         // 1. Mesi PDF: la riga REALE della persona (la verità, come in /tuoturno).
         const current = candidates.find(m => pdfMonths.has(m)) ?? null
         if (current) {
