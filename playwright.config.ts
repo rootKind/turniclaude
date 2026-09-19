@@ -81,6 +81,11 @@ export default defineConfig({
         /sala-card-presence\.spec\.ts/,
         /dipendente\.spec\.ts/,
         /chip-gialle\.spec\.ts/,
+        // Il datepicker del dialog dei cambi turno: l'incolonnamento delle sigle
+        // «lun mar mer» con le colonne dei giorni si rompe SOLO su WebKit (una
+        // <tr> con display:flex dentro una table display:block viene ignorata),
+        // quindi questo file gira anche qui — è il motore che ha il difetto.
+        /shift-dialog\.spec\.ts/,
       ],
       // `serviceWorkers: 'block'` NON è un dettaglio: su WebKit il service worker
       // dell'app (quello delle push) prende il controllo della pagina e le sue

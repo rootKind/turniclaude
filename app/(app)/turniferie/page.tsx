@@ -106,20 +106,41 @@ export default function TurniFeriePage() {
       .catch(() => {})
   }, [])
 
+  /**
+   * Override ferie DELL'ANNO A SCHERMO (bug 25/09/2026: «su 2027, aggiornando
+   * più volte, alcune persone cambiano periodo»).
+   *
+   * L'effetto partiva SEMPRE due volte: all'apertura `selectedYear` è l'anno
+   * corrente (2026) e la richiesta parte, poi `min_year_turniferie` risolve a
+   * 2027 e l'anno cambia → seconda richiesta. Le due risposte arrivavano in
+   * ordine imprevedibile e NESSUNA delle due si arrendeva: se vinceva la 2026,
+   * la pagina 2027 mostrava i suoi override — per gli interessati il periodo
+   * dell'anno sbagliato, diverso a ogni aggiornamento. Ora: (a) sotto il minimo
+   * non si chiede niente (la pagina è il gate, non mostra periodi); (b) la
+   * risposta vale solo se l'anno a schermo è ancora quello che l'ha chiesta;
+   * (c) l'anno nuovo NON eredita i override di quello vecchio: si parte dalla
+   * sua cache (o dal vuoto), non da una mappa di un altro anno.
+   */
   useEffect(() => {
+    if (selectedYear < minYear) return
     const CACHE_KEY = makeCacheKey(`vacation-overrides-${selectedYear}`)
+    let cached: Map<string, VacationPeriod> | null = null
     try {
       const raw = localStorage.getItem(CACHE_KEY)
-      if (raw) setYearOverrides(new Map(JSON.parse(raw)))
-    } catch {}
+      if (raw) cached = new Map(JSON.parse(raw))
+    } catch { /* cache illeggibile: si aspetta la fetch */ }
+    setYearOverrides(cached ?? new Map())
+    let annullato = false
     const supabase = createClient()
     getVacationYearOverrides(supabase, selectedYear)
       .then(map => {
+        if (annullato) return
         setYearOverrides(map)
         try { localStorage.setItem(CACHE_KEY, JSON.stringify([...map])) } catch {}
       })
       .catch(() => {})
-  }, [selectedYear])
+    return () => { annullato = true }
+  }, [selectedYear, minYear])
 
   const myAssignment = assignments.find(a => a.user_id === loggedInUserId)
   const myPeriodThisYear: VacationPeriod | null = myAssignment

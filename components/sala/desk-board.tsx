@@ -991,6 +991,30 @@ export function DeskBoard({
     return () => clearTimeout(t)
   }, [flash, schedule?.month, scheduleFresco])
 
+  /* L'ARRIVO VALE SOLO FINCHÉ LA BOARD MOSTRA QUELLA COPPIA GIORNO+TURNO
+     (segnalazione 25/09/2026). Se l'utente, con l'evidenzia ancora in corso,
+     cambia turno P/M/N dalla toolbar (o giorno, o mese), la domanda «dov'è la
+     persona che cede il cambio?» non ha più un contesto: la board guarderebbe
+     un'ALTRA sezione — e la persona, che nel turno dell'arrivo c'è, risulterebbe
+     assente. Qui il flash si spegne in silenzio; l'effetto del giudizio legge LO
+     STESSO predicato, perché nella stessa passata di effetti `flash` è ancora
+     quello vecchio e basterebbe un istante per emettere l'avviso sbagliato.
+     Stesso discorso per il ritorno in pagina dopo un gesto di sistema: se nel
+     frattempo la vista è cambiata, il giudizio differito non parte.
+     (Il confronto è sui VALORI, non sull'ordine degli eventi: con l'arrivo
+     appena applicato giorno e turno sono già quelli richiesti.) */
+  const arrivoInVista = !!flash && currentMonth === flash.month
+    && selectedDay === flash.day && selectedShift === flash.shift
+
+  /* Il confronto è sui VALORI, e mese, giorno e turno dell'arrivo si applicano
+     nella STESSA passata che accende il flash (il mese di destinazione lo cambia
+     `sala-page-client`, che chiama `handleMonthChange` in modo sincrono): una
+     vista diversa, quindi, è sempre una vista che l'utente ha chiesto DOPO. Il
+     caso «vengo da un ALTRO mese» è coperto dalla spec omonima. */
+  useEffect(() => {
+    if (flash && !arrivoInVista) setFlash(null)
+  }, [flash, arrivoInVista])
+
   // La persona del flash è in QUESTA card? (stessa regola dell'evidenzia della
   // card dell'utente loggato: cognomi della sezione, tirocinanti e gialli).
   // `matchesFocusPerson` (lib/person-shift) = regola stretta della board + ripiego
@@ -1045,6 +1069,10 @@ export function DeskBoard({
   // (richiesta 18/09/2026): un avviso spiega cosa manca, una volta sola.
   useEffect(() => {
     if (!flash || isEditing) return
+    // La vista non è più quella dell'arrivo (turno/giorno/mese cambiati, anche
+    // mentre la pagina era nascosta): la board non ha niente da dire su questa
+    // sezione (vedi `arrivoInVista`).
+    if (!arrivoInVista) return
     if (!schedule || schedule.month !== flash.month) return
     // «Trovata» = su una card di sezione OPPURE in una pillola delle «Altre
     // attività»: in entrambi i casi c'è qualcosa da accendere, quindi non si
@@ -1067,7 +1095,7 @@ export function DeskBoard({
       `${flash.nome ? `${flash.nome} ` : ''}${flash.cognome} non è in sala nel turno ${SALA_SHIFT_LABEL[flash.shift]} del ${flash.day} — ${doveEPersona(flash)}.`,
       { id: SALA_FOCUS_WARNING_ID },
     )
-  }, [flash, isEditing, schedule, displayCards, isFocusPerson, scheduleFresco, pageVisible, flashInAltri, doveEPersona])
+  }, [flash, isEditing, arrivoInVista, schedule, displayCards, isFocusPerson, scheduleFresco, pageVisible, flashInAltri, doveEPersona])
 
   // L'avviso se ne va con la board: è un'informazione sul posto di quella
   // persona QUI, non una notizia da portarsi dietro (vedi SALA_FOCUS_WARNING_ID).

@@ -134,3 +134,61 @@ for (const larghezza of [320, 390]) {
     await expect(page.locator('[data-slot="dialog-content"]')).toHaveCount(0, { timeout: 5_000 })
   })
 }
+
+/**
+ * LE SIGLE «lun mar mer…» DEVONO STARE SOPRA LE LORO COLONNE (bug iOS, 25/09/2026).
+ *
+ * La riga delle sigle di react-day-picker è una `<tr>` con `display:flex` dentro
+ * una `<table>` che qui è `display:block`: WebKit ci costruisce attorno una
+ * tabella ANONIMA, la riga torna a essere una table-row e il flex viene IGNORATO,
+ * quindi ogni `<th>` si stringe sulla larghezza del suo testo («lun» 17px, «dom»
+ * 25px) mentre le colonne dei giorni sono tutte uguali. Misurato su iPhone 13:
+ * il primo giorno cadeva 13px a destra di «lun» e il settimo 157px. Su Chromium
+ * non succede (onora il flex sulla `<tr>`): è per questo che il difetto si vedeva
+ * solo dal telefono — e per questo la prova sta anche nel progetto `ios`.
+ *
+ * Qui si pretende la cosa che l'occhio vede: OGNI sigla centrata sulla colonna dei
+ * giorni sotto di sé, e larga come quella colonna.
+ */
+test('le sigle dei giorni sono incolonnate con le colonne del datepicker', async ({ asEmployee }) => {
+  test.skip(!(await findEmployee('Di Monda')), 'serve un dipendente (service-role in .env.local)')
+  const page = await asEmployee('Di Monda')
+  await page.goto(`${E2E_BASE_URL}/dashboard?new=1&dev=rootkind-dev-2026`, { waitUntil: 'domcontentloaded' })
+
+  const dialog = page.locator('[data-slot="dialog-content"]').first()
+  await expect(dialog).toBeVisible({ timeout: 20_000 })
+  await expect(dialog.locator('[role="grid"]')).toBeVisible({ timeout: 20_000 })
+
+  const colonne = await page.evaluate(() => {
+    const rdp = document.querySelector('.rdp-root')
+    if (!rdp) return null
+    const box = (el: Element) => {
+      const r = el.getBoundingClientRect()
+      return { centro: r.left + r.width / 2, larghezza: r.width }
+    }
+    const sigle = [...rdp.querySelectorAll('th.rdp-weekday')].map(el => ({ testo: (el.textContent ?? '').trim(), ...box(el) }))
+    // La riga dei giorni che INTERESSA è quella con sette celle (la prima settimana
+    // del mese può essere corta nelle settimane finali, non nella prima riga).
+    const righe = [...rdp.querySelectorAll('.rdp-week')].map(r => [...r.querySelectorAll('td.rdp-day')])
+    const giorni = (righe.find(r => r.length === sigle.length) ?? []).map(box)
+    return { sigle, giorni }
+  })
+
+  expect(colonne, 'il datepicker non è a schermo (manca .rdp-root)').not.toBeNull()
+  expect(colonne!.giorni.length, 'la riga dei giorni non ha 7 colonne').toBe(colonne!.sigle.length)
+
+  colonne!.sigle.forEach((sigla, i) => {
+    const giorno = colonne!.giorni[i]
+    const scarto = Math.abs(sigla.centro - giorno.centro)
+    const differenza = Math.abs(sigla.larghezza - giorno.larghezza)
+    expect(
+      scarto,
+      `«${sigla.testo}» non è centrata sulla sua colonna: ${scarto.toFixed(1)}px a lato ` +
+        `(sigla ${sigla.larghezza.toFixed(1)}px, giorno ${giorno.larghezza.toFixed(1)}px)`,
+    ).toBeLessThanOrEqual(1)
+    expect(
+      differenza,
+      `«${sigla.testo}» è larga ${sigla.larghezza.toFixed(1)}px mentre la sua colonna è ${giorno.larghezza.toFixed(1)}px`,
+    ).toBeLessThanOrEqual(1)
+  })
+})

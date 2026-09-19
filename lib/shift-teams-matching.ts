@@ -124,6 +124,66 @@ export function userOwnsBareName(
 }
 
 /**
+ * CHI È IN TURNO (25/09/2026).
+ *
+ * Il ROSTER delle squadre è la fonte di chi lavora: un membro ATTIVO legato a un
+ * utente (`shift_team_members.user_id`). Chi non ha nessun membro attivo non è
+ * nei turni — e infatti non compare nei PDF che l'azienda carica.
+ */
+export function buildRosterUserIds(
+  tree: Pick<ShiftTeamTree, 'types'> | null | undefined,
+): Set<string> {
+  const out = new Set<string>()
+  for (const type of tree?.types ?? []) {
+    // Come il motore teorico (lib/turni-teorici): tipologie e membri spenti non
+    // generano turni, quindi non mettono nessuno «in turno».
+    if (!type.is_active) continue
+    for (const team of type.teams ?? []) {
+      for (const member of team.members ?? []) {
+        if (member.is_active && member.user_id) out.add(member.user_id)
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * IL COGNOME NUDO È DI UNO SOLO O DI NESSUNO? (dal ROSTER, 25/09/2026)
+ *
+ * Il caso reale: nell'app ci sono DUE Nevano, ma in squadra ne lavora UNO —
+ * Giuseppe è fuori dai turni, e chi compila i PDF scrive «NEVANO» senza iniziale
+ * (l'unico Nevano dei PDF è Pietro). Con l'elenco degli utenti da solo quel
+ * cognome è ambiguo e la riga nuda non è di nessuno; col ROSTER no: due utenti
+ * con lo stesso cognome contano come omonimia solo se sono DUE i colleghi IN
+ * TURNO.
+ *
+ * Tre esiti:
+ *   • `proprietarioId` — un solo collega in turno con quel cognome: la riga nuda
+ *     è la SUA (è il caso dev, e la produzione appena il membro è legato);
+ *   • `ambigua` — due o più colleghi in turno (le righe con l'iniziale restano
+ *     l'unico modo di distinguerli), oppure NESSUNO in turno ma due utenti con
+ *     quel cognome: il roster non è legato agli utenti (la produzione di oggi ha
+ *     87 membri e zero `user_id`) e allora non si sa chi lavora → si tace;
+ *   • né l'uno né l'altro — cognome non omonimo: nessun problema.
+ *
+ * Tacere quando il roster non è legato è deliberato: il difetto da non rifare è
+ * un avviso FALSO (l'accusa a Pietro Nevano del 25/09/2026).
+ */
+export function omonimiaInSala(
+  cognome: string | null | undefined,
+  users: Array<{ id?: string | null; cognome?: string | null }> | null | undefined,
+  rosterIds?: Set<string> | null,
+): { ambigua: boolean; proprietarioId: string | null } {
+  const key = normNameKey(cognome ?? '')
+  if (!key) return { ambigua: false, proprietarioId: null }
+  const omonimi = (users ?? []).filter(u => u.id && normNameKey(u.cognome ?? '') === key)
+  if (omonimi.length < 2) return { ambigua: false, proprietarioId: null }
+  const inTurno = omonimi.filter(u => rosterIds?.has(u.id as string))
+  if (inTurno.length === 1) return { ambigua: false, proprietarioId: inTurno[0].id as string }
+  return { ambigua: true, proprietarioId: null }
+}
+
+/**
  * Nome utente ridotto alla forma «Cognome P.» quando il COGNOME è omonimo fra
  * gli utenti: l'iniziale evita gli equivoci (richiesta 14/09/2026). Gli altri
  * cognomi restano solo cognome. (Specchio di formatDisplayName di lib/utils,

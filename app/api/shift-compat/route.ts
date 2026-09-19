@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getUserShiftOnDate, userCoversRequest } from '@/lib/shift-compat'
+import { getUserShiftOnDate, ownShiftMatchesOffer } from '@/lib/shift-compat'
 import type { ShiftType } from '@/types/database'
 
+const SHIFT_TYPES: ShiftType[] = ['Mattina', 'Pomeriggio', 'Notte']
+
 /**
- * Verifica di fattibilità lato CLIENT (richiesta 12/09/2026): prima di pubblicare
- * un cambio turno, dice all'utente se il SUO turno nel giorno offerto (reale dal
- * PDF, altrimenti teorico) copre uno dei turni cercati — se no, il cambio non può
- * essere preso da nessuno con la sua situazione e lo avvisiamo con un popup.
- * GET /api/shift-compat?date=2026-09-31&requested=P,M
+ * Verifica di fattibilità lato CLIENT prima di pubblicare un cambio turno: dice
+ * all'utente se il turno che sta OFFRENDO è quello che quel giorno ha davvero
+ * (reale dal PDF, altrimenti teorico) — non si cede un turno che non si ha. Se
+ * no, il dialog mostra un popup di conferma. Fuori dalla verifica restano i casi
+ * in cui il dato non c'è o non è attribuibile (`certain`: omonimi che l'albero
+ * non lega): l'ignoranza non è una colpa (vedi `ownShiftMatchesOffer`).
+ *
+ * GET /api/shift-compat?date=2026-09-25&offered=Notte
  */
 export async function GET(req: Request) {
   const supabase = await createClient()
@@ -17,12 +22,9 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url)
   const date = url.searchParams.get('date') ?? ''
-  const requested = (url.searchParams.get('requested') ?? '')
-    .split(',')
-    .map(s => s.trim())
-    .filter((s): s is ShiftType => ['Mattina', 'Pomeriggio', 'Notte'].includes(s))
+  const offered = url.searchParams.get('offered') ?? ''
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || requested.length === 0) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !SHIFT_TYPES.includes(offered as ShiftType)) {
     return NextResponse.json({ error: 'Invalid params' }, { status: 400 })
   }
 
@@ -31,6 +33,9 @@ export async function GET(req: Request) {
     myShift: mine.shift,
     source: mine.source,
     token: mine.token,
-    compatible: userCoversRequest(mine.shift, requested),
+    /** Il turno trovato è attribuibile senza dubbi a chi chiede? */
+    certain: mine.certain,
+    /** Posso offrire `offered` quel giorno? (l'unica cosa che il dialog guarda) */
+    ok: ownShiftMatchesOffer(mine, offered as ShiftType),
   })
 }

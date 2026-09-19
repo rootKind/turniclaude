@@ -2641,3 +2641,135 @@ Stato: modifiche NON committate (`app/api/push/notify/route.ts`, `lib/notificati
 su `scripts/check-assenti.mjs` (crasha, fuori dai piedi). Su Android il gesto non esiste (back di sistema o
 toolbar): la navigazione di storia è la stessa e le due guardie valgono lì come su iOS — verificato su
 Chromium E su un Pixel 7 emulato (le due spec nuove verdi in entrambi i casi).
+
+## 25/09/2026 (sera) — Quattro difetti segnalati dall'utente
+
+**1. LE SIGLE DEL DATEPICKER SU iOS.** «lun mar mer» non stavano sopra le loro colonne. La riga
+delle sigle di react-day-picker è una `<tr>` con `display:flex` dentro una `<table>` che il CSS di
+`ios-dialog-fix` rende `display:block`: WebKit ci costruisce attorno una tabella ANONIMA, la riga
+torna a essere una table-row e il flex viene IGNORATO — ogni `<th>` si stringe sul suo testo («lun»
+17,2 px, «dom» ~25 px) mentre le colonne dei giorni sono 44,2 px. Misurato su iPhone 13: il primo
+giorno cade 13,5 px a destra di «lun», il settimo 157 px. Chromium non ha il difetto (onora il flex
+sulla `<tr>`): per questo si vedeva solo dal telefono. Rimedio: `.ios-dialog-fix thead { display:
+block !important; }` (la riga resta un flex container in un contesto normale). La prova è in
+`tests/shift-dialog.spec.ts` (ogni sigla centrata e larga come la colonna, tolleranza 1 px) e gira
+anche nel progetto `ios`, che è il motore che ha il difetto: senza la regola fallisce con «lun»
+fuori asse di 13,5 px. **Trappola dell'ambiente:** il dev server non ha ripreso la modifica a
+`app/globals.css` (Turbopack) e la spec falliva su una copia vecchia del foglio — il foglio servito
+si controlla con `curl http://localhost:3000/_next/static/chunks/*.css | grep`, e basta toccare il
+file perché si ricompili. Una lezione per la prossima volta: quando una prova su stile non cambia
+di una virgola, prima si guarda che il CSS servito sia quello su disco.
+
+**2. LA VERIFICA PRE-PUBBLICAZIONE CHIEDEVA LA COSA SBAGLIATA.** Il popup «Richiesta non coperta
+dal tuo turno» usciva su OGNI pubblicazione, anche su richieste in regola — segnalazione: «Pietro
+Nevano ha offerto notte per mattina il 25 settembre e, pur avendo notte, ha avuto il warning». La
+verifica riusava `userCoversRequest` — la domanda del FILTRO NOTIFICHE, dove il soggetto è CHI
+RICEVE («posso coprire il tuo cambio solo se quel giorno ho uno dei turni che chiedi») — sul
+richiedente: «il mio turno è fra quelli che cerco?». L'UI non lascia cercare il turno che si
+offre, quindi quella condizione era insoddisfacibile per costruzione. Dati veri (Management API su
+produzione, read-only): richiesta 2544, `offered_shift='Notte'`, `requested_shifts=['Mattina']`, e
+la riga `NEVANO` del PDF di settembre il 25/09 vale `N5T` → Notte. La domanda giusta è di
+POSSESSO: il turno OFFERTO è quello che quel giorno ho davvero? Ora `/api/shift-compat` prende
+`offered=` (non più `requested=`) e risponde `{ myShift, source, token, certain, ok }`;
+`ownShiftMatchesOffer` (lib/shift-compat) NON avvisa quando il dato non c'è o non è attribuibile, e
+il dialog mostra il popup solo su `ok === false` (non `!ok`: un contratto rotto non deve accusare
+nessuno). Il popup dice il vero: «Offri un turno che quel giorno non hai — il 25 settembre hai
+*notte* (dal turno reale), ma offri *mattina*».
+
+**3. L'OMONIMO CHE L'ALBERO NON LEGA.** Marchiare `UserShiftOnDate.certain` è servito subito: su
+PRODUZIONE `shift_team_members.user_id` è NULL per TUTTI gli 87 membri (il legame «NEVANO P.» →
+Pietro esiste solo su dev, fatto a mano: nessuna migration lo porta) e il membro si chiama «NEVANO»
+senza iniziale. Lì `buildBareOwners` torna vuoto, `findMonthPerson` restituisce la STESSA riga PDF a
+Pietro e Giuseppe, e il turno di uno diventava il turno dell'altro: una verifica di possesso su
+quei dati accusa la persona sbagliata. Da qui `omonimoSenzaLegame` (lib/shift-teams-matching):
+cognome condiviso + nessun membro legato = nessun nome ridotto al solo cognome è suo con certezza,
+quindi il dato si tratta come MANCANTE (nessun avviso) — sia dal PDF sia dalla rotazione teorica.
+Su dev, dove il legame c'è, non cambia niente.
+
+**4. L'EVINDENZIA GIUDICAVA UNA VISTA CHE L'UTENTE AVEVA LASCIATO.** «Si preme sulla data di una
+card, si arriva in /turnisala e, con l'highlight ancora in corso, se si cambia turno P/M/N (o si
+torna indietro) esce il giallo di utente non presente in sezione». Il giudizio della board ha senso
+solo sulla vista dell'ARRIVO: `arrivoInVista` (month+day+shift uguali a quelli del flash) spegne il
+flash in silenzio appena la vista cambia, e l'effetto del giudizio legge lo STESSO predicato. **Nella
+stessa passata di effetti `flash` è ancora quello vecchio**: spegnere lo stato non basta, il
+controllo va ripetuto nel corpo dell'effetto del giudizio (`if (!arrivoInVista) return`) — senza
+quella riga l'avviso esce lo stesso, un istante prima della spegnitura. Riprodotto prima di
+correggere (controllo negativo, disattivando il predicato): la spec fallisce con «Rosalia Piccirillo
+non è in sala nel turno Mattina del 27 — quel giorno è in sezione «11» (M11)», il sintomo esatto.
+
+**4b. DUE LEZIONI DALLE SPEC DEL RESPIRO** (il cantiere del 25/09 si è chiuso qui, e sono costate
+più tempo del fix). *(i)* L'harness prendeva il primo cognome dalle card della board e costruiva la
+URL con il solo `c=`: per un cognome OMONIMO quella URL non è quella che manda la dashboard (che
+porta sempre anche `n=`), la board giustamente non accende niente e la spec falliva accusando la
+card — con i log dell'app che dicevano `found: false`. Ora l'harness porta **anche l'iniziale**
+(«Loni G.» → `c=Loni&n=G.`) e prova i primi tre candidati finché uno si accende. *(ii)* La durata
+dei 3s non si misura con una pausa del test: dopo un pacco di letture DOM la `waitForTimeout(1200)`
+cadeva **dopo** la fine dell'evidenzia (falliva «il respiro è finito troppo presto» su una card che
+era durata esattamente 3s). Ora un `addInitScript` installa un `MutationObserver` PRIMA che l'app
+parta e registra inizio/fine della classe: la durata si legge dal cronometro della pagina (3s ±
+0,5), non dalla posizione del test. Trappola dentro la trappola: in uno script di init `document`
+esiste ma `documentElement` no — osservare `documentElement` lancia «parameter 1 is not of type
+'Node'» e il cronometro resta muto (il sintomo era un `waitForFunction` in timeout a 15s). E una
+spec nuova, **«un salto verso un ALTRO mese accende lo stesso»**: la board si apre sul mese di oggi
+e solo dopo raggiunge quello dell'arrivo, e l'evidenzia non deve morire in quell'istante. Onestà su
+questa: passa anche con la versione precedente della guardia (il mese di destinazione cambia nella
+stessa commit, quindi la finestra «non ancora arrivato» è di un istante), quindi NON è la spec che
+dimostra il fix — è la rete che tiene fermo il caso. Il fix lo dimostra il controllo negativo su
+`arrivoInVista`, e i numeri li dà il cronometro del respiro (3s, non 1s).
+
+**5. L'ANNO DELLE FERIE NON EREDITA GLI OVERRIDE DI UN ALTRO ANNO.** «Impostando da admin primo
+anno turniferie 2027 e andando nella pagina 2027, aggiornando più volte alcune persone cambiano
+periodo». La pagina chiedeva gli override DUE volte per apertura (prima l'anno corrente, poi il
+minimo che arriva dalle impostazioni) e NESSUNA delle due risposte si arrendeva: se vinceva la
+2026, la pagina 2027 mostrava i SUOI override — periodo diverso a ogni aggiornamento. Tre rimedi in
+`app/(app)/turniferie/page.tsx`: sotto il minimo non si chiede niente (la pagina è il gate), la
+risposta vale solo se l'anno a schermo è ancora quello che l'ha chiesta (`annullato`), e l'anno
+nuovo NON eredita la mappa di quello vecchio (si parte dalla cache di QUELL'anno o dal vuoto).
+Riprodotto in `tests/turniferie-anno.spec.ts` con le risposte finte (la 2026 arriva 2 s dopo la
+2027): senza la guardia, `ZZPROVA` finisce nel periodo del 2026.
+
+**6. IL COGNOME NUDO LO GIUDICA IL ROSTER (25/09/2026, sera).** L'utente ha spiegato il caso:
+NEVANO è l'unica omonimia dell'app, e nei PDF il nome resta NUDO perché il secondo utente
+(Giuseppe) è **fuori dai turni** — non compare in nessun PDF caricato. Scelta dell'utente per il
+segnale: **il roster delle squadre**. Quindi `omonimoSenzaLegame` (che guardava solo «cognome
+condiviso + nessun bare owner») è stato sostituito da due funzioni in `lib/shift-teams-matching`: `buildRosterUserIds(tree)` (gli utenti con un membro ATTIVO legato — tipologie e membri spenti non
+contano, come nel motore teorico) e `omonimiaInSala(cognome, users, rosterIds)`, che risponde:
+`proprietarioId` se in turno c'è UN SOLO collega con quel cognome (la riga nuda è sua), `ambigua` se
+in turno ce ne sono due o più **oppure** se in turno non ce n'è nessuno ma due utenti condividono il
+cognome (roster non legato: non si sa chi lavora → si tace). In `getUserShiftOnDate` il roster si
+legge UNA volta e vale per entrambi i rami (reale e teorico), e `certain` nasce lì.
+
+La differenza sui dati veri, misurata il 25/09:
+
+| | DEV | PRODUZIONE |
+|---|---|---|
+| roster | `NEVANO P.`, attivo, **legato a Pietro** (87 membri, 1 legato) | `NEVANO` (nudo), attivo, **senza legame** (87 membri, 0 legati) |
+| riga del PDF (2026-09) | una sola, `NEVANO`, `N5T` il 25/09 | identica |
+| Pietro, 25/09 | `N5T` reale, **certo** | `N5T`, non certo (si tace) |
+| Giuseppe, 25/09 | **nessuna riga**, non certo | `N5T` (la riga di Pietro), non certo |
+
+Prima di questa regola, su dev, Giuseppe risultava «certo» sul nulla (e la `certain` era l'unica
+cosa che impediva a produzione di accusare). Su **produzione** la regola resta in astensione finché
+quel membro non viene legato a Pietro (o rinominato con l'iniziale **e** legato: `buildBareOwners`
+richiede `user_id`): da quel momento Pietro risponde da solo e l'ambiguità sparisce senza toccare il
+codice.
+
+**6b. DUE CORSE NELLE SPEC, TROVATE ENTRAMBE DALLA SPEC DEL SALTO FRA MESI.** *(i)*
+`giornoTurnoBoard` leggeva il mese col primo nome che somigliava a un mese: ma la toolbar scrive
+«**MAR** 4 Ago 2026», e per il *martedì* rispondeva MAR=marzo (la spec è morta con «la board non è
+passata al 2026-08 (ricevuto 2026-03)»). Ora il mese si legge dalla DATA (`4 Ago 2026`), con il
+vecchio metodo come ripiego — e succedeva solo di martedì: una trappola che si sarebbe ripresentata
+una volta a settimana. *(ii)* Dopo il `goto` la board si apre sul mese di OGGI e passa a quello
+dell'arrivo in due tempi (prima la toolbar, poi i nomi nei riquadri): leggere le card in mezzo
+prende l'equipaggio del mese sbagliato. Ora si aspetta anche che le card abbiano nomi, si raccolgono
+fino a tre candidati e si pretende che ALMENO UNO si accenda (un candidato può non accendersi per un
+motivo legittimo: il PDF scrive il nome in un altro modo).
+
+Stato: modifiche NON committate in `app/(app)/turniferie/page.tsx`, `app/api/shift-compat/route.ts`,
+`app/globals.css`, `components/sala/desk-board.tsx`, `components/shifts/shift-dialog.tsx`,
+`lib/shift-compat.ts`, `lib/shift-teams-matching.ts`, `playwright.config.ts`, gli spec
+(`card-cambio-to-sala`, `shift-dialog`, `shift-compat-offerta` e `turniferie-anno`),
+`tests/README.md` e questo diario — più il WIP preesistente su `scripts/check-assenti.mjs` (crasha,
+fuori dai piedi). **Aperto, da decidere con l'utente:** il legame membro↔utente su PRODUZIONE (una
+`UPDATE` su `shift_team_members`: `user_id` di Pietro sulla riga `NEVANO`) — è l'ultimo passo perché
+la regola del roster valga anche lì.

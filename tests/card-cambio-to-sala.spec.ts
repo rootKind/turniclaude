@@ -2,7 +2,7 @@ import { test, expect } from './fixtures'
 import { E2E_BASE_URL, type Employee } from './employee-session'
 import type { Page } from '@playwright/test'
 import { adminClient } from './supabase-admin'
-import { boardCards, openBoard } from './sala-board'
+import { boardCards, openBoard, selectShift } from './sala-board'
 import { decodeSalaMonth, findMonthPerson, isSalaMonthData } from '../lib/sala-month'
 import { boardPlacementOf } from '../lib/shift-tokens'
 
@@ -156,11 +156,22 @@ function personaInBoard(cards: Awaited<ReturnType<typeof boardCards>>, cognome: 
 }
 
 /** Giorno, mese, anno e turno che la board sta mostrando ADESSO. */
+/**
+ * Giorno, mese, anno e turno dalla toolbar della board.
+ *
+ * ATTENZIONE AL GIORNO DELLA SETTIMANA: il pulsante scrive «MAR 4 Ago 2026», e
+ * «MAR» (martedì) è anche l'abbreviazione di MARZO — un `findIndex` sul primo
+ * mese trovato rispondeva il 3 al posto dell'8, e il 25/09/2026 ha fatto fallire
+ * la spec del salto fra mesi con «la board non è passata al 2026-08 (ricevuto
+ * 2026-03)». Qui il mese si legge dalla DATA («4 Ago 2026»), non dalla prima
+ * parola che somiglia a un mese.
+ */
 async function giornoTurnoBoard(page: import('@playwright/test').Page) {
   const testo = (await page.locator('button:has(svg.lucide-chevron-down)').first().innerText()).replace(/\s+/g, ' ').toUpperCase()
-  const giorno = Number(testo.match(/\b(\d{1,2})\b/)?.[1])
-  const anno = Number(testo.match(/\b(20\d{2})\b/)?.[1])
-  const mese = MESI_BREVI.findIndex(m => testo.includes(m)) + 1
+  const data = testo.match(/\b(\d{1,2})\s+([A-Z]{3})\s+(20\d{2})\b/)
+  const giorno = Number(data?.[1] ?? testo.match(/\b(\d{1,2})\b/)?.[1])
+  const anno = Number(data?.[3] ?? testo.match(/\b(20\d{2})\b/)?.[1])
+  const mese = data ? MESI_BREVI.indexOf(data[2]) + 1 : MESI_BREVI.findIndex(m => testo.includes(m)) + 1
   const turno = (await page.locator('button.sala-toolbar-chip').first().innerText()).trim() as 'M' | 'P' | 'N'
   return { mese, giorno, anno, turno }
 }
@@ -259,34 +270,87 @@ test('la persona che è in sala si accende: «respiro» di 3s, anche con «riduc
   // contorno fisso per 3s e sembrava un difetto. Qui si emula quella condizione,
   // così l'animazione è garantita anche nel suo caso.
   await page.emulateMedia({ reducedMotion: 'reduce' })
+  // CRONOMETRO DELL'ACCENSIONE. La durata del respiro si misura dall'ACCENSIONE,
+  // non dalla posizione del test: prima si guardava con `waitForTimeout(1200)`
+  // dopo un pacco di letture DOM, e la spec falliva quando quelle letture
+  // duravano più dei 3s dell'evidenzia (il difetto era nel test, non nella card).
+  // Qui un osservatore installato PRIMA che l'app parta registra inizio e fine
+  // della classe, qualunque cosa faccia il resto della spec nel frattempo.
+  await page.addInitScript(`
+    (() => {
+      window.__flash = { begin: 0, end: 0, testo: '' }
+      const guarda = () => {
+        const el = document.querySelector('.desk-card-flash')
+        const t = Date.now()
+        if (el) {
+          if (!window.__flash.begin) { window.__flash.begin = t; window.__flash.testo = el.innerText.replace(/\\s+/g, ' ').trim() }
+          window.__flash.end = 0
+        } else if (window.__flash.begin) {
+          window.__flash.end = t
+        }
+      }
+      // Si osserva document e non documentElement: uno script di init gira
+      // PRIMA che l'albero esista, e osservare un figlio non ancora creato lancia.
+      new MutationObserver(guarda).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] })
+      document.addEventListener('DOMContentLoaded', guarda)
+      guarda()
+    })()
+  `)
   await page.goto(`${E2E_BASE_URL}/turnisala?${DEV}`, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('.sala-card-bg').first()).toBeVisible({ timeout: 25_000 })
   const { mese, giorno, anno, turno } = await giornoTurnoBoard(page)
   expect(mese, 'mese non riconosciuto nella toolbar della board').toBeGreaterThan(0)
   test.skip(!giorno || !anno, 'toolbar della board senza giorno/anno leggibili')
 
-  const cognome = (await boardCards(page))
-    .flatMap(c => c.names.split(/[\s,/]+/))
-    .map(n => n.trim())
-    .find(n => /^[A-Z][a-zà-ù]{3,}$/.test(n))
-  test.skip(!cognome, 'nessun nome estraibile dalle card del giorno a schermo')
+  // CANDIDATI dalla board, con l'INIZIALE quando la card la mostra («Loni G.»):
+  // il salto vero la porta sempre (la URL della dashboard ha `n=`), e senza di
+  // essa un cognome OMONIMO non è risolvibile — la board, giustamente, non
+  // accende niente. Un candidato può comunque non accendersi per un motivo
+  // legittimo (il PDF lo scrive diversamente): si provano i primi e si pretende
+  // che ALMENO UNO si accenda.
+  const candidati: Array<{ cognome: string; nome?: string; display: string }> = []
+  for (const card of await boardCards(page)) {
+    const pezzi = card.names.split(/[\s,/]+/).map(n => n.trim()).filter(Boolean)
+    for (let i = 0; i < pezzi.length; i++) {
+      if (!/^[A-Z][a-zà-ù]{3,}$/.test(pezzi[i])) continue
+      const iniziale = pezzi[i + 1] && /^[A-Z]\.$/.test(pezzi[i + 1]) ? pezzi[i + 1] : undefined
+      candidati.push({ cognome: pezzi[i], nome: iniziale, display: `${pezzi[i]}${iniziale ? ` ${iniziale}` : ''}` })
+    }
+  }
+  test.skip(candidati.length === 0, 'nessun nome estraibile dalle card del giorno a schermo')
 
-  await page.goto(
-    `${E2E_BASE_URL}/turnisala?${DEV}&m=${anno}-${String(mese).padStart(2, '0')}&d=${giorno}&t=${turno}&c=${cognome}`,
-    { waitUntil: 'domcontentloaded' },
-  )
+  const urls = candidati.slice(0, 3).map(o =>
+    `${E2E_BASE_URL}/turnisala?${DEV}&m=${anno}-${String(mese).padStart(2, '0')}&d=${giorno}&t=${turno}`
+    + `&c=${encodeURIComponent(o.cognome)}${o.nome ? `&n=${encodeURIComponent(o.nome)}` : ''}`)
   const flash = page.locator('.desk-card-flash')
-  await expect(flash, `${cognome} era nella board: la sua card doveva accendersi`).toBeVisible({ timeout: 15_000 })
-  await expect(flash).toContainText(cognome!)
+  let acceso: (typeof candidati)[number] | null = null
+  for (const [i, url] of urls.entries()) {
+    await page.goto(url, { waitUntil: 'domcontentloaded' })
+    const ok = await flash.first().waitFor({ state: 'visible', timeout: 12_000 }).then(() => true).catch(() => false)
+    if (ok) { acceso = candidati[i]; break }
+  }
+  expect(
+    acceso,
+    `nessuno dei candidati in board (${candidati.slice(0, 3).map(c => c.display).join(', ')}) si è acceso`,
+  ).not.toBeNull()
+  const cognome = acceso!.cognome
+  await expect(flash).toContainText(cognome)
 
   // Il segno è quello di casa (contorno di 2px nel colore dell'evidenzia) e attorno
   // pulsa un alone: 3 respiri da 1s = 3s, la durata di SALA_FLASH_MS lato JS.
+  // UNA sola lettura, subito: la card è accesa ADESSO e fra 3s non c'è più.
   const stile = await flash.first().evaluate(el => {
     const s = getComputedStyle(el)
+    const sonda = document.createElement('span')
+    sonda.style.color = getComputedStyle(el).getPropertyValue('--sala-highlight-border').trim()
+    el.appendChild(sonda)
+    const rgb = getComputedStyle(sonda).color
+    sonda.remove()
     return {
       bordo: s.borderTopColor,
       ombre: s.boxShadow,
       respiro: [s.animationName, s.animationDuration, s.animationIterationCount].join('|'),
+      rgb,
     }
   })
   expect(stile.respiro, 'con «riduci animazioni» il respiro deve restare attivo').toBe('desk-card-flash|3s|1')
@@ -349,21 +413,107 @@ test('la persona che è in sala si accende: «respiro» di 3s, anche con «riduc
   expect(ombre).toHaveLength(2)
   expect(ombre[0]).toContain('0px 0px 0px 1px')
   // Il contorno è nel colore dell'evidenzia: se il tema lo cambia, la card segue.
-  const rgb = await flash.first().evaluate(el => {
-    const sonda = document.createElement('span')
-    sonda.style.color = getComputedStyle(el).getPropertyValue('--sala-highlight-border').trim()
-    el.appendChild(sonda)
-    const colore = getComputedStyle(sonda).color
-    sonda.remove()
-    return colore
-  })
-  expect(stile.bordo).toBe(rgb)
+  expect(stile.bordo).toBe(stile.rgb)
 
-  // Deve durare: dopo oltre un secondo è ancora acceso...
-  await page.waitForTimeout(1200)
-  expect(await flash.count(), 'il respiro è finito troppo presto (durata attesa 3s)').toBe(1)
-  // ...e poi si spegne da solo, senza lasciare un contorno fisso.
+  // QUANTO È DURATA: dal cronometro dell'osservatore, non da una pausa del test.
+  await page.waitForFunction(
+    () => (window as unknown as { __flash?: { end: number } }).__flash?.end
+      ? true
+      : false,
+    undefined,
+    { timeout: 15_000 },
+  )
+  const cronometro = await page.evaluate(() =>
+    (window as unknown as { __flash: { begin: number; end: number; testo: string } }).__flash)
+  const durata = cronometro.end - cronometro.begin
+  expect(cronometro.testo, 'il respiro deve accendersi sulla card della persona').toContain(cognome)
+  expect(durata, `il respiro è durato ${durata}ms (attesi 3s)`).toBeGreaterThan(2400)
+  expect(durata, `il respiro è durato ${durata}ms (attesi 3s)`).toBeLessThan(4200)
+  // ...e si spegne da solo, senza lasciare un contorno fisso.
   await expect(flash, 'la card è rimasta accesa (durata attesa 3s)').toHaveCount(0, { timeout: 5000 })
+})
+
+test('un salto verso un ALTRO mese accende lo stesso: l\'evidenzia non muore mentre il mese arriva', async ({ asEmployee }) => {
+  test.setTimeout(120_000)
+  /* IL BUCO DELLA PRIMA GUARDIA (25/09/2026). La board si apre sul mese di OGGI e
+     solo dopo raggiunge il mese dell'arrivo (l'effetto in `sala-page-client`
+     chiama `handleMonthChange(focus.month)`): per un istante `currentMonth` NON è
+     quello della card. La prima versione della guardia scambiava quell'istante
+     per «l'utente se n'è andato» e spegneva l'evidenzia all'istante: un salto da
+     un mese all'altro (cioè il caso normale, appena si guarda una richiesta di
+     un altro mese) restava senza flash. Qui si prende una richiesta VERA il cui
+     mese non è quello di oggi e la cui persona il PDF disegna su una card. */
+  const sb = adminClient()
+  test.skip(!sb, 'service-role assente in .env.local')
+  // Si sceglie il mese dai PDF caricati (gli stessi che `sala_schedule` mostra).
+  const oggi = new Date()
+  const meseOggi = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}`
+  const { data: mesi } = await sb!.from('sala_schedule').select('month').order('month', { ascending: false })
+  const altro = (mesi ?? []).map(m => String(m.month)).find(m => m !== meseOggi && /^\d{4}-\d{2}$/.test(m))
+  test.skip(!altro, `nessun mese caricato diverso da quello di oggi (${meseOggi})`)
+
+  const page = await asEmployee('Di Monda')
+  // LA PERSONA LA PRENDE LA BOARD stessa, nel mese di destinazione: così è
+  // garantito che sia disegnata su una card (e non su una pillola o da nessuna
+  // parte), senza tirare a indovinare sulle configurazioni delle sezioni.
+  const urls = (giorno: number, turno: string, nome: string, iniziale?: string) =>
+    `${E2E_BASE_URL}/turnisala?${DEV}&m=${altro}&d=${giorno}&t=${turno}`
+    + `&c=${encodeURIComponent(nome)}${iniziale ? `&n=${encodeURIComponent(iniziale)}` : ''}`
+  // CANDIDATI dal mese di destinazione. Due attese, perché il mese arriva in
+  // pezzi: prima la TOOLBAR cambia, poi i NOMI nei riquadri sono quelli del mese
+  // nuovo (la board si apre su quello di oggi e `handleMonthChange` mette a schermo
+  // il mese vero solo dopo averlo letto). Leggere i nomi fra le due attese è
+  // l'altra corsa che questa spec ha già perso una volta: si prenderebbe
+  // l'equipaggio del mese sbagliato.
+  const candidati: Array<{ giorno: number; turno: string; cognome: string; iniziale?: string }> = []
+  for (const [giorno, turno] of [[1, 'M'], [2, 'P'], [3, 'N'], [4, 'M'], [5, 'P']] as Array<[number, string]>) {
+    await page.goto(urls(giorno, turno, 'ZZPROVA'), { waitUntil: 'domcontentloaded' })
+    const pronta = await page.waitForSelector('.sala-card-bg', { timeout: 25_000 }).then(() => true).catch(() => false)
+    test.skip(!pronta, 'board non autenticata')
+    await expect
+      .poll(async () => {
+        const b = await giornoTurnoBoard(page).catch(() => null)
+        return b ? `${b.anno}-${String(b.mese).padStart(2, '0')}` : ''
+      }, { timeout: 25_000, message: `la board non è passata al ${altro}` })
+      .toBe(altro)
+    await expect
+      .poll(async () => {
+        const pezzi = (await boardCards(page)).flatMap(c => c.names.split(/[\s,/]+/))
+        return pezzi.some(n => /^[A-Z][a-zà-ù]{3,}$/.test(n.trim()))
+      }, { timeout: 25_000, message: `le card del ${altro} sono rimaste vuote` })
+      .toBe(true)
+    for (const pezzi of (await boardCards(page)).map(c => c.names.split(/[\s,/]+/).map(n => n.trim()).filter(Boolean))) {
+      const i = pezzi.findIndex(n => /^[A-Z][a-zà-ù]{3,}$/.test(n))
+      if (i < 0) continue
+      candidati.push({
+        giorno, turno, cognome: pezzi[i],
+        iniziale: /^[A-Z]\.$/.test(pezzi[i + 1] ?? '') ? pezzi[i + 1] : undefined,
+      })
+    }
+    if (candidati.length >= 3) break
+  }
+  test.skip(candidati.length === 0, `nessun equipaggio leggibile nelle card del ${altro}`)
+
+  // E ora la prova: l'arrivo dal mese di oggi a quello della persona. Si provano
+  // i primi candidati (una card può non accendersi per un motivo legittimo: il PDF
+  // scrive il nome in un altro modo), ma ALMENO UNO deve accendersi.
+  const flash = page.locator('.desk-card-flash')
+  let acceso: (typeof candidati)[number] | null = null
+  let ultimoErrore = ''
+  for (const c of candidati.slice(0, 3)) {
+    await page.goto(urls(c.giorno, c.turno, c.cognome, c.iniziale), { waitUntil: 'domcontentloaded' })
+    const ok = await flash.first().waitFor({ state: 'visible', timeout: 20_000 }).then(() => true).catch(() => false)
+    if (ok) { acceso = c; break }
+    ultimoErrore = await page.locator('[data-sonner-toast]').allInnerTexts().then(t => t.join(' | ')).catch(() => '')
+  }
+  expect(
+    acceso,
+    `nessuno fra ${candidati.slice(0, 3).map(c => `${c.cognome} ${c.giorno}/${c.turno}`).join(', ')} del ${altro} si è acceso`
+    + (ultimoErrore ? ` (ultimo avviso: «${ultimoErrore}»)` : ''),
+  ).not.toBeNull()
+  await expect(flash).toContainText(acceso!.cognome)
+  expect(await page.locator('[data-sonner-toast]').filter({ hasText: /non è in sala/i }).count(),
+    'la persona è in sala: nessun avviso').toBe(0)
 })
 
 test('chi è presente senza sezione si accende nella PILLOLA e l\'avviso giallo non esce', async ({ asEmployee }) => {
@@ -751,6 +901,99 @@ test('tornando indietro dal salto non esce nessun «non è in sala»', async ({ 
     }
   }
   expect(verificati, 'nessuna card utile per provare il ritorno indietro').toBeGreaterThan(0)
+})
+
+/**
+ * CAMBIANDO TURNO DURANTE L'EVINDENZIA LA BOARD NON DEVE ACCUSARE (25/09/2026).
+ *
+ * Segnalazione: «si preme sulla data di una card, si arriva in /turnisala e, se
+ * con l'evidenzia ancora in corso si cambia turno P/M/N (o si torna indietro),
+ * esce la card gialla con l'avviso che l'utente non è presente in sezione».
+ *
+ * Il giudizio della board — «dov'è la persona che cede il cambio?» — ha senso
+ * SOLO sulla vista dell'ARRIVO: cambiando turno la board guarda un'ALTRA
+ * sezione, dove la persona, che nel turno dell'arrivo c'è, non può comparire.
+ * L'avviso era quindi vero per la vista sbagliata: ora il flash si spegne in
+ * silenzio appena giorno/turno/mese non sono più quelli dell'arrivo.
+ *
+ * Qui il gesto che resta in pagina è il CAMBIO DI TURNO dalla toolbar (il
+ * ritorno indietro, che è l'altra metà della segnalazione, ha il suo test sopra).
+ * Il registro dei popup è il MutationObserver installato prima che l'app parta —
+ * un avviso che compare e sparisce subito viene catturato lo stesso.
+ */
+test('cambiando turno durante l\'evidenzia non esce nessun «non è in sala»', async ({ asEmployee }) => {
+  test.setTimeout(180_000)
+  const richieste = await richiesteDalDb()
+  test.skip(richieste.length === 0, 'nessuna richiesta di cambio nel DB (o service-role assente in .env.local)')
+  const trovato = await dashboardConCambio(asEmployee, richieste)
+  test.skip(!trovato, 'nessuna card di cambio visibile per le prime persone con un cambio (limite cambi?)')
+  const { page, richieste: mie } = trovato!
+
+  await page.addInitScript(() => {
+    const w = window as unknown as { __avvisiSala?: string[] }
+    w.__avvisiSala = []
+    const annota = (el: HTMLElement) => {
+      const testo = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
+      if (testo) w.__avvisiSala!.push(testo)
+      setTimeout(() => {
+        const dopo = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
+        if (dopo && !w.__avvisiSala!.includes(dopo)) w.__avvisiSala!.push(dopo)
+      }, 200)
+    }
+    const osserva = () => new MutationObserver(aggiunte => {
+      for (const a of aggiunte) {
+        for (const n of Array.from(a.addedNodes)) {
+          if (n instanceof HTMLElement) {
+            if (n.hasAttribute('data-sonner-toast')) annota(n)
+            for (const dentro of n.querySelectorAll('[data-sonner-toast]')) annota(dentro as HTMLElement)
+          }
+        }
+      }
+    }).observe(document.body, { childList: true, subtree: true })
+    if (document.body) osserva()
+    else document.addEventListener('DOMContentLoaded', () => { osserva() })
+  })
+
+  let verificati = 0
+  for (const r of mie.slice(0, 3)) {
+    await page.goto(`${E2E_BASE_URL}/dashboard?${DEV}`, { waitUntil: 'domcontentloaded' })
+    const blocchi = page.locator('button[aria-label^="Vedi in sala"]')
+    await blocchi.first().waitFor({ state: 'visible', timeout: 20_000 })
+    // La card di QUESTA richiesta (data e persona nell'aria-label).
+    let indice = -1
+    for (let i = 0; i < await blocchi.count(); i++) {
+      const label = (await blocchi.nth(i).getAttribute('aria-label')) ?? ''
+      const letto = label.match(/turno\s+(\w+)\s+del\s+(\d{1,2})\s+([A-Za-z]+)\s+di\s+(.+)$/)
+      if (!letto) continue
+      if (NOME_TURNO[letto[1]] === r.shift && Number(letto[2]) === Number(r.shiftDate.slice(8, 10)) &&
+          letto[4].includes(r.cognome)) { indice = i; break }
+    }
+    if (indice < 0) continue
+    await blocchi.nth(indice).click()
+    const navigato = await page.waitForURL(/\/turnisala\?/, { timeout: 25_000 }).then(() => true).catch(() => false)
+    if (!navigato) continue
+    verificati++
+
+    // Il respiro è ancora in corso: si cambia turno SUBITO. La sezione che si
+    // lascia è quella dell'arrivo, quindi la board non ha più niente da dire su
+    // questa persona — e con la vecchia regola diceva proprio questo.
+    const altro: 'M' | 'P' | 'N' = r.shift === 'N' ? 'M' : 'N'
+    await selectShift(page, altro)
+    await page.waitForTimeout(4500)
+
+    const comparsi = await page.evaluate(() => (window as unknown as { __avvisiSala?: string[] }).__avvisiSala ?? [])
+    expect(
+      comparsi.filter(t => /non è in sala/i.test(t)),
+      `${r.cognome} è in sala: la board non deve dire niente su un turno che non è quello dell'arrivo — ${JSON.stringify(comparsi)}`,
+    ).toEqual([])
+    expect(
+      await page.locator('[data-sonner-toast]').filter({ hasText: /non è in sala/i }).count(),
+      'il giallo è rimasto a schermo dopo il cambio di turno',
+    ).toBe(0)
+    // E l'evidenzia se ne va con la vista che l'ha chiesta.
+    expect(await page.locator('.desk-card-flash').count(), 'l\'evidenzia sopravvive al cambio di turno').toBe(0)
+  }
+  expect(verificati, 'nessun salto utile per provare il cambio di turno').toBeGreaterThan(0)
 })
 
 /**

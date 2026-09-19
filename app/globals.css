@@ -1070,6 +1070,17 @@
    Force flex on the weekdays row and block on each <th> so flex-1 works. */
 .ios-dialog-fix .rdp-weekdays { display: flex !important; }
 .ios-dialog-fix .rdp-weekday { display: block !important; flex: 1; text-align: center; }
+/* MA LA RIGA DELLE SIGLE NON SI ALLINEAVA ALLE COLONNE DEI GIORNI (25/09/2026).
+   La <thead> di react-day-picker è un table-header-group dentro una <table> che
+   qui è display:block: WebKit ci costruisce attorno una tabella ANONIMA, la <tr>
+   «lun mar mer…» torna a essere una table-row e il suo display:flex viene
+   IGNORATO (misurato su iPhone 13: le sigle larghe quanto il testo — 17–25px —
+   accalcate a sinistra, i giorni 44px l'uno, scarto fino a 157px). Chromium non
+   ha il problema (onora il flex sulla <tr>) e per questo il difetto si vedeva
+   solo su iOS. Rendendo la <thead> un blocco, la riga resta un flex container in
+   un contesto normale e le sette celle tornano larghe quanto le colonne dei
+   giorni (scarto 0 misurato, tema chiaro e scuro). */
+.ios-dialog-fix thead { display: block !important; } /* riga delle sigle */
 /* La caption «mese anno» di react-day-picker è ridondante: mese e anno si
    scelgono già dalle tendine in testa al pannello. Fuori dai layer (come le
    regole qui sopra): la classe Tailwind «flex» sulla caption vive nel layer

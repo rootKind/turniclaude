@@ -97,6 +97,7 @@ che compilano e navigano insieme sporcherebbero la misura.
 | gialli + evidenzia | `http://localhost:3000/turnisala` | `dipendente.spec.ts`: entrando COME il dipendente, la sua card si evidenzia (giallo richiedente e sostituto) e niente falsi positivi |
 | codici lunghi | `http://localhost:3000/tuoturno` | `tuoturno.spec.ts`: MM3M40/MDCCM… non tagliati nella griglia dei giorni, da 320px a 1280px |
 | chip gialle + scroll | `http://localhost:3000/turnisala` | `chip-gialle.spec.ts`: le chip non escono dalla card (320→1280px) e la pagina scorre sui display bassi |
+| salto dalla card di un cambio | `http://localhost:3000/dashboard` → `/turnisala` | `card-cambio-to-sala.spec.ts`: la DATA di una card porta al giorno e al turno M/P/N OFFERTI e fa respirare 3s la card (o la pillola delle «Altre attività») della persona che cede; se quel giorno non ha quel turno la dashboard resta ferma e lo dice; cambiando turno o tornando indietro il giallo non esce; un salto verso un ALTRO mese si accende lo stesso. Gira anche nel progetto `ios` |
 | pannello notifiche | `http://localhost:3000/admin` | `notifiche.spec.ts`: il registry mostra anche i messaggi ferie decisi dal manager (etichette, variabili e anteprima). Sola lettura. Il contratto (`scripts/check-notif-templates.mjs`) copre anche il push «novità» del changelog e il nuovo turno compatibile col filtro «solo se posso coprirlo» (23 messaggi; verifica anche che il route del nuovo turno risolva INSIEME il generico e il dedicato) |
 | card scoperte (regola) | nessuno — logica pura | `sala-scoperto.spec.ts`: sotto il minimo è scoperta, il giallo non si somma al minimo, storia datata dei minimi (1 s, nessun DB) |
 | minimi per card (admin) | `http://localhost:3000/turnisala` | `minimi.spec.ts`: dal mini-Fab admin al salvataggio fino alla segnalazione «— scoperto» (chip o testo); include il caso PERIODO per casella (a 0 = scoperta da programma). SCRIVE e RIPRISTINA la piantina |
@@ -483,6 +484,77 @@ X finiva sui giorni — e il test conclude cliccando la X per verificare che chi
 ancora il dialog (la X ora è nostra, non più quella dell'involucro).
 **Controllo negativo fatto**: con la X dell'involucro rimessa, il test diventa
 ROSSO indicando le due intersezioni da 7×7 px; tolta quella, verde. Costo: ~4 s.
+
+**Le sigle dei giorni (25/09/2026).** Nello stesso file c'è la prova che «lun mar
+mer…» stia SOPRA le sue colonne: ogni sigla centrata e larga come la colonna del
+giorno sotto di sé (tolleranza 1 px). Il difetto è SOLO di WebKit — la riga delle
+sigle è una `<tr>` con `display:flex` dentro una `<table>` che qui è
+`display:block`, e lì WebKit costruisce una tabella anonima e ignora il flex —
+quindi la spec gira **anche nel progetto `ios`**, che è l'unico motore in cui
+morde: senza la regola `.ios-dialog-fix thead { display: block !important; }`
+fallisce con «lun» fuori asse di 13,5 px (sigla 17,2 px, colonna 44,2 px).
+Attenzione a un dettaglio dell'ambiente: se il dev server non ricompila
+`app/globals.css` (è capitato con Turbopack), la spec fallisce su una copia vecchia
+del foglio — si tocca il file e le si dà qualche secondo.
+
+## Turni ferie: l'anno a schermo e i suoi override (`tests/turniferie-anno.spec.ts`)
+
+Un minuto, nessun dato del DB nel giudizio: le liste e gli override sono
+**intercettati a livello di rete**. La pagina chiedeva gli override due volte per
+apertura (anno corrente, poi l'anno minimo che arriva dalle impostazioni) e
+nessuna delle due risposte si arrendeva: vinceva l'ultima arrivata. Qui la
+risposta del 2026 arriva 2 s DOPO quella del 2027 e la spec pretende che
+`ZZPROVA` (l'unico utente finto, presente in entrambe le categorie) resti nel
+periodo dell'override 2027, non in quello del 2026 né nella rotazione — anche
+dopo un `reload`. **Controllo negativo fatto**: togliendo la guardia di
+annullamento dall'effetto (`app/(app)/turniferie/page.tsx`), `ZZPROVA` finisce nel
+periodo del 2026 e la spec diventa rossa.
+
+## La verifica pre-pubblicazione di un cambio (`tests/shift-compat-offerta.spec.ts`)
+
+Mezzo secondo, solo logica (nessun browser, nessun dato): difende
+`ownShiftMatchesOffer` (lib/shift-compat) — si pubblica senza avviso solo se il
+turno OFFERTO è quello che quel giorno si ha davvero — e `omonimiaInSala`
+(lib/shift-teams-matching), cioè **come si legge un cognome nudo**: due utenti con
+lo stesso cognome sono un'omonimia solo se sono DUE i colleghi *in turno* (membro
+attivo legato nel roster). Il caso vero che l'ha generata è dentro la spec: Pietro
+Nevano, 25/09/2026, offriva Notte cercando Mattina e il PDF gli dà `N5T` — con la
+vecchia domanda (il mio turno è fra quelli che cerco?) il popup usciva su ogni
+pubblicazione. I due alberi delle spec sono quelli reali: dev (`NEVANO P.` legato a
+Pietro → la riga nuda è sua, Giuseppe fuori dai turni non decide niente) e
+produzione (`NEVANO` senza `user_id` → nessuno è «in turno», quindi si tace).
+
+## Il salto dalla card di un cambio (`tests/card-cambio-to-sala.spec.ts`)
+
+Da dashboard a `/turnisala`: la data di una card di cambio porta al giorno e al turno
+**offerti** e fa respirare per 3s la card della persona che cede il cambio (o la pillola
+delle «Altre attività», per chi è presente senza sezione). Lo spec difende, fra le altre
+cose, che l'evidenzia **non giudichi una vista che l'utente ha lasciato**: se con il
+respiro ancora in corso si cambia turno P/M/N (o si torna indietro) l'avviso giallo non
+deve uscire, perché la board starebbe guardando un'ALTRA sezione.
+
+Tre cose imparate scrivendo queste spec, che valgono per qualsiasi spec della board:
+
+1. **La URL del salto porta anche l'iniziale** (`&n=`): un cognome OMONIMO senza di essa
+   non è risolvibile e la board, giustamente, non accende niente. L'harness prende il
+   nome dalle card della board («Loni G.» → `c=Loni&n=G.`) e prova i primi tre candidati
+   finché uno si accende: senza l'iniziale la spec falliva accusando la card.
+2. **La durata dei 3s non si misura con una pausa del test.** Un `addInitScript` installa
+   un `MutationObserver` PRIMA che l'app parta e registra inizio e fine della classe
+   `.desk-card-flash`; la durata si legge da quel cronometro (3s ± 0,5). Con una
+   `waitForTimeout(1200)` messa dopo le letture DOM la pausa cadeva DOPO la fine
+   dell'evidenzia e la spec diceva «il respiro è finito troppo presto» su una card che era
+   durata esattamente 3s. Trappola dentro la trappola: in uno script di init `document`
+   esiste ma `documentElement` NO — osservare `documentElement` lancia e il cronometro
+   resta muto.
+3. **La board si apre sul mese di OGGI** e solo dopo passa a quello dell'arrivo, e ci arriva in
+   DUE tempi: prima cambia la toolbar, poi i nomi nei riquadri diventano quelli del mese nuovo.
+   La spec aspetta entrambe le cose — leggere le card in mezzo prende l'equipaggio del mese
+   SBAGLIATO — e poi prova fino a tre candidati finché uno si accende.
+4. **Nella toolbar il mese si legge dalla DATA, non dalla prima parola che somiglia a un mese**:
+   il pulsante scrive «**MAR** 4 Ago 2026» e per il martedì rispondeva marzo. Il lettore
+   (`giornoTurnoBoard`) ora legge `4 Ago 2026`: era una trappola che si sarebbe ripresentata una
+   volta a settimana.
 
 ## La sonda colori (`tests/sonda-colori.spec.ts`, `tests/sonda-colori-logica.spec.ts`)
 

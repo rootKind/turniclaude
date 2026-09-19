@@ -48,12 +48,14 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
   const [requestedShifts, setRequestedShifts] = useState<ShiftType[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [compatibleMatches, setCompatibleMatches] = useState<Shift[]>([])
-  // Avviso di fattibilità (richiesta 12/09/2026): prima di pubblicare si chiede
-  // all'API se il MIO turno del giorno offerto (reale→teorico) copre uno dei
-  // turni cercati. Se no, popup di conferma: la richiesta resta possibile (il
-  // motore di match guarda le richieste degli ALTRI) ma senza il turno giusto
-  // è destinata a restare senza match.
-  const [compatCheck, setCompatCheck] = useState<{ myShift: ShiftType | null; source: 'real' | 'theoretical' | 'none' } | null>(null)
+  // Avviso di POSSESSO (rifatto il 25/09/2026): prima di pubblicare si chiede
+  // all'API se il turno che sto OFFRENDO è quello che quel giorno ho davvero
+  // (reale dal PDF, altrimenti teorico). Non si cede un turno che non si ha.
+  // Prima qui si chiedeva un'altra cosa — «il mio turno è fra quelli che cerco?»
+  // — che per il richiedente è impossibile da soddisfare (l'UI non lascia
+  // cercare il turno che offri): il popup usciva su ogni pubblicazione, anche su
+  // richieste perfettamente in regola (caso Nevano, 25/09).
+  const [offertaCheck, setOffertaCheck] = useState<{ myShift: ShiftType | null; source: 'real' | 'theoretical' | 'none' } | null>(null)
   const [compatLoading, setCompatLoading] = useState(false)
   // Sigla del turno reale sopra ogni cifra del datepicker (richiesta 13/09/2026):
   // chiave ISO «YYYY-MM-DD» → pillola M/P/N. Per i mesi PDF la riga REALE della
@@ -161,7 +163,7 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
     setOfferedShift(null)
     setRequestedShifts([])
     setCompatibleMatches([])
-    setCompatCheck(null)
+    setOffertaCheck(null)
   }
 
   async function doPublish() {
@@ -235,16 +237,19 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
       setCompatibleMatches(matches)
       return
     }
-    // Verifica di fattibilità: il mio turno quel giorno (reale, altrimenti teorico)
-    // è fra i turni che cerco? Se no → popup di conferma prima di pubblicare.
+    // Verifica di POSSESSO: quel giorno ho davvero il turno che offro? Se no →
+    // popup di conferma prima di pubblicare (la richiesta resta possibile: chi
+    // accetta la prende dal PDF, dove la persona in quel turno non c'è).
     if (!impersonatingUserId) {
       setCompatLoading(true)
       try {
-        const res = await fetch(`/api/shift-compat?date=${dateStr}&requested=${requestedShifts.join(',')}`)
+        const res = await fetch(`/api/shift-compat?date=${dateStr}&offered=${offeredShift}`)
         if (res.ok) {
-          const json = await res.json() as { myShift: ShiftType | null; source: 'real' | 'theoretical' | 'none'; compatible: boolean }
-          if (!json.compatible) {
-            setCompatCheck({ myShift: json.myShift, source: json.source })
+          const json = await res.json() as { myShift: ShiftType | null; source: 'real' | 'theoretical' | 'none'; certain: boolean; ok: boolean }
+          // `=== false` e non `!json.ok`: se il contratto cambiasse (campo assente)
+          // NON si accusa nessuno — l'avviso falso è il difetto da non rifare.
+          if (json.ok === false) {
+            setOffertaCheck({ myShift: json.myShift, source: json.source })
             return
           }
         }
@@ -326,36 +331,35 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
           </DialogClose>
         </div>
         <div className="scroll-area overflow-y-auto flex-1 min-h-0 px-5 pb-5 pt-2 space-y-5">
-          {compatCheck ? (
-            /* Popup «non è fattibile col tuo turno»: conferma o annulla */
+          {offertaCheck ? (
+            /* Popup «quel turno non ce l'hai»: conferma o annulla */
             <div className="space-y-4">
               <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 space-y-2">
-                <p className="text-[13px] font-bold">Richiesta non coperta dal tuo turno</p>
+                <p className="text-[13px] font-bold">Offri un turno che quel giorno non hai</p>
                 <p className="text-[12px] leading-snug text-muted-foreground">
                   Il {format(selectedDate!, 'd MMMM', { locale: it })} hai{' '}
                   <span className="font-semibold text-foreground">
-                    {compatCheck.myShift
-                      ? compatCheck.myShift.toLowerCase()
-                      : compatCheck.source === 'theoretical' ? 'riposo (teorico)' : 'nessun turno'}
+                    {offertaCheck.myShift
+                      ? offertaCheck.myShift.toLowerCase()
+                      : 'riposo'}
                   </span>
-                  {' '}(dal {compatCheck.source === 'real' ? 'turno reale' : 'turno teorico'}), ma offri{' '}
-                  <span className="font-semibold text-foreground">{offeredShift?.toLowerCase()}</span> cercando{' '}
-                  <span className="font-semibold text-foreground">{requestedShifts.join(' o ').toLowerCase()}</span>.
-                  Chi ha quel giorno uno dei turni cercati potrebbe accettare, ma tu non potresti
-                  mai ricambiare: la richiesta resterà senza match.
+                  {' '}(dal {offertaCheck.source === 'real' ? 'turno reale' : 'turno teorico'}), ma offri{' '}
+                  <span className="font-semibold text-foreground">{offeredShift?.toLowerCase()}</span>.
+                  Chi accetta non ti troverebbe in quel turno: correggi l&apos;offerta o pubblica
+                  comunque se sai che i turni non sono aggiornati.
                 </p>
               </div>
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => { setCompatCheck(null); setOfferedShift(null); setRequestedShifts([]) }}
+                onClick={() => { setOffertaCheck(null); setOfferedShift(null); setRequestedShifts([]) }}
               >
                 Ho capito, correggo
               </Button>
               <Button
                 variant="outline"
                 className="w-full text-[12px]"
-                onClick={() => { setCompatCheck(null); doPublish() }}
+                onClick={() => { setOffertaCheck(null); doPublish() }}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? 'Pubblicazione...' : 'Pubblica comunque la mia richiesta'}
