@@ -31,7 +31,7 @@ export function SettingsPage() {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
 
-  async function handleToggle(field: 'notify_on_interest' | 'notify_on_new_shift' | 'notify_on_vacation_interest' | 'notify_on_new_vacation' | 'notify_on_cross_shifts' | 'notify_shift_filter' | 'notification_enabled', value: boolean) {
+  async function handleToggle(field: 'notify_on_interest' | 'notify_on_new_shift' | 'notify_on_vacation_interest' | 'notify_on_new_vacation' | 'notify_on_cross_shifts' | 'notify_shift_filter' | 'notify_vacation_filter' | 'notification_enabled', value: boolean) {
     try {
       await updateUserProfile({ [field]: value })
       queryClient.invalidateQueries({ queryKey: ['current-user'] })
@@ -210,6 +210,27 @@ export function SettingsPage() {
                   onCheckedChange={v => handleToggle('notify_on_new_vacation', v)}
                   disabled={!profile?.notification_enabled}
                 />
+              </div>
+              {/* Filtro «solo se compatibile col mio periodo»: notifica solo i cambi
+                  ferie che CERCANO il periodo che ho io nell'anno richiesto (con gli
+                  override admin dell'anno): è lo specchio del filtro dei cambi turno,
+                  che guarda il mio turno del giorno offerto. */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="notif-vacation-filter" className="text-muted-foreground">
+                    Solo se compatibile col mio periodo
+                  </Label>
+                  <Switch
+                    id="notif-vacation-filter"
+                    checked={profile?.notify_vacation_filter ?? false}
+                    onCheckedChange={v => handleToggle('notify_vacation_filter', v)}
+                    disabled={!profile?.notification_enabled || !(profile?.notify_on_new_vacation ?? false)}
+                  />
+                </div>
+                <p className="text-[10px] leading-snug text-muted-foreground">
+                  Ti avvisiamo solo dei cambi ferie che cercano il periodo che hai tu nell’anno
+                  richiesto (con le eventuali assegnazioni dell’admin).
+                </p>
               </div>
             </div>
           </div>

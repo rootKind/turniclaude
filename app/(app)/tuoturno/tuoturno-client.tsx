@@ -1,6 +1,7 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { useTheme } from 'next-themes'
+import { useRouter } from 'next/navigation'
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
@@ -37,7 +38,8 @@ import {
   type PendingRing,
   type PersonTheoretical,
 } from '@/lib/person-cycle'
-import type { DaySchedule, SalaSchedule, ShiftTeamTree } from '@/types/database'
+import { buildSalaFocusUrl, SALA_SHIFT_LABEL, sectionTurnOf } from '@/lib/shift-tokens'
+import type { DaySchedule, SalaShiftType, SalaSchedule, ShiftTeamTree } from '@/types/database'
 import { buildCompareGroups } from '@/lib/compare-groups'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -183,6 +185,7 @@ function ShiftDayCard({
   mismatchStyle,
   className,
   style,
+  onOpen,
 }: {
   day: number
   /** Reale del PDF; null = mese teorico (mostra solo il teorico). */
@@ -200,6 +203,13 @@ function ShiftDayCard({
   className?: string
   /** Es. minWidth uniforme del confronto: la card non si comprime mai sotto. */
   style?: CSSProperties
+  /** Tap sulla card → salto in /turnisala su quel giorno e quel turno (solo
+      griglia personale: nel confronto le card restano celle di lettura).
+      Presente SOLO quando il giorno ha un turno che la board disegna su una
+      card di sezione (`sectionTurnOf`): un giorno di riposo, un'assenza o una
+      trasferta non porta da nessuna parte — è la stessa regola del salto
+      dalla dashboard, che verifica prima di navigare. */
+  onOpen?: () => void
 }) {
   // In evidenza c'è il reale del PDF; se manca, il teorico.
   const primaryKind: SalaCodeKind = real
@@ -223,8 +233,15 @@ function ShiftDayCard({
   return (
     <div
       title={title}
+      role={onOpen ? 'button' : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      aria-label={onOpen ? `${title} · apri in sala` : undefined}
+      data-sala-day={onOpen ? day : undefined}
+      onClick={onOpen}
+      onKeyDown={onOpen ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen() } } : undefined}
       className={cn(
         'cell-day relative text-center flex',
+        onOpen && 'cursor-pointer sala-day-tappable',
         size === 'lg'
           ? cn('rounded-xl min-h-[76px] cell-fit', split ? 'cell-split px-0 py-0' : 'px-0.5 pt-3 pb-1.5 flex-col items-center justify-center gap-1')
           : cn('rounded-lg h-[44px]', split ? 'cell-split px-0 py-0' : 'px-0.5 pt-0.5 pb-0.5 flex-col items-center justify-center gap-0'),
@@ -555,6 +572,26 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   const displayName = selectedUser
     ? [selectedUser.cognome, selectedUser.nome].filter(Boolean).join(' ')
     : '—'
+
+  /* TAP SU UN GIORNO DELLA GRIGLIA (richiesta 26/09/2026): si va in /turnisala
+     sul giorno e sul turno P/M/N di quella card. L'URL è lo STESSO del salto
+     dalla dashboard (`buildSalaFocusUrl`), quindi il contesto della pagina —
+     bypass del guard PWA, impersonazione — viaggia con la navigazione, e la
+     board evidenzia la persona con lo stesso respiro di 3s.
+     Si passa dal router (non da `<a>`): la card resta una cella della griglia,
+     e la navigazione client non ricarica il mese. */
+  const router = useRouter()
+  const apriInSala = useCallback((day: number, shift: SalaShiftType) => {
+    if (!selectedUser) return
+    const url = buildSalaFocusUrl({
+      shiftDate: `${month}-${String(day).padStart(2, '0')}`,
+      offeredShift: SALA_SHIFT_LABEL[shift],
+      cognome: selectedUser.cognome ?? '',
+      nome: selectedUser.nome,
+      from: new URLSearchParams(window.location.search),
+    })
+    if (url) router.push(url)
+  }, [month, router, selectedUser])
 
   // I mesi caricati dai PDF si leggono dalla CACHE IDB (istantaneo se già
   // visitato) e poi riconvalidano in background dal DB — stesso schema di
@@ -942,6 +979,12 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                   const cellTitle = isRealMonth
                     ? `${dateISO} — reale: ${realLabel}${pendingLabel} · teorico: ${theoLabel}${real && theo && realTheoreticalMismatch(real.short, theo) ? ' (diversi)' : ''}`
                     : `${dateISO} — teorico: ${theoLabel}`
+                  // DOVE PORTA IL TAP: il turno del giorno che la board disegna su
+                  // una card di sezione. Preferenza al REALE (la verità del PDF);
+                  // senza reale (mese solo teorico) vale il teorico. Riposi,
+                  // assenze, trasferte e codici senza card non portano da nessuna
+                  // parte: lì la board non ha niente da evidenziare.
+                  const salaShift = sectionTurnOf(real?.short)?.shift ?? sectionTurnOf(theo)?.shift ?? null
                   return (
                     <ShiftDayCard
                       key={d}
@@ -953,6 +996,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
                       title={cellTitle}
                       palette={palette}
                       mismatchStyle={mismatchStyle}
+                      onOpen={salaShift ? () => apriInSala(d, salaShift) : undefined}
                     />
                   )
                 })}

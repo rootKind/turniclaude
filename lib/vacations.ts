@@ -47,4 +47,34 @@ export function getEffectivePeriodForYear(
   return overrides.get(userId) ?? getVacationPeriodForYear(basePeriod, year)
 }
 
+/**
+ * IL FILTRO «SOLO SE COMPATIBILE COL MIO PERIODO» (richiesta 26/09/2026).
+ *
+ * Un cambio ferie è una PERMUTA: chi pubblica offre il proprio periodo e cerca
+ * quelli altrui. Il destinatario può essere parte dello scambio solo se il suo
+ * periodo dell'anno richiesto è FRA QUELLI CERCATI (è la stessa condizione che
+ * `findCompatibleVacationRequests` verifica nell'altro verso: lì si guarda la
+ * richiesta altrui rispetto ai propri periodi, qui il proprio periodo rispetto ai
+ * periodi cercati). Chi non ha il filtro attivo riceve tutto, come prima.
+ *
+ * Due uscite di CAUTELA, entrambe deliberate:
+ *   • periodo del destinatario IGNOTO (nessuna assegnazione ferie, oppure anno non
+ *     noto): non si filtra — l'ignoranza non è una ragione per non avvisare;
+ *   • lista dei periodi cercati VUOTA: non si filtra, perché non c'è niente da
+ *     confrontare e una richiesta senza mete è un dato incompleto, non una
+ *     proposta per nessuno.
+ * Questo è il predicato che il route delle notifiche USA (`app/api/push/notify`):
+ * tenerlo in una funzione pura è quello che lo rende provabile.
+ */
+export function vacationFilterKeeps(
+  filterOn: boolean | null | undefined,
+  myPeriod: VacationPeriod | null | undefined,
+  targetPeriods: readonly VacationPeriod[],
+): boolean {
+  if (filterOn !== true) return true
+  if (myPeriod == null) return true
+  if (targetPeriods.length === 0) return true
+  return targetPeriods.includes(myPeriod)
+}
+
 

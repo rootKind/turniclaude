@@ -44,8 +44,11 @@ export const NOTIF_VARS: TemplateVar[] = [
   { name: 'periodo', description: 'Periodo ferie offerto', sample: '16–30 Giu' },
   { name: 'periodo_cercati', description: 'Periodi ferie cercati', sample: '01–15 Lug, 16–31 Lug' },
   { name: 'anno', description: 'Anno delle ferie', sample: '2026' },
+  { name: 'periodo_effettivo', description: 'Periodo ferie del destinatario nell’anno richiesto (variante compatibile)', sample: '16–31 Lug' },
   { name: 'motivo', description: 'Motivo testuale di un rifiuto (facoltativo)', sample: 'per: copertura già assicurata' },
   { name: 'turno_effettivo', description: 'Turno realmente trovato nel calendario (pulizia cambi)', sample: 'Pomeriggio' },
+  { name: 'giorno_fuori_sala', description: 'Perché quel giorno non è in sala: assenza o attività senza sezione (pulizia cambi)', sample: 'Ferie' },
+  { name: 'codice_giorno', description: 'Codice del PDF di quel giorno (pulizia cambi)', sample: 'F.E.' },
   { name: 'dettaglio', description: 'Spiegazione specifica del messaggio (pulizia cambi)', sample: 'nel turno caricato risulti già in Pomeriggio' },
   { name: 'extra', description: 'Aggiunta testuale facoltativa (es. «e altre 2 richieste»)', sample: '(e altre 2 richieste)' },
   { name: 'versione', description: 'Numero della nuova versione del changelog', sample: '5' },
@@ -182,6 +185,23 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
     label: 'Pulizia: già registrato', type: 'cleanup', source: 'Pulizia cambi (admin)',
     context: 'Al richiedente, quando il cambio è già nei turni caricati ({dettaglio} spiega il caso)',
   },
+  // Varianti «FUORI SALA» (richiesta 26/09/2026): la richiesta sparisce perché
+  // quel giorno la persona è assente (A, F.E., VS…) o in un'attività senza
+  // sezione (trasferta, corso, istruttore) — NON perché il cambio è avvenuto.
+  // Testo proprio, così in bacheca non si confonde con «già registrato», e
+  // l'admin lo rivede/modifica dal pannello debug.
+  {
+    key: 'cleanup.fuori_sala.title', title: 'Cambio turno eliminato: non sei in sala',
+    body: 'La richiesta di cambio del {data} ({turno} → {turno_cercati}) è stata eliminata: quel giorno risulti in {giorno_fuori_sala} ({codice_giorno}), quindi non sei in sala. {extra}',
+    label: 'Pulizia: fuori sala (assenza/attività)', type: 'cleanup', source: 'Pulizia cambi (admin)',
+    context: 'Al richiedente, quando quel giorno è assente o in un’attività senza sezione ({giorno_fuori_sala} + {codice_giorno})',
+  },
+  {
+    key: 'cleanup.fuori_sala.gone.title', title: 'Cambio turno non più disponibile',
+    body: 'La richiesta di cambio {turno} → {turno_cercati} del {data} di {cognome_attore} è stata eliminata: quel giorno {cognome_attore} risulta in {giorno_fuori_sala} ({codice_giorno}), quindi non è in sala.',
+    label: 'Pulizia: fuori sala → interessati', type: 'cleanup', source: 'Pulizia cambi (admin)',
+    context: 'Agli interessati: il turno non è più disponibile perché il richiedente quel giorno non è in sala',
+  },
   {
     key: 'cleanup.partner.title', title: 'Cambio turno completato',
     body: 'Il cambio del {data} con {cognome_attore} è andato a buon fine: risulti in {turno}.',
@@ -212,6 +232,17 @@ export const NOTIF_TEMPLATES: NotifTemplateDef[] = [
     body: '{cognome_attore} offre {periodo} {anno} in cambio di {periodo_cercati}',
     label: 'Nuovo cambio ferie', type: 'new_vacation', source: 'Pubblica cambio ferie',
     context: 'A tutti della stessa categoria con notifiche attive',
+  },
+  // Variante FILTRATA (richiesta 26/09/2026): chi ha «Solo se compatibile col mio
+  // periodo» (notify_vacation_filter) riceve il nuovo cambio ferie solo se il SUO
+  // periodo dell'anno richiesto (override admin compresi) è fra quelli che la
+  // richiesta cerca — e il messaggio lo DICE, col periodo effettivo. È lo specchio
+  // di new_shift.compatible.title sui cambi turno.
+  {
+    key: 'new_vacation.compatible.title', title: 'Nuovo cambio ferie compatibile col tuo periodo',
+    body: '{cognome_attore} offre {periodo} ({anno}) e cerca {periodo_cercati}: tu sei in {periodo_effettivo}, uno dei periodi che cerca',
+    label: 'Nuovo cambio ferie compatibile col tuo periodo', type: 'new_vacation', source: 'Pubblica cambio ferie',
+    context: 'Ai dipendenti con «Solo se compatibile col mio periodo» attivo, quando il LORO periodo dell’anno richiesto è fra quelli cercati',
   },
   {
     key: 'vacation_chain_ready.title', title: 'Nuova catena ferie disponibile',

@@ -212,6 +212,31 @@ try {
     }
   }
 
+  // LO STESSO PER LE FERIE (26/09/2026): «solo se compatibile col mio periodo» ha
+  // il suo messaggio, che dice il periodo del destinatario. Come sopra, si
+  // inchioda il testo E la coesistenza nel route con il generico — e anche le due
+  // varianti «fuori sala» della pulizia, che devono restare due messaggi distinti
+  // (chi le riceve deve capire che il motivo non è «il cambio è avvenuto»).
+  {
+    const { body } = resolveMessage({}, 'new_vacation.compatible.title')
+    assert.equal(
+      renderFlowTemplate(body, {
+        cognome_attore: 'Bianchi', periodo: '01–15 Lug', periodo_cercati: '16–31 Lug',
+        anno: '2027', periodo_effettivo: '16–31 Lug',
+      }),
+      'Bianchi offre 01–15 Lug (2027) e cerca 16–31 Lug: tu sei in 16–31 Lug, uno dei periodi che cerca',
+      'new_vacation.compatible.title: testo del cambio ferie compatibile',
+    )
+    const route = readFileSync('app/api/push/notify/route.ts', 'utf8')
+    for (const k of ['new_vacation.title', 'new_vacation.compatible.title']) {
+      assert.ok(route.includes(`'${k}'`), `app/api/push/notify/route.ts: risolve «${k}» (generico e dedicato coesistono)`)
+    }
+    const pulizia = readFileSync('app/api/admin/shift-cleanup/route.ts', 'utf8')
+    for (const k of ['cleanup.done.title', 'cleanup.fuori_sala.title', 'cleanup.fuori_sala.gone.title']) {
+      assert.ok(pulizia.includes(`'${k}'`), `app/api/admin/shift-cleanup/route.ts: risolve «${k}»`)
+    }
+  }
+
   // ── variabili FACOLTATIVE vuote: il testo inviato non deve avere residui ─────
   // È il caso reale: il manager rifiuta senza scrivere il motivo, la pulizia non
   // ha altre richieste da elencare. (L'anno non è in questo elenco: dove compare

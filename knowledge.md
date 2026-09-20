@@ -2803,7 +2803,133 @@ entrambi **pushati su dev**, nessun merge su `master`. I file di 6c/6d sono:
 `components/shifts/shift-dialog.tsx`, `lib/queries/shift-cleanup.ts`,
 `tests/sala-card-presence.spec.ts`, `tests/card-cambio-to-sala.spec.ts` (6d) e questo diario.
 Fuori da tutto resta il WIP preesistente su
-`scripts/check-assenti.mjs` (crasha, fuori dai piedi). **Aperto, da decidere con l'utente:** il
-legame membro↔utente su PRODUZIONE (un clic in Admin → Squadre: lega `NEVANO` a Pietro, e per la
-board il rinomino «NEVANO» → «NEVANO P.» che il dialog stesso propone) — è l'ultimo passo perché
-la regola del roster valga anche lì.
+`scripts/check-assenti.mjs` (crasha, fuori dai piedi).
+
+**6e. IL LEGAME SU PRODUZIONE È STATO FATTO — E LA LISTA È UN'ALTRA COSA (26/09/2026).** L'utente ha
+fatto il merge su `main` e in Admin → Squadre ha legato `NEVANO` della squadra Scorte/Rilievo D a
+**Pietro** e l'ha rinominato `NEVANO P.`. Verificato in sola lettura sul DB di produzione: legame e
+rinomina sono a posto (`NEVANO P.` → Pietro, attivo, tipo Scorte attivo). 
+
+Poi la domanda: «non lo leggo più nella lista degli utenti in /tuoturno e nel confronta». **Non
+c'entra il legame**: manca dalla lista perché sulla riga `users` di Pietro c'è
+`show_in_compare = false` — il flag della migration 026, che l'admin governa dal dialog «visibilità
+del confronto» — e la lista del selettore filtra proprio su quello (`buildCompareGroups`: `visible =
+users.filter(u => u.show_in_compare !== false)`). Su produzione i nascosti sono 6 su 88, e Giuseppe
+(il gemello) ce l'ha invece acceso: da qui l'effetto «sparito». Nessun codice da toccare: si
+riaccende dalla scheda admin. Lezione da tenere: **legame di squadra e visibilità nelle liste sono
+due interruttori diversi**, e cercare la causa nel primo è la strada sbagliata.
+
+---
+
+## 7. TRE FUNZIONI NUOVE (26/09/2026 sera)
+
+**7a. TAP SU UN GIORNO DI /tuoturno → /turnisala.** La griglia personale di /tuoturno usa la STESSA
+URL del salto dalla dashboard (`buildSalaFocusUrl`, lib/shift-tokens): tap sul giorno → mese, giorno,
+turno P/M/N e persona nell'URL, e la board risponde col solito respiro di 3s (e con la solita
+verifica). Il tap si accende **solo dove la board ha qualcosa da accendere**: la condizione è
+`sectionTurnOf(token)` sul REALE del giorno (senza reale — mese solo teorico — vale il teorico).
+Riposi, assenze, trasferte e codici senza card non sono bersagli: nessun `data-sala-day`, nessun
+handler. In pratica la card ha `role="button"` + `data-sala-day` quando è tappabile (nello stile del
+progetto: vedi `shift-item`), resta un `div` quando non lo è. Nel CONFRONTO le card restano celle di
+lettura (la feature è della griglia personale).
+
+**7b. LA PULIZIA DEI CAMBI GUARDA ANCHE I GIORNI FUORI SALA.** Una richiesta di cambio è inutile non
+solo quando il cambio è già avvenuto, ma anche quando **quel giorno non c'è nessun turno da cedere**:
+assenza (A, AG7, F, F.E., VS, Trasf…) o attività senza sezione (trasferte `Dis*`/`NDis*`/`Trasf`,
+corsi `Sp*`, istruttori `ISp*`/`*TUTOR`, turni «nudi»). Il predicato è `fuoriSalaInfo(token)`
+(lib/sala-month, accanto a `spiegaCodiceNonMostrato`): è **assenza** oppure la board la mette in
+**«Altre attività»** (`boardPlacementOf` → `altri`).
+
+**Il confine è deciso, non dedotto** (l'utente ha scelto fra tre opzioni): restano FUORI riposi
+(RC/RI/RM), disponibilità (D) e i codici che la board non mostra (G, Na, MSb, TIR, 12.14…).
+Allargare è cambiare una condizione in `fuoriSalaInfo` — ed è inchiodato in
+`tests/pulizia-fuori-sala.spec.ts` (che elenca proprio quei codici come «non devono far scattare la
+pulizia»), così se qualcuno allarga lo fa sapendo.
+
+Il codice del giorno NON si può leggere dal calendario espanso (`DaySchedule`): lì ci sono sezioni,
+altri presenti e presenze senza sezione, **non le assenze** — quelle vivono solo nella forma compatta
+v2. Quindi `computeShiftCleanup` legge SEMPRE la riga `sala_schedule` (anche quando l'upload gli
+passa la schedule appena decodificata) e ne ricava `realTokens` con
+`dayTokensForRequests`/`loadRealDayTokens`. La conferma dell'admin (`POST /api/admin/shift-cleanup`)
+non ha la schedule: ricostruisce gli stessi token dagli id con `loadRealDayTokens` e sceglie il testo
+di conseguenza.
+
+Due messaggi NUOVI nel registro (`cleanup.fuori_sala.title` al richiedente,
+`cleanup.fuori_sala.gone.title` agli interessati — richiesta esplicita dell'utente: anche gli
+interessati vanno avvisati), modificabili dal pannello debug come tutti gli altri. Nel dialog di
+pulizia ogni riga dice il motivo (`fuori sala quel giorno: Ferie (F.E.)` oppure `già in Mattina nel
+calendario`). Quando una persona ha più richieste ripulite di motivi diversi vince il motivo
+«fuori sala» (spiega meglio la sparizione; il numero delle altre resta in `{extra}`).
+
+Misurato sui dati veri di dev (sonda poi cancellata): sui mesi caricati marzo→settembre 2026 i
+candidati sono **1** con la nuova regola — *Piscopo Nicola, 29/09/2026, offre Notte cercando
+Pomeriggio, ma quel giorno il PDF lo dà «A» (Altre presenze)* — e **0** esauriti. Zero falsi
+positivi sugli altri 200 giorni-persona.
+
+**SI GUARDA SOLO LA RIGA REALE, MAI IL TEORICO** (richiesta utente 26/09/2026: «voglio che consideri
+solo i turni reali, anche per la pulizia che avevamo già implementato»). Verificato prima di
+rispondere, perché la risposta non poteva essere «sì, credo»: la pulizia non nominava mai `teorico`
+(`grep` su `shift-cleanup.ts` e sul route: zero occorrenze), i token del giorno vengono da
+`decodeSalaMonth(...).days` (la riga `d` del v2) e le sezioni da `buildScheduleFromMonthData`, che
+applica anch'esso `days`. Le due righe però **non coincidono quasi mai**: nei mesi caricati
+differiscono in ~**40% delle celle** (a settembre 1156 su 2910, a marzo 1265 su 3038) — quindi la
+scelta conta davvero, non è teorica.
+
+La prova che ha reso la regola concreta è il caso già noto: **Piscopo 29/09/2026, reale «A», teorico
+«N7T»**. La sua richiesta offriva *proprio* Notte: con la riga teorica la pulizia non troverebbe
+niente da fare (sembra che quel giorno il turno ce l'abbia), con la riga reale la richiesta è morta
+(assenza) — ed è quella che si usa. La variante «tutto teorico» è stata calcolata per curiosità su
+tutti i mesi caricati: **0 candidati** contro l'1 reale. Due prove nuove in
+`tests/pulizia-fuori-sala.spec.ts` inchiodano la regola nei DUE versi (reale = assenza + teorico =
+Notte → si ripulisce; reale = turno chiesto + teorico = riposo → si ripulisce come «già avvenuto»),
+con la controprova che col teorico non uscirebbe nulla.
+
+**E UNA CELLA GIALLA NON È UN TURNO CONFERMATO** (chiarimento dell'utente, stessa sera: «le celle
+con sfondo giallo sono delle ipotesi di turno reale ma diverse dal teorico»). Quindi la pulizia —
+che CANCELLA e NOTIFICA — non decide mai su un giallo: né «il cambio è già avvenuto» né «quel giorno
+non sei in sala». La richiesta resta dov'è, in attesa della conferma. In termini di codice la riga
+reale di un giorno è ora `{ token, pending }` (`RealDayState`, da `dayStatesForRequests` /
+`loadRealDayStates`, col giallo da `person.yellow`), e `findFulfilledShiftRequests` esce subito se
+`pending`: una guardia sola, perché le due strade della pulizia sbagliano allo stesso modo. La
+conferma dell'admin ricontrolla lo stato DAL DB (`loadRealDayStates` nel POST) invece di fidarsi di
+ciò che l'anteprima aveva visto: fra i due momenti possono passare giorni.
+
+Attenzione a non confondere le due regole, che sono indipendenti: **il giallo non c'entra col reale
+vs teorico**. Misurato sui dati di dev: la cella di Piscopo del 29/09 **non è gialla** (è un'assenza
+vera), e delle 3 richieste presenti nel mese nessuna cade su un giorno giallo — quindi la regola del
+giallo oggi non cambia NESSUN candidato (1 prima, 1 dopo), e serve per il futuro invece che per il
+presente. `tests/pulizia-fuori-sala.spec.ts` prova che il blocco vale per entrambe le strade e che è
+il giallo a decidere (gli stessi dati senza giallo finiscono ripuliti). **Controllo negativo
+fatto**: disattivando la guardia (`if (false && state?.pending)`), falliscono esattamente le due prove
+del giallo e le altre dieci restano verdi.
+
+**7c. NUOVO CAMBIO FERIE, FILTRATO SUL MIO PERIODO.** Specchio di `notify_shift_filter`: nuova colonna
+`users.notify_vacation_filter` (migration **034**, applicata su dev via
+`scripts/apply-release-migrations.mjs --from 034 --to 034 --apply`; su PRODUZIONE non ancora), nuova
+voce in Impostazioni («Solo se compatibile col mio periodo», attiva solo con «Nuovo cambio ferie
+disponibile»), e il predicato `vacationFilterKeeps(filterOn, myPeriod, targetPeriods)` in
+lib/vacations — **la stessa funzione che usa il route**, così la logica provata è quella spedita.
+Il periodo del destinatario è il suo periodo dell'anno richiesto, rotazione applicata e **override
+admin compresi** (`getEffectivePeriodForYear`); il filtro tiene chi ha un periodo fra quelli che la
+richiesta cerca, cioè la condizione di permuta possibile (`findCompatibleVacationRequests` la
+verifica nell'altro verso). Due uscite di cautela, deliberate: periodo IGNOTO (nessuna assegnazione,
+o anno non noto) e lista dei cercati VUOTA non filtrano — l'ignoranza non è una ragione per non
+avvisare. Chi passa dal filtro riceve il testo DEDICATO `new_vacation.compatible.title`, che dice il
+proprio periodo (`{periodo_effettivo}`): senza, la notifica non spiegherebbe perché è arrivata.
+
+**Prove.** `tests/tuoturno-salto-sala.spec.ts` (E2E: giorno dal PDF vero di dev, tap, URL e respiro),
+`tests/pulizia-fuori-sala.spec.ts` (logica + il confine dei riposi), `tests/ferie-compatibili.spec.ts`
+(logica del filtro e testo dedicato), più i tre nuovi controlli in `scripts/check-notif-templates.mjs`
+(coesistenza generico/dedicato nel route e le due varianti della pulizia). **Controllo negativo
+fatto**: togliendo l'`onOpen` dalle card, la spec del salto da /tuoturno fallisce (nessun
+`data-sala-day`). Suite completa: **194 passati / 8 saltati**.
+
+Stato (26/09/2026, tarda sera): le tre funzioni sono **su disco, non committate** —
+`app/(app)/tuoturno/tuoturno-client.tsx`, `lib/queries/shift-cleanup.ts`,
+`app/api/admin/shift-cleanup/route.ts`, `components/admin/shift-cleanup-dialog.tsx`,
+`lib/sala-month.ts`, `lib/vacations.ts`, `app/api/push/notify/route.ts`,
+`lib/notification-templates.ts`, `components/settings/settings-page.tsx`, `lib/queries/users.ts`,
+`types/database.ts`, `scripts/check-notif-templates.mjs`, la migration
+`supabase/migrations/034_notify_vacation_filter.sql` (applicata su dev, NON su produzione) e i tre
+spec nuovi. La colonna su PRODUZIONE va aggiunta prima che il toggle funzioni lì:
+`node scripts/apply-release-migrations.mjs --prod --from 034 --to 034 --apply`.

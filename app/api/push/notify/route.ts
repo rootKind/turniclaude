@@ -5,6 +5,8 @@ import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import { formatDateShort } from '@/lib/utils'
 import { VACATION_PERIOD_LABELS_SHORT } from '@/lib/vacations'
 import { getUserShiftOnDate, userCoversRequest } from '@/lib/shift-compat'
+import { getVacationYearOverrides } from '@/lib/queries/vacations'
+import { getEffectivePeriodForYear, VACATION_PERIOD_LABELS_SHORT as PERIOD_SHORT, vacationFilterKeeps } from '@/lib/vacations'
 import type { VacationPeriod, ShiftType } from '@/types/database'
 
 const KNOWN_TYPES = ['new_shift', 'interest', 'vacation_interest', 'new_vacation']
@@ -211,7 +213,7 @@ export async function POST(req: Request) {
   } else if (type === 'new_vacation') {
     const { data: targets } = await supabase
       .from('users')
-      .select('id')
+      .select('id, notify_vacation_filter')
       .eq('is_secondary', isSecondary)
       .eq('notification_enabled', true)
       .eq('notify_on_new_vacation', true)
@@ -219,21 +221,76 @@ export async function POST(req: Request) {
 
     if (targets?.length) {
       const offLabel = VACATION_PERIOD_LABELS_SHORT[offeredPeriod as VacationPeriod] ?? `Periodo ${offeredPeriod}`
-      const tgLabel = Array.isArray(targetPeriods) && (targetPeriods as number[]).length >= 5
+      const targetList = Array.isArray(targetPeriods) ? (targetPeriods as number[]) as VacationPeriod[] : []
+      const tgLabel = targetList.length >= 5
         ? 'qualsiasi periodo'
-        : ((targetPeriods as number[]) ?? []).map(p => VACATION_PERIOD_LABELS_SHORT[p as VacationPeriod] ?? `P${p}`).join(', ')
+        : targetList.map(p => VACATION_PERIOD_LABELS_SHORT[p] ?? `P${p}`).join(', ')
       const nvYearLabel = year ? String(year) : ''
+
+      /* FILTRO «SOLO SE COMPATIBILE COL MIO PERIODO» (richiesta 26/09/2026):
+         specchio di notify_shift_filter sui cambi turno. Il destinatario riceve
+         la notifica solo se il SUO periodo ferie di quell'anno — rotazione
+         applicata, override admin dell'anno compresi — è fra i periodi che la
+         richiesta cerca: è esattamente la condizione di uno scambio possibile
+         (`findCompatibleVacationRequests` chiede la stessa cosa, nell'altro
+         verso). Chi non ha il filtro attivo continua a ricevere tutto.
+         Se l'anno non è noto il filtro non può essere valutato: si manda il
+         testo generico, come per i cambi turno senza data. */
+      const yearNum = Number(year)
+      const filterIds = targets.filter(t => t.notify_vacation_filter === true).map(t => t.id)
+      const mioPeriodo = new Map<string, VacationPeriod>()
+      if (filterIds.length && Number.isFinite(yearNum) && yearNum > 2000 && targetList.length) {
+        try {
+          const [overrides, assignments] = await Promise.all([
+            getVacationYearOverrides(supabase, yearNum),
+            supabase.from('vacation_assignments').select('user_id, base_period'),
+          ])
+          const baseByUser = new Map(
+            ((assignments.data ?? []) as { user_id: string; base_period: number | null }[])
+              .map(a => [a.user_id, a.base_period as VacationPeriod | null]),
+          )
+          for (const id of filterIds) {
+            const base = baseByUser.get(id)
+            if (base == null) continue
+            mioPeriodo.set(id, getEffectivePeriodForYear(base, yearNum, overrides, id))
+          }
+        } catch (err) {
+          // Senza i periodi non si filtra: meglio una notifica in più che una
+          // spiegazione sbagliata (l'utente potrebbe non poter coprire nulla).
+          console.error('Filtro ferie: periodi non disponibili', err)
+        }
+      }
+
+      // Il predicato è `vacationFilterKeeps` (lib/vacations): le uscite di
+      // cautela — periodo ignoto, lista cercati vuota — stanno lì, provate.
+      const finalTargets = targets.filter(t =>
+        vacationFilterKeeps(t.notify_vacation_filter, mioPeriodo.get(t.id), targetList),
+      )
+
       const overrides = await loadNotifOverrides()
-      const msg = messageFor(overrides, 'new_vacation.title', {
+      const generico = messageFor(overrides, 'new_vacation.title', {
         cognome_attore: typeof actorName === 'string' ? actorName : '', periodo: offLabel, periodo_cercati: tgLabel, anno: nvYearLabel,
       })
       const payload = {
-        title: msg.title,
-        body: msg.body,
+        title: generico.title,
+        body: generico.body,
         type: 'new_vacation',
         requestId: requestId ? Number(requestId) : null,
       }
-      await Promise.allSettled(targets.map(t => pushToUser(t.id, payload)))
+      await Promise.allSettled(finalTargets.map(t => {
+        const mio = t.notify_vacation_filter === true ? mioPeriodo.get(t.id) : undefined
+        // Testo DEDICATO a chi passa per il filtro: dice il proprio periodo, così
+        // la notifica spiega da sé perché è arrivata (come new_shift.compatible).
+        if (mio !== undefined && targetList.includes(mio)) {
+          const msg = messageFor(overrides, 'new_vacation.compatible.title', {
+            cognome_attore: typeof actorName === 'string' ? actorName : '',
+            periodo: offLabel, periodo_cercati: tgLabel, anno: nvYearLabel,
+            periodo_effettivo: PERIOD_SHORT[mio] ?? `P${mio}`,
+          })
+          return pushToUser(t.id, { ...payload, title: msg.title, body: msg.body })
+        }
+        return pushToUser(t.id, payload)
+      }))
     }
   }
 

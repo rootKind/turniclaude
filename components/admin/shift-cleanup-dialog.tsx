@@ -204,7 +204,14 @@ export function ShiftCleanupDialog({ open, onClose, month, initialCandidates, on
                           {r.charAt(0)}
                         </span>
                       ))}
-                      <span className="ml-1">già in {c.actual_shift} nel calendario</span>
+                      {/* Il motivo: il cambio è già nel calendario, oppure quel
+                          giorno la persona è fuori sala (assenza/attività senza
+                          sezione) e non ha nessun turno da cedere. */}
+                      <span className="ml-1">
+                        {c.reason === 'fuori-sala'
+                          ? `fuori sala quel giorno: ${c.day_label ?? 'assenza'} (${c.day_code ?? ''})`
+                          : `già in ${c.actual_shift} nel calendario`}
+                      </span>
                     </p>
                   </li>
                 ))}

@@ -1,5 +1,6 @@
 import type { DaySchedule, SalaMonthData } from '@/types/database'
-import { NON_SECTION_DUTIES, applyTokenToDay, isPresentNoSection, isShiftWorkCode, parseShiftCode, sectionTurnOf } from '@/lib/shift-tokens'
+import { NON_SECTION_DUTIES, applyTokenToDay, boardPlacementOf, isPresentNoSection, isShiftWorkCode, parseShiftCode, sectionTurnOf } from '@/lib/shift-tokens'
+import { classifyAltriToken } from '@/lib/altri-gruppi'
 import { matchesCognome } from '@/lib/utils'
 import { personNameMatches, type PersonRef } from '@/lib/person-shift'
 import type { BareOwnerMap } from '@/lib/shift-teams-matching'
@@ -178,6 +179,46 @@ export interface PersonDayShift extends SalaCodeInfo {
  * persona c'è ma sotto un altro turno (o con un nome che la board non ha saputo
  * riconoscere) e la frase lo dice. Fuori da quel caso non serve.
  */
+/**
+ * FUORI SALA: quel giorno la persona non ha nessun turno da cedere o prendere
+ * (richiesta 26/09/2026, pulizia dei cambi).
+ *
+ * Sono DUE famiglie, e sono quelle che la board non disegna su una card:
+ *   • le ASSENZE (A, AG7, F, F.E., VS, Trasf…): il codice è nel PDF, il turno no;
+ *   • le PRESENZE SENZA SEZIONE che la board raccoglie in «Altre attività»
+ *     (trasferte `Trasf`/`Dis*`/`NDis*` e le M/N/P nude, corsi `Sp*`, istruttori
+ *     `ISp*`/`*TUTOR`, altro).
+ *
+ * RESTANO FUORI, per decisione dell'utente (26/09/2026): i RIPOSI (RC/RI/RM), la
+ * disponibilità (D) e i codici che la board non mostra affatto (G, Na, MSb,
+ * TIR, 12.14…). Sono esclusi di proposito, non per dimenticanza: allargare la
+ * pulizia a quelli è un cambio di una riga (la condizione qui sotto), da
+ * decidere — non da dedurre.
+ *
+ * `label` è l'etichetta BREVE per i messaggi («Ferie», «Trasferta», «Corso»…);
+ * `code` è il codice come sta nel PDF, che l'utente riconosce.
+ */
+export interface FuoriSalaInfo {
+  code: string
+  label: string
+}
+
+export function fuoriSalaInfo(token: string | null | undefined): FuoriSalaInfo | null {
+  const t = (token ?? '').trim()
+  if (!t) return null
+  const info = salaCodeInfo(t)
+  if (info.kind === 'absence') return { code: t, label: info.label }
+  // «altri» = la board la disegna nella riga «Altre attività»: presente in
+  // servizio, ma non su una card di sezione.
+  if (boardPlacementOf(t)?.kind !== 'altri') return null
+  const gruppo = classifyAltriToken(t)
+  const label = gruppo === 'corsi' ? 'Corso'
+    : gruppo === 'istruttori' ? 'Istruttore'
+      : gruppo === 'trasferte' ? 'Trasferta'
+        : 'Altre attività'
+  return { code: t, label }
+}
+
 export function spiegaCodiceNonMostrato(code: string, suUnaCard = false): string {
   const info = salaCodeInfo(code)
   if (info.kind === 'rest') return `quel giorno è di riposo (${code})`

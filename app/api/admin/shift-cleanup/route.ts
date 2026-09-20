@@ -7,9 +7,11 @@ import {
   SHIFT_TO_SALA,
   actualShiftsForUserDate,
   computeShiftCleanup,
+  loadRealDayStates,
   loadShiftLookupContextWithTree,
   type ShiftLookupContext,
 } from '@/lib/queries/shift-cleanup'
+import { fuoriSalaInfo } from '@/lib/sala-month'
 import { pushToUser } from '@/lib/push/send-to-user'
 import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import { formatDateShort } from '@/lib/utils'
@@ -127,6 +129,24 @@ export async function POST(req: NextRequest) {
     return u ? [u.cognome, u.nome].filter(Boolean).join(' ') : 'un collega'
   }
 
+  // La riga REALE di ogni giorno ripulito (dalla forma v2 del mese): una
+  // richiesta può sparire perché il cambio è già avvenuto, oppure perché quel
+  // giorno la persona è fuori sala (assenza o attività senza sezione). Il testo
+  // della notifica cambia con il motivo, quindi il motivo va ricostruito QUI.
+  // Le celle GIALLE non entrano mai: sono ipotesi, e le righe che arrivano qui
+  // sono già state ripulite solo su celle confermate (la conferma può arrivare
+  // con giorni di distanza dal caricamento: si ricontrolla, non si presume).
+  let dayStates = new Map<string, { token: string; pending: boolean }>()
+  try {
+    dayStates = await loadRealDayStates(admin, shifts, [...ctx.usersById.values()], ctx.bareOwners)
+  } catch (err) {
+    console.error('Shift cleanup: righe reali del giorno non disponibili', err)
+  }
+  const fuoriSalaOf = (s: ShiftRow) => {
+    const state = dayStates.get(`${s.user_id}|${s.shift_date}`)
+    return state?.pending ? null : fuoriSalaInfo(state?.token)
+  }
+
   const { error } = await admin.from('shifts').delete().in('id', ids)
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -146,10 +166,19 @@ export async function POST(req: NextRequest) {
     byUser.set(s.user_id, list)
   }
   for (const [userId, userShifts] of byUser) {
-    const first = userShifts[0]
+    // Una richiesta ripulita per persona: se almeno una è «fuori sala» è QUELLA
+    // che spiega meglio la sparizione (quel giorno non c'era niente da cedere),
+    // quindi vince sulle altre, il cui numero resta comunque detto da {extra}.
+    let fuori: ShiftRow | null = null
+    let info: ReturnType<typeof fuoriSalaInfo> = null
+    for (const s of userShifts) {
+      const f = fuoriSalaOf(s)
+      if (f) { fuori = s; info = f; break }
+    }
+    const first = fuori ?? userShifts[0]
     const dateLabel = formatDateShort(first.shift_date)
     const requestedLabel = (first.requested_shifts ?? []).join('/')
-    const actual = actualShiftsForUserDate(ctx, first.user_id, first.shift_date)
+    const actual = fuori ? null : actualShiftsForUserDate(ctx, first.user_id, first.shift_date)
       .find(a => (first.requested_shifts ?? []).some(r => SHIFT_TO_SALA[r] === a))
     const actualLabel = actual ? ACTUAL_LABEL[actual] : null
     // Nudo: lo spazio prima di {extra} sta nel template (convenzione in
@@ -157,13 +186,20 @@ export async function POST(req: NextRequest) {
     const extra = userShifts.length > 1 ? `(e altre ${userShifts.length - 1} richieste)` : ''
     // {dettaglio} spiega il caso specifico: turno trovato nel calendario o
     // «già assegnato»; {extra} elenca le altre richieste ripulite, se ci sono.
-    const msg = messageFor(overrides, 'cleanup.done.title', {
-      data: dateLabel, turno: first.offered_shift, turno_cercati: requestedLabel,
-      dettaglio: actualLabel
-        ? `nel turno caricato risulti già in ${actualLabel}`
-        : 'il turno richiesto risulta già assegnato',
-      extra,
-    })
+    // Per il giorno fuori sala il testo è un ALTRO (cleanup.fuori_sala), con
+    // {giorno_fuori_sala} + {codice_giorno}: la modifica l'admin dal pannello.
+    const msg = info
+      ? messageFor(overrides, 'cleanup.fuori_sala.title', {
+          data: dateLabel, turno: first.offered_shift, turno_cercati: requestedLabel,
+          giorno_fuori_sala: info.label, codice_giorno: info.code, extra,
+        })
+      : messageFor(overrides, 'cleanup.done.title', {
+          data: dateLabel, turno: first.offered_shift, turno_cercati: requestedLabel,
+          dettaglio: actualLabel
+            ? `nel turno caricato risulti già in ${actualLabel}`
+            : 'il turno richiesto risulta già assegnato',
+          extra,
+        })
     payloads.set(userId, { title: msg.title, body: msg.body })
   }
 
@@ -171,18 +207,29 @@ export async function POST(req: NextRequest) {
     const ceduto = SHIFT_TO_SALA[s.offered_shift]
     const dateLabel = formatDateShort(s.shift_date)
     const requestedLabel = (s.requested_shifts ?? []).join('/')
+    // Motivo di QUESTA richiesta, per gli interessati: se il richiedente quel
+    // giorno è fuori sala non c'è nessun cambio da fare, e va detto con il testo
+    // dedicato (prima degli altri due: un turno non cedibile non ha né partner né
+    // «non più disponibile» generico).
+    const info = fuoriSalaOf(s)
     for (const userId of interestedByShift.get(s.id) ?? []) {
       if (payloads.has(userId)) continue
       // Se l'interessato compare nel calendario nel turno che il richiedente
       // cedeva, allora il cambio è stato fatto proprio con lui.
-      const isPartner = actualShiftsForUserDate(ctx, userId, s.shift_date).includes(ceduto)
-      const msg = isPartner
-        ? messageFor(overrides, 'cleanup.partner.title', {
-            data: dateLabel, cognome_attore: userLabel(s.user_id), turno: s.offered_shift,
+      const isPartner = !info && actualShiftsForUserDate(ctx, userId, s.shift_date).includes(ceduto)
+      const msg = info
+        ? messageFor(overrides, 'cleanup.fuori_sala.gone.title', {
+            turno: s.offered_shift, turno_cercati: requestedLabel, data: dateLabel,
+            cognome_attore: userLabel(s.user_id),
+            giorno_fuori_sala: info.label, codice_giorno: info.code,
           })
-        : messageFor(overrides, 'cleanup.gone.title', {
-            turno: s.offered_shift, turno_cercati: requestedLabel, data: dateLabel, cognome_attore: userLabel(s.user_id),
-          })
+        : isPartner
+          ? messageFor(overrides, 'cleanup.partner.title', {
+              data: dateLabel, cognome_attore: userLabel(s.user_id), turno: s.offered_shift,
+            })
+          : messageFor(overrides, 'cleanup.gone.title', {
+              turno: s.offered_shift, turno_cercati: requestedLabel, data: dateLabel, cognome_attore: userLabel(s.user_id),
+            })
       payloads.set(userId, { title: msg.title, body: msg.body })
     }
   }
