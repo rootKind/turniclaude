@@ -388,6 +388,33 @@
   --sala-toolbar-nav-bg: rgba(255,255,255,0);
   --sala-toolbar-nav-border: #d5e0ec;
   --sala-toolbar-nav-text: #1c1c1c;
+
+  /* ══ M4 — I CONTROLLI: valori di BASE (desktop = com'erano) ══════════════
+     I controlli (bottone, switch, campo, chip) leggono questi token, e le due
+     piattaforme li rimappano nei loro blocchi: qui i valori di OGGI, perché il
+     desktop è la prova del zero-pixel. `--state-layer*` e `--ripple` sono
+     trasparenti/none: la velatura di stato e l'increspatura sono convenzioni di
+     Material — altrove lo stato lo dicono le tinte che i componenti hanno già. */
+  --state-layer-hover: transparent;
+  --state-layer-press: transparent;
+  --ripple: none;
+  /* Switch: la misura attuale (32×18.4, pollice 16) è la dimensione web; il
+     margine interno è il gioco fra pollice e traccia (2px per lato). */
+  --switch-track-w: 32px;
+  --switch-track-h: 18.4px;
+  --switch-thumb: 16px;
+  --switch-thumb-off: 16px;
+  --switch-pad: 2px;
+  --switch-on: var(--primary);
+  --switch-unchecked-border: 0px;
+  /* Campo di testo: outline trasparente col bordo di sempre. */
+  --input-bg: transparent;
+  --input-border: var(--input);
+  --input-underline: var(--input);
+  --input-radius: var(--radius);
+  /* Chip filtro: l'altezza che viene fuori oggi da py-1.5 + testo a 12px. */
+  --chip-height: 28px;
+  --chip-label: 12px;
 }
 
 .dark {
@@ -669,6 +696,32 @@
   --dialog-radius: 14px;
   --dialog-scrim: rgb(0 0 0 / 0.40);
   --dialog-scrim-blur: none;
+  /* M4 — i CONTROLLI (HIG). Lo stato lo dice l'EVIDENZA: niente velature di
+     Material né increspature (HIG non le ha), il tocco spegne un po' il
+     contenuto (la regola CSS che lo fa è più sotto, insieme al resto). */
+  --state-layer-hover: transparent;
+  --state-layer-press: transparent;
+  --ripple: none;
+  /* Il toggle di iOS è QUESTO controllo: 51×31pt, pollice 27, e il verde di
+     sistema — che non è una tinta di brand, è il segnale con cui iOS da sempre
+     dice «acceso». In scuro diventa #30d158 (l'override è nel blocco .dark
+     data-platform, qui sotto). */
+  --switch-track-w: 51px;
+  --switch-track-h: 31px;
+  --switch-thumb: 27px;
+  --switch-thumb-off: 27px;
+  --switch-pad: 2px;
+  --switch-on: #34c759;
+  --switch-unchecked-border: 0px;
+  /* Campo di testo: un inserto pieno (tertiary fill), SENZA bordo, angoli
+     continui a 10pt — il campo di iOS non ha contorni, ha un fondo. */
+  --input-bg: color-mix(in srgb, var(--foreground) 6%, transparent);
+  --input-border: transparent;
+  --input-underline: transparent;
+  --input-radius: 10px;
+  /* Capsule dei filtri: 32pt di altezza (le pill di sistema), testo a 13. */
+  --chip-height: 32px;
+  --chip-label: 13px;
 }
 
 /* iOS in TEMA SCURO: la scala delle superfici si CAPOVOLGE, quindi traccia e
@@ -684,6 +737,8 @@
   --seg-bg: var(--card);
   --seg-active-bg: var(--muted);
   --seg-active-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
+  /* Il verde di sistema in scuro (iOS lo schiarisce di notte, non lo lascia). */
+  --switch-on: #30d158;
 }
 
 /* Android — Material 3. Roboto, controlli a 48dp, raggi 12/28, elevazione a
@@ -738,6 +793,34 @@
   --dialog-radius: 28px;
   --dialog-scrim: rgb(0 0 0 / 0.32);
   --dialog-scrim-blur: none;
+  /* M4 — i CONTROLLI (Material 3). Lo stato è una VELATURA del colore del
+     contenuto: 8% al passaggio, 12% a pressione e focus (le «state layers» di
+     M3), e la pressione INCRESPA dal punto del dito. Nessun controllo si
+     abbassa o si sposta: a Material il feedback lo dà la superficie. */
+  --state-layer-hover: color-mix(in srgb, currentColor 8%, transparent);
+  --state-layer-press: color-mix(in srgb, currentColor 12%, transparent);
+  --ripple: currentColor;
+  /* Switch M3: traccia 52×32; pollice 16 spento, 24 acceso (cresce quando si
+     accende — è il gesto del controllo di Material); spento ha il contorno da
+     2dp che M3 mette sulla traccia non selezionata. */
+  --switch-track-w: 52px;
+  --switch-track-h: 32px;
+  --switch-thumb: 24px;
+  --switch-thumb-off: 16px;
+  --switch-pad: 2px;
+  --switch-on: var(--primary);
+  --switch-unchecked-border: 2px;
+  /* Campo pieno di M3: fondo pieno, NESSUN bordo laterale, gli angoli alti a
+     4dp (extra-small) e quelli bassi a 0, con la sottolineatura che al focus
+     diventa primaria (regola CSS più sotto). */
+  --input-bg: var(--muted);
+  --input-border: transparent;
+  --input-underline: color-mix(in srgb, var(--on-surface) 45%, transparent);
+  --input-radius: 4px 4px 0 0;
+  /* Chip filtro di M3: 32dp di altezza, etichetta a 14sp (label-large),
+     contorno PIENO (il tratteggio è una cosa del web, non di Material). */
+  --chip-height: 32px;
+  --chip-label: 14px;
 }
 
 /* Su schermi STRETTI l'etichetta a 12sp di Material non entra in un quinto di
@@ -753,6 +836,110 @@
 @media (max-width: 359px) {
   [data-platform='android'] {
     --nav-item-label: 10px;
+  }
+}
+
+/* ══ M4 — LA SKIN DEI CONTROLLI ════════════════════════════════════════════
+   Le regole che leggono i token qui sopra. Stanno fuori da @layer DI PROPOSITO:
+   una regola non in layer batte qualunque utility Tailwind, e le due skin
+   devono vincere sulle classi dei componenti (è così che lo stesso <Button>
+   si comporta da controllo HIG su iPhone e da controllo M3 su Android senza
+   un solo ramo nel JSX).
+
+   Il desktop NON è toccato: i token sono trasparenti/none e le regole sotto
+   mirano solo [data-platform='ios'|'android']. */
+
+/* Lo stato su Android: la velatura di M3 (un pseudo-elemento col colore del
+   contenuto del controllo, dentro i SUOI angoli) + l'increspatura che parte
+   dal punto del dito (--ripple-x/y le scrive il <Button> al pointerdown: senza
+   JS il cerchio nasce sempre al centro, che è la versione povera del gesto). */
+[data-platform='android'] [data-slot='button'],
+[data-platform='android'] [data-slot='chip'] {
+  position: relative;
+  /* Il velo e l'onda non devono uscire dagli angoli del controllo. */
+  overflow: hidden;
+}
+[data-platform='android'] [data-slot='button']::after,
+[data-platform='android'] [data-slot='chip']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: transparent;
+  pointer-events: none;
+  transition: background 120ms var(--motion-ease-standard);
+}
+[data-platform='android'] [data-slot='button']:hover::after,
+[data-platform='android'] [data-slot='chip']:hover::after {
+  background: var(--state-layer-hover);
+}
+[data-platform='android'] [data-slot='button']:focus-visible::after,
+[data-platform='android'] [data-slot='chip']:focus-visible::after,
+[data-platform='android'] [data-slot='button']:active::after,
+[data-platform='android'] [data-slot='chip']:active::after {
+  background: var(--state-layer-press);
+  transition-duration: 0ms;
+}
+[data-platform='android'] [data-slot='button']::before,
+[data-platform='android'] [data-slot='chip']::before {
+  content: '';
+  position: absolute;
+  left: var(--ripple-x, 50%);
+  top: var(--ripple-y, 50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--ripple);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+[data-platform='android'] [data-slot='button']:active::before,
+[data-platform='android'] [data-slot='chip']:active::before {
+  animation: ripple-m3 450ms var(--motion-ease-standard);
+}
+@keyframes ripple-m3 {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 0.20; }
+  60% { opacity: 0.12; }
+  100% { transform: translate(-50%, -50%) scale(28); opacity: 0; }
+}
+/* M3 non sposta né rimpicciolisce il controllo alla pressione: la classe di
+   base del <Button> (`active:translate-y-px`, convenzione web) non deve valere
+   qui — e la regola non in layer batte la utility. */
+[data-platform='android'] [data-slot='button']:active {
+  transform: none;
+}
+
+/* Lo stato su iOS: il controllo non si muove e non si vela — sotto il dito il
+   suo CONTENUTO si spegne un po', come il «highlighted» di UIButton. */
+[data-platform='ios'] [data-slot='button']:active {
+  transform: none;
+  opacity: 0.65;
+  transition: opacity 80ms linear;
+}
+
+/* Il campo di M3: la sottolineatura diventa primaria al focus (l'«active
+   indicator»), senza cambiare spessore (il salto di 1px sposterebbe il testo). */
+[data-platform='android'] [data-slot='input']:focus-visible,
+[data-platform='android'] [data-slot='textarea']:focus-visible {
+  border-bottom-color: var(--primary);
+}
+
+/* La chip filtro: la geometria la dicono i token (28px sul desktop com'era,
+   32 su telefono), il resto lo dicono le classi del chiamante. */
+[data-slot='chip'] {
+  height: var(--chip-height);
+  padding-inline: 12px;
+  border-radius: 9999px;
+  font-size: var(--chip-label);
+  font-weight: 500;
+}
+
+/* L'increspatura è un movimento: a chi la richiede, niente. */
+@media (prefers-reduced-motion: reduce) {
+  [data-platform='android'] [data-slot='button']::before,
+  [data-platform='android'] [data-slot='chip']::before {
+    animation: none;
   }
 }
 

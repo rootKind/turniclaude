@@ -111,6 +111,15 @@ const CONTRATTO = [
   // diverso (M3 28dp e 32%, iOS 14 e 40%), e un token dichiarato da una parte
   // sola darebbe un velo che sparisce su un telefono.
   '--dialog-radius', '--dialog-scrim', '--dialog-scrim-blur',
+  // Controlli (M4, 20/09/2026): bottoni, switch, campi, chip. Ogni chiave è
+  // nel contratto perché le DUE skin la leggono: se ne manca una, un controllo
+  // perde la sua forma su un telefono (un `var()` non risolto non è un fallback,
+  // è una dichiarazione invalida).
+  '--state-layer-hover', '--state-layer-press', '--ripple',
+  '--switch-track-w', '--switch-track-h', '--switch-thumb', '--switch-thumb-off',
+  '--switch-pad', '--switch-on', '--switch-unchecked-border',
+  '--input-bg', '--input-border', '--input-underline', '--input-radius',
+  '--chip-height', '--chip-label',
   '--motion-duration-enter', '--motion-duration-exit', '--motion-ease-standard',
   '--fs-caption', '--fs-footnote', '--fs-body', '--fs-title3', '--fs-large-title',
 ]
@@ -153,7 +162,20 @@ const DEVONO_DIFFERIRE = [
   // (schermare senza sfocare è la convenzione comune), quindi pretenderne la
   // differenza significherebbe inventarla — come per `--radius-card` e `--scrim`.
   '--dialog-radius', '--dialog-scrim',
+  // Controlli: le due skin divergono davvero. Il toggle di iOS è 51×31 col
+  // pollice fisso e VERDE; lo switch M3 è 52×32 col pollice che cresce da 16 a
+  // 24 e la traccia primaria col contorno da 2dp. I campi: inset senza bordo
+  // con angoli continui su iOS, pieno con angoli alti a 4dp e sottolineatura su
+  // Android. Le chip: etichetta 13 contro 14sp. Le state layer/ripple: solo
+  // Material le ha (trasparenti su iOS di proposito — HIG non le conosce).
+  '--switch-track-w', '--switch-track-h', '--switch-thumb', '--switch-thumb-off',
+  '--switch-on', '--switch-unchecked-border',
+  '--input-bg', '--input-underline', '--input-radius',
+  '--chip-label', '--state-layer-hover', '--state-layer-press', '--ripple',
 ]
+// `--input-border` NON è qui per lo stesso motivo di `--dialog-scrim-blur`: è
+// `transparent` su ENTRAMBE (né iOS né M3 mettono bordi laterali ai campi), e
+// pretenderne la differenza significherebbe inventarla.
 for (const key of DEVONO_DIFFERIRE) {
   assert.notEqual(
     iosTokens[key],

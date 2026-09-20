@@ -2994,8 +2994,10 @@ prendeva la riga 6 (`@custom-variant dark (&:is(.dark *))`) e confrontava due vo
 (36 coppie invece di 18 × 2, tutte verdi per finta): le regex ora sono ancorate a inizio riga, con
 una guardia sull'estrazione.
 
-**Ancora da fare (M4→M5):** primitive a doppia skin (ripple e state layer), board, PWA specifics,
-iconografia e pulizia. Fatta la M3 (gli overlay — sezione in fondo al file).
+**Ancora da fare (M5):** board (desk board, celle, confronto), PWA specifics (theme-color
+statico, splash, install flow), iconografia e pulizia finale (stili inline, ratchet contrasti).
+Fatte la M3 (overlay a due forme, allarmi veri, snackbar) e la M4 (controlli a doppia skin —
+sezione in fondo al file).
 ---
 
 ## 20/09/2026 — Design system duale, M2: la barra (destinazioni) e le azioni (fuori dalla barra)
@@ -3197,3 +3199,74 @@ Suite intera: **271 passati / 8 saltati**, `tsc` pulito, contratto dei token ver
 **TRAPPOLA per chi misura overlay in Playwright:** un locatore `.last()` si risolve A OGNI
 verifica: dopo la chiusura della domanda puntava al pannello rimasto e la spec diceva «1 overlay
 ancora aperto». La domanda chiusa si conta dal suo TESTO.
+
+---
+
+## 20/09/2026 — Design system duale, M4: i controlli a doppia skin
+
+Quarta milestone: primitive a doppia skin (issue n. 7 del report). La regola resta quella dell'M1:
+**il JSX non cambia per piattaforma** — cambiano i token e le regole CSS che li leggono. Nessun
+`usePlatform()` nei componenti di controllo (Button, Switch, Input, Textarea, FilterChip): le
+regole M4 in `globals.css` mirano a `[data-slot]` e i token fanno la differenza. Contratto: 52
+chiavi × 2.
+
+**1. Il Button ha un `data-slot` (finalmente).** I componenti Base UI non lo scrivono da soli:
+era la ragione per cui niente poteva mirare a «tutti i bottoni». Ora sì, e la skin è:
+ - **Android**: state layer di M3 — un `::after` col colore del CONTENUTO (8% al passaggio,
+   12% a pressione/focus), dentro gli angoli del controllo, più il **ripple** che parte dal punto
+   del dito: il `<Button>` scrive `--ripple-x/y` al pointerdown (senza, l'onda nasce al centro:
+   la versione povera del gesto). M3 non sposta né rimpicciolisce il controllo: la regola non in
+   layer `transform: none` batte la utility `active:translate-y-px` (convenzione web che su
+   Material è un difetto).
+ - **iOS**: il controllo non si muove e non si vela — sotto il dito il suo CONTENUTO si spegne
+   un po' (`opacity .65` su `:active`), il «highlighted» di UIButton. HIG non ha né state layer
+   né ripple: i token sono trasparenti.
+ - **desktop**: nessuna regola lo mira, com'era.
+
+**2. Lo SWITCH è il controllo più nativo di tutti.** Toggle di iOS (51×31pt, pollice 27 FISSO,
+traccia accesa = **verde di sistema** `#34c759`, `#30d158` in scuro: non è brand, è il segnale
+con cui iOS dice «acceso») contro switch M3 (traccia 52×32 con contorno da 2dp quando è spento,
+pollice che CRESCONO da 16 a 24 accendendolo, traccia primaria). Desktop: 32×18.4, pollice 16,
+zero pixel. La corsa del pollice è un `calc()` sui token (traccia − pollice − gioco): con le
+misure di base fa ESATTAMENTE la geometria di prima. `size="sm"` resta web ovunque — la deroga
+de pannelli densi, come i touch target sulla board.
+
+**3. Campo di testo: inserto contro pieno.** iOS: fondo a 6% del contenuto, NESSUN bordo (si
+mantiene largo 1px ma trasparente: cambiarne lo spessore fa vibrare il layout), angoli continui
+a 10pt. Android: campo pieno M3, angoli alti a 4dp e bassi a 0, con la SOTTOLINEATURA che al
+focus diventa primaria (l'«active indicator», senza salto di spessore). Desktop: bordo e fondo
+trasparente di sempre. Stessa ricetta per `Textarea`. Le ALTEZZE non sono token: i chiamanti le
+scrivono (h-8, app densa) — stessa deroga della board.
+
+**4. Le chip di filtro hanno un componente (`components/ui/filter-chip.tsx`).** Erano CINQUE
+copie dello stesso markup inline in due file (shift-list, vacation-request-list): geometria nei
+token (`--chip-height`, `--chip-label`), stato selezionato ancora `.chip-selected` (i suoi colori
+hanno override utente), contatore `.chip-count`. iOS 32pt/13, Android 32dp/14sp con contorno
+PIENO (il tratteggio è web, non Material), desktop 28px/12. Le chip increspano dal dito come i
+bottoni (stesso handler). Il ratchet tipografico scende a **294** (via le `text-[12px]`
+copiate).
+
+**5. `window.prompt` non esiste più.** La rinomina dell'omonimo (`team-member-binding.tsx`) era
+l'ultima finestra del browser: un input di testo è un TASK, quindi foglio su iOS / dialog M3 su
+Android (`shape="auto"` di M3 — zero rami), valore precompilato col suggerimento (era il secondo
+argomento del prompt), Enter conferma, «Annulla» non chiama niente.
+
+**Prove.** `tests/controlli-piattaforma.spec.ts` (5 casi, su tre progetti — la spec usa
+l'override `?platform=` per confrontare le due skin sullo STESSO motore): switch misurato sulle
+tre skin (il pollice che cresce lo dicono i token, già sotto contratto — niente toggle che
+scrivono nel DB), campo (trasparenza del bordo, raggi, fondo), chip (altezza/etichetta per
+piattaforma), state layer + ripple dal dito, e la rinomina con banco interamente finto (albero
+squadre e anagraica via `page.route`, PUT registrato: «Annulla» non chiama niente e nessuna
+finestra nativa compare). Suite intera: **285 passati / 9 saltati**.
+
+**DUE trappole, entrambe trovate dalla suite:**
+ - il dev server aveva il CSS pre-M4 compilato: le misure dicevano «1px» per un bordo che era
+   TRASPARENTE da un'ora. Prima di credere a una misura, verificare quale CSS è servito
+   (il vecchio `rm -rf .next` + riavvio, già scritto sopra);
+ - **`:hover` e `:active` sintetici non esistono su un telefono**: il progetto `ios` (WebKit con
+   iPhone emulato) non applica lo stato di pressione via mouse.down, e È il comportamento vero
+   — su un tocco non c'è «passaggio». La prova comportamentale della skin M3 sta sui progetti
+   col mouse (chromium desktop + android/Pixel); su WebKit resta la prova HIG (assenza di velo
+   e ripple) e si salta l'iterazione M3 col motivo stampato. Misurare lo stato di pressione su
+   un iPhone finto è misurare una cosa che l'utente non può fare.
+<arg_value><b88a6f17>

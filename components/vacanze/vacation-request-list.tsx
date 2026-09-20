@@ -4,11 +4,11 @@ import { motion } from 'framer-motion'
 import { User } from 'lucide-react'
 import { useVacationRequests } from '@/hooks/use-vacation-requests'
 import { VacationRequestItem } from './vacation-request-item'
+import { FilterChip } from '@/components/ui/filter-chip'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDuplicateCognomi } from '@/hooks/use-users'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { isManager } from '@/types/database'
-import { cn } from '@/lib/utils'
 import type { VacationPeriod } from '@/types/database'
 
 interface Props {
@@ -71,29 +71,23 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
         <>
           {isManagerView && (
             <div className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar">
-              <button
+              {/* Chip `FilterChip` (M4): geometria nei token, non markup copiato. */}
+              <FilterChip
                 onClick={() => setCompatibleOnly(false)}
-                className={cn(
-                  'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
-                  !compatibleOnly ? 'chip-selected' : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                )}
+                selected={!compatibleOnly}
+                count={chipCounts.total}
               >
                 Tutti
-                <span className="chip-count" aria-hidden="true">{chipCounts.total}</span>
-              </button>
-              <button
+              </FilterChip>
+              <FilterChip
                 onClick={() => setCompatibleOnly(true)}
-                className={cn(
-                  'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
-                  compatibleOnly
-                    ? 'chip-selected'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
-                )}
+                selected={compatibleOnly}
+                dashed={!compatibleOnly}
+                icon={<User className="w-3 h-3" />}
+                count={chipCounts.compatible}
               >
-                <User className="w-3 h-3" />
                 Solo compatibili
-                <span className="chip-count" aria-hidden="true">{chipCounts.compatible}</span>
-              </button>
+              </FilterChip>
             </div>
           )}
           <div className="flex flex-col gap-0">

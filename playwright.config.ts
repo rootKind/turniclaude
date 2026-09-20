@@ -98,6 +98,12 @@ export default defineConfig({
         // dal basso, l'allarme resta centrato e la conferma scritta prende il
         // posto della ×. Sono gesti e misure della piattaforma: si provano lì.
         /overlay-piattaforma\.spec\.ts/,
+        // I CONTROLLI (M4, 20/09/2026): switch, campo, chip, state layer. Il
+        // confronto fra skin usa l'override di QA (?platform=) sullo stesso
+        // motore — ma il pollice che cresce e il ripple dal dito sono GESTI:
+        // si provano sul motore vero, e WebKit è quello con gli eventi pointer
+        // più severi.
+        /controlli-piattaforma\.spec\.ts/,
       ],
       // `serviceWorkers: 'block'` NON è un dettaglio: su WebKit il service worker
       // dell'app (quello delle push) prende il controllo della pagina e le sue
@@ -122,6 +128,7 @@ export default defineConfig({
         /design-piattaforma\.spec\.ts/,
         /nav-piattaforma\.spec\.ts/,
         /overlay-piattaforma\.spec\.ts/,
+        /controlli-piattaforma\.spec\.ts/,
       ],
       use: { ...devices['Pixel 7'], browserName: 'chromium' },
     },

@@ -9,9 +9,12 @@
  * impostare il legame e, se il cognome è omonimo fra gli utenti e il nome è
  * senza iniziale, rinominare con un clic («NEVANO» → «NEVANO P.»).
  */
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { UserPlus, UserX } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { buildDuplicateCognomi } from '@/lib/utils'
 import { cognomeKeyOf, formatSurnameInitial } from '@/lib/shift-teams-matching'
 import type { UserProfile } from '@/types/database'
@@ -135,6 +138,15 @@ export function UserBindingSelect({ member, users, boundUserIds, run }: {
  * Riga di gestione per un membro: select del legame +, se il cognome è omonimo
  * fra gli utenti e il full_name è senza iniziale, suggerimento di rinomina
  * («NEVANO» → «NEVANO P.») applicabile con un clic (con conferma).
+ *
+ * LA RINOMINA È UN TASK, NON UNA DOMANDA (M4 del design system, 20/09/2026):
+ * prima era `window.prompt` — la finestra del BROWSER, che in una PWA installata
+ * su iOS compare come avviso di sistema in inglese, scollegato dall'app, e che
+ * né HIG né Material riconoscono come controllo. Un input di testo è un TASK:
+ * su iOS va in un foglio, su Android in un dialog centrato — cioè la forma che
+ * `DialogContent` (M3) dà da solo con `shape="auto"`. Il valore parte
+ * precompilato col suggerimento (era il secondo argomento del prompt), e
+ * «Annulla» chiude senza toccare niente.
  */
 export function MemberBindingRow({ member, users, boundUserIds, run }: {
   member: MemberLike
@@ -143,15 +155,11 @@ export function MemberBindingRow({ member, users, boundUserIds, run }: {
   run: (fn: () => Promise<void>, ok: string) => Promise<void>
 }) {
   const hint = homonymHintFor(member, users, homonymCognomeKeys(users))
+  const [rinominaAperta, setRinominaAperta] = useState(false)
+  const [nomeBozza, setNomeBozza] = useState('')
 
-  const applySuggestedName = () => {
-    const suggested = hint.suggestedName
-    if (!suggested) return
-    const next = window.prompt(
-      `Rinomina il membro con l'iniziale (consigliato per disambiguare l'omonimo):`,
-      suggested,
-    )
-    const name = next?.trim()
+  const rinomina = (name: string) => {
+    setRinominaAperta(false)
     if (!name || name === member.full_name) return
     void run(async () => {
       const res = await fetch('/api/admin/shift-teams', {
@@ -170,7 +178,7 @@ export function MemberBindingRow({ member, users, boundUserIds, run }: {
       {hint.isHomonym && hint.suggestedName && member.is_active && (
         <button
           type="button"
-          onClick={applySuggestedName}
+          onClick={() => { setNomeBozza(hint.suggestedName ?? ''); setRinominaAperta(true) }}
           className="text-left text-[11px] text-amber-600 dark:text-amber-400 hover:underline"
         >
           Cognome omonimo fra gli utenti: aggiungi l&apos;iniziale (es. «{hint.suggestedName}»)
@@ -181,6 +189,36 @@ export function MemberBindingRow({ member, users, boundUserIds, run }: {
           L&apos;iniziale è già presente: il bare «{cognomeKeyOf(member.full_name).toUpperCase()}» appartiene a questo membro.
         </p>
       )}
+
+      {/* Il foglio della rinomina (dialog su Android/desktop): `shape="auto"` è
+          tutto ciò che serve — la forma la decide la piattaforma, come per gli
+          altri task. Il campo è precompilato col suggerimento; Enter conferma. */}
+      <Dialog open={rinominaAperta} onOpenChange={setRinominaAperta}>
+        <DialogContent className="max-w-sm" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Rinomina il membro</DialogTitle>
+            <DialogDescription>
+              Aggiungi l&apos;iniziale per disambiguare l&apos;omonimo: il cognome nudo
+              appartiene alle righe PDF senza iniziale.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={nomeBozza}
+            onChange={e => setNomeBozza(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && nomeBozza.trim()) rinomina(nomeBozza.trim()) }}
+            aria-label="Nome del membro"
+            autoFocus
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setRinominaAperta(false)}>
+              Annulla
+            </Button>
+            <Button size="sm" disabled={!nomeBozza.trim() || nomeBozza.trim() === member.full_name} onClick={() => rinomina(nomeBozza.trim())}>
+              Rinomina
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

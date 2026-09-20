@@ -1,5 +1,6 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -40,16 +41,48 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * IL BOTTONE A DOPPIA SKIN (M4 del design system, 20/09/2026).
+ *
+ * Il JSX qui NON cambia per piattaforma: la skin la scrivono i token e le regole
+ * in `globals.css` (blocco M4), che mirano a `[data-slot='button']` — attributo
+ * che prima MANCAVA (i componenti Base UI non lo scrivono da soli: era la ragione
+ * per cui niente poteva mirare a «tutti i bottoni»).
+ *
+ *  - **Android**: al passaggio e alla pressione una VELATURA del colore del
+ *    contenuto (state layer, 8%/12%) e la pressione INCRESPA dal punto del dito:
+ *    qui si scrivono `--ripple-x/y` al pointerdown, perché un ripple che nasce
+ *    sempre al centro è la versione povera del gesto. M3 non abbassa il
+ *    controllo: la regola non in layer `transform: none` batte la utility
+ *    `active:translate-y-px` (convenzione web che su Material è un difetto).
+ *  - **iOS**: il controllo non si muove e non si vela — sotto il dito il suo
+ *    CONTENUTO si spegne un po' (la regola `opacity` su `:active`).
+ *  - **Desktop**: i token sono trasparenti e nessuna regola lo mira: com'era.
+ */
 function Button({
   className,
   variant = "default",
   size = "default",
+  onPointerDown,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // Le coordinate del ripple, nel sistema LOCALE del bottone: sono ciò che
+  // distingue «l'onda parte da dove ho toccato» da un cerchio al centro.
+  const doveHoToccato = (e: React.PointerEvent<HTMLElement>) => {
+    const el = e.currentTarget
+    const r = el.getBoundingClientRect()
+    el.style.setProperty("--ripple-x", `${e.clientX - r.left}px`)
+    el.style.setProperty("--ripple-y", `${e.clientY - r.top}px`)
+  }
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      onPointerDown={(e) => {
+        doveHoToccato(e)
+        onPointerDown?.(e)
+      }}
       {...props}
     />
   )

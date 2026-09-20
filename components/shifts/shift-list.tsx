@@ -8,6 +8,7 @@ import { useAppSettings } from '@/hooks/use-app-settings'
 import { isDcoPlus as isProfileDcoPlus, isManager } from '@/types/database'
 import { ShiftItem } from './shift-item'
 import { EditShiftDialog } from './edit-shift-dialog'
+import { FilterChip } from '@/components/ui/filter-chip'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn, todayRome } from '@/lib/utils'
 import { useDuplicateCognomi } from '@/hooks/use-users'
@@ -197,73 +198,58 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
       {showChipBar && <div
         className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar"
       >
-        {/* Solo miei (utenti) / Solo mansioni (DCO+) / Solo compatibili (manager) */}
+        {/* Solo miei (utenti) / Solo mansioni (DCO+) / Solo compatibili (manager).
+            Le chip sono `FilterChip` (M4): la geometria sta nei token, non copiata
+            in ogni bottone — cinque copie dello stesso markup erano cinque posti
+            in cui correggere la stessa cosa. */}
         {!isManagerView ? (
-          <button
+          <FilterChip
             ref={el => { if (el) chipRefs.current.set('mine', el); else chipRefs.current.delete('mine') }}
             onClick={() => navigateTo('mine')}
-            className={cn(
-              'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
-              selectedFilter === 'mine'
-                ? 'chip-selected'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
-            )}
+            selected={selectedFilter === 'mine'}
+            dashed={selectedFilter !== 'mine'}
+            icon={<User className="w-3 h-3" />}
+            count={chipCounts.mine}
           >
-            <User className="w-3 h-3" />
             {isDcoPlus ? 'Solo mansioni' : 'Solo miei'}
-            <span className="chip-count" aria-hidden="true">{chipCounts.mine}</span>
-          </button>
+          </FilterChip>
         ) : (
-          <button
+          <FilterChip
             ref={el => { if (el) chipRefs.current.set('compatible', el); else chipRefs.current.delete('compatible') }}
             onClick={() => navigateTo('compatible')}
-            className={cn(
-              'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border',
-              selectedFilter === 'compatible'
-                ? 'chip-selected'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40'
-            )}
+            selected={selectedFilter === 'compatible'}
+            dashed={selectedFilter !== 'compatible'}
+            icon={<User className="w-3 h-3" />}
+            count={chipCounts.compatible}
           >
-            <User className="w-3 h-3" />
             Solo compatibili
-            <span className="chip-count" aria-hidden="true">{chipCounts.compatible}</span>
-          </button>
+          </FilterChip>
         )}
 
         {/* Tutti */}
-        <button
+        <FilterChip
           ref={el => { if (el) chipRefs.current.set('__tutti__', el); else chipRefs.current.delete('__tutti__') }}
           onClick={() => navigateTo(null)}
-          className={cn(
-            'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
-            selectedFilter === null
-              ? 'chip-selected'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-          )}
+          selected={selectedFilter === null}
+          count={chipCounts.total}
         >
           Tutti
-          <span className="chip-count" aria-hidden="true">{chipCounts.total}</span>
-        </button>
+        </FilterChip>
 
         {/* Month chips */}
         {months.map(m => {
           const [year, month] = m.split('-')
           const label = `${MONTH_LABELS[month]} ${year}`
           return (
-            <button
+            <FilterChip
               key={m}
               ref={el => { if (el) chipRefs.current.set(m, el); else chipRefs.current.delete(m) }}
               onClick={() => navigateTo(m)}
-              className={cn(
-                'flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors',
-                selectedFilter === m
-                  ? 'chip-selected'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              )}
+              selected={selectedFilter === m}
+              count={chipCounts.byMonth.get(m) ?? 0}
             >
               {label}
-              <span className="chip-count" aria-hidden="true">{chipCounts.byMonth.get(m) ?? 0}</span>
-            </button>
+            </FilterChip>
           )
         })}
       </div>}
