@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useConferma } from '@/hooks/use-conferma'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -30,6 +31,7 @@ export function ChangelogManagerDialog({ open, onClose }: Props) {
   const [reads, setReads] = useState<{ users: ReadUser[]; latestVersion: number }>({ users: [], latestVersion: 0 })
   const [editing, setEditing] = useState<ChangelogEntry | null>(null)
   const [saving, setSaving] = useState(false)
+  const { chiedi, alert } = useConferma()
 
   const reload = useCallback(async () => {
     const [eRes, rRes] = await Promise.all([
@@ -96,8 +98,17 @@ export function ChangelogManagerDialog({ open, onClose }: Props) {
     }
   }
 
-  async function handleDelete(version: number) {
-    if (!window.confirm(`Eliminare la versione ${version}?`)) return
+  /** La domanda prima di eliminare: era `window.confirm`, ora è l'allarme (M3). */
+  function handleDelete(version: number) {
+    chiedi({
+      title: `Eliminare la versione ${version}?`,
+      description: 'Le note di quella versione spariscono per tutti. Non si possono recuperare.',
+      confirmLabel: 'Elimina',
+      run: () => elimina(version),
+    })
+  }
+
+  async function elimina(version: number) {
     try {
       const res = await fetch(`/api/admin/changelog?version=${version}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
@@ -267,6 +278,8 @@ export function ChangelogManagerDialog({ open, onClose }: Props) {
 
         <Button variant="outline" className="w-full" onClick={onClose}>Chiudi</Button>
       </DialogContent>
+
+      {alert}
     </Dialog>
   )
 }

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { fetchShiftCycleTemplates, fetchShiftTeamTree } from '@/lib/queries/shift-teams'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useConferma } from '@/hooks/use-conferma'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -146,6 +147,10 @@ function TypesTab({ tree, run, onEditMembers }: {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [cycle, setCycle] = useState('28')
+  // Le eliminazioni di questa scheda passano da un ALLARME, non da
+  // `window.confirm` (M3, 20/09/2026): la finestra del browser non è né HIG né
+  // Material, blocca la pagina e in PWA su iOS sembra un avviso di sistema.
+  const { chiedi, alert } = useConferma()
 
   return (
     <div className="space-y-2">
@@ -174,11 +179,16 @@ function TypesTab({ tree, run, onEditMembers }: {
               </button>
               <button
                 onClick={() => {
-                  if (confirm(`Eliminare la tipologia "${t.name}" e tutte le sue squadre?`))
-                    run(async () => {
-                      const r = await fetch(`/api/admin/shift-teams?kind=type&id=${t.id}`, { method: 'DELETE' })
-                      if (!r.ok) throw new Error('Errore')
-                    }, 'Tipologia eliminata')
+                  chiedi({
+                    title: `Eliminare la tipologia "${t.name}"?`,
+                    description: 'Spariscono anche le sue squadre e i suoi membri. Non si può recuperare.',
+                    confirmLabel: 'Elimina',
+                    run: () =>
+                      run(async () => {
+                        const r = await fetch(`/api/admin/shift-teams?kind=type&id=${t.id}`, { method: 'DELETE' })
+                        if (!r.ok) throw new Error('Errore')
+                      }, 'Tipologia eliminata'),
+                  })
                 }}
                 className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
               >
@@ -216,6 +226,8 @@ function TypesTab({ tree, run, onEditMembers }: {
           <Plus size={14} /> Nuova tipologia
         </Button>
       )}
+
+      {alert}
     </div>
   )
 }
@@ -279,6 +291,8 @@ function TeamsTab({ tree, run }: { tree: ShiftTeamTree; run: (fn: () => Promise<
 }
 
 function TeamPhaseEditor({ team, run }: { team: Team; run: (fn: () => Promise<void>, ok: string) => Promise<void> }) {
+  const { chiedi, alert } = useConferma()
+
   return (
     <div className="flex items-center gap-1">
       <button
@@ -296,16 +310,23 @@ function TeamPhaseEditor({ team, run }: { team: Team; run: (fn: () => Promise<vo
       </button>
       <button
         onClick={() => {
-          if (confirm(`Eliminare la squadra "${team.name}"?`))
-            run(async () => {
-              const r = await fetch(`/api/admin/shift-teams?kind=team&id=${team.id}`, { method: 'DELETE' })
-              if (!r.ok) throw new Error('Errore')
-            }, 'Squadra eliminata')
+          chiedi({
+            title: `Eliminare la squadra "${team.name}"?`,
+            description: 'I suoi membri restano in anagrafica, ma la squadra non gira più.',
+            confirmLabel: 'Elimina',
+            run: () =>
+              run(async () => {
+                const r = await fetch(`/api/admin/shift-teams?kind=team&id=${team.id}`, { method: 'DELETE' })
+                if (!r.ok) throw new Error('Errore')
+              }, 'Squadra eliminata'),
+          })
         }}
         className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
       >
         <Trash2 size={14} />
       </button>
+
+      {alert}
     </div>
   )
 }
@@ -534,6 +555,7 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(member.full_name)
   const [pattern, setPattern] = useState(member.pattern.join(' '))
+  const { chiedi, alert } = useConferma()
   const tokenCount = pattern.trim() ? pattern.trim().split(/\s+/).length : 0
 
   return (
@@ -563,11 +585,16 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
         <button onClick={() => setEditing(v => !v)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"><Pencil size={14} /></button>
         <button
           onClick={() => {
-            if (confirm(`Eliminare "${member.full_name}"?`))
-              run(async () => {
-                const r = await fetch(`/api/admin/shift-teams?kind=member&id=${member.id}`, { method: 'DELETE' })
-                if (!r.ok) throw new Error('Errore')
-              }, 'Membro eliminato')
+            chiedi({
+              title: `Eliminare "${member.full_name}" dalla squadra?`,
+              description: 'L’utente resta in anagrafica: sparisce solo da questa squadra.',
+              confirmLabel: 'Elimina',
+              run: () =>
+                run(async () => {
+                  const r = await fetch(`/api/admin/shift-teams?kind=member&id=${member.id}`, { method: 'DELETE' })
+                  if (!r.ok) throw new Error('Errore')
+                }, 'Membro eliminato'),
+            })
           }}
           className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
         >
@@ -615,6 +642,8 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
           </div>
         </div>
       )}
+
+      {alert}
     </div>
   )
 }

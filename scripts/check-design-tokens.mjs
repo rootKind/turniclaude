@@ -106,6 +106,11 @@ const CONTRATTO = [
   '--seg-active-bg', '--seg-active-shadow', '--seg-indicator', '--seg-indicator-h',
   '--elevation-nav', '--elevation-dialog',
   '--scrim',
+  // Overlay (M3, 20/09/2026): il raggio di un dialog centrato e la ricetta del
+  // velo. Sono nel contratto perché le due piattaforme le LEGGONO in modo
+  // diverso (M3 28dp e 32%, iOS 14 e 40%), e un token dichiarato da una parte
+  // sola darebbe un velo che sparisce su un telefono.
+  '--dialog-radius', '--dialog-scrim', '--dialog-scrim-blur',
   '--motion-duration-enter', '--motion-duration-exit', '--motion-ease-standard',
   '--fs-caption', '--fs-footnote', '--fs-body', '--fs-title3', '--fs-large-title',
 ]
@@ -143,6 +148,11 @@ const DEVONO_DIFFERIRE = [
   // la definizione stessa delle due superfici.
   '--seg-bg', '--seg-pad', '--seg-radius', '--seg-height',
   '--seg-active-bg', '--seg-active-shadow', '--seg-indicator', '--seg-indicator-h',
+  // Overlay: iOS e Android divergono sul raggio (14 contro 28) e sull'opacità del
+  // velo (40% contro 32%). `--dialog-scrim-blur` NON è qui: è `none` su entrambe
+  // (schermare senza sfocare è la convenzione comune), quindi pretenderne la
+  // differenza significherebbe inventarla — come per `--radius-card` e `--scrim`.
+  '--dialog-radius', '--dialog-scrim',
 ]
 for (const key of DEVONO_DIFFERIRE) {
   assert.notEqual(
@@ -291,10 +301,12 @@ function walk(dir) {
 /**
  * Misure tipografiche arbitrarie (`text-[7px]`, `text-[15px]`…): 310 al momento di
  * M1, **303 dopo M2** (la barra vecchia ne aveva sette: l'etichetta a 7px, i
- * badge, i mini-FAB). Il numero può solo scendere — quando cala si abbassa qui,
- * così il guadagno è bloccato e non si può «riprendere» per sbaglio.
+ * badge, i mini-FAB), **301 dopo M3** (la conferma di eliminazione in linea è
+ * diventata un allarme: due pulsanti a 11px non esistono più). Il numero può solo
+ * scendere — quando cala si abbassa qui, così il guadagno è bloccato e non si può
+ * «riprendere» per sbaglio.
  */
-const MAX_TEXT_PX = 303
+const MAX_TEXT_PX = 301
 /** Copie della regex sullo User-Agent fuori da lib/platform.ts: 3 oggi, 0 alla fine di M3. */
 const MAX_UA_REGEX = 3
 

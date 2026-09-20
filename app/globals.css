@@ -169,6 +169,18 @@
   --seg-indicator: var(--primary);
   --seg-indicator-h: 3px;
 
+  /* ── Overlay (M3, 20/09/2026): dialog, fogli e allarmi. I valori di BASE sono
+     quelli che l'app ha OGGI (`rounded-xl` = 12px, `bg-black/10` + `backdrop-blur`
+     = velo al 10% sfocato, nessuna ombra): sul desktop la M3 non sposta un pixel.
+       --dialog-radius   il raggio di un dialog CENTRATO (iOS 14, M3 28)
+       --dialog-scrim    il velo dietro: HIG e Material schermano senza sfocare,
+                         e Material lo vuole al 32%
+       --dialog-scrim-blur  la sfocatura: `none` è un valore valido, quindi il
+                         livello base non ha bisogno di un ramo condizionale */
+  --dialog-radius: 12px;
+  --dialog-scrim: rgb(0 0 0 / 0.10);
+  --dialog-scrim-blur: blur(4px);
+
   /* Shift row backgrounds */
   --shift-others-bg: #dde8f0;
   --shift-others-date-bg: #d0dde8;
@@ -649,6 +661,14 @@
   --seg-active-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
   --seg-indicator: transparent;
   --seg-indicator-h: 0px;
+  /* Overlay: i popup che non sono fogli (gli ALLARMI) sono schede centrate con
+     gli angoli continui di iOS; il velo è più deciso del chiaro desktop (40%) e
+     NON sfocato: la sfocatura dietro un overlay è una scelta di vetro, non una
+     convenzione delle due guide — e su iOS l'allarme deve staccarsi dal
+     contenuto, non farlo intravedere. */
+  --dialog-radius: 14px;
+  --dialog-scrim: rgb(0 0 0 / 0.40);
+  --dialog-scrim-blur: none;
 }
 
 /* iOS in TEMA SCURO: la scala delle superfici si CAPOVOLGE, quindi traccia e
@@ -713,6 +733,11 @@
   --seg-active-shadow: none;
   --seg-indicator: var(--primary);
   --seg-indicator-h: 3px;
+  /* Overlay di Material: dialog a 28dp (lo stesso raggio dei bottom sheet e dei
+     FAB estesi), velo al 32% senza sfocatura: M3 scherma, non sfoca. */
+  --dialog-radius: 28px;
+  --dialog-scrim: rgb(0 0 0 / 0.32);
+  --dialog-scrim-blur: none;
 }
 
 /* Su schermi STRETTI l'etichetta a 12sp di Material non entra in un quinto di
@@ -1075,6 +1100,13 @@
      (lì l'indicatore è la tinta del testo), quindi la stessa marcatura serve
      entrambe le skin. */
   .nav-indicator { background: var(--nav-indicator); }
+
+  /* IL FOGLIO (M3 del design system, 20/09/2026): la superficie che sale dal
+     basso su iOS al posto del dialog centrato. Qui c'è solo quello che è DISEGNO
+     (l'ombra), perché geometria e raggio li detta il componente: l'ombra va
+     verso l'ALTO — il foglio copre la parte bassa dello schermo, e la sua ombra
+     deve staccarlo da ciò che resta scoperto sopra di lui. */
+  .overlay-sheet { box-shadow: 0 -8px 32px rgb(0 0 0 / 0.28); }
 
     /* ── Hardcoded-color replacements ────────────────────────────── */
   .banner-impersonate { background: var(--banner-impersonate-bg); color: var(--banner-impersonate-text); }

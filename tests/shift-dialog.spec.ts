@@ -40,6 +40,19 @@ for (const larghezza of [320, 390]) {
 
     const dialog = page.locator('[data-slot="dialog-content"]').first()
     await expect(dialog).toBeVisible({ timeout: 20_000 })
+    /*
+     * M3 (20/09/2026) — PRIMA DI MISURARE, L'ANIMAZIONE DEVE ESSERE FINITA.
+     *
+     * Il dialog di «showCloseButton=false» resta lo stesso, ma su iOS il popup
+     * ora SALE dal basso (`slide-in-from-bottom`): nei primi 300ms il suo
+     * rettangolo è quello di partenza, cioè 100% più in basso. Misurando subito
+     * la X finisce fuori dallo schermo, e `elementFromPoint` sotto di lei trova
+     * l'indicatore di `next dev` — un falso rosso che parla di un'altra cosa.
+     * L'attesa guarda il `transform` perché è quello che dice «l'animazione è
+     * arrivata»: a riposo il popup ha `transform: none` (lo scrive il
+     * componente, per neutralizzare il centraggio del dialog classico).
+     */
+    await expect(dialog).toHaveCSS('transform', 'none', { timeout: 5_000 })
     // Il calendario del dialog: è lento a comparire (dati del mese).
     await expect(dialog.locator('[role="grid"]')).toBeVisible({ timeout: 20_000 })
 
@@ -157,6 +170,8 @@ test('le sigle dei giorni sono incolonnate con le colonne del datepicker', async
 
   const dialog = page.locator('[data-slot="dialog-content"]').first()
   await expect(dialog).toBeVisible({ timeout: 20_000 })
+  // Come sopra: si misura a animazione finita (su iOS il popup sale dal basso).
+  await expect(dialog).toHaveCSS('transform', 'none', { timeout: 5_000 })
   await expect(dialog.locator('[role="grid"]')).toBeVisible({ timeout: 20_000 })
 
   const colonne = await page.evaluate(() => {

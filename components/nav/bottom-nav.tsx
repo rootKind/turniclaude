@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { Alert } from '@/components/ui/alert'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
 import { NavBar } from './nav-bar'
@@ -38,6 +39,14 @@ interface Props {
 export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = false }: Props) {
   const pathname = usePathname()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  /**
+   * L'ALLARME della cronologia (M3, 20/09/2026). Prima «Elimina tutte» nella
+   * lista delle azioni SVUOTAVA E BASTA: una cancellazione irreversibile senza
+   * una domanda — è l'issue n. 6 del report. Ora l'azione APRE l'allarme e a
+   * svuotare ci pensa la conferma, che è l'unico posto in cui si distrugge
+   * qualcosa.
+   */
+  const [confermaSvuota, setConfermaSvuota] = useState(false)
   const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
 
   const turni = destinationById('turni')
@@ -48,7 +57,12 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
     pathname,
     isAdmin,
     isManager,
-    notifiche: { markAllRead, clearAll, unreadCount, hasHistory: history.length > 0 },
+    notifiche: {
+      markAllRead,
+      clearAll: () => setConfermaSvuota(true),
+      unreadCount,
+      hasHistory: history.length > 0,
+    },
     onFeedback: () => setFeedbackOpen(true),
   })
 
@@ -98,6 +112,20 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
       )}
 
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+
+      <Alert
+        open={confermaSvuota}
+        onOpenChange={setConfermaSvuota}
+        title="Svuotare la cronologia delle notifiche?"
+        description={
+          unreadCount > 0
+            ? `Spariscono tutte le notifiche di questo dispositivo, comprese le ${unreadCount} non lette. Non si possono recuperare.`
+            : 'Spariscono tutte le notifiche di questo dispositivo. Non si possono recuperare.'
+        }
+        confirmLabel="Elimina tutte"
+        destructive
+        onConfirm={clearAll}
+      />
     </>
   )
 }

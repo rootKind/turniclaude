@@ -2994,9 +2994,8 @@ prendeva la riga 6 (`@custom-variant dark (&:is(.dark *))`) e confrontava due vo
 (36 coppie invece di 18 × 2, tutte verdi per finta): le regex ora sono ancorate a inizio riga, con
 una guardia sull'estrazione.
 
-**Ancora da fare (M3→M5):** le componenti che USANO questi token — overlay (Alert iOS, Sheet,
-Dialog M3, Snackbar), primitive a doppia skin (ripple e state layer), board, PWA. Fatte la M2 (la barra
-fa destinazioni, le azioni stanno fuori) e la M2b (la lingua sala/ferie dentro le pagine).
+**Ancora da fare (M4→M5):** primitive a doppia skin (ripple e state layer), board, PWA specifics,
+iconografia e pulizia. Fatta la M3 (gli overlay — sezione in fondo al file).
 ---
 
 ## 20/09/2026 — Design system duale, M2: la barra (destinazioni) e le azioni (fuori dalla barra)
@@ -3129,3 +3128,72 @@ SECONDO punto di navigazione e prendeva quello. Ora la barra si prende dal suo n
 DOM. E per chi lavora in questo worktree: il dev server NON rilegge `app/globals.css`
 su una pagina già compilata — dopo una modifica al CSS serve `rm -rf .next` e riavvio,
 altrimenti si guarda (e si prova) il CSS vecchio senza accorgersene.
+
+---
+
+## 20/09/2026 — Design system duale, M3: gli overlay a due forme (foglio iOS / dialog M3)
+
+Terza milestone. Chiude le issue **n. 4, n. 5 e n. 6** del report: overlay centrati universali,
+toast in alto su ogni dispositivo, conferme distruttive sbagliate. La forma degli overlay ora la
+decide la piattaforma, con una distinzione che è del CONTENUTO e non della skin:
+
+**1. Task ≠ allarme, su entrambe le piattaforme.** `DialogContent` (il primitivo dei 21 popup
+dell'app) ha un prop `shape`:
+ - `auto` (default): su iOS il popup è un **FOGLIO** che sale dal basso (max 92dvh, scriminatura
+   36×4, «Chiudi» scritto in una riga sua al posto della × fluttuante — HIG: i task si fanno nei
+   sheet, i dialoghi centrati sono per gli allarmi); su Android e desktop resta il dialog centrato
+   (M3: raggio 28dp, velo al 32% senza sfocatura; desktop: valori di BASE, zero pixel spostati).
+ - `dialog`: centrato SEMPRE — è la forma degli **allarmi** (`components/ui/alert.tsx`).
+
+La geometria del foglio è inline e vince sulle classi del chiamante (i `max-w-*` dei popup non
+hanno senso su un foglio a tutta larghezza). La scriminatura e l'uscita scritta sono le stesse
+che `tests/shift-dialog.spec.ts` proteggeva per lo shift-dialog: quel caso è ora la regola, non
+un'eccezione.
+
+**2. L'ALLARME (`Alert`) è centrato ovunque e si risponde, non si chiude.** Azioni impilate a
+intera larghezza su iOS (la distruttiva sopra, «Annulla» sotto e MAI rossa — HIG), pulsanti
+testuali affiancati su Android/desktop (M3). Nessuna × su nessuna piattaforma. La distruttiva è
+rossa solo se l'azione NON si annulla. L'ordine conta: la scelta pericolosa è la PRIMA (si
+raggiunge senza attraversarla), «Annulla» resta l'uscita facile.
+
+**3. Le conferme distruttive hanno un posto solo (`hooks/use-conferma.tsx`).** `chiedi({...})`
+apre l'allarme, `{alert}` va nel JSX, l'azione parte SOLO dalla conferma: non esiste più un
+secondo percorso che distrugge in silenzio. Lo stato si azzera PRIMA di eseguire, così una fetch
+lenta non lascia la conferma ancora premibile. Migrati i tre difetti del report:
+ - **card cambio turno** (`shift-item.tsx`): la conferma era in linea nella card → allarme che
+   nomina turno e giorno;
+ - **card ferie** (`vacation-request-item.tsx`): stesso difetto, stesso rimedio — l'allarme
+   nomina periodo, giorno e anno;
+ - **pannello notifiche** (`notification-debug-dialog.tsx`): tre `confirm()` del BROWSER (in una
+   PWA su iOS compaiono come avvisi di sistema in inglese, scollegati dall'app) → allarmi
+   dell'app. L'invio di prova dice a CHI e QUANTI (lo sa solo lui), e il ripristino dei testi
+   dice quanto torna al testo di fabbrica. L'allarme dentro un dialog già aperto è il caso
+   provato: due overlay distinti, la domanda sopra il pannello.
+ Restano `window.prompt` in `team-member-binding.tsx` (non è una conferma: è un input — si
+ sostituisce con un foglio nella M4) e nessun altro `confirm()` nativo: quello che resta in
+ `squadre-dialog.tsx` è «Annulla» di un form inline, non una distruzione.
+
+**4. Lo snackbar (Android) sta in basso, uno alla volta.** `components/ui/sonner.tsx` legge la
+piattaforma: su Android `position: bottom-center`, 4 s, un solo toast alla volta, colori INVERSI
+(superficie scura/testo chiaro in tema chiaro — M3), offset calcolato su `--nav-height` + safe
+area così sta sopra la navigation bar; su iOS e desktop resta com'era (banner in alto). Il
+colore dei TIPI (successo/errore) resta `richColors`: il rosso dell'avviso è informazione.
+
+**Token (contratto in `check-design-tokens.mjs`):** `--dialog-radius` (12 base, 28 android),
+`--dialog-scrim` / `--dialog-scrim-blur` (10% + blur 4px base e iOS, 32% + none android — HIG
+40% e M3 32%: schermano senza sfocare), `--radius-sheet` (10), `--elevation-dialog`,
+`--motion-dialog` / `--motion-sheet`. Le misure sono quelle delle guide, non «estetiche»:
+l'assenza di sfocatura su Android è una regola M3, non un gusto.
+
+**Prove.** `tests/overlay-piattaforma.spec.ts` (5 casi × 3 progetti): il task è foglio su
+WebKit/iPhone e dialog centrato su Pixel/desktop (misure vere: distanza dal fondo del VELO, non
+della finestra — su WebKit il viewport di layout è più alto di quello visuale); l'allarme è
+centrato su ogni piattaforma, senza ×, e «Annulla» non cancella; la card ferie non ha più la
+conferma in linea e «Annulla» non elimina (banco interamente finto via `page.route`, il DELETE è
+intercettato); le conferme del pannello notifiche non sono più quelle del browser (il listener
+dei dialog nativi conta: se ne compare uno, fallisce); lo snackbar sta in basso e sopra la barra.
+Suite intera: **271 passati / 8 saltati**, `tsc` pulito, contratto dei token verde.
+
+**TRAPPOLA per chi misura overlay in Playwright:** un locatore `.last()` si risolve A OGNI
+verifica: dopo la chiusura della domanda puntava al pannello rimasto e la spec diceva «1 overlay
+ancora aperto». La domanda chiusa si conta dal suo TESTO.

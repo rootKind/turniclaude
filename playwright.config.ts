@@ -94,6 +94,10 @@ export default defineConfig({
         // motore del progetto — su WebKit la pill del comando deve nascere GIÀ
         // nell'HTML del server, senza scivolare da un FAB.
         /nav-piattaforma\.spec\.ts/,
+        // Gli OVERLAY (M3, 20/09/2026): su iPhone il task è un foglio che sale
+        // dal basso, l'allarme resta centrato e la conferma scritta prende il
+        // posto della ×. Sono gesti e misure della piattaforma: si provano lì.
+        /overlay-piattaforma\.spec\.ts/,
       ],
       // `serviceWorkers: 'block'` NON è un dettaglio: su WebKit il service worker
       // dell'app (quello delle push) prende il controllo della pagina e le sue
@@ -114,7 +118,11 @@ export default defineConfig({
        * iPhone), quindi ogni differenza di piattaforma era dedotta, mai provata.
        */
       name: 'android',
-      testMatch: [/design-piattaforma\.spec\.ts/, /nav-piattaforma\.spec\.ts/],
+      testMatch: [
+        /design-piattaforma\.spec\.ts/,
+        /nav-piattaforma\.spec\.ts/,
+        /overlay-piattaforma\.spec\.ts/,
+      ],
       use: { ...devices['Pixel 7'], browserName: 'chromium' },
     },
     {

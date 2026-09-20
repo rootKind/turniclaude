@@ -14,6 +14,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { VACATION_REQUESTS_QUERY_KEY } from '@/hooks/use-vacation-requests'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -144,10 +145,22 @@ export function VacationRequestItem({
     }
   }
 
-  async function handleDelete(e: React.MouseEvent) {
+  /**
+   * L'ELIMINAZIONE PASSA DA UN ALLARME (M3 del design system, 20/09/2026).
+   *
+   * Gemello di `shift-item.tsx`: la conferma era IN LINEA nella card (Elimina →
+   * Conferma/Annulla), cioè due pulsanti che sostituivano quello premuto dentro
+   * una card che si sta espandendo, senza dire cosa si stava per cancellare. Il
+   * report (issue n. 6) chiedeva un allarme vero per le azioni distruttive: qui
+   * si apre la domanda — che nomina periodo, giorno e anno — e si distrugge solo
+   * dopo la risposta. `apriConfermaElimina` è l'unica porta.
+   */
+  function apriConfermaElimina(e: React.MouseEvent) {
     e.stopPropagation()
-    if (!confirmDelete) { setConfirmDelete(true); return }
-    setConfirmDelete(false)
+    setConfirmDelete(true)
+  }
+
+  async function confermaElimina() {
     try {
       if (!isOwn && canAdminAct) {
         const res = await fetch(`/api/admin/vacation-requests?id=${request.id}`, { method: 'DELETE' })
@@ -589,20 +602,9 @@ export function VacationRequestItem({
                       {/* Bordo visibile (richiesta 17/09/2026), come nella card
                           dei cambi turno: «destructive» è tinta + testo, e senza
                           contorno il pulsante non si distingue nella card. */}
-                      {confirmDelete ? (
-                        <>
-                          <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px]" onClick={handleDelete}>
-                            Conferma
-                          </Button>
-                          <Button variant="outline" size="sm" className="flex-1 h-8 text-[11px]" onClick={e => { e.stopPropagation(); setConfirmDelete(false) }}>
-                            Annulla
-                          </Button>
-                        </>
-                      ) : (
-                        <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px] border-destructive/50" onClick={handleDelete}>
-                          <Trash2 size={13} className="mr-1" /> Elimina
-                        </Button>
-                      )}
+                      <Button variant="destructive" size="sm" className="flex-1 h-8 text-[11px] border-destructive/50" onClick={apriConfermaElimina}>
+                        <Trash2 size={13} className="mr-1" /> Elimina
+                      </Button>
                     </div>
                   )}
 
@@ -628,6 +630,16 @@ export function VacationRequestItem({
         )}
       </AnimatePresence>
       </div>
+
+      <Alert
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Eliminare questa richiesta?"
+        description={`P${request.offered_period} — ${VACATION_PERIOD_LABELS[request.offered_period].label} · ${day} ${month} ${year} — la vedono tutti, non solo tu. Una volta eliminata non si recupera.`}
+        confirmLabel="Elimina"
+        destructive
+        onConfirm={confermaElimina}
+      />
     </div>
   )
 }

@@ -90,7 +90,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   dell'app. Non rende e non ascolta niente finché non è accesa, e
                   solo per l'admin. */}
               <ThemeInspector />
-              <Toaster richColors position="top-center" />
+              {/* La POSIZIONE la decide la piattaforma (M3): snackbar in basso su
+                  Android, banner in alto altrove — vedi `components/ui/sonner.tsx`. */}
+              <Toaster richColors />
             </QueryProvider>
             <Analytics />
             <SpeedInsights />

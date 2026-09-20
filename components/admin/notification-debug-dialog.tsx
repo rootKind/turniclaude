@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { useConferma } from '@/hooks/use-conferma'
 
 interface UserRow {
   id: string
@@ -141,6 +142,18 @@ function MessagesTab({ data, refresh, editing, setEditing }: {
   editing: NotifTemplateDef | null
   setEditing: (t: NotifTemplateDef | null) => void
 }) {
+  /**
+   * LE TRE DOMANDE DEL PANNELLO (M3 del design system, 20/09/2026).
+   *
+   * Questo file usava `confirm()` — la finestra del BROWSER — per tre azioni che
+   * non si annullano: ripristinare TUTTI i testi di fabbrica, inviare push vere a
+   * tutti gli utenti, cancellare le iscrizioni di un dispositivo. In una PWA
+   * installata su iOS quella finestra non appartiene all'app (compare come avviso
+   * di sistema, in inglese, con l'origine del sito nel titolo) e su Android non è
+   * né un dialog M3 né un allarme HIG: è il caso più visibile dell'issue n. 6 del
+   * report. Ora è lo stesso allarme delle altre conferme distruttive.
+   */
+  const { chiedi, alert } = useConferma()
   const overrides = data.overrides ?? {}
   // Una chiave di `overrides` = UN messaggio (title+body dentro), quindi il
   // conteggio si fa sui template che differiscono dal default — non sul numero
@@ -162,16 +175,22 @@ function MessagesTab({ data, refresh, editing, setEditing }: {
             size="sm"
             variant="outline"
             className="h-7 text-xs"
-            onClick={async () => {
-              if (!confirm('Tornare ai testi predefiniti per TUTTI i messaggi?')) return
-              const res = await fetch('/api/admin/notifications', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ overrides: null }),
+            onClick={() =>
+              chiedi({
+                title: 'Ripristinare i testi predefiniti?',
+                description: `${modifiedCount === 1 ? 'Un messaggio modificato torna' : `${modifiedCount} messaggi modificati tornano`} al testo di fabbrica, e il ripristino vale per TUTTI i messaggi, non solo quelli aperti.`,
+                confirmLabel: 'Ripristina',
+                run: async () => {
+                  const res = await fetch('/api/admin/notifications', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ overrides: null }),
+                  })
+                  if (res.ok) { toast.success('Testi predefiniti ripristinati'); await refresh() }
+                  else toast.error('Errore')
+                },
               })
-              if (res.ok) { toast.success('Testi predefiniti ripristinati'); await refresh() }
-              else toast.error('Errore')
-            }}
+            }
           >
             <RotateCcw size={12} /> Ripristina tutti
           </Button>
@@ -202,6 +221,7 @@ function MessagesTab({ data, refresh, editing, setEditing }: {
           </button>
         )
       })}
+      {alert}
     </div>
   )
 }
@@ -355,6 +375,7 @@ function SendTab({ data }: { data: GetPayload }) {
   const [varActor, setVarActor] = useState('')
   const [sending, setSending] = useState(false)
   const [report, setReport] = useState<{ delivered: number; skipped: number; failed: number; outcomes: Array<{ userId: string; label: string; status: string; sent: number; title: string; body: string; error?: string }> } | null>(null)
+  const { chiedi, alert } = useConferma()
 
   const users = data.users
   const selectedUsers = users.filter(u => selected.has(u.id))
@@ -384,9 +405,20 @@ function SendTab({ data }: { data: GetPayload }) {
     })
   }
 
-  const send = async () => {
-    if (audience === 'custom' && selected.size === 0) return
-    if (!confirm(`Inviare a ${audience === 'all' ? 'TUTTI gli utenti' : audience === 'custom' ? `${selected.size} utenti` : audience === 'secondary' ? 'tutti i Noni' : 'tutti i DCO'}?`)) return
+  /** Chi riceverà davvero la push: è la prima cosa che l'allarme deve dire. */
+  const destinatari =
+    audience === 'all' ? 'TUTTI gli utenti'
+    : audience === 'custom' ? `${selected.size} utenti`
+    : audience === 'secondary' ? 'tutti i Noni'
+    : 'tutti i DCO'
+
+  /**
+   * Inviare è irreversibile quanto distruggere: la push parte davvero, sui
+   * telefoni veri. Per questo la domanda c'è (come prima), ma ora è un allarme
+   * dell'app e dice a QUANTI va — il conteggio lo sa solo qui, non nel testo del
+   * pulsante.
+   */
+  const inviaOra = async () => {
     setSending(true)
     setReport(null)
     try {
@@ -418,6 +450,16 @@ function SendTab({ data }: { data: GetPayload }) {
       setSending(false)
     }
   }
+
+  /** La domanda: la stessa azione, ma risposta prima di partire. */
+  const send = () =>
+    chiedi({
+      title: 'Inviare la notifica?',
+      description: `A ${destinatari}. Partono push vere sui dispositivi e l'invio non si annulla.`,
+      confirmLabel: 'Invia',
+      destructive: false,
+      run: inviaOra,
+    })
 
   return (
     <div className="space-y-3">
@@ -522,6 +564,7 @@ function SendTab({ data }: { data: GetPayload }) {
           </div>
         </div>
       )}
+      {alert}
     </div>
   )
 }
@@ -535,8 +578,17 @@ function DevicesTab({ data, refresh }: { data: GetPayload; refresh: () => Promis
     .filter(u => userName(u).toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) => b.devices - a.devices || userName(a).localeCompare(userName(b)))
 
-  const wipe = async (u: UserRow) => {
-    if (!confirm(`Rimuovere le ${u.devices} iscrizioni push di ${userName(u)}? Dovrà riattivare le notifiche dal dispositivo.`)) return
+  const { chiedi, alert } = useConferma()
+
+  const wipe = (u: UserRow) =>
+    chiedi({
+      title: `Rimuovere le iscrizioni di ${userName(u)}?`,
+      description: `${u.devices} iscrizioni push. Dopo, dal dispositivo non riceverà più niente finché non riattiva le notifiche.`,
+      confirmLabel: 'Rimuovi',
+      run: () => eseguiWipe(u),
+    })
+
+  const eseguiWipe = async (u: UserRow) => {
     setBusy(u.id)
     try {
       const res = await fetch(`/api/admin/notifications?userId=${u.id}`, { method: 'DELETE' })
@@ -581,6 +633,7 @@ function DevicesTab({ data, refresh }: { data: GetPayload; refresh: () => Promis
         Un utente con 0 dispositivi non riceverà nessuna push: usa «Rimuovi» se le sue iscrizioni risultano stale
         (es. browser reinstallato) e fallo ri-iscrivere.
       </p>
+      {alert}
     </div>
   )
 }
