@@ -291,7 +291,11 @@ test('il campionario confronta lo stesso elemento fra due pagine', async ({ asEm
    * dalla pila.
    */
   const fotografaLaBarra = async () => {
-    const nav = await page.locator('nav').first().boundingBox()
+    // La barra si prende dal suo NOME, non dall'ordine nel DOM: da M2b le pagine
+    // «Turni» hanno un secondo punto di navigazione (la lingua sala/ferie in
+    // testa), quindi `nav` nudo prendeva QUEL controllo e si campionava il
+    // colore sbagliato.
+    const nav = await page.locator('nav[aria-label="Navigazione principale"]').boundingBox()
     expect(nav, 'barra di navigazione non trovata').not.toBeNull()
     await premiALungo(page, nav!.x + 24, nav!.y + nav!.height / 2)
     await expect(pannello).toBeVisible()

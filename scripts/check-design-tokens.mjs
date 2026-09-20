@@ -97,6 +97,13 @@ const CONTRATTO = [
   '--nav-height', '--nav-item-label',
   '--nav-indicator', '--on-nav-indicator', '--nav-bg', '--nav-blur',
   '--fab-size', '--fab-radius', '--fab-offset',
+  // Il selettore di vista delle pagine «Turni» (M2b, 20/09/2026). Stanno nel
+  // contratto perché sono la PROVA che la skin è viva: le stesse classi
+  // disegnano un segmented control su iOS e delle tab di Material su Android, e
+  // se uno di questi valori smettesse di divergere il componente resterebbe uno
+  // solo — quello sbagliato su una delle due piattaforme.
+  '--seg-bg', '--seg-pad', '--seg-radius', '--seg-height',
+  '--seg-active-bg', '--seg-active-shadow', '--seg-indicator', '--seg-indicator-h',
   '--elevation-nav', '--elevation-dialog',
   '--scrim',
   '--motion-duration-enter', '--motion-duration-exit', '--motion-ease-standard',
@@ -131,6 +138,11 @@ const DEVONO_DIFFERIRE = [
   // qui.
   '--nav-height', '--nav-item-label', '--nav-indicator', '--nav-bg', '--nav-blur',
   '--fab-size', '--fab-radius',
+  // Selettore di vista: iOS tinto e con il thumb (9pt, alto 32), Android
+  // trasparente e con la barretta da 3dp (alto 48). Tutti e otto divergono — è
+  // la definizione stessa delle due superfici.
+  '--seg-bg', '--seg-pad', '--seg-radius', '--seg-height',
+  '--seg-active-bg', '--seg-active-shadow', '--seg-indicator', '--seg-indicator-h',
 ]
 for (const key of DEVONO_DIFFERIRE) {
   assert.notEqual(

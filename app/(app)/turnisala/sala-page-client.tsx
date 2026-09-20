@@ -22,6 +22,7 @@ import { useShiftTeamTreeData } from '@/hooks/use-users'
 import { buildScheduleFromMonthData, isSalaMonthData } from '@/lib/sala-month'
 import { SALA_FLASH_MS, parseSalaFocus, type SalaFocus } from '@/lib/shift-tokens'
 import { DeskBoard, MONTHS_IT } from '@/components/sala/desk-board'
+import { TurniSwitch } from '@/components/nav/turni-switch'
 import { ShiftCleanupDialog } from '@/components/admin/shift-cleanup-dialog'
 import type { ShiftCleanupCandidate } from '@/lib/queries/shift-cleanup'
 import type { SalaLayout, SalaSchedule, ShiftTeamTree } from '@/types/database'
@@ -397,6 +398,16 @@ export function SalaPageClient({
 
   return (
     <main className="flex flex-col min-h-[60vh]">
+      {/* M2b (20/09/2026): il passaggio sala/ferie è QUI, in testa alla pagina,
+          non nel menu delle azioni. La barra della pianta (sotto) è già piena a
+          320px, quindi la lingua ha una riga sua; `mr-14` come la barra, per non
+          finire sotto la campanella delle notifiche (fissa in alto a destra).
+          Resta visibile anche in modifica piantina: è l'unico modo di tornare a
+          /turniferie da qui, e nasconderla proprio mentre si modifica sarebbe
+          stato peggio di lasciarla dov'è. */}
+      <div className="mr-14 px-4 pt-4">
+        <TurniSwitch />
+      </div>
       <DeskBoard
         layout={layout}
         isAdmin={isAdmin}

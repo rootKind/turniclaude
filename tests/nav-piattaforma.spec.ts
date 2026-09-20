@@ -1,5 +1,5 @@
 import { test, expect, E2E_BASE_URL, findEmployee, employeeLoginEnabled } from './fixtures'
-import { activeDestinationId, NAV_DESTINATIONS } from '../components/nav/nav-destinations'
+import { activeDestinationId, destinationById, NAV_DESTINATIONS, TURNI_VIEWS } from '../components/nav/nav-destinations'
 import { PLATFORM_ATTR } from '../lib/platform'
 
 /**
@@ -297,6 +297,109 @@ test.describe('Le due skin: il motore vero dice quale', () => {
     // Il tocco fuori chiude, su entrambe.
     await page.mouse.click(5, 5)
     await expect(dialog).toBeHidden()
+  })
+})
+
+test.describe('Le due viste di «Turni»: la lingua sta nella pagina, non nel menu', () => {
+  /**
+   * M2b (20/09/2026). «Turni» è UNA destinazione con DUE pagine, e il passaggio
+   * fra loro era rimasto un'azione del menu («Vai a Turni ferie»): per un
+   * dipendente era l'UNICA azione di quelle pagine, cioè un pulsante flottante
+   * che esisteva solo per cambiare pagina. Qui si difendono le tre cose che
+   * possono rompersi senza che nessun altro test se ne accorga: il selettore
+   * copre le stesse pagine della destinazione, sta NELLA pagina (non nella
+   * barra) e disegna la superficie della piattaforma su cui gira.
+   */
+  test('il selettore copre esattamente le pagine della destinazione «Turni» (parte pura)', () => {
+    // Due elenchi che possono divergere sono due bug che aspettano: i percorsi
+    // del selettore sono quelli della destinazione, nello stesso ordine.
+    expect(TURNI_VIEWS.map((v) => v.path)).toEqual([...destinationById('turni').paths])
+    expect(TURNI_VIEWS.map((v) => v.label)).toEqual(['Sala', 'Ferie'])
+    // Il nome accessibile dice che è una vista dei turni: «Ferie» da sola, in
+    // mezzo alla pagina, non lo direbbe.
+    expect(TURNI_VIEWS.map((v) => v.ariaLabel)).toEqual(['Turni sala', 'Turni ferie'])
+  })
+
+  test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local (vedi tests/README.md)')
+  test.setTimeout(120_000)
+
+  test('da sala si passa a ferie dal selettore, e la voce non è più nel menu delle azioni', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const page = await asEmployee('Minino')
+    await page.goto(`${E2E_BASE_URL}/turnisala?${DEV}`, { waitUntil: 'domcontentloaded' })
+
+    const selettore = page.locator('[data-turni-switch]')
+    await expect(selettore).toBeVisible()
+    // È NELLA PAGINA, non dentro la barra: era il punto di tutta la milestone.
+    expect(
+      await selettore.evaluate((s) => !!s.closest('nav[aria-label="Navigazione principale"]')),
+    ).toBeFalsy()
+    await expect(selettore.locator('a[aria-current="page"]')).toHaveAttribute('aria-label', 'Turni sala')
+
+    // Le voci del menu delle azioni, quando ci sono, NON contengono più il cambio
+    // di vista: quella è una lingua, e sta sopra.
+    const comando = comandoAzioni(page)
+    if (await comando.count()) {
+      await comando.click()
+      await expect(page.getByRole('button', { name: 'Vai a Turni ferie' })).toHaveCount(0)
+      await page.keyboard.press('Escape')
+    }
+
+    await selettore.getByLabel('Turni ferie').click()
+    await page.waitForURL(/\/turniferie/, { timeout: 15_000 })
+
+    // Sull'altra pagina è lo STESSO controllo, acceso dall'altra parte.
+    const selettoreFerie = page.locator('[data-turni-switch]')
+    await expect(selettoreFerie).toBeVisible()
+    await expect(selettoreFerie.locator('a[aria-current="page"]')).toHaveAttribute('aria-label', 'Turni ferie')
+
+    // E si torna indietro: la lingua è bidirezionale, non una scorciatoia.
+    await selettoreFerie.getByLabel('Turni sala').click()
+    await page.waitForURL(/\/turnisala/, { timeout: 15_000 })
+  })
+
+  test('la skin del selettore è quella della piattaforma', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const atteso = piattaformaDelProgetto()
+    const page = await asEmployee('Minino')
+    await page.goto(`${E2E_BASE_URL}/turnisala?${DEV}`, { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('[data-turni-switch]')).toBeVisible()
+
+    const skin = await page.evaluate(() => {
+      const s = document.querySelector('[data-turni-switch]') as HTMLElement
+      const attiva = s.querySelector('a[aria-current="page"]') as HTMLElement
+      const barretta = attiva.lastElementChild as HTMLElement
+      return {
+        sfondo: getComputedStyle(s).backgroundColor,
+        raggio: getComputedStyle(s).borderRadius,
+        imbottitura: getComputedStyle(s).paddingLeft,
+        altezza: Math.round(attiva.getBoundingClientRect().height),
+        raggioVoce: getComputedStyle(attiva).borderTopLeftRadius,
+        ombraVoce: getComputedStyle(attiva).boxShadow,
+        barrettaAltezza: Math.round(barretta.getBoundingClientRect().height),
+        barrettaSfondo: getComputedStyle(barretta).backgroundColor,
+      }
+    })
+
+    if (atteso === 'ios') {
+      // Segmented control: contenitore di sistema tinto e voce attiva rialzata.
+      expect(skin.sfondo, 'il contenitore è tinto').not.toBe('rgba(0, 0, 0, 0)')
+      expect(skin.raggio).toBe('9px')
+      expect(skin.imbottitura).toBe('2px')
+      expect(skin.altezza, 'voce a 32pt').toBe(32)
+      expect(skin.raggioVoce, 'il thumb sta dentro con 2pt di imbottitura (9 − 2)').toBe('7px')
+      expect(skin.ombraVoce, 'il thumb è rialzato').not.toBe('none')
+      expect(skin.barrettaAltezza, 'su iOS la barretta di Material non esiste').toBe(0)
+    } else {
+      // Tab di Material: nessun contenitore tinto, e «sei qui» lo dice la barretta.
+      expect(skin.sfondo).toBe('rgba(0, 0, 0, 0)')
+      expect(skin.raggio).toBe('0px')
+      expect(skin.altezza, atteso === 'android' ? 'voce a 48dp' : 'valori di base sul desktop').toBe(
+        atteso === 'android' ? 48 : 40,
+      )
+      expect(skin.barrettaAltezza, 'barretta da 3dp').toBe(3)
+      expect(skin.barrettaSfondo, 'la voce attiva ha la sua barretta').not.toBe('rgba(0, 0, 0, 0)')
+    }
   })
 })
 

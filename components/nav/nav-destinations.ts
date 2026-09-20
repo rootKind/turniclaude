@@ -102,6 +102,33 @@ export const NAV_DESTINATIONS: readonly NavDestination[] = [
 ]
 
 /**
+ * LE DUE VISTE DI «TURNI» (M2b, 20/09/2026).
+ *
+ * «Turni» copre due pagine (`/turnisala` e `/turniferie`) e una destinazione non
+ * basta a spostarsi fra loro: il passaggio è una LINGUA DENTRO le due pagine (il
+ * segmented control di iOS, le tab di Material), e non un'azione del menu.
+ *
+ * Sta qui, e non dentro il componente che la disegna, per la stessa ragione per
+ * cui ci sta l'elenco delle destinazioni: è la parte PURA del contratto. I
+ * percorsi sono gli STESSI della destinazione «turni» (e una spec lo pretende,
+ * `nav-piattaforma.spec.ts`: due elenchi che possono divergere sono due bug che
+ * aspettano), l'etichetta invece è corta — «Sala» e «Ferie» — perché sta dentro
+ * un controllo largo due dita, non sotto un'icona di barra.
+ */
+export interface TurniView {
+  path: string
+  /** L'etichetta visibile nel selettore. */
+  label: string
+  /** Il nome accessibile: da solo «Ferie» non dice che è una vista dei turni. */
+  ariaLabel: string
+}
+
+export const TURNI_VIEWS: readonly TurniView[] = [
+  { path: '/turnisala', label: 'Sala', ariaLabel: 'Turni sala' },
+  { path: '/turniferie', label: 'Ferie', ariaLabel: 'Turni ferie' },
+]
+
+/**
  * La destinazione attiva per un percorso, o `null` se il percorso non è una
  * destinazione. `null` è un caso vero e previsto: `/notifiche` e `/admin` si
  * aprono DA una destinazione (la campanella, Impostazioni) e sono pagine di

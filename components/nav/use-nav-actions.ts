@@ -4,7 +4,6 @@ import { useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeftRight,
-  ArrowRight,
   Calendar,
   CheckCheck,
   GitCompareArrows,
@@ -104,10 +103,12 @@ export function useTuoTurnoCompareState(): boolean {
 /**
  * Le azioni della pagina corrente. La PRIMA è la principale.
  *
- * Regola dichiarata (per non doverla dedurre leggendo i rami): se la pagina non
- * ha un'azione propria per questo ruolo, la principale è **il cambio di vista**
- * (sala↔ferie) o il giro del manager. Non si restituisce mai una lista vuota
- * quando c'è qualcosa che l'utente può fare da qui.
+ * Regola dichiarata (per non doverla dedurre leggendo i rami): ogni voce è
+ * un'AZIONE, e una pagina che non ne ha per questo ruolo restituisce una lista
+ * vuota — la superficie non si disegna, e va bene così. In particolare il cambio
+ * di vista sala↔ferie NON è un'azione: è una lingua in testa alle due pagine di
+ * «Turni» (`turni-switch.tsx`, M2b). Resta come azione solo il giro del manager
+ * dalle pagine dei cambi, che è una scorciatoia per il suo lavoro quotidiano.
  */
 export function useNavActions({
   pathname,
@@ -121,14 +122,12 @@ export function useNavActions({
 
   // ── /turnisala ────────────────────────────────────────────────────────────
   if (pathname === '/turnisala') {
-    const gotoFerie: NavAction = {
-      id: 'vai-ferie',
-      label: 'Vai a Turni ferie',
-      icon: ArrowRight,
-      tone: isManager && !isAdmin ? 'primary' : 'neutral',
-      onSelect: () => router.push(isManager && !isAdmin ? nextManagerPage(pathname) : '/turniferie'),
-    }
-
+    // NIENTE azione «Vai a Turni ferie» (M2b, 20/09/2026): il passaggio fra le
+    // due viste di «Turni» è una LINGUA dentro le due pagine (`turni-switch.tsx`),
+    // non un'azione. Prima era l'unica azione che un dipendente avesse qui — il
+    // pulsante flottante esisteva solo per spostarlo di pagina, che è esattamente
+    // il difetto n. 2 del report (un comando che significa cose diverse a seconda
+    // di dove sei). Le azioni restano per le azioni.
     if (isAdmin || isManager) {
       const upload: NavAction = {
         id: 'upload-pdf',
@@ -176,33 +175,21 @@ export function useNavActions({
           },
         )
       }
-      // Il cambio di vista resta in coda al menu finché non arriva il segmented
-      // control dentro la pagina (M2b): la destinazione «Turni» copre DUE
-      // percorsi, quindi senza questa voce l'altra vista non sarebbe
-      // raggiungibile da qui.
-      return [upload, ...extra, gotoFerie]
+      return [upload, ...extra]
     }
 
-    return [
-      {
-        id: 'vai-ferie',
-        label: 'Vai a Turni ferie',
-        icon: ArrowRight,
-        tone: 'primary',
-        onSelect: () => router.push('/turniferie'),
-      },
-    ]
+    // Un dipendente qui non ha azioni: l'unica che aveva era il cambio di vista,
+    // che ora vive nella pagina. Una lista vuota è un caso vero e previsto (la
+    // superficie non si disegna), non un buco: non c'è niente da fare qui, e un
+    // pulsante flottante che non fa niente è peggio di nessun pulsante.
+    return []
   }
 
   // ── /turniferie ───────────────────────────────────────────────────────────
   if (pathname === '/turniferie') {
-    const gotoSala: NavAction = {
-      id: 'vai-sala',
-      label: 'Vai a Turni sala',
-      icon: ArrowLeftRight,
-      tone: 'neutral',
-      onSelect: () => router.push('/turnisala'),
-    }
+    // Stessa storia di /turnisala: passare alla piantina è un cambio di vista, e
+    // il cambio di vista sta in testa alla pagina. A un dipendente qui non resta
+    // nessuna azione.
     if (isAdmin || isManager) {
       return [
         {
@@ -212,10 +199,9 @@ export function useNavActions({
           tone: 'primary',
           event: 'ferie-admin-swap',
         },
-        gotoSala,
       ]
     }
-    return [{ ...gotoSala, tone: 'primary' }]
+    return []
   }
 
   // ── /tuoturno ─────────────────────────────────────────────────────────────

@@ -2994,9 +2994,9 @@ prendeva la riga 6 (`@custom-variant dark (&:is(.dark *))`) e confrontava due vo
 (36 coppie invece di 18 × 2, tutte verdi per finta): le regex ora sono ancorate a inizio riga, con
 una guardia sull'estrazione.
 
-**Ancora da fare (M2→M5):** le componenti che USANO questi token — navigazione (issue #1 e #2 del
-report: barra con azioni mescolate alle destinazioni, FAB che cambia funzione per pagina), overlay,
-primitive, board, PWA.
+**Ancora da fare (M3→M5):** le componenti che USANO questi token — overlay (Alert iOS, Sheet,
+Dialog M3, Snackbar), primitive a doppia skin (ripple e state layer), board, PWA. Fatte la M2 (la barra
+fa destinazioni, le azioni stanno fuori) e la M2b (la lingua sala/ferie dentro le pagine).
 ---
 
 ## 20/09/2026 — Design system duale, M2: la barra (destinazioni) e le azioni (fuori dalla barra)
@@ -3060,9 +3060,8 @@ sul pulsante e sulla sheet.
 disegna barra e superficie). Il resto è sparito: `fab-mini-pop` (CSS) era l'unico uso
 dei mini-FAB e non esiste più, `cambi-last-page` non si legge più (le due «cambiali»
 sono destinazioni dirette). La voce «Turni» continua a coprire /turnisala E
-/turniferie, quindi il passaggio fra le due viste vive ancora in coda all'elenco
-azioni: sostituirlo col segmented control DENTRO le pagine è il prossimo passo (M2b),
-e va fatto lì perché è l'unico posto in cui c'è lo spazio.
+/turniferie, quindi il passaggio fra le due viste resta in coda all'elenco azioni: al
+segmented control DENTRO le pagine (`turni-switch.tsx`) ci pensa la M2b, subito sotto.
 
 **Prove.** `tests/nav-piattaforma.spec.ts`: contratto puro, cinque voci con
 l'accensione esatta, etichette non tagliate e barra non scorrevole a 320px e 390px,
@@ -3072,3 +3071,61 @@ dell'elenco — verificata sul MOTORE VERO (WebKit/iPhone, Chromium/Pixel, deskt
 più l'override di QA. Gira nei tre progetti. `tests/pages.spec.ts` non prova più
 l'etichetta «Turni Sala e Ferie» (non esiste): la prova è stata **sostituita**, non
 cancellata. `card-cambio-to-sala.spec.ts` clicca `a[aria-label="Cambi turno"]`.
+---
+
+## 20/09/2026 — Design system duale, M2b: la lingua sala/ferie dentro le pagine Turni
+
+Chiude la M2 sul suo unico punto lasciato aperto. «Turni» è UNA destinazione con DUE
+pagine (`/turnisala` e `/turniferie`) e il passaggio fra loro era rimasto un'AZIONE del
+menu, «Vai a Turni ferie»: per un dipendente era l'UNICA azione di quelle pagine, cioè
+un pulsante flottante che esisteva per cambiare pagina — lo stesso difetto del report
+(un comando che significa cose diverse a seconda di dove sei), in piccolo.
+
+**`components/nav/turni-switch.tsx`.** Un selettore in testa a ENTRAMBE le pagine, con
+le due viste di «Turni» dichiarate una volta sola in `nav-destinations.ts`
+(`TURNI_VIEWS`: `/turnisala` = «Sala», `/turniferie` = «Ferie», con i percorsi presi
+dalla destinazione — una spec li confronta, perché due elenchi che possono divergere
+sono due bug che aspettano). Sono `Link` veri con `aria-current="page"`: la vista è un
+PERCORSO, quindi restano link, il gesto «indietro» continua a funzionare e il nome
+accessibile è «Turni sala» / «Turni ferie» (da sola, «Ferie» in mezzo alla pagina non
+direbbe a un lettore di schermo che è una vista dei turni).
+
+**Il componente NON ha un ramo per piattaforma, ed è la parte interessante.** iOS
+disegna un segmented control (contenitore di sistema + voce attiva rialzata, 32pt) e
+Android le tab primarie di Material (fondo trasparente + barretta da 3dp, 48dp): due
+strutture diverse ottenute cambiando solo i token `--seg-*` (otto chiavi nuove, tutte
+nel contratto di `check-design-tokens.mjs`, tutte in `DEVONO_DIFFERIRE`). L'indicatore
+da 3dp è lo stesso elemento su entrambe: su iOS è alto 0 e trasparente, quindi non
+disegna niente — un ramo nel JSX sarebbe stato un secondo posto in cui sapere che
+esiste un'altra piattaforma.
+
+**TRAPPOLA: in tema scuro la scala delle superfici si CAPOVOLGE.** In chiaro `--card`
+(0.985) è la superficie più chiara e la traccia `--muted` (0.935) sta sotto: il thumb
+era giusto. Di notte i valori sono `--muted` 0.269 e `--card` 0.205, quindi LA STESSA
+coppia dava un thumb più scuro della traccia — un «buco» invece di una voce rialzata
+(visto in preview: `lab(7.8)` contro `lab(15.2)`). Il rimedio è uno scambio di token in
+`.dark[data-platform='ios']` (traccia `--card`, thumb `--muted`), e il contrasto lo
+dice: l'etichetta spenta sul tema chiaro sta a 5.4:1, sull'altra combinazione a 4.2
+(sotto AA). Nota per chi tocca i token: `color-mix` di bianco sulla traccia NON basta a
+sollevarla in scuro (in sRGB 14% di bianco su #404040 dà #444444, tre livelli — non si
+vede), e per questo la soluzione usa due token esistenti invece di una mistura.
+
+**Le azioni restano alle azioni.** `use-nav-actions.ts`: via `vai-ferie` e `vai-sala`.
+Su /turnisala un dipendente non ha più NESSUNA azione e la superficie non si disegna
+(una lista vuota è un caso vero, non un buco); restano l'upload e la cronologia per
+admin/manager, e per un manager NIENTE cambio vista nel menu.
+
+**Prove.** Tre casi nuovi in `tests/nav-piattaforma.spec.ts` (nei tre progetti): il
+contratto puro, il salto sala→ferie→sala dal selettore con la verifica che NON sia
+figlio della barra e che il menu non contenga più «Vai a Turni ferie», e la skin su
+motore vero (iOS: fondo tinto, raggio 9, thumb 7, altezza 32, barretta 0 — Android:
+trasparente, altezza 48, barretta 3 — desktop: valori di base). Suite intera verde:
+**256 passati / 8 saltati**.
+
+**Una trappola in più, trovata dalla suite di qualcun altro.** `sonda-colori.spec.ts`
+campionava la barra con `page.locator('nav').first()`: da M2b le pagine Turni hanno un
+SECONDO punto di navigazione e prendeva quello. Ora la barra si prende dal suo nome
+(`nav[aria-label="Navigazione principale"]`), che è anche più preciso dell'ordine nel
+DOM. E per chi lavora in questo worktree: il dev server NON rilegge `app/globals.css`
+su una pagina già compilata — dopo una modifica al CSS serve `rm -rf .next` e riavvio,
+altrimenti si guarda (e si prova) il CSS vecchio senza accorgersene.

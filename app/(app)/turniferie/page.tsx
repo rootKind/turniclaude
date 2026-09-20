@@ -14,6 +14,7 @@ import { useAppSettings } from '@/hooks/use-app-settings'
 import { useQueryClient } from '@tanstack/react-query'
 import { makeCacheKey } from '@/lib/cache'
 import type { VacationPeriod } from '@/types/database'
+import { TurniSwitch } from '@/components/nav/turni-switch'
 
 const MAX_YEAR = 2099
 const ALL_PERIODS: VacationPeriod[] = [1, 2, 3, 4, 5, 6]
@@ -264,6 +265,14 @@ export default function TurniFeriePage() {
       className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
       style={{ minHeight: 'calc(100dvh - var(--nav-height) - var(--safe-bottom))' }}
     >
+      {/* M2b (20/09/2026): il passaggio sala/ferie è QUI, in testa alla pagina,
+          non nel menu delle azioni (dove era un'azione che in realtà è un cambio
+          di vista). `mr-14` lascia libera la fascia della campanella delle
+          notifiche, che è fissa in alto a destra. */}
+      <div className="mr-14 mb-3">
+        <TurniSwitch />
+      </div>
+
       <div className="flex items-center flex-wrap gap-2 mb-3 bg-card border border-border rounded-xl pl-3 pr-3 py-2 mr-14">
         <h1 className="text-lg font-bold flex-1 min-w-[120px]">Turni Ferie</h1>
         {canManage && (

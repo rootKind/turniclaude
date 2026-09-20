@@ -143,6 +143,32 @@
   --fab-radius: 9999px;
   --fab-offset: 12px;
 
+  /* ── Selettore di vista (M2b, 20/09/2026) — la lingua che porta da /turnisala
+     a /turniferie DENTRO le due pagine. I valori di BASE sono la struttura di
+     Material (tab su fondo trasparente con l'indicatore in basso): è la stessa
+     scelta della barra, dove il desktop segue il ramo «non-iOS». Su iOS la
+     stessa marcatura disegna un segmented control (fondo di sistema + "thumb"
+     rialzato), e nessun ramo nel componente lo sa: cambiano i token.
+       --seg-bg        fondo del contenitore (trasparente su Android: le tab M3
+                       non hanno un contenitore tinto)
+       --seg-pad       imbottitura del contenitore (e raggio del thumb, che sta
+                       DENTRO il contenitore: `calc(raggio - imbottitura)`)
+       --seg-height    altezza di una voce: 32pt iOS, 48dp Android
+       --seg-active-bg / --seg-active-shadow
+                       il «thumb» della voce attiva: su Android entrambi neutri,
+                       perché lì «sei qui» lo dice l'indicatore
+       --seg-indicator / --seg-indicator-h
+                       la barretta sotto la voce attiva: su iOS è alta 0 e
+                       trasparente, quindi lo stesso markup non disegna nulla */
+  --seg-bg: transparent;
+  --seg-pad: 0px;
+  --seg-radius: 0px;
+  --seg-height: 40px;
+  --seg-active-bg: transparent;
+  --seg-active-shadow: none;
+  --seg-indicator: var(--primary);
+  --seg-indicator-h: 3px;
+
   /* Shift row backgrounds */
   --shift-others-bg: #dde8f0;
   --shift-others-date-bg: #d0dde8;
@@ -611,6 +637,33 @@
   --fab-size: 48px;
   --fab-radius: 9999px;
   --fab-offset: 16px;
+  /* Segmented control (UISegmentedControl): contenitore di sistema tinto, voce
+     attiva come «thumb» rialzato con ombra morbida e raggio 9pt (il thumb sta
+     dentro con 2pt di imbottitura → 7pt, che è la misura reale del controllo).
+     Nessun indicatore in basso: su iOS non esiste. */
+  --seg-bg: var(--muted);
+  --seg-pad: 2px;
+  --seg-radius: 9px;
+  --seg-height: 32px;
+  --seg-active-bg: var(--card);
+  --seg-active-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  --seg-indicator: transparent;
+  --seg-indicator-h: 0px;
+}
+
+/* iOS in TEMA SCURO: la scala delle superfici si CAPOVOLGE, quindi traccia e
+   thumb si scambiano i token. In chiaro la superficie più chiara è `--card`
+   (0.985) e la traccia è `--muted` (0.935); di notte `--muted` (0.269) è più
+   chiaro di `--card` (0.205), quindi la stessa coppia darebbe un thumb più scuro
+   della traccia — un buco invece di una voce rialzata. Scambiandoli la gerarchia
+   di iOS torna giusta in entrambi i temi (`--muted` 0.269 resta lì, il thumb è
+   il gradino sopra), e i contrasti pure: l'etichetta spenta (#a3a3a3) sulla
+   traccia scura sta sopra 4.5:1, mentre sulla traccia chiara del tema chiaro
+   scenderebbe a 4.2. */
+.dark[data-platform='ios'] {
+  --seg-bg: var(--card);
+  --seg-active-bg: var(--muted);
+  --seg-active-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
 }
 
 /* Android — Material 3. Roboto, controlli a 48dp, raggi 12/28, elevazione a
@@ -649,6 +702,17 @@
   --fab-size: 56px;
   --fab-radius: 16px;
   --fab-offset: 16px;
+  /* Tab primarie di Material: nessun contenitore tinto e nessun thumb — la voce
+     attiva la dicono il colore del testo e la barretta da 3dp sotto di essa, che
+     è il modo in cui M3 marca la selezione. L'altezza a 48dp è il minimo da dito. */
+  --seg-bg: transparent;
+  --seg-pad: 0px;
+  --seg-radius: 0px;
+  --seg-height: 48px;
+  --seg-active-bg: transparent;
+  --seg-active-shadow: none;
+  --seg-indicator: var(--primary);
+  --seg-indicator-h: 3px;
 }
 
 /* Su schermi STRETTI l'etichetta a 12sp di Material non entra in un quinto di
