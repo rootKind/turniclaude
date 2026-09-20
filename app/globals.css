@@ -33,6 +33,18 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Scala tipografica come UTILITY (text-caption, text-body, text-title3…).
+     `inline` non è cosmetico: dice a Tailwind di scrivere `var(--fs-*)` nella
+     utility invece di copiarne il valore, così i blocchi di piattaforma più in
+     basso possono cambiare la misura senza rigenerare CSS. Le dimensioni di
+     base sono quelle che l'app usa OGGI nel corpo dei testi: chi adotta la
+     utility non cambia misura finché la piattaforma non la ridefinisce. */
+  --text-caption: var(--fs-caption);
+  --text-footnote: var(--fs-footnote);
+  --text-body: var(--fs-body);
+  --text-title3: var(--fs-title3);
+  --text-large-title: var(--fs-large-title);
 }
 
 :root {
@@ -55,6 +67,62 @@
   --input: oklch(0.875 0.025 225);
   --ring: oklch(0.650 0.050 225);
   --radius: 0.625rem;
+
+  /* ══ LIVELLO 1 — TOKEN SEMANTICI (neutri) ══════════════════════════════════
+     Primo dei due livelli del design system duale (20/09/2026). Questi nomi
+     descrivono il RUOLO di un colore, non la sua tinta: sono l'unico vocabolario
+     che il codice nuovo dovrebbe nominare, e il livello 2 (piattaforma, in fondo
+     al file) li rimappa dove iOS e Android vogliono cose diverse.
+     Sono ALIAS, non una seconda palette: ogni voce punta con var() a un token che
+     esiste già, quindi il tema scuro continua a funzionare da sé (il var() si
+     risolve quando viene USATO, non quando viene dichiarato) e questa aggiunta
+     non cambia un pixel. I nomi vecchi restano tutti validi: nessun file esistente
+     si rompe, e la migrazione avviene un componente alla volta. */
+  --surface: var(--background);
+  --surface-container: var(--card);
+  --surface-container-high: var(--popover);
+  --on-surface: var(--foreground);
+  --on-surface-muted: var(--muted-foreground);
+  --primary-action: var(--primary);
+  --on-primary-action: var(--primary-foreground);
+  --danger: var(--destructive);
+  --separator: var(--border);
+
+  /* Inset di sistema, letti una volta qui e composti dalle skin (max()/calc()).
+     env() risolve sull'elemento che DICHIARA la variabile: su :root sono gli inset
+     del viewport, che è esattamente ciò che serve. Il valore è identico a quello
+     scritto prima direttamente nelle due classi → nessun cambio visivo. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* ── LIVELLO 2, valori di BASE (nessun `data-platform`: desktop, o piattaforma
+     che non riconosciamo). Sono deliberatamente i valori che l'app ha OGGI, così
+     una componente che adotta un token di piattaforma non cambia aspetto finché
+     la piattaforma non lo ridefinisce: è questa la proprietà che rende la
+     milestone delle fondamenta invisibile e la suite E2E la prova che non si è
+     rotto niente.
+       --font-ui   Geist (il font di sempre, esposto come variabile in app/layout.tsx)
+       --touch-min 40px: su desktop non c'è un dito, e 40px è la misura dei
+                   controlli piccoli di oggi; iOS 44pt e Android 48dp sono minimi
+                   da dito e valgono lì.
+       --fs-*      le misure che il codice usa di più oggi (text-xs 12, text-sm 14,
+                   text-base 16), più il 20px delle intestazioni grandi. */
+  --font-ui: var(--font-geist, system-ui);
+  --touch-min: 40px;
+  --radius-control: 10px;
+  --radius-card: 10px;
+  --radius-sheet: 10px;
+  --elevation-nav: 0 -1px 0 var(--separator);
+  --elevation-dialog: 0 20px 60px rgb(0 0 0 / 0.22);
+  --scrim: rgb(0 0 0 / 0.32);
+  --motion-duration-enter: 300ms;
+  --motion-duration-exit: 200ms;
+  --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --fs-caption: 12px;
+  --fs-footnote: 12px;
+  --fs-body: 14px;
+  --fs-title3: 16px;
+  --fs-large-title: 20px;
 
   /* Shift row backgrounds */
   --shift-others-bg: #dde8f0;
@@ -91,9 +159,21 @@
   /* Celle de «Il tuo turno» — variante E: card a tinta piena per tipo di turno.
      M/P/N allineate ai colori delle pill dei turni della dashboard (stessa tinta,
      testo più tenue per l'equilibrio visivo della cella grande). */
-  --cell-m-bg: var(--pill-mattina-bg);     --cell-m-text: #5c729a;
+  /* TESTO delle celle della griglia personale — contrasto WCAG (20/09/2026).
+     Misurato con la stessa matematica di lib/color.ts (WCAG 2.1), non a occhio:
+       cella Mattina #5c729a su #dbeafe = 3.98:1   → #44587c = 5.87:1
+       cella Notte    #8f7dd0 su #ede9fe = 2.94:1   → #6452ad = 5.28:1
+       cella vuota    #8b939e su #eef0f2 = 2.72:1   → #656d77 = 4.59:1
+     Tutte e tre erano SOTTO la soglia AA (4.5:1) per testo normale, e non è un
+     dettaglio decorativo: .cell-tint-empty è il default di una cella il cui codice
+     non è classificato, quindi lì si legge il codice del turno, a 14px e a volte
+     meno (cell-fit). Il tema scuro non è stato toccato: lì il minimo è 5.13:1.
+     NOTA sull'audit: le due coppie che segnalava (pill Pomeriggio e cella Mattina)
+     sono misurate male — la pill è 5.39:1 e passa — e le due peggiori non le
+     vedeva. Il rosso della chip gialla (5.87:1) resta quello dell'utente. */
+  --cell-m-bg: var(--pill-mattina-bg);     --cell-m-text: #44587c;
   --cell-p-bg: var(--pill-pomeriggio-bg);  --cell-p-text: var(--pill-pomeriggio-text);
-  --cell-n-bg: var(--pill-notte-bg);       --cell-n-text: #8f7dd0;
+  --cell-n-bg: var(--pill-notte-bg);       --cell-n-text: #6452ad;
   --cell-rest-bg: #e4e6e9;  --cell-rest-text: #4a5057;
   --cell-avail-bg: #d6ecf5; --cell-avail-text: #1d5568;
   /* Giallo del PDF = RIEMPIMENTO chip trasferte (richiesta 25/09/2026 v5):
@@ -109,7 +189,7 @@
      sulla stessa chip. Ora la chip ha una famiglia sola, come ogni altra pill. */
   --sala-yellow-chip-text: #b3261e;
   --cell-duty-bg: #d6f0dd;  --cell-duty-text: #1f5a34;
-  --cell-empty-bg: #eef0f2; --cell-empty-text: #8b939e;
+  --cell-empty-bg: #eef0f2; --cell-empty-text: #656d77;   /* era #8b939e: 2.72:1 */
   --cell-pend-ring: #d9a53a;
   /* Selezione picker mese/anno (richiesta 12/09/2026) */
   --picker-sel-bg: #dfe8f2;
@@ -454,6 +534,67 @@
   --sala-toolbar-nav-text: #f5f5f5;
 }
 
+/* ══ LIVELLO 2 — PIATTAFORMA ══════════════════════════════════════════════════
+   Secondo livello del design system duale (20/09/2026).
+
+   L'attributo `data-platform` lo mette il SERVER, nel layout root, leggendo lo
+   User-Agent della richiesta (lib/platform.ts): arriva già nell'HTML iniziale,
+   quindi non c'è nessun frame con la skin sbagliata e nessuno script inline da
+   tenere in vita mentre Next riscrive la <head>. L'override di QA (localStorage
+   `turni-platform-override`, o `?platform=`) lo riscrive dal client: serve a
+   guardare la skin Android dal telefono e viceversa, non è la strada dei test
+   (le spec girano con l'emulazione reale dei due motori).
+
+   SENZA attributo valgono i valori di base qui sopra, cioè quelli di oggi: è la
+   proprietà che rende la milestone delle fondamenta invisibile, e la suite E2E
+   verde la prova che non è stato rotto niente.
+
+   Questi blocchi DEFINISCONO i token; le componenti che li USANO arrivano man
+   mano (guardia: `scripts/check-design-tokens.mjs` controlla che le due
+   piattaforme dichiarino le stesse chiavi e che nessuna sia orfana di base). */
+
+/* iOS — Apple Human Interface Guidelines. Font di sistema (SF), controlli a 44pt,
+   raggi continui, ombre soffici, motion "standard" della piattaforma. */
+[data-platform='ios'] {
+  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
+  --touch-min: 44px;
+  --radius-control: 10px;
+  --radius-card: 12px;
+  --radius-sheet: 10px;
+  --elevation-nav: 0 -1px 0 var(--separator);
+  --elevation-dialog: 0 20px 60px rgb(0 0 0 / 0.22);
+  --scrim: rgb(0 0 0 / 0.32);
+  --motion-duration-enter: 320ms;
+  --motion-duration-exit: 220ms;
+  --motion-ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --fs-caption: 12px;
+  --fs-footnote: 13px;
+  --fs-body: 15px;
+  --fs-title3: 20px;
+  --fs-large-title: 34px;
+}
+
+/* Android — Material 3. Roboto, controlli a 48dp, raggi 12/28, elevazione a
+   livelli, curve "emphasized" (la decelerazione è il default di M3). */
+[data-platform='android'] {
+  --font-ui: Roboto, 'Noto Sans', 'Google Sans', system-ui, sans-serif;
+  --touch-min: 48px;
+  --radius-control: 12px;
+  --radius-card: 12px;
+  --radius-sheet: 28px;
+  --elevation-nav: 0 -2px 6px rgb(0 0 0 / 0.10);
+  --elevation-dialog: 0 8px 24px rgb(0 0 0 / 0.22);
+  --scrim: rgb(0 0 0 / 0.32);
+  --motion-duration-enter: 300ms;
+  --motion-duration-exit: 200ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --fs-caption: 12px;
+  --fs-footnote: 12px;
+  --fs-body: 14px;
+  --fs-title3: 16px;
+  --fs-large-title: 22px;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -725,10 +866,10 @@
   }
 
   /* Safe area for bottom nav */
-  .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .safe-area-pb { padding-bottom: var(--safe-bottom); }
 
   /* Safe area for top (status bar / notch — edge-to-edge) */
-  .safe-area-pt { padding-top: env(safe-area-inset-top, 0px); }
+  .safe-area-pt { padding-top: var(--safe-top); }
 
   /* Hide scrollbar while keeping scroll functionality */
   .no-scrollbar { scrollbar-width: none; }

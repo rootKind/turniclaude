@@ -2933,3 +2933,67 @@ Stato (26/09/2026, tarda sera): le tre funzioni sono **su disco, non committate*
 `supabase/migrations/034_notify_vacation_filter.sql` (applicata su dev, NON su produzione) e i tre
 spec nuovi. La colonna su PRODUZIONE va aggiunta prima che il toggle funzioni lì:
 `node scripts/apply-release-migrations.mjs --prod --from 034 --to 034 --apply`.
+
+---
+
+## 20/09/2026 — Design system duale iOS/Android, M1: la piattaforma esiste (e non si vede)
+
+Prima milestone del design system a due skin (report `design-audit.md`, HIG + Material 3). Questa
+milestone è **per costruzione invisibile**: i token di piattaforma hanno come valore di BASE quelli
+di oggi, quindi nessuna componente cambia aspetto finché non adotta un token — ed è la suite E2E
+verde (217 passati / 8 saltati) la prova che non si è rotto niente.
+
+**1. La piattaforma la decide il SERVER, una volta sola.** `lib/platform.ts` è PURO (nessun
+`navigator`, nessun DOM): `detectPlatformFromUA(ua, {maxTouchPoints})` → `'ios' | 'android' |
+'desktop'`, e `app/layout.tsx` lo chiama sullo User-Agent di `headers()` scrivendo
+`data-platform` sul `<html>`. Così l'HTML iniziale ha già la skin giusta: **niente script inline**
+(che Next riscrive a ogni navigazione — vedi il workaround MutationObserver in questo file) e
+niente flash di skin sbagliata. iPadOS 13+ in desktop mode si presenta come «Macintosh»: si
+riconosce solo da `maxTouchPoints > 1`, che sul server non esiste, quindi lì resta `desktop` —
+limite dichiarato, si recupera con l'override.
+Conseguenza dichiarata: `headers()` rende dinamiche anche `/login` e `/installa` (le rotte
+autenticate lo erano già).
+**Prima di questo file la piattaforma si riconosceva in TRE copie della stessa regex**
+(`app/installa/page.tsx`, `components/shifts/shift-dialog.tsx`,
+`components/settings/notification-help-dialog.tsx`): il ratchet in `check-design-tokens.mjs` le
+conta (oggi 3) e vieta che salgano.
+
+**2. Override di QA.** `?platform=ios` (una apertura) o localStorage `turni-platform-override`
+(persistente) riscrivono l'attributo dal client — `PlatformProvider` + `usePlatform()`. Serve a
+guardare la skin dell'altra piattaforma dal proprio telefono, non è la strada dei test (che girano
+sull'emulazione vera dei motori). Lo snapshot di `usePlatform` si legge DAL DOM (come
+`nav-lastpage`), quindi non c'è stato duplicato che possa divergere dal CSS.
+
+**3. Due livelli di token in `app/globals.css`.** LIVELLO 1 = nomi di RUOLO, neutri
+(`--surface`, `--surface-container`, `--on-surface`, `--primary-action`, `--danger`,
+`--separator`): sono **alias** (`var(--background)`…), non una seconda palette, quindi non cambiano
+un pixel e il tema scuro continua a funzionare da sé. LIVELLO 2 = i valori per piattaforma
+(`--font-ui`, `--touch-min`, `--radius-*`, `--elevation-*`, `--scrim`, `--motion-*`, `--fs-*`) in
+`:root` (= valori di oggi) e nei blocchi `[data-platform='ios']` / `[data-platform='android']`.
+Le Utility tipografiche (`--text-body`, `--text-title3`…) stanno in `@theme inline` e puntano ai
+`--fs-*`: **senza `inline` Tailwind copierebbe il valore** e la piattaforma non potrebbe più
+cambiarlo. Da qui in poi si scrive `text-body`, non `text-[15px]`.
+
+**4. Contrasti misurati, non stimati.** Il report dava due misure sbagliate su due (la pillola
+Pomeriggio è 5.39:1, quindi passava) e non vedeva le due peggiori: **cella Notte 2.94:1** e
+**cella «vuota» 2.72:1**, entrambe testo di un codice di turno. Sistemate; il tema scuro passava
+già tutto.
+
+**Prove.** `scripts/check-design-tokens.mjs` (nessun browser, secondi): stesse chiavi nei due
+blocchi e non orfane di base, **skin viva** (13 token DEVONO differire; `--radius-card` no, perché
+12px è la misura di entrambe le guide e pretenderne la differenza sarebbe inventarla), utility
+tipografiche collegate, contrasto AA sulle coppie sfondo/testo con la matematica di `lib/color.ts`
+— 30 coppie verificate, 6 **saltate con motivo** (le pillole dei periodi in scuro hanno sfondo
+traslucido: il contrasto dipende dalla superficie sotto, che lì non c'è) e l'elenco delle saltate è
+bloccato perché una coppia nuova non si nasconda. `tests/design-piattaforma.spec.ts` gira su **tre
+motori** (Chromium desktop, WebKit/iPhone, Chromium/Pixel — progetto Playwright `android` nuovo):
+l'atteso è calcolato dallo User-Agent del motore che sta girando davvero, non scritto a mano.
+**Due controlli negativi fatti**: skin copiata (stesso `--font-ui`) e contrasto scuro abbassato
+(`--cell-n-text` a 3.24:1) → falliscono per la ragione giusta. TRAPPOLA trovata così: `indexOf('.dark')`
+prendeva la riga 6 (`@custom-variant dark (&:is(.dark *))`) e confrontava due volte il tema chiaro
+(36 coppie invece di 18 × 2, tutte verdi per finta): le regex ora sono ancorate a inizio riga, con
+una guardia sull'estrazione.
+
+**Ancora da fare (M2→M5):** le componenti che USANO questi token — navigazione (issue #1 e #2 del
+report: barra con azioni mescolate alle destinazioni, FAB che cambia funzione per pagina), overlay,
+primitive, board, PWA.

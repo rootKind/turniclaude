@@ -86,6 +86,10 @@ export default defineConfig({
         // <tr> con display:flex dentro una table display:block viene ignorata),
         // quindi questo file gira anche qui — è il motore che ha il difetto.
         /shift-dialog\.spec\.ts/,
+        // La piattaforma e i token del design system (M1, 20/09/2026): il valore
+        // atteso dipende dal MOTORE, quindi questa spec ha senso solo girando su
+        // tutti e tre (desktop, iPhone, Android).
+        /design-piattaforma\.spec\.ts/,
       ],
       // `serviceWorkers: 'block'` NON è un dettaglio: su WebKit il service worker
       // dell'app (quello delle push) prende il controllo della pagina e le sue
@@ -96,6 +100,18 @@ export default defineConfig({
       // (25/09/2026, tre spec di `dipendente.spec.ts` bloccate così). Le push non
       // sono coperte da queste spec: il worker si può bloccare senza perdere niente.
       use: { ...devices['iPhone 13'], browserName: 'webkit', serviceWorkers: 'block' },
+    },
+    {
+      /**
+       * ANDROID (M1 del design system duale, 20/09/2026): Chromium con un Pixel 7
+       * emulato — User-Agent Android vero, quindi `data-platform="android"` scritto
+       * dal server e token M3 al loro posto. Non è pignoleria: era il motore che
+       * NESSUNA spec copriva (la suite girava su chromium desktop e su WebKit per
+       * iPhone), quindi ogni differenza di piattaforma era dedotta, mai provata.
+       */
+      name: 'android',
+      testMatch: [/design-piattaforma\.spec\.ts/],
+      use: { ...devices['Pixel 7'], browserName: 'chromium' },
     },
     {
       // Scrive nel database: seriale e dopo tutto il resto (vedi sopra).
