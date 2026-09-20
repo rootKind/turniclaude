@@ -84,6 +84,19 @@ const CONTRATTO = [
   '--font-ui',
   '--touch-min',
   '--radius-control', '--radius-card', '--radius-sheet',
+  // Navigazione (M2): l'altezza della barra, il materiale del fondo, la pillola
+  // della voce attiva e la forma delle azioni. Sono nel contratto perché una
+  // chiave dichiarata su una piattaforma sola darebbe una skin mezza vestita.
+  // `--nav-tint` e `--nav-muted` NON sono nell'elenco di proposito: sono la tinta
+  // della voce attiva e del testo spento, e valgono le stesse su entrambe le
+  // piattaforme (il chrome di questa app è neutro). Pretenderle per piattaforma
+  // suggerirebbe che debbano divergere, che è il falso. Se un giorno una sola
+  // delle due le ridefinisse, il controllo le trova lo stesso: le chiavi dei due
+  // blocchi devono essere IDENTICHE, e una chiave in più da un lato fa fallire
+  // quel confronto.
+  '--nav-height', '--nav-item-label',
+  '--nav-indicator', '--on-nav-indicator', '--nav-bg', '--nav-blur',
+  '--fab-size', '--fab-radius', '--fab-offset',
   '--elevation-nav', '--elevation-dialog',
   '--scrim',
   '--motion-duration-enter', '--motion-duration-exit', '--motion-ease-standard',
@@ -111,6 +124,13 @@ const DEVONO_DIFFERIRE = [
   '--font-ui', '--touch-min', '--radius-control', '--radius-sheet',
   '--elevation-nav', '--elevation-dialog', '--motion-duration-enter', '--motion-duration-exit',
   '--motion-ease-standard', '--fs-body', '--fs-footnote', '--fs-title3', '--fs-large-title',
+  // Navigazione: iOS ha la tab bar a 49pt senza pillola, Android la navigation
+  // bar a 80dp CON la pillola (è il modo in cui M3 dice «sei qui»), e le azioni
+  // sono una pill a 48px contro un FAB a 56 con angoli a 16. Se questi valori
+  // tornassero uguali, la M2 sarebbe una skin copiata: è la ragione per cui sono
+  // qui.
+  '--nav-height', '--nav-item-label', '--nav-indicator', '--nav-bg', '--nav-blur',
+  '--fab-size', '--fab-radius',
 ]
 for (const key of DEVONO_DIFFERIRE) {
   assert.notEqual(
@@ -256,8 +276,13 @@ function walk(dir) {
   return out
 }
 
-/** Misure tipografiche arbitrarie: fotografia del 20/09/2026 — scendono in M2/M3/M4/M5. */
-const MAX_TEXT_PX = 310
+/**
+ * Misure tipografiche arbitrarie (`text-[7px]`, `text-[15px]`…): 310 al momento di
+ * M1, **303 dopo M2** (la barra vecchia ne aveva sette: l'etichetta a 7px, i
+ * badge, i mini-FAB). Il numero può solo scendere — quando cala si abbassa qui,
+ * così il guadagno è bloccato e non si può «riprendere» per sbaglio.
+ */
+const MAX_TEXT_PX = 303
 /** Copie della regex sullo User-Agent fuori da lib/platform.ts: 3 oggi, 0 alla fine di M3. */
 const MAX_UA_REGEX = 3
 

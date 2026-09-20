@@ -28,14 +28,21 @@ export interface CellCode {
   cellW: number
 }
 
-/** Il FAB centrale della barra di /tuoturno: apre e chiude il menu dei mini-fab. */
+/**
+ * Il comando delle azioni di /tuoturno: apre e chiude l'elenco delle azioni.
+ *
+ * M2 (20/09/2026): non è più il FAB DENTRO la barra — è la superficie delle
+ * azioni che sta sopra la barra, e la sua forma dipende dalla piattaforma (pill
+ * su iOS, FAB su Android). I nomi accessibili non sono cambiati, quindi questo
+ * helper continua a funzionare come prima.
+ */
 export function fabTurno(page: Page) {
   return page.getByRole('button', { name: /^(Azioni turno|Chiudi menu)$/ })
 }
 
 /**
- * Apre una voce del menu del FAB (FAB → voce). Le voci si chiamano: «Personalizza
- * colori e stile delle card», «Confronta i turni di più dipendenti».
+ * Apre una voce dell'elenco delle azioni (comando → voce). Le voci si chiamano:
+ * «Personalizza colori e stile delle card», «Confronta i turni di più dipendenti».
  *
  * PERCHÉ ESISTE, invece di due click scritti a mano negli spec: il menu è di
  * `bottom-nav`, l'ascoltatore dell'evento che apre il pannello è della pagina

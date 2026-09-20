@@ -430,11 +430,15 @@ export async function boldTexts(page: Page): Promise<Array<{ card: string; text:
 }
 
 /**
- * Apre il menu dei mini-Fab di /turnisala (admin e manager). NON è un click: la
- * bottom-nav lo apre con una PRESSIONE LUNGA di 500 ms sul Fab «Azioni sala»
- * (onPointerDown avvia il timer, onPointerUp lo annulla), quindi un click
- * normale porta da un'altra parte — esattamente la ragione per cui serve un
- * helper invece di `page.click`.
+ * Apre l'elenco delle azioni di /turnisala (admin e manager). NON è un click:
+ * la superficie delle azioni si apre con una PRESSIONE LUNGA di 500 ms sul
+ * comando «Azioni sala» (onPointerDown avvia il timer, onPointerUp lo annulla)
+ * — esattamente la ragione per cui serve un helper invece di `page.click`.
+ *
+ * M2 (20/09/2026): il comando non è più dentro la barra (e su iOS non è un FAB
+ * ma una pill), ma la pressione lunga è rimasta la stessa: è il canale con cui
+ * questa spec raggiunge le voci, e non è stato toccato insieme alla barra per
+ * non mescolare due cose in un solo commit.
  */
 export async function openSalaAdminFab(page: Page): Promise<void> {
   const apri = page.getByLabel('Minimi di persone per card')

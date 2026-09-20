@@ -2997,3 +2997,78 @@ una guardia sull'estrazione.
 **Ancora da fare (M2→M5):** le componenti che USANO questi token — navigazione (issue #1 e #2 del
 report: barra con azioni mescolate alle destinazioni, FAB che cambia funzione per pagina), overlay,
 primitive, board, PWA.
+---
+
+## 20/09/2026 — Design system duale, M2: la barra (destinazioni) e le azioni (fuori dalla barra)
+
+Seconda milestone. Chiude le issue **n. 1 e n. 2** del report, che erano la stessa
+malattia: la barra mescolava DESTINAZIONI e AZIONI, e il pulsante centrale cambiava
+mestiere da pagina a pagina (crea turno, crea ferie, segnalazione, pannello admin,
+cambia vista, menu della sala) restando DENTRO la barra — dove né HIG né Material 3
+lo vogliono.
+
+**Cinque destinazioni, una per pagina.** `components/nav/nav-destinations.ts` è il
+contratto (nomi, percorsi, ordine) ed è **puro**: niente icone, così si importa da
+Node e le spec lo usano senza browser. Prima la barra aveva quattro voci ma due
+erano gruppi che si scambiavano al tap («Cambi» → /dashboard *e* /vacanze, «Turni
+Sala e Ferie» con l'etichetta a **7px**): ora ogni voce è una destinazione e non
+cambia mai significato. `activeDestinationId()` risponde `null` per le pagine di
+DETTAGLIO (/notifiche si apre dalla campanella, /admin da Impostazioni): accendere
+una voce lì direbbe «sei qui» a chi non c'è. «Turni» resta l'unica con
+`remembersLastPage` (due viste, una destinazione): la memoria è in
+`components/nav/use-last-page.ts` (`turni-last-page`).
+
+**Due skin, e la differenza è STRUTTURALE.** `components/nav/nav-bar.tsx`:
+tab bar (iOS **e desktop**) contro navigation bar M3 (Android). Non è un tema: iOS
+tinge icona ed etichetta della voce attiva (etichetta sempre visibile a 10pt);
+Material lascia il testo neutro e mette una **pillola 32×64** dietro l'icona
+(`--nav-indicator`, una velatura del testo al 12% che si adatta da sé ai due temi).
+Altezze dai token di M1: 49pt iOS, 80dp Android, 64px desktop — e il fondo del
+contenuto lo dice `var(--nav-height)`, non più un `4rem` scritto a mano.
+**Il colore di brand che il report chiedeva NON è entrato**: HIG userebbe il blu di
+sistema e M3 il primary, ma la regola di progetto «il chrome è neutro» (vedi «Tema a
+2 colori») viene prima del report — la differenza fra le piattaforme sta nella forma,
+nella misura e nel materiale, non in una tinta che il resto dell'app non ha.
+Etichetta di M3 a 12sp: sotto i 360px scende a 10px (misurato: «Impostazioni» chiede
+67px e ne ha 64) — media query DOPO il blocco della piattaforma, perché a pari
+specificità vince l'ordine.
+
+**Le azioni escono dalla barra.** `use-nav-actions.ts` è la matrice (pagina × ruolo)
+e la prima voce è quella principale; `nav-action-surface.tsx` la disegna — pill su
+iOS (HIG non ha FAB), **FAB 56dp con angoli a 16** su Android, 48px cerchio sul
+desktop — in un contenitore ancorato sopra la barra. Regola del tap, dichiarata
+perché è il contratto con le spec: **una** azione non distruttiva → il tap la esegue;
+**più** azioni (o l'unica è distruttiva) → il tap apre l'elenco; **pressione lunga**
+(500ms) → apre l'elenco in ogni caso (era il gesto della sala, e resta). L'elenco è
+una superficie nativa: **action sheet** su iOS (raggio 14, «Annulla» separato) e
+**bottom sheet** di Material altrove (scriminatura, righe 56dp, si chiude col tocco
+fuori). Le etichette delle voci sono, parola per parola, le vecchie `aria-label`:
+`apriVoceFab`, `openSalaAdminFab`, `getByLabel('Minimi di persone per card')` sono
+la rete di protezione della board, e riscriverla insieme alla barra avrebbe reso il
+commit illeggibile.
+
+**Una trappola trovata dalla suite, non da me.** Il contenitore delle azioni era
+`pointer-events-auto` sulla RIGA (`flex justify-end`): quella riga è larga quanto lo
+schermo e diventava una **banda invisibile che mangiava i click** di tutto ciò che le
+stava sotto. Su iPhone un pulsante di /dashboard cadeva esattamente lì: click mai
+arrivato, tre test in timeout a 3 minuti (`card-cambio-to-sala.spec.ts` 179/833/937).
+Sul desktop quelle card non arrivano a quell'altezza, quindi il difetto sarebbe
+passato inosservato. Ora `pointer-events-none` su tutti i contenitori e `auto` solo
+sul pulsante e sulla sheet.
+
+**`bottom-nav.tsx` è un dispatcher** (leggi percorso e ruoli → chiedi le azioni →
+disegna barra e superficie). Il resto è sparito: `fab-mini-pop` (CSS) era l'unico uso
+dei mini-FAB e non esiste più, `cambi-last-page` non si legge più (le due «cambiali»
+sono destinazioni dirette). La voce «Turni» continua a coprire /turnisala E
+/turniferie, quindi il passaggio fra le due viste vive ancora in coda all'elenco
+azioni: sostituirlo col segmented control DENTRO le pagine è il prossimo passo (M2b),
+e va fatto lì perché è l'unico posto in cui c'è lo spazio.
+
+**Prove.** `tests/nav-piattaforma.spec.ts`: contratto puro, cinque voci con
+l'accensione esatta, etichette non tagliate e barra non scorrevole a 320px e 390px,
+comando delle azioni **fuori dal `<nav>`** e geometricamente sopra la barra, tap che
+esegue/che apre, e la skin giusta — altezza, pillola, forma del comando, superficie
+dell'elenco — verificata sul MOTORE VERO (WebKit/iPhone, Chromium/Pixel, desktop),
+più l'override di QA. Gira nei tre progetti. `tests/pages.spec.ts` non prova più
+l'etichetta «Turni Sala e Ferie» (non esiste): la prova è stata **sostituita**, non
+cancellata. `card-cambio-to-sala.spec.ts` clicca `a[aria-label="Cambi turno"]`.

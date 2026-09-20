@@ -109,6 +109,7 @@ che compilano e navigano insieme sporcherebbero la misura.
 | dialog del cambio turno | `http://localhost:3000/dashboard?new=1` | `shift-dialog.spec.ts`: la X non si sovrappone a nessun controllo del datepicker (era sulla freccia «mese successivo») né resta coperta, a 320px e 390px e anche dopo lo scorrimento |
 | velocità di `openBoard` | nessuno — misura | `perf.spec.ts` (progetto `perf`): mediana di 3 navigazioni sotto 3,5 s |
 | colori delle card (logica) | nessuno — logica pura | `palette-colori.spec.ts`: conversioni, contrasto WCAG, preset completi e coerenti, `themePaletteFor` («Notte» = i colori del tema scuro di globals.css) |
+| barra e azioni (M2) | `http://localhost:3000/dashboard`, `/tuoturno` | `nav-piattaforma.spec.ts`: cinque destinazioni (nessuna che cambia significato al tap), la voce della pagina accesa e NESSUNA sulle pagine di dettaglio, etichette non tagliate e barra non scorrevole a 320px/390px, il comando delle azioni **fuori dal `<nav>`** e sopra la barra, la regola del tap (una azione → la esegue, più azioni → apre l'elenco, pressione lunga → apre sempre) e la superficie per piattaforma: tab bar + action sheet su iOS, navigation bar M3 con la pillola della voce attiva + bottom sheet con FAB 56dp su Android. La skin attesa dipende dal MOTORE, quindi gira su tre progetti (`chromium`, `ios`, `android`) |
 | piattaforma e token (M1) | `http://localhost:3000/login` | `design-piattaforma.spec.ts`: il SERVER scrive `data-platform` dallo User-Agent (l'atteso è il verdetto di `detectPlatformFromUA` sullo User-Agent del motore che gira davvero, non un valore scritto a mano), i token di piattaforma arrivano al browser, la scala tipografica è collegata alle utility (`text-body`), gli alias semantici risolvono, e l'override di QA (`?platform=`, localStorage) riscrive l'attributo. Gira su TRE motori: `chromium`, `ios` (WebKit/iPhone) e `android` (Chromium/Pixel) |
 | sonda colori (logica) | nessuno — logica pura | `sonda-colori-logica.spec.ts`: nomi leggibili dei token, colori leggibili, CSS dell'anteprima (`:root`/`.dark`), testo della richiesta, selettori, campionario (campione, confronto fra pagine, raggruppamento) (1 s, nessun browser) |
 | sonda colori (browser) | `http://localhost:3000/admin` → `/turnisala`, `/turniferie` | `sonda-colori.spec.ts`: dal pannello admin si accende e resta accesa navigando; il tocco naviga ANCHE con la sonda accesa (controllo negativo: senza la sonda idem); la pressione lunga campiona e non naviga, e il pannello dice da quale variabile viene il colore; anteprima sul dispositivo, richiesta da copiare, azzeramento; il campionario confronta lo stesso elemento fra due pagine |
@@ -254,7 +255,7 @@ altri test sulla board:
   pannello del calendario copre tutto lo schermo e non resta backdrop da
   cliccare — per questi test serve un viewport desktop (`test.use`).
 
-## Minimi per card: dal mini-Fab alla chip (`tests/minimi.spec.ts`)
+## Minimi per card: dalla voce «Minimi di persone per card» alla chip (`tests/minimi.spec.ts`)
 
 ```bash
 E2E_BASE_URL=http://localhost:3000 npx playwright test --project=minimi --no-deps
@@ -267,8 +268,8 @@ leggono. `--no-deps` è quello che permette di lanciare SOLO lui: senza, Playwri
 esegue prima anche la dipendenza, cioè tutto il progetto `chromium`.)
 
 Il giro completo, che è l'unica cosa che le prove di logica non possono dire:
-mini-Fab admin → evento → pannello precompilato → salvataggio su Supabase → la
-board ricaricata segnala la card sotto il minimo. Il giorno scelto è il **6/9
+voce del menu delle azioni → evento → pannello precompilato → salvataggio su
+Supabase → la board ricaricata segnala la card sotto il minimo. Il giorno scelto è il **6/9
 turno P**, dove la DCO 6° (doppia) ha una persona sola: manca esattamente di una,
 quindi UNA chip.
 
@@ -281,12 +282,14 @@ precondizione «nessun minimo configurato» non dipende dall'ordine dei test.
 
 Due dettagli che fanno perdere tempo se non si sanno:
 
-- il menu dei mini-Fab di /turnisala si apre con una **pressione lunga di 500 ms**
+- l'elenco delle AZIONI di /turnisala si apre con una **pressione lunga di 500 ms**
   (timer su `onPointerDown`), non con un click: `openSalaAdminFab` in
   `tests/sala-board.ts` fa `dispatchEvent('pointerdown')` e attende. **Non**
-  mandare il `pointerup` dopo: quando il menu è aperto la label del Fab diventa
-  «Chiudi menu», il locator non trova più niente e l'attesa si mangerebbe il
-  timeout del test;
+  mandare il `pointerup` dopo: quando l'elenco è aperto il nome del comando
+  diventa «Chiudi menu», il locator non trova più niente e l'attesa si mangerebbe
+  il timeout del test (dalla M2 il comando non è più dentro la barra: è la
+  superficie sopra la barra, su iOS una pill e altrove un FAB — vedi
+  `nav-piattaforma.spec.ts`);
 - l'utente autenticato è l'**admin vero** (Minino Davide: la sua anagrafica porta
   l'uuid di `ADMIN_ID`), perché il pannello è riservato a lui. La fixture
   `asEmployee` lo copre come chiunque altro.

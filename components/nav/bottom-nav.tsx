@@ -1,44 +1,34 @@
 'use client'
-import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { Palmtree, Settings, Plus, Lock, Calendar, Bell, CheckCheck, Trash2, X, ArrowLeftRight, ArrowLeft, ArrowRight, Upload, History, Pencil, LayoutGrid, Palette, Users, GitCompareArrows, UserCog } from 'lucide-react'
-import { cn } from '@/lib/utils'
+
+import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
-import { NotificationBadge } from '@/components/ui/notification-badge'
+import { NavBar } from './nav-bar'
+import { NavActionSurface } from './nav-action-surface'
+import { useNavActions } from './use-nav-actions'
+import { activeDestinationId, destinationById, type NavDestination } from './nav-destinations'
+import { useRememberGroupPage, useTurniLastPage } from './use-last-page'
 
-const MANAGER_CYCLE = ['/dashboard', '/vacanze', '/turnisala', '/turniferie']
-function nextManagerPage(current: string): string {
-  const idx = MANAGER_CYCLE.indexOf(current)
-  return MANAGER_CYCLE[(idx + 1) % MANAGER_CYCLE.length]
-}
-
-/* Ultima pagina visitata per i gruppi «Turni» e «Cambi» (localStorage). Letti via
-   useSyncExternalStore (snapshot PRIMITIVO, confrontato per valore: niente loop
-   «getSnapshot should be cached»); la scrittura emette l'evento 'nav-lastpage'
-   che notifica i sottoscrittori — senza setState in effect (vietato dal lint). */
-const NAV_LAST_EVENT = 'nav-lastpage'
-function subscribeNavLast(cb: () => void) {
-  window.addEventListener(NAV_LAST_EVENT, cb)
-  return () => window.removeEventListener(NAV_LAST_EVENT, cb)
-}
-const readNavLast = (key: string, fallback: string) => () =>
-  localStorage.getItem(key) ?? fallback
-
-/* Vista confronto de «Il tuo turno» attiva? La pagina emette
-   'tuoturno-compare-state' { active } ad ogni cambio: snapshot PRIMITIVO
-   (booleano), confrontato per valore — stesso schema di nav-lastpage. */
-const COMPARE_STATE_EVENT = 'tuoturno-compare-state'
-function subscribeCompareState(cb: () => void) {
-  document.addEventListener(COMPARE_STATE_EVENT, cb)
-  return () => document.removeEventListener(COMPARE_STATE_EVENT, cb)
-}
-/* La pagina scrive il flag su window prima di emettere l'evento (un semplice
-   booleano esterno: snapshot primitivo, niente «getSnapshot should be cached»). */
-const readCompareState = () =>
-  (typeof window !== 'undefined' && (window as { __tuoturnoCompareActive?: boolean }).__tuoturnoCompareActive) || false
-
+/**
+ * LA BARRA (M2 del design system, 20/09/2026).
+ *
+ * Questo file era 600 righe: quattro destinazioni, un pulsante centrale che
+ * cambiava mestiere per pagina, cinque overlay di «mini-FAB» con backdrop, una
+ * pressione lunga con timer, il giro del manager, il badge dei feedback e il
+ * dialog delle segnalazioni — tutto insieme. Ora fa il **dispatcher** e nient'altro:
+ *
+ *   1. legge il percorso e i ruoli;
+ *   2. chiede a `use-nav-actions.ts` quali azioni ha questa pagina;
+ *   3. disegna la barra (`nav-bar.tsx`: tab bar o navigation bar M3) e la
+ *      superficie delle azioni (`nav-action-surface.tsx`: pill o FAB, e l'elenco
+ *      in una sheet nativa).
+ *
+ * Il valore di smontarlo così non è l'estetica del file: le due skin condividono
+ * le stesse cinque destinazioni perché le leggono dallo stesso elenco, e la
+ * matrice delle azioni (ruolo × pagina) si può leggere — e provare — senza
+ * browser.
+ */
 interface Props {
   feedbackUnread?: number
   isAdmin?: boolean
@@ -47,562 +37,88 @@ interface Props {
 
 export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = false }: Props) {
   const pathname = usePathname()
-  const router = useRouter()
-  const isVacanze = pathname === '/vacanze'
-  const isImpostazioni = pathname === '/impostazioni'
-  const isNotifiche = pathname === '/notifiche'
-  const isTurni = pathname === '/turnisala' || pathname === '/turniferie'
-  const isCambi = pathname === '/dashboard' || pathname === '/vacanze'
-  const isDashboard = pathname === '/dashboard'
-  const isTuoTurno = pathname === '/tuoturno'
   const [feedbackOpen, setFeedbackOpen] = useState(false)
-  const [notifFabOpen, setNotifFabOpen] = useState(false)
-  // Fab azioni de «Il tuo turno»: Personalizza + Confronta/Tuo turno (mini-Fab).
-  const [tuoTurnoFabOpen, setTuoTurnoFabOpen] = useState(false)
-  // In vista confronto la voce «Confronta» diventa «Tuo turno» (vedi sotto).
-  const tuoTurnoComparing = useSyncExternalStore(subscribeCompareState, readCompareState, () => false)
-  const [adminFabOpen, setAdminFabOpen] = useState(false)
-  const [ferieAdminFabOpen, setFerieAdminFabOpen] = useState(false)
-  // Ultima pagina dei gruppi Turni/Cambi: store esterno (vedi nota in testa al file).
-  const turniLastPage = useSyncExternalStore(subscribeNavLast, readNavLast('turni-last-page', '/turnisala'), () => '/turnisala')
-  const cambiLastPage = useSyncExternalStore(subscribeNavLast, readNavLast('cambi-last-page', '/dashboard'), () => '/dashboard')
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const longPressTriggered = useRef(false)
-  const ferieLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const ferieLongPressTriggered = useRef(false)
-
-  // Memorizza l'ultima pagina di ciascun gruppo (scrittura localStorage = sistema
-  // esterno; l'evento 'nav-lastpage' notifica gli useSyncExternalStore in ascolto).
-  useEffect(() => {
-    if (isTurni || isCambi) {
-      const key = isTurni ? 'turni-last-page' : 'cambi-last-page'
-      localStorage.setItem(key, pathname)
-      window.dispatchEvent(new Event(NAV_LAST_EVENT))
-    }
-  }, [isTurni, isCambi, pathname])
   const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
 
-  function handleTurniSalaFabPointerDown() {
-    longPressTriggered.current = false
-    longPressTimer.current = setTimeout(() => {
-      longPressTriggered.current = true
-      setAdminFabOpen(v => !v)
-    }, 500)
-  }
+  const turni = destinationById('turni')
+  const turniLastPage = useTurniLastPage()
+  useRememberGroupPage(pathname, turni.paths)
 
-  function handleTurniSalaFabPointerUp() {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current)
-      longPressTimer.current = null
-    }
-  }
+  const actions = useNavActions({
+    pathname,
+    isAdmin,
+    isManager,
+    notifiche: { markAllRead, clearAll, unreadCount, hasHistory: history.length > 0 },
+    onFeedback: () => setFeedbackOpen(true),
+  })
 
-  function handleTurniSalaFabClick() {
-    if (longPressTriggered.current) {
-      longPressTriggered.current = false
-      return
-    }
-    setAdminFabOpen(false)
-    if (isManager && !isAdmin) {
-      router.push(nextManagerPage(pathname))
-    } else {
-      router.push('/turniferie')
-    }
+  /** Dove porta una destinazione: solo i gruppi ricordano l'ultima vista. */
+  function hrefFor(destination: NavDestination): string {
+    return destination.remembersLastPage ? turniLastPage : destination.href
   }
-
-  function dispatchSalaAdmin(event: string) {
-    document.dispatchEvent(new CustomEvent(event))
-    setAdminFabOpen(false)
-  }
-
-  function handleFerieFabPointerDown() {
-    ferieLongPressTriggered.current = false
-    ferieLongPressTimer.current = setTimeout(() => {
-      ferieLongPressTriggered.current = true
-      setFerieAdminFabOpen(v => !v)
-    }, 500)
-  }
-
-  function handleFerieFabPointerUp() {
-    if (ferieLongPressTimer.current) {
-      clearTimeout(ferieLongPressTimer.current)
-      ferieLongPressTimer.current = null
-    }
-  }
-
-  function handleFerieFabClick() {
-    if (ferieLongPressTriggered.current) {
-      ferieLongPressTriggered.current = false
-      return
-    }
-    setFerieAdminFabOpen(false)
-    if (isManager && !isAdmin) {
-      router.push(nextManagerPage(pathname))
-    } else {
-      router.push('/turnisala')
-    }
-  }
-
-  const rightLinks = [
-    { href: '/impostazioni', icon: Settings,   label: 'Impostazioni', badge: feedbackUnread },
-  ]
 
   return (
     <>
-      {/* Manager mini-fabs overlay — turnisala only (no "Modifica piantina") */}
-      {pathname === '/turnisala' && isManager && !isAdmin && adminFabOpen && (
+      <NavBar
+        activeId={activeDestinationId(pathname)}
+        hrefFor={hrefFor}
+        badges={feedbackUnread > 0 ? { impostazioni: feedbackUnread } : undefined}
+      />
+
+      {/* Le azioni vivono SOPRA la barra. L'ordine nel DOM conta: dopo la barra e
+          alla sua stessa quota (z-50), così l'elenco — che è modale — copre anche
+          la barra; dentro il pannello sta a z-60 sopra lo scrim.
+
+          `pointer-events-none` su TUTTI i contenitori, e `auto` solo sul pulsante
+          e sulla superficie dell'elenco (`nav-action-surface.tsx`): se lo mettessi
+          sulla riga `flex justify-end`, quella riga resta larga quanto lo schermo
+          e diventa una BANDA INVISIBILE che mangia i click di tutto ciò che le sta
+          sotto. È successo davvero — la suite l'ha trovata su iPhone, dove un
+          pulsante di /dashboard finiva esattamente dietro la banda: il click non
+          arrivava mai e il test andava in timeout. Sul desktop le card di quella
+          pagina non arrivano a quell'altezza, quindi il difetto sarebbe passato. */}
+      {actions.length > 0 && (
         <div
-          className="fixed inset-0 z-40"
-          onClick={() => setAdminFabOpen(false)}
+          // z-40, cioè SOTTO i modali dell'app (z-50) e sotto la barra: un FAB
+          // flottante copre il contenuto (è il suo mestiere), ma non deve coprire
+          // una finestra aperta — è successo col pannello dei minimi, la cui
+          // «Salva» finiva esattamente dietro il pulsante, e il test l'ha preso.
+          // L'elenco delle azioni, che invece È modale, esce in un portale a z-60
+          // (vedi `nav-action-surface.tsx`): il portale è l'unico modo di
+          // scavalcare lo stacking context di questo contenitore.
+          className="pointer-events-none fixed left-0 right-0 z-40 mx-auto max-w-lg"
+          style={{
+            bottom: 'calc(var(--nav-height) + var(--safe-bottom) + var(--fab-offset))',
+          }}
         >
-          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Cronologia PDF
-              </span>
-              <button
-                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-history') }}
-                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
-                aria-label="Cronologia PDF"
-              >
-                <History size={18} />
-              </button>
-            </div>
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Upload PDF
-              </span>
-              <button
-                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-upload') }}
-                className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:bg-primary/90 transition-colors"
-                aria-label="Upload PDF"
-              >
-                <Upload size={18} />
-              </button>
-            </div>
+          <div className="flex justify-end px-4">
+            <NavActionSurface actions={actions} controlLabel={actionControlLabel(pathname)} />
           </div>
         </div>
       )}
 
-      {/* Admin mini-fabs overlay — turnisala only */}
-      {pathname === '/turnisala' && isAdmin && adminFabOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setAdminFabOpen(false)}
-        >
-          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Modifica piantina
-              </span>
-              <button
-                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-edit') }}
-                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
-                aria-label="Modifica piantina"
-              >
-                <Pencil size={18} />
-              </button>
-            </div>
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Teorico ≠ reale
-              </span>
-              <button
-                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-theodiff') }}
-                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
-                aria-label="Mostra i turni teorici diversi dal reale"
-              >
-                <GitCompareArrows size={18} />
-              </button>
-            </div>
-            {/* MINIMI PER CARD (richiesta 15/09/2026): quanti dipendenti deve
-                avere ogni card, per turno, da una data in poi. */}
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Minimi per card
-              </span>
-              <button
-                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-minimi') }}
-                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
-                aria-label="Minimi di persone per card"
-              >
-                <UserCog size={18} />
-              </button>
-            </div>
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Cronologia PDF
-              </span>
-              <button
-                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-history') }}
-                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
-                aria-label="Cronologia PDF"
-              >
-                <History size={18} />
-              </button>
-            </div>
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Upload PDF
-              </span>
-              <button
-                onClick={e => { e.stopPropagation(); dispatchSalaAdmin('sala-admin-upload') }}
-                className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:bg-primary/90 transition-colors"
-                aria-label="Upload PDF"
-              >
-                <Upload size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Manager mini-fabs overlay — turniferie only */}
-      {pathname === '/turniferie' && isManager && !isAdmin && ferieAdminFabOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setFerieAdminFabOpen(false)}
-        >
-          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Sposta ferie
-              </span>
-              <button
-                onClick={e => {
-                  e.stopPropagation()
-                  document.dispatchEvent(new CustomEvent('ferie-admin-swap'))
-                  setFerieAdminFabOpen(false)
-                }}
-                className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:bg-primary/90 transition-colors"
-                aria-label="Sposta dipendente tra periodi"
-              >
-                <ArrowLeftRight size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Admin mini-fabs overlay — turniferie only */}
-      {pathname === '/turniferie' && isAdmin && ferieAdminFabOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setFerieAdminFabOpen(false)}
-        >
-          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Sposta ferie
-              </span>
-              <button
-                onClick={e => {
-                  e.stopPropagation()
-                  document.dispatchEvent(new CustomEvent('ferie-admin-swap'))
-                  setFerieAdminFabOpen(false)
-                }}
-                className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:bg-primary/90 transition-colors"
-                aria-label="Sposta dipendente tra periodi"
-              >
-                <ArrowLeftRight size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mini-fabs «Il tuo turno»: Personalizza (palette) + Confronta (utenti).
-          Stesso schema degli overlay manager/notifiche: backdrop che chiude al tap
-          e colonna di bottoni con etichetta, ancorata sopra la barra. */}
-      {isTuoTurno && tuoTurnoFabOpen && (
-        <div className="fixed inset-0 z-40" onClick={() => setTuoTurnoFabOpen(false)}>
-          <div className="absolute bottom-20 left-0 right-0 flex flex-col items-center gap-3 pointer-events-none">
-            <div className="fab-mini-pop flex items-center gap-2 pointer-events-auto">
-              {/* In vista CONFRONTO la voce diventa «Tuo turno»: apre di nuovo il
-                  picker sarebbe fuorviante mentre si sta già confrontando; il tap
-                  riporta alla griglia personale (17/09/2026, niente swipe-back). */}
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                {tuoTurnoComparing ? 'Tuo turno' : 'Confronta'}
-              </span>
-              <button
-                onClick={e => {
-                  e.stopPropagation()
-                  setTuoTurnoFabOpen(false)
-                  document.dispatchEvent(new CustomEvent(tuoTurnoComparing ? 'tuoturno-exit-compare' : 'tuoturno-open-confronta'))
-                }}
-                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
-                aria-label={tuoTurnoComparing ? 'Torna al tuo turno dalla vista confronto' : 'Confronta i turni di più dipendenti'}
-              >
-                {tuoTurnoComparing ? <Calendar size={18} /> : <Users size={18} />}
-              </button>
-            </div>
-            <div className="fab-mini-pop flex items-center gap-2 pointer-events-auto" style={{ animationDelay: '.05s' }}>
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Personalizza
-              </span>
-              <button
-                onClick={e => { e.stopPropagation(); setTuoTurnoFabOpen(false); document.dispatchEvent(new CustomEvent('tuoturno-open-personalizza')) }}
-                className="w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-md flex items-center justify-center hover:bg-primary/90 transition-colors"
-                aria-label="Personalizza colori e stile delle card"
-              >
-                <Palette size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Notifiche mini-fabs overlay */}
-      {isNotifiche && notifFabOpen && history.length > 0 && (
-        <div className="fixed left-0 right-0 flex flex-col items-center gap-3 z-40 pointer-events-none" style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem)' }}>
-          {unreadCount > 0 && (
-            <div className="flex items-center gap-2 pointer-events-auto">
-              <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-                Tutte lette
-              </span>
-              <button
-                onClick={() => { markAllRead(); setNotifFabOpen(false) }}
-                className="w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
-                aria-label="Segna tutte come lette"
-              >
-                <CheckCheck size={18} />
-              </button>
-            </div>
-          )}
-          <div className="flex items-center gap-2 pointer-events-auto">
-            <span className="text-xs font-medium bg-background border border-border rounded-full px-2.5 py-1 shadow-sm whitespace-nowrap">
-              Elimina tutte
-            </span>
-            <button
-              onClick={() => { clearAll(); setNotifFabOpen(false) }}
-              className="w-10 h-10 rounded-full bg-destructive text-destructive-foreground shadow-md flex items-center justify-center hover:bg-destructive/90 transition-colors"
-              aria-label="Elimina tutte"
-            >
-              <Trash2 size={18} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-area-pb">
-          <div className="flex items-stretch h-16 max-w-lg mx-auto relative">
-            {/* Bottone 'Cambi': alterna tra /dashboard (cambi turno) e /vacanze (cambi ferie).
-                Layout COMPATTO: due frecce ORIZZONTALI (→ 'Turni', ← 'Ferie') impilate una sopra
-                l'altra, 'Cambi' sotto. Si illumina SOLO la freccia della pagina attiva: su
-                /dashboard → 'Turni', su /vacanze ← 'Ferie' (foreground+bold+stroke 2.5); l'altra
-                resta muted. 'Cambi' evidenziato quando si è su una delle due. */}
-            <Link
-              href={isCambi ? (pathname === '/dashboard' ? '/vacanze' : '/dashboard') : cambiLastPage}
-              prefetch={true}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
-              aria-label="Cambi"
-            >
-              <div className="flex flex-col items-start leading-none">
-                <span className={cn('flex items-center gap-1 leading-none px-1 rounded', isDashboard ? 'text-foreground' : 'text-muted-foreground')}>
-                  <ArrowRight size={12} strokeWidth={isDashboard ? 2.5 : 1.5} />
-                  <span className={cn('text-[7px] leading-none', isDashboard && 'font-semibold')}>Turni</span>
-                </span>
-                <span className={cn('flex items-center gap-1 leading-none px-1 rounded mt-0.5', isVacanze ? 'text-foreground' : 'text-muted-foreground')}>
-                  <ArrowLeft size={12} strokeWidth={isVacanze ? 2.5 : 1.5} />
-                  <span className={cn('text-[7px] leading-none', isVacanze && 'font-semibold')}>Ferie</span>
-                </span>
-              </div>
-              <span className={cn('text-[10px]', isCambi ? 'text-foreground' : 'text-muted-foreground')}>Cambi</span>
-            </Link>
-
-            {/* 'Il tuo turno': icona calendario singolo che apre la mia piantina personale (/tuoturno).
-                Concettualmente distinta da 'Cambi' (frecce-scambio) e da 'Turni' (calendario+palma), anche
-                se condivide l'icona calendario con 'Turni'. */}            <Link
-              href="/tuoturno"
-              prefetch={true}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
-              aria-label="Il tuo turno"
-            >
-              <Calendar
-                size={22}
-                strokeWidth={isTuoTurno ? 2.5 : 1.5}
-                className={isTuoTurno ? 'text-foreground' : 'text-muted-foreground'}
-              />
-              <span className={cn('text-[10px]', isTuoTurno ? 'text-foreground' : 'text-muted-foreground')}>Il tuo turno</span>
-            </Link>
-
-            {/* FAB center button */}
-            <div className="flex-1 flex items-center justify-center">
-              {isTuoTurno ? (
-                <button
-                  onClick={() => setTuoTurnoFabOpen(v => !v)}
-                  className={cn(
-                    'w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors',
-                    tuoTurnoFabOpen
-                      ? 'bg-muted text-foreground border border-border'
-                      : 'bg-primary text-primary-foreground',
-                  )}
-                  aria-label={tuoTurnoFabOpen ? 'Chiudi menu' : 'Azioni turno'}
-                >
-                  {tuoTurnoFabOpen ? <X size={20} /> : <LayoutGrid size={20} />}
-                </button>
-              ) : isAdmin && isImpostazioni ? (
-                <Link
-                  href="/admin"
-                  className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                  aria-label="Pannello admin"
-                >
-                  <Lock size={20} />
-                </Link>
-              ) : isImpostazioni ? (
-                <button
-                  onClick={() => setFeedbackOpen(true)}
-                  className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                  aria-label="Nuova segnalazione"
-                >
-                  <Plus size={22} />
-                </button>
-              ) : isNotifiche ? (
-                <button
-                  onClick={() => history.length > 0 && setNotifFabOpen(v => !v)}
-                  className={cn(
-                    'w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors',
-                    notifFabOpen
-                      ? 'bg-muted text-foreground border border-border'
-                      : 'bg-primary text-primary-foreground',
-                    history.length === 0 && 'opacity-40 cursor-default',
-                  )}
-                  aria-label={notifFabOpen ? 'Chiudi menu' : 'Azioni notifiche'}
-                >
-                  {notifFabOpen ? <X size={20} /> : <Bell size={20} />}
-                </button>
-              ) : isTurni ? (
-                pathname === '/turnisala' && (isAdmin || isManager) ? (
-                  <button
-                    onPointerDown={handleTurniSalaFabPointerDown}
-                    onPointerUp={handleTurniSalaFabPointerUp}
-                    onPointerLeave={handleTurniSalaFabPointerUp}
-                    onClick={handleTurniSalaFabClick}
-                    onContextMenu={e => e.preventDefault()}
-                    className={cn(
-                      'w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors',
-                      adminFabOpen
-                        ? 'bg-muted text-foreground border border-border'
-                        : 'bg-primary text-primary-foreground',
-                    )}
-                    aria-label={adminFabOpen ? 'Chiudi menu' : 'Azioni sala'}
-                  >
-                    {adminFabOpen ? <X size={20} /> : <ArrowLeftRight size={20} />}
-                  </button>
-                ) : pathname === '/turniferie' && (isAdmin || isManager) ? (
-                  <button
-                    onPointerDown={handleFerieFabPointerDown}
-                    onPointerUp={handleFerieFabPointerUp}
-                    onPointerLeave={handleFerieFabPointerUp}
-                    onClick={handleFerieFabClick}
-                    onContextMenu={e => e.preventDefault()}
-                    className={cn(
-                      'w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-colors',
-                      ferieAdminFabOpen
-                        ? 'bg-muted text-foreground border border-border'
-                        : 'bg-primary text-primary-foreground',
-                    )}
-                    aria-label={ferieAdminFabOpen ? 'Chiudi menu' : 'Azioni ferie'}
-                  >
-                    {ferieAdminFabOpen ? <X size={20} /> : <ArrowLeftRight size={20} />}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => router.push(pathname === '/turnisala' ? '/turniferie' : '/turnisala')}
-                    className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                    aria-label="Cambia vista turni"
-                  >
-                    <ArrowLeftRight size={20} />
-                  </button>
-                )
-              ) : isVacanze ? (
-                isManager ? (
-                  <button
-                    onClick={() => router.push(nextManagerPage(pathname))}
-                    className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                    aria-label="Pagina successiva"
-                  >
-                    <ArrowLeftRight size={20} />
-                  </button>
-                ) : (
-                  <Link
-                    href="/vacanze?new=1"
-                    className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                    aria-label="Nuova richiesta ferie"
-                  >
-                    <Plus size={22} />
-                  </Link>
-                )
-              ) : (
-                isManager ? (
-                  <button
-                    onClick={() => router.push(nextManagerPage(pathname))}
-                    className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                    aria-label="Pagina successiva"
-                  >
-                    <ArrowLeftRight size={20} />
-                  </button>
-                ) : (
-                  <Link
-                    href="/dashboard?new=1"
-                    className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg"
-                    aria-label="Nuovo turno"
-                  >
-                    <Plus size={22} />
-                  </Link>
-                )
-              )}
-            </div>
-
-            <Link
-              href={isTurni ? (pathname === '/turnisala' ? '/turniferie' : '/turnisala') : turniLastPage}
-              prefetch={true}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 relative"
-              aria-label="Turni Sala e Ferie"
-            >
-              <div className="flex items-center gap-0.5">
-                <Calendar
-                  size={17}
-                  strokeWidth={pathname === '/turnisala' ? 2.5 : 1.5}
-                  className={pathname === '/turnisala' ? 'text-foreground' : 'text-muted-foreground'}
-                />
-                <span className="text-muted-foreground text-[9px] leading-none select-none">/</span>
-                <Palmtree
-                  size={17}
-                  strokeWidth={pathname === '/turniferie' ? 2.5 : 1.5}
-                  className={pathname === '/turniferie' ? 'text-foreground' : 'text-muted-foreground'}
-                />
-              </div>
-              <span className={cn('text-[10px] whitespace-nowrap', isTurni ? 'text-foreground' : 'text-muted-foreground')}>Turni Sala e Ferie</span>
-            </Link>
-
-            {rightLinks.map(({ href, icon: Icon, label, badge }) => (
-              <NavItem key={href} href={href} icon={Icon} label={label} badge={badge} active={pathname === href} />
-            ))}
-          </div>
-      </nav>
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </>
   )
 }
 
-function NavItem({ href, icon: Icon, label, badge = 0, active }: {
-  href: string; icon: React.ElementType; label: string; badge?: number; active: boolean
-}) {
-  return (
-    <Link href={href} prefetch={true} className={cn(
-      'flex-1 flex flex-col items-center justify-center gap-0.5 relative',
-      active ? 'text-foreground' : 'text-muted-foreground'
-    )}>
-      <div className="relative">
-        <Icon size={22} strokeWidth={active ? 2.5 : 1.5} />
-        {badge > 0 && (
-          /* Strati: fondo opaco «taglio» (stessa forma del badge) + badge vero:
-             il riempimento traslucido non fa più trasparire l'icona. */
-          <NotificationBadge count={badge} className="absolute -top-1 -right-1.5" />
-        )}
-      </div>
-      <span className="text-[10px]">{label}</span>
-    </Link>
-  )
+/**
+ * Il nome accessibile del comando che apre l'elenco. È per pagina e non per
+ * ruolo: «Azioni sala» non dice cosa c'è dentro, ma dice **dove sei**, che è
+ * l'informazione che serve quando il pulsante è lo stesso in tre pagine diverse.
+ * Le etichette sono quelle che l'app usava già (le spec E2E le conoscono).
+ */
+function actionControlLabel(pathname: string): string {
+  switch (pathname) {
+    case '/turnisala':
+      return 'Azioni sala'
+    case '/turniferie':
+      return 'Azioni ferie'
+    case '/tuoturno':
+      return 'Azioni turno'
+    case '/notifiche':
+      return 'Azioni notifiche'
+    default:
+      return 'Azioni'
+  }
 }

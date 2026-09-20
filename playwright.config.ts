@@ -90,6 +90,10 @@ export default defineConfig({
         // atteso dipende dal MOTORE, quindi questa spec ha senso solo girando su
         // tutti e tre (desktop, iPhone, Android).
         /design-piattaforma\.spec\.ts/,
+        // La BARRA a due skin (M2, 20/09/2026): anche qui l'atteso lo decide il
+        // motore del progetto — su WebKit la pill del comando deve nascere GIÀ
+        // nell'HTML del server, senza scivolare da un FAB.
+        /nav-piattaforma\.spec\.ts/,
       ],
       // `serviceWorkers: 'block'` NON è un dettaglio: su WebKit il service worker
       // dell'app (quello delle push) prende il controllo della pagina e le sue
@@ -110,7 +114,7 @@ export default defineConfig({
        * iPhone), quindi ogni differenza di piattaforma era dedotta, mai provata.
        */
       name: 'android',
-      testMatch: [/design-piattaforma\.spec\.ts/],
+      testMatch: [/design-piattaforma\.spec\.ts/, /nav-piattaforma\.spec\.ts/],
       use: { ...devices['Pixel 7'], browserName: 'chromium' },
     },
     {

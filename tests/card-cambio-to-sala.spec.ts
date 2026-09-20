@@ -769,7 +769,10 @@ test('quando non c\'è niente da accendere, l\'avviso dice DOVE la persona è da
      aspettando che il popup scada da sé). */
   // Il click è DISPACCIATO, non simulato dal puntatore: in `next dev` l'indicatore
   // di Next copre la bottom-nav e intercetta i click veri (solo in sviluppo).
-  await page.locator('a[aria-label="Cambi"]').first().dispatchEvent('click')
+  // M2 (20/09/2026): la voce si chiama «Cambi turno» — la barra ha cinque
+  // destinazioni e ognuna porta a UNA pagina, quindi il vecchio gruppo «Cambi»
+  // (che si scambiava col tap) non esiste più.
+  await page.locator('a[aria-label="Cambi turno"]').first().dispatchEvent('click')
   await expect
     .poll(() => new URL(page.url()).pathname, { timeout: 20_000, message: 'si doveva uscire da /turnisala' })
     .not.toBe('/turnisala')

@@ -124,6 +124,25 @@
   --fs-title3: 16px;
   --fs-large-title: 20px;
 
+  /* ── Navigazione (M2, 20/09/2026). Sono i numeri che la barra e le azioni
+     leggono al posto delle classi scritte a mano: `--nav-height` esiste perché
+     il contenuto deve sapere quanto spazio lasciare in fondo (prima era un
+     `pb-[calc(4rem_+_env(...))]` scritto nel layout), e `--fab-offset` perché
+     iOS e Android vogliono distanze diverse fra il pulsante e la barra.
+     I valori di BASE sono quelli di OGGI (64px di barra, 48px di pulsante,
+     fondo opaco): sul desktop la M2 non sposta un pixel. */
+  --nav-height: 64px;
+  --nav-item-label: 10px;
+  --nav-muted: var(--muted-foreground);
+  --nav-tint: var(--foreground);
+  --nav-indicator: transparent;
+  --on-nav-indicator: var(--foreground);
+  --nav-bg: var(--background);
+  --nav-blur: none;
+  --fab-size: 48px;
+  --fab-radius: 9999px;
+  --fab-offset: 12px;
+
   /* Shift row backgrounds */
   --shift-others-bg: #dde8f0;
   --shift-others-date-bg: #d0dde8;
@@ -572,6 +591,26 @@
   --fs-body: 15px;
   --fs-title3: 20px;
   --fs-large-title: 34px;
+  /* Tab bar HIG: 49pt oltre alla safe area, etichetta a 10pt SEMPRE visibile
+     (non si nasconde quando la voce è attiva), materiale traslucido invece di
+     un fondo pieno. La tinta della voce attiva resta il colore del testo: il
+     chrome di questa app è neutro per una regola di progetto (vedi knowledge.md,
+     «Tema a 2 colori»), quindi la differenza iOS/Android sta nella forma, nella
+     misura e nel materiale — non in una tinta blu che il resto dell'app non ha. */
+  --nav-height: 49px;
+  --nav-item-label: 10px;
+  --nav-bg: color-mix(in srgb, var(--background) 82%, transparent);
+  --nav-blur: blur(20px) saturate(180%);
+  /* Dichiarati anche qui, e trasparenti, perché il contratto
+     (`scripts/check-design-tokens.mjs`) pretende che le due piattaforme
+     dichiarino LE STESSE CHIAVI: una skin «mezza vestita» è esattamente il
+     difetto che quel controllo esiste per impedire. Su iOS la pillola di
+     Material non c'è — lì l'indicatore è la tinta del testo. */
+  --nav-indicator: transparent;
+  --on-nav-indicator: var(--foreground);
+  --fab-size: 48px;
+  --fab-radius: 9999px;
+  --fab-offset: 16px;
 }
 
 /* Android — Material 3. Roboto, controlli a 48dp, raggi 12/28, elevazione a
@@ -593,6 +632,39 @@
   --fs-body: 14px;
   --fs-title3: 16px;
   --fs-large-title: 22px;
+  /* Navigation bar M3: 80dp, etichetta a 12sp, e la voce attiva sta dentro una
+     «pillola» (32×64) che è il modo in cui Material dice «sei qui» — invece di
+     cambiare colore al testo come fa iOS. Il FAB di M3 è 56dp con angoli a 16dp
+     (non un cerchio: il cerchio è la variante expressive) e sta SOPRA la barra,
+     non dentro. `--nav-indicator` è una velatura del testo (12%), cioè lo stato
+     «selezionato» di Material, che in tema chiaro e scuro si adatta da sé. */
+  --nav-height: 80px;
+  --nav-item-label: 12px;
+  --nav-indicator: color-mix(in srgb, var(--foreground) 12%, transparent);
+  --on-nav-indicator: var(--foreground);
+  /* Fondo pieno: il materiale traslucido è una scelta di iOS (vedi sopra), e la
+     chiave va dichiarata lo stesso per il contratto. */
+  --nav-bg: var(--background);
+  --nav-blur: none;
+  --fab-size: 56px;
+  --fab-radius: 16px;
+  --fab-offset: 16px;
+}
+
+/* Su schermi STRETTI l'etichetta a 12sp di Material non entra in un quinto di
+   320px: misurato, «Impostazioni» chiede 67px e ne ha 64 (e «Cambi turno» 65).
+   Sui telefoni veri, da 360dp in su, resta 12sp; sotto scende a 10 — che non è
+   un corpo inventato per far entrare il testo, è la misura con cui iOS etichetta
+   la propria tab bar, quindi resta leggibile e coerente. La barra non scorre e
+   nessuna etichetta finisce con i puntini: era la promessa del report
+   («l'etichetta “Turni” a 7px illeggibile»), e vale a ogni larghezza.
+   Questa regola sta DOPO il blocco della piattaforma di proposito: stessa
+   specificità, quindi vince l'ordine — messa prima, la dichiarazione di base
+   l'avrebbe cancellata senza che nessuno se ne accorgesse. */
+@media (max-width: 359px) {
+  [data-platform='android'] {
+    --nav-item-label: 10px;
+  }
 }
 
 @layer base {
@@ -875,8 +947,9 @@
   .no-scrollbar { scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
 
-  /* Pop «molla» per mini-Fab e pannello mese/anno: entra con overshoot (spring),
-     stallima breve e atterraggio morbido.
+  /* Pop «molla» per il pannello mese/anno: entra con overshoot (spring),
+     stallima breve e atterraggio morbido. (Fino a M2 lo usava anche la colonna
+     dei mini-Fab: quella non esiste più.)
 
      TRAPPOLA (bug 18/09/2026, pannello mese/anno di /tuoturno mezzo fuori dallo
      schermo a sinistra): con Tailwind 4 la utility `-translate-x-1/2` NON scrive
@@ -887,13 +960,9 @@
      margine (`-ml-[120px]`, metà dei suoi 240px): i keyframe animano solo
      opacità, translateY e scala, e nessun transform deve più «ricomporre» il
      centraggio. */
-  @keyframes fab-mini-pop {
-    0% { opacity: 0; transform: translateY(12px) scale(.55); }
-    60% { opacity: 1; transform: translateY(-2px) scale(1.07); }
-    80% { transform: translateY(0) scale(.98); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
-  }
-  .fab-mini-pop { animation: fab-mini-pop .34s cubic-bezier(.34, 1.56, .64, 1) both; }
+  /* `.fab-mini-pop` è stato ELIMINATO in M2 (20/09/2026): animava la colonna dei
+     mini-FAB che la barra non ha più (le azioni ora si aprono in una sheet). Era
+     l'unico uso, verificato: nessuna pagina la nomina più. */
   @keyframes month-pop {
     0% { opacity: 0; transform: translateY(-7px) scale(.9); }
     60% { opacity: 1; transform: translateY(1px) scale(1.02); }
@@ -901,10 +970,49 @@
   }
   .month-pop { animation: month-pop .28s cubic-bezier(.34, 1.56, .64, 1) both; }
   @media (prefers-reduced-motion: reduce) {
-    .fab-mini-pop, .month-pop { animation: none; }
+    .month-pop { animation: none; }
   }
 
-  /* ── Hardcoded-color replacements ────────────────────────────── */
+  /* ── Superficie delle AZIONI (M2, 20/09/2026) ─────────────────────────────
+     Le azioni della pagina non stanno più dentro la barra: su iOS si aprono in
+     un action sheet (sale dal basso, si chiude col tap fuori o col pulsante
+     «Annulla»), su Android in un bottom sheet di Material. Le due superfici
+     condividono UN solo keyframe — la differenza fra le piattaforme sta nei
+     token (raggio, durata della curva), non in due animazioni parallele che si
+     disallineano alla prima modifica. `prefers-reduced-motion` le spegne
+     entrambe: la superficie resta (deve), l'animazione no. */
+  @keyframes nav-sheet-in {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes nav-scrim-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .nav-sheet { animation: nav-sheet-in var(--motion-duration-enter) var(--motion-ease-standard) both; }
+  .nav-scrim { animation: nav-scrim-in var(--motion-duration-exit) var(--motion-ease-standard) both; }
+  @media (prefers-reduced-motion: reduce) {
+    .nav-sheet, .nav-scrim { animation: none; }
+  }
+
+  /* Il FONDO della barra: su iOS è un materiale (sfocatura + colore traslucido),
+     altrove un fondo pieno. La differenza si esprime con due token e una classe
+     sola — `backdrop-filter: none` è un valore valido, quindi il livello base
+     non ha bisogno di un ramo condizionale. Il prefisso `-webkit-` serve a
+     Safari, che è esattamente la piattaforma su cui questo materiale conta. */
+  .nav-surface {
+    background: var(--nav-bg);
+    backdrop-filter: var(--nav-blur);
+    -webkit-backdrop-filter: var(--nav-blur);
+  }
+
+  /* La «pillola» della voce attiva nella navigation bar di Material: la forma con
+     cui M3 dice «sei qui». Su iOS il token è trasparente e la pillola non si vede
+     (lì l'indicatore è la tinta del testo), quindi la stessa marcatura serve
+     entrambe le skin. */
+  .nav-indicator { background: var(--nav-indicator); }
+
+    /* ── Hardcoded-color replacements ────────────────────────────── */
   .banner-impersonate { background: var(--banner-impersonate-bg); color: var(--banner-impersonate-text); }
 
   .panel-match { background: var(--match-panel-bg); border-color: var(--match-panel-border); }
@@ -1262,3 +1370,4 @@
 /* Il bottone-giorno è flex-col centrato: con la pillola in alto la cifra verrebbe
    a toccarla (gap −2px misurato). Si abbassa la cifra di 6px per lasciare aria. */
 .cal-has-shift { padding-top: 6px; }
+

@@ -32,8 +32,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     feedbackUnread = count ?? 0
   }
 
+  // Il fondo lo detta il token `--nav-height`, non un `4rem` scritto a mano: la
+  // barra iOS è alta 49pt e quella Android 80dp, quindi il contenuto deve chiedere
+  // alla piattaforma quanto spazio lasciare. Sul desktop il token vale 64px, cioè
+  // esattamente il 4rem di prima: lì non si sposta un pixel.
   return (
-    <div className="min-h-screen safe-area-pt pb-[calc(4rem_+_env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen safe-area-pt pb-[calc(var(--nav-height)_+_var(--safe-bottom))]">
       {/* Un solo canale realtime per l'app: invalida le query anagrafiche
           (utenti, albero squadre, mesi tuoturno) sui cambi delle tabelle. */}
       <RealtimeInvalidation />
