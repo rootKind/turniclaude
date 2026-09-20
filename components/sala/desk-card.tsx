@@ -361,6 +361,9 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
     <div
       ref={setNodeRef}
       style={style}
+      // `data-slot='desk-card'` (M5a): la maniglia con cui le skin di piattaforma
+      // vestono la card (raggio/ombra via token) senza un ramo nel JSX.
+      data-slot="desk-card"
       // `sala-card-fit` (container query per .sala-fit-text) SOLO sulla card in
       // griglia: nell'overlay di trascinamento la card è shrink-to-fit e la
       // containment in linea la farebbe collassare a zero.

@@ -31,6 +31,15 @@ export default function manifest(): MetadataRoute.Manifest {
       icons: [
         { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
         { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+        // Variante maskable: sfondo PIERO con il 20% di margine per la maschera
+        // (Android ritaglia in cerchio/rounded e scala la tela intera). Verifica
+        // safe-zone: nessun pixel trasparente entro il cerchio del 40% del lato.
+        {
+          src: '/icons/icon-maskable-512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
       ],
     }
   }
@@ -43,10 +52,15 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     background_color: '#0a0a0a',
     theme_color: '#0a0a0a',
-    orientation: 'portrait',
-    icons: [
-      { src: '/icons/icon-192-dev.png', sizes: '192x192', type: 'image/png' },
-      { src: '/icons/icon-512-dev.png', sizes: '512x512', type: 'image/png' },
-    ],
+    orientation: 'portrait',      icons: [
+        { src: '/icons/icon-192-dev.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icons/icon-512-dev.png', sizes: '512x512', type: 'image/png' },
+        {
+          src: '/icons/icon-maskable-512-dev.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+      ],
   }
 }

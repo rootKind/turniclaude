@@ -120,6 +120,13 @@ const CONTRATTO = [
   '--switch-pad', '--switch-on', '--switch-unchecked-border',
   '--input-bg', '--input-border', '--input-underline', '--input-radius',
   '--chip-height', '--chip-label',
+  // Board (M5a, 20/09/2026): la card di /turnisala e /tuoturno prende forma e
+  // profondità dalle skin (raggio 12 + ombra tenera iOS, 12 + elevazione M3
+  // Android; desktop: 8px e nessuna ombra, com'era). Nel contratto perché sono
+  // la differenza visibile della board su telefono.
+  '--desk-card-radius', '--desk-card-elevation', '--desk-card-border-w',
+  // Altezza massima degli overlay: `dvh` su iOS, `svh` altrove (M5).
+  '--dialog-max-h',
   '--motion-duration-enter', '--motion-duration-exit', '--motion-ease-standard',
   '--fs-caption', '--fs-footnote', '--fs-body', '--fs-title3', '--fs-large-title',
 ]

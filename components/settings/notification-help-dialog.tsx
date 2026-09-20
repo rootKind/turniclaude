@@ -2,11 +2,7 @@
 import { useMemo } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-
-function detectOS(): 'ios' | 'android' {
-  if (typeof navigator === 'undefined') return 'android'
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : 'android'
-}
+import { detectPlatformFromUA } from '@/lib/platform'
 
 interface NotificationHelpDialogProps {
   open: boolean
@@ -14,7 +10,11 @@ interface NotificationHelpDialogProps {
 }
 
 export function NotificationHelpDialog({ open, onClose }: NotificationHelpDialogProps) {
-  const defaultTab = useMemo(() => detectOS(), [])
+  const defaultTab = useMemo(
+    // Unica regex di piattaforma dell'app (lib/platform.ts): copia locale rimossa.
+    () => (typeof navigator === 'undefined' ? 'android' : detectPlatformFromUA(navigator.userAgent) === 'ios' ? 'ios' : 'android'),
+    [],
+  )
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>

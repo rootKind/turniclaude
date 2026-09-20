@@ -13,6 +13,7 @@ import { buildBareOwners } from '@/lib/shift-teams-matching'
 import { decodeSalaMonth, findMonthPerson, personDayShift, shiftCodePill, isSalaMonthData } from '@/lib/sala-month'
 import { theoreticalTokenFor } from '@/lib/person-shift'
 import { createClient } from '@/lib/supabase/client'
+import { detectPlatformFromUA } from '@/lib/platform'
 import { SHIFTS_QUERY_KEY, useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useAppSettings } from '@/hooks/use-app-settings'
@@ -38,9 +39,10 @@ interface Props {
   impersonatingUserId?: string
 }
 
+// Unica regex di piattaforma dell'app (lib/platform.ts): la copia locale non
+// vedeva iPad in modalità desktop, la libreria sì.
 const isIOS =
-  typeof window !== 'undefined' &&
-  /iPad|iPhone|iPod/.test(navigator.userAgent)
+  typeof navigator !== 'undefined' && detectPlatformFromUA(navigator.userAgent) === 'ios'
 
 export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, impersonatingUserId }: Props) {
   const [selectedDate, setSelectedDate] = useState<Date>()
@@ -315,7 +317,10 @@ export function ShiftDialog({ open, onClose, isSecondary, isDcoPlus = false, imp
           'max-w-sm w-full p-0 gap-0 flex flex-col shift-dialog',
           isIOS && 'ios-dialog-fix'
         )}
-        style={{ maxHeight: isIOS ? '85dvh' : '85svh' }}
+        // L'altezza massima viene dal token di piattaforma (--dialog-max-h):
+        // iOS usa `dvh` (la barra dell'URL collassa), altrove `svh`. Prima qui
+        // c'era un ramo isIOS inline — l'unico rimasto, ora in CSS.
+        style={{ maxHeight: 'var(--dialog-max-h)' }}
       >
         {/*
           RIGA DELLA «X» — fix 17/09/2026.

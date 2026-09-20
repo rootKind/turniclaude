@@ -1,19 +1,21 @@
 'use client'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Smartphone } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
+import { BadgeCheck, Download, Smartphone } from 'lucide-react'
 import { useEffect, useState } from 'react'
-
-function detectOS(): 'ios' | 'android' {
-  if (typeof navigator === 'undefined') return 'android'
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : 'android'
-}
+import { detectPlatformFromUA } from '@/lib/platform'
+import { usePwaInstall } from '@/components/providers/pwa-install'
 
 export default function InstallaPage() {
   const [defaultTab, setDefaultTab] = useState<'ios' | 'android'>('android')
   const [host, setHost] = useState('')
+  const { canInstall, isInstalled, install } = usePwaInstall()
 
   useEffect(() => {
-    setDefaultTab(detectOS())
+    // Unica regex di piattaforma dell'app (lib/platform.ts): prima qui c'era una
+    // copia locale senza iPad-as-Mac, ora la decisione vive in un solo posto.
+    setDefaultTab(detectPlatformFromUA(navigator.userAgent) === 'ios' ? 'ios' : 'android')
     setHost(window.location.host)
   }, [])
 
@@ -35,6 +37,33 @@ export default function InstallaPage() {
             <TabsTrigger value="android" className="flex-1">Android</TabsTrigger>
             <TabsTrigger value="ios" className="flex-1">iOS</TabsTrigger>
           </TabsList>
+
+        {/* Proposta NATIVA (M5b): dove Chrome espone beforeinstallprompt il
+            pulsante apre il foglio di installazione di sistema — lo stesso del
+            menu ⋮ — invece di far seguire all'utente i passaggi a mano. Su iOS
+            l'evento non esiste (l'installazione è solo via Condivisione), quindi
+            lì restano le istruzioni: il blocco è condizionato a canInstall e non
+            finge un fallback. */}
+        {canInstall && !isInstalled && (
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={() => {
+              void install().then((outcome) => {
+                if (outcome === 'accepted') toast.success('App installata correttamente.')
+              })
+            }}
+          >
+            <Download className="w-4 h-4" />
+            Installa ora
+          </Button>
+        )}
+        {isInstalled && (
+          <p className="text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+            <BadgeCheck className="w-4 h-4 text-emerald-600" />
+            App già installata su questo dispositivo.
+          </p>
+        )}
 
           <TabsContent value="android" className="mt-4">
             <div className="rounded-lg border p-4 space-y-1">

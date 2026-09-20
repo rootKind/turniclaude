@@ -2994,10 +2994,9 @@ prendeva la riga 6 (`@custom-variant dark (&:is(.dark *))`) e confrontava due vo
 (36 coppie invece di 18 × 2, tutte verdi per finta): le regex ora sono ancorate a inizio riga, con
 una guardia sull'estrazione.
 
-**Ancora da fare (M5):** board (desk board, celle, confronto), PWA specifics (theme-color
-statico, splash, install flow), iconografia e pulizia finale (stili inline, ratchet contrasti).
-Fatte la M3 (overlay a due forme, allarmi veri, snackbar) e la M4 (controlli a doppia skin —
-sezione in fondo al file).
+**Ancora da fare (M5):** ~~board, PWA specifics, iconografia e pulizia~~ → FATTA (sezione in
+fondo al file). Fatte la M3 (overlay a due forme, allarmi veri, snackbar) e la M4 (controlli a
+doppia skin).
 ---
 
 ## 20/09/2026 — Design system duale, M2: la barra (destinazioni) e le azioni (fuori dalla barra)
@@ -3269,4 +3268,53 @@ finestra nativa compare). Suite intera: **285 passati / 9 saltati**.
    col mouse (chromium desktop + android/Pixel); su WebKit resta la prova HIG (assenza di velo
    e ripple) e si salta l'iterazione M3 col motivo stampato. Misurare lo stato di pressione su
    un iPhone finto è misurare una cosa che l'utente non può fare.
+
+---
+
+## 20/09/2026 — Design system duale, M5: la board, la PWA e la pulizia
+
+Quinta e ultima milestone. Tre fronti:
+
+**1. La card della BOARD ha una forma di piattaforma (issue n. 8 del report).** Il root di
+`components/sala/desk-card.tsx` ha `data-slot="desk-card"` e tre token nuovi:
+`--desk-card-radius` (8px base = `rounded-lg` com'era; 12 su telefono, superficie di sistema
+iOS / forma «medium» M3), `--desk-card-elevation` (NESSUNA ombra base e desktop; ombra tenera
+0.06 su iOS dove la gerarchia la danno bordo e fondo; elevazione M3 livello 1 su Android, dove
+l'ombra È il significato) e `--desk-card-border-w` (1px ovunque, dichiarato perché il contratto
+pretende le stesse chiavi). La regola `[data-slot='desk-card']` sta fuori dai layer, come le
+altre: vince sulle utility del JSX senza toccare il markup. Le card pixel-sensitive delle suite
+restano IDENTICHE su desktop — la prova è la suite verde al primo colpo.
+
+**2. La PWA.**
+ - **Icone maskable**: le icone del manifest erano un glifo su tela TRASPARENTE (91% alpha 0) —
+   su Android la maschera circolare le taglia e le rimpicciolisce. Generate 4 varianti
+   (`icon-maskable-{192,512}[-dev].png`) dall'apple-icon (sfondo pieno, glifo già composto),
+   tela 80%, safe-zone del 40% verificata PIXEL PER PIXEL (0 buchi su 2760 campioni). Nel
+   manifest solo la 512 con `purpose: 'maskable'` (i 192 ridondanti li guarda solo Lighthouse).
+ - **theme-color dinamico**: GIÀ A POSTO — `components/providers/theme-color.tsx` sincronizza il
+   meta col tema corrente tramite MutationObserver (il workaround App Router documentato). Non
+   si tocca: piattaforma non c'entra, tema sì.
+ - **Splash**: già per piattaforma (nascosto su Android via `@supports`, adattivo al tema).
+ - **Install flow**: nuovo `components/providers/pwa-install.ts` — intercetta
+   `beforeinstallprompt` (preventDefault: niente mini-infobar di Chrome), stato a livello di
+   modulo + `useSyncExternalStore`, `display-mode: standalone` come prova di «già installata».
+   /installa mostra «Installa ora» SOLO dove `canInstall` è vero (apre il foglio di sistema,
+   lo stesso del menu ⋮), «App già installata» quando standalone, e le istruzioni a mano
+   restano per iOS (dove l'evento NON esiste: niente fallback finto). Contratto: 56 chiavi × 2
+   (entra anche `--dialog-max-h`: 85dvh su iOS, 85svh altrove — l'ultimo stile inline
+   condizionato alla piattaforma nel JSX, spostato in token).
+ - **Una regex di piattaforma sola**: `detectOS()` copie in /installa e
+   notification-help-dialog eliminate, `isIOS` di shift-dialog ora via
+   `detectPlatformFromUA` — il ratchet del contratto («0 regex UA fuori da lib/platform.ts»)
+   lo pretende e lo prova.
+
+**3. Pulizia.** Inventario finale degli stili inline con px hardcoded nei componenti: 3, di cui
+1 eliminato (il ramo isIOS di shift-dialog → `--dialog-max-h`), 2 LEGGITTIMI e documentati
+(height 28px del titolo card e minWidth chip: valori di LAYOUT della board, non skin).
+
+**Prove.** `tests/board-piattaforma.spec.ts`, 2 casi × 3 progetti: la card misurata sul motore
+vero (desktop 8px/none COM'ERA, 12px + ombra su telefono) e /installa su WebKit SENZA pulsante
+(il test che fallirebbe con un fallback finto). Suite intera: **285 passati / 8 saltati**,
+tsc pulito, contratto 56 chiavi × 2. Skin verificate dal vivo in preview su ?platform=ios e
+?platform=android (segmented + ombra tenera / tab M3 + barretta + FAB 56dp + elevazione).
 <arg_value><b88a6f17>

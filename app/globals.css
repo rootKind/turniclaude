@@ -181,6 +181,16 @@
   --dialog-scrim: rgb(0 0 0 / 0.10);
   --dialog-scrim-blur: blur(4px);
 
+  /* Board dati (M5a): forma della card di /turnisala e /tuoturno. I valori di
+     base sono quelli di OGGI (desktop e suite E2E pixel-sensitive devono restare
+     identici): raggio 8px = `rounded-lg`, nessuna ombra. Le skin le ridefiniscono
+     sotto. */
+  --desk-card-radius: 8px;
+  --desk-card-elevation: none;
+  --desk-card-border-w: 1px;
+  /* Altezza massima di un overlay: `svh` (viewport STATICo) come base. */
+  --dialog-max-h: 85svh;
+
   /* Shift row backgrounds */
   --shift-others-bg: #dde8f0;
   --shift-others-date-bg: #d0dde8;
@@ -722,6 +732,16 @@
   /* Capsule dei filtri: 32pt di altezza (le pill di sistema), testo a 13. */
   --chip-height: 32px;
   --chip-label: 13px;
+  /* Board (M5a): la card dati su iOS ha il raggio della superficie di sistema
+     (12pt, come le celle di una collection view) e un'ombra TENERE: su iOS la
+     gerarchia la danno il bordo e lo sfondo, l'ombra è un accento, non un
+     livello (le «elevation» numerate sono una convenzione di Material). */
+  --desk-card-radius: 12px;
+  --desk-card-elevation: 0 1px 2px rgb(0 0 0 / 0.06);
+  --desk-card-border-w: 1px;
+  /* Su iOS l'altezza DINAMICA (`dvh`): la barra dell'URL collassa allo
+     scorrere, e l'overlay che la segue non lascia un VuOTO in fondo. */
+  --dialog-max-h: 85dvh;
 }
 
 /* iOS in TEMA SCURO: la scala delle superfici si CAPOVOLGE, quindi traccia e
@@ -821,6 +841,13 @@
      contorno PIENO (il tratteggio è una cosa del web, non di Material). */
   --chip-height: 32px;
   --chip-label: 14px;
+  /* Board (M5a): la card dati su Android è una superficie M3 con la forma
+     «medium» (12dp) e l'ELEVAZIONE di livello 1 — l'ombra non è un ornamento,
+     è il modo in cui Material dice «questa superficie sta sopra lo sfondo». */
+  --desk-card-radius: 12px;
+  --desk-card-elevation: 0 1px 2px rgb(0 0 0 / 0.10), 0 1px 3px 1px rgb(0 0 0 / 0.06);
+  --desk-card-border-w: 1px;
+  --dialog-max-h: 85svh;
 }
 
 /* Su schermi STRETTI l'etichetta a 12sp di Material non entra in un quinto di
@@ -933,6 +960,19 @@
   border-radius: 9999px;
   font-size: var(--chip-label);
   font-weight: 500;
+}
+
+/* ── M5a — LA CARD DELLA BOARD (turnisala / tuoturno) ──────────────────────
+   La forma e la profondità: raggio, ombra e spessore del bordo vengono dai
+   token, quindi il desktop resta ESATTAMENTE com'era (8px = rounded-lg, nessuna
+   ombra) e sono le skin a vestire il telefono: raggio 12 su entrambe, ombra
+   tenera su iOS, elevazione M3 su Android. Le classi utility del componente
+   (`rounded-lg`) restano nel JSX: la regola non in layer vince su di loro,
+   quindi non serve toccare il markup per cambiare la forma su telefono. */
+[data-slot='desk-card'] {
+  border-radius: var(--desk-card-radius);
+  box-shadow: var(--desk-card-elevation);
+  border-width: var(--desk-card-border-w);
 }
 
 /* L'increspatura è un movimento: a chi la richiede, niente. */

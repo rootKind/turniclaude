@@ -104,6 +104,10 @@ export default defineConfig({
         // si provano sul motore vero, e WebKit è quello con gli eventi pointer
         // più severi.
         /controlli-piattaforma\.spec\.ts/,
+        // La BOARD e la PWA (M5, 20/09/2026): la card dati cambia raggio/ombra
+        // col motore (desktop com'era, 12 + ombra su telefono) — l'atteso lo
+        // decide il progetto, come per le altre spec di piattaforma.
+        /board-piattaforma\.spec\.ts/,
       ],
       // `serviceWorkers: 'block'` NON è un dettaglio: su WebKit il service worker
       // dell'app (quello delle push) prende il controllo della pagina e le sue
@@ -129,6 +133,7 @@ export default defineConfig({
         /nav-piattaforma\.spec\.ts/,
         /overlay-piattaforma\.spec\.ts/,
         /controlli-piattaforma\.spec\.ts/,
+        /board-piattaforma\.spec\.ts/,
       ],
       use: { ...devices['Pixel 7'], browserName: 'chromium' },
     },
