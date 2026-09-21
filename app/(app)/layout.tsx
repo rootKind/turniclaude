@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // alla piattaforma quanto spazio lasciare. Sul desktop il token vale 64px, cioè
   // esattamente il 4rem di prima: lì non si sposta un pixel.
   return (
-    <div className="min-h-screen safe-area-pt pb-[calc(var(--nav-height)_+_var(--safe-bottom))]">
+    <div className="min-h-screen safe-area-pt safe-area-px pb-[calc(var(--nav-height)_+_var(--safe-bottom))]">
       {/* Un solo canale realtime per l'app: invalida le query anagrafiche
           (utenti, albero squadre, mesi tuoturno) sui cambi delle tabelle. */}
       <RealtimeInvalidation />

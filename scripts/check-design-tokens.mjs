@@ -83,7 +83,12 @@ assert.notEqual(darkTokens['--background'], rootTokens['--background'], '.dark l
 const CONTRATTO = [
   '--font-ui',
   '--touch-min',
-  '--radius-control', '--radius-card', '--radius-sheet',
+  // `--radius-card` NON c'è: era nel contratto dalla M1 ed è stato RIMOSSO in M6
+  // perché non lo leggeva nessuno (le superfici prendono il raggio dal loro
+  // componente: `--radius-sheet`, `--desk-card-radius`, `--dialog-radius`). Un
+  // token che non disegna niente non è una promessa, è peso — e il controllo 6 qui
+  // sotto ora lo direbbe comunque.
+  '--radius-control', '--radius-sheet',
   // Navigazione (M2): l'altezza della barra, il materiale del fondo, la pillola
   // della voce attiva e la forma delle azioni. Sono nel contratto perché una
   // chiave dichiarata su una piattaforma sola darebbe una skin mezza vestita.
@@ -127,6 +132,13 @@ const CONTRATTO = [
   '--desk-card-radius', '--desk-card-elevation', '--desk-card-border-w',
   // Altezza massima degli overlay: `dvh` su iOS, `svh` altrove (M5).
   '--dialog-max-h',
+  // Vetro (M6, 22/09/2026): il bordo della superficie e la luce di bordo interna.
+  // Nascono PRIMA del materiale completo (M10) perché il vetro ha bisogno della
+  // sua via d'uscita accessibile per esistere: `prefers-reduced-transparency` li
+  // spegne, `prefers-contrast: more` li rinforza. Su Android sono spenti — il
+  // materiale traslucido è una scelta di iOS — ma le chiavi esistono su entrambe
+  // le piattaforme, come vuole il contratto.
+  '--glass-rim', '--glass-highlight',
   '--motion-duration-enter', '--motion-duration-exit', '--motion-ease-standard',
   '--fs-caption', '--fs-footnote', '--fs-body', '--fs-title3', '--fs-large-title',
 ]
@@ -179,6 +191,8 @@ const DEVONO_DIFFERIRE = [
   '--switch-on', '--switch-unchecked-border',
   '--input-bg', '--input-underline', '--input-radius',
   '--chip-label', '--state-layer-hover', '--state-layer-press', '--ripple',
+  // Vetro: su iOS è un bordo velato e un filo chiaro, su Android entrambi spenti.
+  '--glass-rim', '--glass-highlight',
 ]
 // `--input-border` NON è qui per lo stesso motivo di `--dialog-scrim-blur`: è
 // `transparent` su ENTRAMBE (né iOS né M3 mettono bordi laterali ai campi), e
@@ -359,9 +373,43 @@ assert.ok(
   `copie della regex sullo User-Agent: ${uaRegex.length} (massimo ${MAX_UA_REGEX})\n    ${uaRegex.join('\n    ')}`,
 )
 
+// ── 6. nessun token di piattaforma dichiarato e mai LETTO ─────────────────────
+/**
+ * Una skin può essere «viva» (i valori divergono) ed essere comunque INVISIBILE:
+ * se nessuna regola legge un token, quella differenza non si disegna. È il caso di
+ * `--elevation-nav`, che fino a M6 era dichiarato in tre blocchi e letto da
+ * nessuno — la barra usava una classe del web e la promessa «filo sottile su iOS,
+ * ombra di elevazione su Android» non esisteva da nessuna parte. Il controllo di
+ * sopra non poteva accorgersene: guarda i VALORI, non i LETTORI. Questo chiude il
+ * buco, e vale per ogni token dei blocchi di piattaforma.
+ *
+ * Cosa conta come lettura: `var(--x)` (anche con ripiego) e
+ * `getPropertyValue('--x')`. I commenti del CSS vengono tolti prima di cercare,
+ * perché un token nominato in una spiegazione non è un token usato.
+ */
+const SORGENTI_TOKEN = [
+  ...new Set(['app/globals.css', ...walk('app'), ...walk('components'), ...walk('lib'), ...walk('hooks'), ...walk('scripts')]),
+].filter((file) => /\.(css|tsx?|mjs|js)$/.test(file))
+
+const LETTURE = new Set()
+for (const file of SORGENTI_TOKEN) {
+  const testo = file === 'app/globals.css' ? stripComments(readFileSync(file, 'utf8')) : readFileSync(file, 'utf8')
+  for (const m of testo.matchAll(/var\(\s*(--[\w-]+)/g)) LETTURE.add(m[1])
+  for (const m of testo.matchAll(/getPropertyValue\(\s*['"`](--[\w-]+)['"`]\s*\)/g)) LETTURE.add(m[1])
+}
+
+const NON_LETTI = chiaviIos.filter((k) => !LETTURE.has(k))
+assert.equal(
+  NON_LETTI.length,
+  0,
+  'token di piattaforma dichiarati e mai letti (una skin così è invisibile: la differenza non si disegna):\n    ' +
+    NON_LETTI.join('\n    '),
+)
+
 console.log(
   `OK — token di piattaforma coerenti (${chiaviIos.length} chiavi × 2), scala tipografica collegata, ` +
     `contrasto AA su ${COPPIE.length * 2 - SALTATE_ATTESE.length} coppie ` +
     `(${SALTATE_ATTESE.length} saltate: sfondo traslucido in scuro), ` +
-    `ratchet: ${textPx} misure arbitrarie, ${uaRegex.length} regex UA fuori da lib/platform.ts`,
+    `ratchet: ${textPx} misure arbitrarie, ${uaRegex.length} regex UA fuori da lib/platform.ts, ` +
+    `nessun token di piattaforma senza lettore`,
 )

@@ -62,7 +62,7 @@ export function FilterChip({
         onPointerDown?.(e)
       }}
       className={cn(
-        'flex-shrink-0 flex items-center gap-1 transition-colors select-none',
+        'touch-expand flex-shrink-0 flex items-center gap-1 transition-colors select-none',
         selected
           ? 'chip-selected'
           : cn(

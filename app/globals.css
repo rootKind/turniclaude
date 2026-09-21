@@ -94,6 +94,24 @@
      scritto prima direttamente nelle due classi → nessun cambio visivo. */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* M6 (22/09/2026): anche i LATI. Fino a ieri non servivano perché nessuna
+     schermata si usava in orizzontale; ma la board di sala si usa ESATTAMENTE
+     così, e con il notch di lato (iPhone in landscape) il contenuto finiva sotto
+     l'angolo arrotondato. `env()` dà 0 dove non c'è intaglio, quindi su desktop e
+     sugli schermi senza notch questi due token non spostano niente. */
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* M6 — IL MOLTIPLICATORE DEL TESTO. La scala qui sotto è in `rem` e moltiplicata
+     per questo: 1 = com'è oggi, e una preferenza in-app (o un giorno l'impostazione
+     di sistema, quando i browser la esporranno) diventa UNA dichiarazione invece di
+     trenta. Il valore sta su :root perché le skin di piattaforma ereditano la
+     variabile e la leggono dentro i loro `calc()`.
+     NON si chiama `--fs-*` di proposito: il contratto dei token riserva quel
+     prefisso ai GRADINI della scala, e pretende che ognuno abbia la sua utility
+     `text-*`. Questo non è un gradino, è il moltiplicatore che li scala tutti — e
+     il contratto l'ha detto subito, bocciando la prima versione del nome. */
+  --type-scale: 1;
 
   /* ── LIVELLO 2, valori di BASE (nessun `data-platform`: desktop, o piattaforma
      che non riconosciamo). Sono deliberatamente i valori che l'app ha OGGI, così
@@ -110,19 +128,31 @@
   --font-ui: var(--font-geist, system-ui);
   --touch-min: 40px;
   --radius-control: 10px;
-  --radius-card: 10px;
   --radius-sheet: 10px;
   --elevation-nav: 0 -1px 0 var(--separator);
+  /* M6 — I PRIMI DUE LIVELLI DEL VETRO (bordo e luce di bordo interna). Sono qui,
+     e non in M10, perché il vetro ha bisogno di una via d'uscita ACCESSIBILE prima
+     di esistere: `prefers-reduced-transparency` li spegne più in basso. Sulla
+     piattaforma base (desktop) e su Android sono trasparenti — nessun vetro, come
+     deve essere: il materiale traslucido è una scelta di iOS. Su iOS sono
+     dichiarati e il primo consumatore è `.nav-surface`. */
+  --glass-rim: transparent;
+  --glass-highlight: none;
   --elevation-dialog: 0 20px 60px rgb(0 0 0 / 0.22);
   --scrim: rgb(0 0 0 / 0.32);
   --motion-duration-enter: 300ms;
   --motion-duration-exit: 200ms;
   --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-  --fs-caption: 12px;
-  --fs-footnote: 12px;
-  --fs-body: 14px;
-  --fs-title3: 16px;
-  --fs-large-title: 20px;
+  /* M6 — la scala in `rem` × `--type-scale` invece che in px secchi. `rem` è ciò che
+     rende la misura sensibile all'impostazione di testo del sistema (e alle
+     preferenze del browser): un px non lo è, mai. A `--type-scale: 1` e radice 16px
+     i valori sono IDENTICI a prima (0.875rem = 14px), quindi il desktop non si
+     muove di un pixel. */
+  --fs-caption: calc(0.75rem * var(--type-scale));
+  --fs-footnote: calc(0.75rem * var(--type-scale));
+  --fs-body: calc(0.875rem * var(--type-scale));
+  --fs-title3: calc(1rem * var(--type-scale));
+  --fs-large-title: calc(1.25rem * var(--type-scale));
 
   /* ── Navigazione (M2, 20/09/2026). Sono i numeri che la barra e le azioni
      leggono al posto delle classi scritte a mano: `--nav-height` esiste perché
@@ -653,7 +683,6 @@
   --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
   --touch-min: 44px;
   --radius-control: 10px;
-  --radius-card: 12px;
   --radius-sheet: 10px;
   --elevation-nav: 0 -1px 0 var(--separator);
   --elevation-dialog: 0 20px 60px rgb(0 0 0 / 0.22);
@@ -661,11 +690,20 @@
   --motion-duration-enter: 320ms;
   --motion-duration-exit: 220ms;
   --motion-ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
-  --fs-caption: 12px;
-  --fs-footnote: 13px;
-  --fs-body: 15px;
-  --fs-title3: 20px;
-  --fs-large-title: 34px;
+  /* M6: stessa scala di prima, in `rem` perché l'utente possa ingrandirla. */
+  --fs-caption: calc(0.75rem * var(--type-scale));
+  --fs-footnote: calc(0.8125rem * var(--type-scale));
+  --fs-body: calc(0.9375rem * var(--type-scale));
+  --fs-title3: calc(1.25rem * var(--type-scale));
+  --fs-large-title: calc(2.125rem * var(--type-scale));
+  /* IL VETRO (M6: primi due livelli; M10 completa). Il bordo è una velatura del
+     contenuto — 12% del testo — così tiene la superficie sia su tema chiaro sia su
+     scuro senza una seconda palette. La luce di bordo è il filo schiarito sul
+     bordo SUPERIORE: è il segnale che la superficie ha uno spessore.
+     `prefers-reduced-transparency` li spegne più in basso, ed è la ragione per cui
+     nascono qui e non direttamente in M10. */
+  --glass-rim: color-mix(in srgb, var(--foreground) 12%, transparent);
+  --glass-highlight: inset 0 0.5px 0 rgb(255 255 255 / 0.25);
   /* Tab bar HIG: 49pt oltre alla safe area, etichetta a 10pt SEMPRE visibile
      (non si nasconde quando la voce è attiva), materiale traslucido invece di
      un fondo pieno. La tinta della voce attiva resta il colore del testo: il
@@ -767,7 +805,6 @@
   --font-ui: Roboto, 'Noto Sans', 'Google Sans', system-ui, sans-serif;
   --touch-min: 48px;
   --radius-control: 12px;
-  --radius-card: 12px;
   --radius-sheet: 28px;
   --elevation-nav: 0 -2px 6px rgb(0 0 0 / 0.10);
   --elevation-dialog: 0 8px 24px rgb(0 0 0 / 0.22);
@@ -775,11 +812,16 @@
   --motion-duration-enter: 300ms;
   --motion-duration-exit: 200ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --fs-caption: 12px;
-  --fs-footnote: 12px;
-  --fs-body: 14px;
-  --fs-title3: 16px;
-  --fs-large-title: 22px;
+  /* M6: stessa scala di prima, in `rem` perché l'utente possa ingrandirla. */
+  --fs-caption: calc(0.75rem * var(--type-scale));
+  --fs-footnote: calc(0.75rem * var(--type-scale));
+  --fs-body: calc(0.875rem * var(--type-scale));
+  --fs-title3: calc(1rem * var(--type-scale));
+  --fs-large-title: calc(1.375rem * var(--type-scale));
+  /* Material non usa il materiale traslucido per il chrome: le chiavi esistono (il
+     contratto pretende le STESSE chiavi sui due lati) e sono spente. */
+  --glass-rim: transparent;
+  --glass-highlight: none;
   /* Navigation bar M3: 80dp, etichetta a 12sp, e la voce attiva sta dentro una
      «pillola» (32×64) che è il modo in cui Material dice «sei qui» — invece di
      cambiare colore al testo come fa iOS. Il FAB di M3 è 56dp con angoli a 16dp
@@ -980,6 +1022,129 @@
   [data-platform='android'] [data-slot='button']::before,
   [data-platform='android'] [data-slot='chip']::before {
     animation: none;
+  }
+}
+
+/* ══ M6 — IGIENE DEL TOCCO, DELLO SCORRIMENTO E DEL VETRO (22/09/2026) ═══════
+   Le regole che non si vedono in uno screenshot e che su un telefono si sentono
+   tutte: come scorre, dove risponde il dito, cosa fa il sistema quando tocco, e
+   chi ha chiesto di non avere il vetro. Stanno FUORI dai layer (come la skin M4)
+   perché devono battere le utility dei componenti; il desktop non è toccato,
+   perché tutto ciò che cambia qualcosa mira le due piattaforme a dito o un
+   contenitore che sul desktop non c'è. */
+
+/* 1. LO SCORRIMENTO NON SFONDA.
+   In BROWSER il pull-to-refresh resta: lì è atteso e innocuo. Dentro la PWA no —
+   il tiro dal fondo ricaricherebbe l'app a metà lavoro, e una ricarica in un'app
+   di turni vuol dire perdere il posto in cui si era arrivati. Si blocca solo
+   dove il gesto è un danno. */
+@media (display-mode: standalone) {
+  html,
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+/* Il contenuto che scorre DENTRO un overlay non deve trascinare la pagina che sta
+   sotto: è il «nested scroll» che chiedono sia le HIG sia Material. */
+[data-slot='dialog-content'],
+.overlay-sheet {
+  overscroll-behavior: contain;
+}
+/* La tabella di confronto scorre in orizzontale DI PROPOSITO: lì il gesto non deve
+   mai arrivare al bordo dello schermo e diventare uno swipe di navigazione del
+   browser (su Chrome Android: gesto indietro; su Safari: pagina precedente). */
+.cmp-table {
+  overscroll-behavior-x: none;
+}
+
+/* 2. IL LAMPO DEL SISTEMA. iOS e Chrome Android dipingono il loro evidenziatore
+   (grigio o azzurro) su ogni tocco: litiga con le due skin, che il loro feedback
+   ce l'hanno già — la velatura di Material, lo spegnimento del contenuto su iOS. */
+html {
+  -webkit-tap-highlight-color: transparent;
+  /* 3. E IL TESTO NON VIENE PIÙ «AUTOSIZZATO» a caso ruotando lo schermo: la scala
+     (`--fs-*`, in `rem` × `--type-scale`) vuole essere l'unica a decidere la misura. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* 4. L'AREA DI TOCCO DI iOS. La HIG chiede 44pt di AREA, non di disegno: il
+   controllo resta com'è e l'area si allarga sotto, invisibile. Il pseudo-elemento
+   è centrato sul controllo e vale `max(100%, --touch-min)`: cresce solo dove serve.
+   Su ANDROID questo NON si può fare, e vale la pena dire perché: il ripple di
+   Material richiede `overflow: hidden` sul controllo (vedi M4), e un contenitore
+   che ritaglia non lascia uscire nessun pseudo-elemento. Lì il target da 48dp si
+   ottiene con la TAGLIA vera — la scala XS–XL di M3 Expressive (M9).
+   `.touch-dense` è l'uscita di sicurezza per le barre in cui i controlli distano
+   meno del minimo: lì un'area allargata ruberebbe il tocco al vicino, che è
+   peggio di un bersaglio piccolo. */
+[data-platform='ios'] .touch-expand {
+  position: relative;
+}
+[data-platform='ios'] .touch-expand::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  width: max(100%, var(--touch-min));
+  height: max(100%, var(--touch-min));
+}
+.touch-dense .touch-expand::after {
+  width: 100%;
+  height: 100%;
+}
+
+/* 5. LA BARRA: bordo e luce di bordo su iOS, ELEVAZIONE su Android. Qui la
+   differenza fra le due piattaforme si vede finalmente: iOS tiene il materiale
+   (bordo velato + il filo chiaro sul bordo alto, che è il segnale che la superficie
+   ha uno spessore), Android alza la barra con l'OMBRA di elevazione — che è come
+   Material dice «questa superficie sta sopra il contenuto» — e per questo rinuncia
+   al filo, che è una convenzione del web, non di Material.
+   Fino a M6 `--elevation-nav` era dichiarato in quattro posti e letto da nessuno:
+   la skin prometteva una differenza che non si disegnava. Il controllo nuovo in
+   `scripts/check-design-tokens.mjs` esiste per impedire che succeda di nuovo. */
+/* 5-bis. IL FONT DI PIATTAFORMA, FINALMENTE APPLICATO. `--font-ui` era dichiarato
+   dalle skin (SF su iOS, Roboto su Android) e letto da NESSUNO: il `<body>` ha la
+   classe di Geist, quindi su iPhone l'app disegnava Geist — cioè la skin iOS non
+   usava il font di sistema, che è la prima cosa che dice la HIG. La prova E2E
+   controllava il TOKEN, non il font disegnato: è lo stesso buco del token mai
+   letto, e l'ha trovato il controllo nuovo. Qui il desktop resta esattamente
+   com'era (Geist dalla classe di Next, con le sue metriche di ripiego). */
+[data-platform='ios'] body,
+[data-platform='android'] body {
+  font-family: var(--font-ui);
+}
+
+[data-platform='ios'] .nav-surface {
+  border-top-color: var(--glass-rim);
+  box-shadow: var(--glass-highlight);
+}
+[data-platform='android'] .nav-surface {
+  border-top-width: 0;
+  box-shadow: var(--elevation-nav);
+}
+
+/* 6. CHI NON VUOLE IL VETRO NON DEVE AVERLO. «Riduci trasparenza» e «Aumenta
+   contrasto» sono interruttori VERI del sistema (iOS li ha da sempre, Android ha
+   il contrasto alto): un materiale traslucido che li ignora peggiora la
+   leggibilità di chi li ha accesi. Qui il vetro si spegne e, per il contrasto, il
+   bordo si RINFORZA invece di sparire — che è la richiesta opposta.
+   I selettori sono indentati di proposito: il contratto dei token legge i blocchi
+   di piattaforma sulle righe che COMINCIANO con `[data-platform`, e questi sono
+   override, non dichiarazioni — non devono entrare nel confronto fra le skin. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-platform='ios'],
+  [data-platform='android'] {
+    --glass-rim: transparent;
+    --glass-highlight: none;
+  }
+}
+@media (prefers-contrast: more) {
+  [data-platform='ios'],
+  [data-platform='android'] {
+    --glass-rim: var(--foreground);
+    --glass-highlight: none;
   }
 }
 
@@ -1258,6 +1423,12 @@
 
   /* Safe area for top (status bar / notch — edge-to-edge) */
   .safe-area-pt { padding-top: var(--safe-top); }
+
+  /* M6 — i LATI. Fino a ieri non servivano (nessuna schermata si usava in
+     orizzontale), ma la board di sala si usa esattamente così: con il notch di
+     lato il primo e l'ultimo pezzo di contenuto finivano sotto l'angolo
+     arrotondato. Vale zero dove non c'è intaglio, quindi il desktop non si muove. */
+  .safe-area-px { padding-left: var(--safe-left); padding-right: var(--safe-right); }
 
   /* Hide scrollbar while keeping scroll functionality */
   .no-scrollbar { scrollbar-width: none; }

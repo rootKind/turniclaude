@@ -63,6 +63,26 @@ async function token(page: Page, nome: string): Promise<string> {
   )
 }
 
+/**
+ * Lo stesso token, ma RISOLTO in px.
+ *
+ * Serve da M6 (22/09/2026): la scala tipografica è in `rem` × `--type-scale`, così
+ * l'impostazione di testo del sistema può ingrandire l'app. `getPropertyValue`
+ * restituirebbe la stringa scritta nel foglio (`0.9375rem`), che non dice se il
+ * token si risolve in una misura vera; qui il valore passa da una `font-size`
+ * reale e torna in pixel — cioè si prova la cosa che l'utente vede.
+ */
+async function tokenPx(page: Page, nome: string): Promise<string> {
+  return page.evaluate((n) => {
+    const el = document.createElement('span')
+    el.style.fontSize = `var(${n})`
+    document.body.appendChild(el)
+    const v = getComputedStyle(el).fontSize
+    el.remove()
+    return v
+  }, nome)
+}
+
 async function apri(page: Page, url = PAGINA) {
   await page.goto(url, { waitUntil: 'domcontentloaded' })
   // L'attributo è nell'HTML iniziale: se c'è un flash, è prima di questo momento.
@@ -93,8 +113,8 @@ test.describe('Piattaforma: il server scrive data-platform dallo User-Agent', ()
     await apri(page)
 
     expect(await token(page, '--touch-min'), 'minimo dei controlli').toBe(ATTESI[atteso].touch)
-    expect(await token(page, '--fs-body'), 'corpo').toBe(ATTESI[atteso].body)
-    expect(await token(page, '--fs-title3'), 'titolo di sezione').toBe(ATTESI[atteso].title3)
+    expect(await tokenPx(page, '--fs-body'), 'corpo').toBe(ATTESI[atteso].body)
+    expect(await tokenPx(page, '--fs-title3'), 'titolo di sezione').toBe(ATTESI[atteso].title3)
     expect(await token(page, '--radius-sheet'), 'angoli della sheet').toBe(ATTESI[atteso].sheet)
 
     const font = await token(page, '--font-ui')
@@ -105,6 +125,59 @@ test.describe('Piattaforma: il server scrive data-platform dallo User-Agent', ()
       // Desktop: resta il font dell'app (Geist), non quello di un telefono.
       expect(font, 'il desktop non deve scivolare su un font di piattaforma').not.toContain('Roboto')
       expect(font, 'il desktop non deve scivolare su un font di piattaforma').not.toContain('-apple-system')
+    }
+
+    /**
+     * IL FONT DISEGNATO, non solo quello DICHIARATO (M6, 22/09/2026).
+     *
+     * Questa asserzione è nata da un difetto vero, trovato dal controllo nuovo di
+     * `scripts/check-design-tokens.mjs`: `--font-ui` era dichiarato dalle skin (SF su
+     * iOS, Roboto su Android) e APPLICATO da nessuno — il `<body>` porta la classe di
+     * Geist, quindi l'iPhone disegnava Geist e la skin iOS non usava il font di
+     * sistema, che è la prima cosa che chiede la HIG. Le righe qui sopra guardavano il
+     * TOKEN e passavano lo stesso: ora si guarda il font che il browser ha davvero
+     * risolto sul body.
+     */
+    const disegnato = await page.evaluate(() => getComputedStyle(document.body).fontFamily)
+    if (ATTESI[atteso].font) {
+      expect(disegnato, `su ${atteso} il body deve DISEGNARSI col font di sistema`).toContain(ATTESI[atteso].font)
+    } else {
+      expect(disegnato, 'il desktop resta sul font dell’app').not.toContain('Roboto')
+      expect(disegnato, 'il desktop resta sul font dell’app').not.toContain('-apple-system')
+    }
+  })
+
+  /**
+   * L'AREA DI TOCCO INVISIBILE (M6).
+   *
+   * La HIG chiede 44pt di AREA, non di disegno: su iOS un controllo può restare di
+   * 32px e allargare la zona che risponde al dito. Si misura la scatola dello
+   * pseudo-elemento, che è ciò che il dito colpisce davvero.
+   * Su Android e desktop la regola NON deve esistere: lì il ripple di Material
+   * richiede `overflow: hidden` sul controllo, quindi l'allargamento sarebbe finto —
+   * il bersaglio non crescerebbe. La via, su Android, è la taglia vera (M9).
+   */
+  test('l’area di tocco si allarga solo dove può allargarsi davvero', async ({ page }) => {
+    const suIOS = piattaformaDelProgetto() === 'ios'
+    await apri(page)
+
+    const area = await page.evaluate(() => {
+      const el = document.createElement('span')
+      el.className = 'touch-expand'
+      el.style.cssText = 'display:inline-block;width:20px;height:20px'
+      document.body.appendChild(el)
+      const s = getComputedStyle(el, '::after')
+      const out = { larghezza: s.width, altezza: s.height }
+      el.remove()
+      return out
+    })
+
+    if (suIOS) {
+      expect(area.larghezza, 'iOS: il controllo è 20px, l’area che risponde è 44').toBe('44px')
+      expect(area.altezza, 'iOS: idem in altezza').toBe('44px')
+    } else {
+      expect(area.larghezza, 'altrove la regola non esiste: nessun allargamento finto').not.toBe('44px')
+      expect(area.altezza, 'altrove la regola non esiste: nessun allargamento finto').not.toBe('44px')
     }
   })
 
@@ -127,7 +200,7 @@ test.describe('Piattaforma: il server scrive data-platform dallo User-Agent', ()
 
     expect(misure.body, 'text-body deve valere --fs-body').toBe(ATTESI[atteso].body)
     expect(misure.title3, 'text-title3 deve valere --fs-title3').toBe(ATTESI[atteso].title3)
-    expect(misure.caption, 'text-caption deve valere --fs-caption').toBe(await token(page, '--fs-caption'))
+    expect(misure.caption, 'text-caption deve valere --fs-caption').toBe(await tokenPx(page, '--fs-caption'))
   })
 
   test('il livello semantico sono alias veri, non valori copiati', async ({ page }) => {
