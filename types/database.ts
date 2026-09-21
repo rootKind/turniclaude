@@ -115,7 +115,7 @@ export interface VacationRequestInterest {
   user_id: string
   created_at: string
   user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
-  period_this_year: VacationPeriod   // calcolato da vacation_assignments + rotazione
+  period_this_year: VacationPeriod | null   // da vacation_assignments + rotazione; null se l'assegnazione è ignota
 }
 
 export interface VacationRequestWithInterests extends VacationRequest {

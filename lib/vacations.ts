@@ -24,6 +24,61 @@ export const VACATION_PERIOD_LABELS_SHORT: Record<VacationPeriod, string> = {
 }
 
 /**
+ * IL FALLBACK «16–30 GIUGNO» (bug diagnosticato il 21/09/2026).
+ *
+ * Nelle card dei cambi ferie il periodo dell'interessato usciva SEMPRE
+ * «16–30 Giugno» (P1). Il mapper leggeva l'embed `users →
+ * vacation_assignments` come ARRAY (`vacation_assignments?.[0]?.base_period`),
+ * ma `user_id` è la PRIMARY KEY di vacation_assignments: PostgREST classifica
+ * la relazione come ONE-TO-ONE e nell'embed torna un OGGETTO (o `null` se la
+ * riga manca). L'indice `[0]` su un oggetto è `undefined`, così OGNI
+ * interessato cascava sul fallback `(1 as VacationPeriod)` — il P1 finto —
+ * mentre i NOMI si vedevano comunque (l'embed del nome è many-to-one).
+ *
+ * Questa funzione accetta ENTRAMBE le forme (oggetto oggi, array se un domani
+ * cambiasse la PK o con hint espliciti) e NON inventa un periodo quando
+ * l'assegnazione è ignota: chi la chiama decide come trattare l'incertezza.
+ * Provata in tests/ferie-compatibili.spec.ts su entrambe le forme.
+ */
+export function basePeriodInteressato(
+  i: { user?: { vacation_assignments?: unknown } | null },
+): { base: VacationPeriod | null; row: unknown } {
+  const va = i.user?.vacation_assignments
+  if (Array.isArray(va)) {
+    const first = va[0] as { base_period?: number } | undefined
+    return { base: (first?.base_period ?? null) as VacationPeriod | null, row: first ?? null }
+  }
+  if (va != null && typeof va === 'object') {
+    const obj = va as { base_period?: number }
+    return { base: (obj.base_period ?? null) as VacationPeriod | null, row: obj }
+  }
+  return { base: null, row: null }
+}
+
+/** Il periodo dell'anno dell'interessato: rotazione+override se l'assegnazione
+ *  c'è (in qualunque forma torni l'embed), altrimenti NULL — mai un periodo finto. */
+export function periodInteressatoThisYear(
+  i: { user?: { vacation_assignments?: unknown } | null; user_id: string },
+  year: number,
+  overrides: Map<string, VacationPeriod>,
+): VacationPeriod | null {
+  const { base } = basePeriodInteressato(i)
+  if (base == null) return null
+  return getEffectivePeriodForYear(base, year, overrides, i.user_id)
+}
+
+/** Etichetta del periodo dell'anno dell'interessato, o «Periodo non noto».
+ *  Unica fonte per card e notifiche: l'incertezza si DICE, non si maschera. */
+export function labelPeriodoInteressato(
+  i: { user?: { vacation_assignments?: unknown } | null; user_id: string },
+  year: number,
+  overrides: Map<string, VacationPeriod>,
+): string {
+  const p = periodInteressatoThisYear(i, year, overrides)
+  return p == null ? 'Periodo non noto' : VACATION_PERIOD_LABELS[p].label
+}
+
+/**
  * Calcola il periodo ferie di un utente per un dato anno,
  * partendo dal suo base_period (2026) e applicando la rotazione ciclica.
  */
