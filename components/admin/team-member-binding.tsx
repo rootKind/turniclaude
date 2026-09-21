@@ -65,7 +65,7 @@ export function homonymHintFor(
 }
 
 /** PUT del legame verso l'API squadre (user_id null = scollega). */
-export async function putMemberBinding(memberId: string, userId: string | null): Promise<void> {
+async function putMemberBinding(memberId: string, userId: string | null): Promise<void> {
   const res = await fetch('/api/admin/shift-teams', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -76,7 +76,7 @@ export async function putMemberBinding(memberId: string, userId: string | null):
 }
 
 /** Select del legame membro → utente. null = nessun legame. */
-export function UserBindingSelect({ member, users, boundUserIds, run }: {
+function UserBindingSelect({ member, users, boundUserIds, run }: {
   member: MemberLike
   users: MinimalUser[]
   /** user_id GIÀ legati ad altri membri: non selezionabili. */

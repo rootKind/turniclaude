@@ -15,7 +15,7 @@ import { isShiftCode } from '../lib/shift-tokens'
  * gialle: i test prendono i primi e restano validi a ogni ricarica. Se le chiavi
  * non ci sono la lista è vuota e il test si SALTA, invece di fallire.
  */
-export interface YellowDay {
+interface YellowDay {
   /** Giorno del mese (1-31). */
   day: number
   /** Celle gialle di quel giorno (una per persona marcata). */

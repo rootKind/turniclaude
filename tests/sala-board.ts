@@ -35,7 +35,7 @@ async function dataMostrata(page: Page): Promise<{ mese: number; anno: number } 
 }
 
 /** Le chip gialle sono gli span con lo stile inline della fill trasferte. */
-export const CHIP_SELECTOR = 'span[style*="altri-pill"]'
+const CHIP_SELECTOR = 'span[style*="altri-pill"]'
 
 export interface BoardTarget {
   /** Mese 1-12. */
@@ -474,10 +474,6 @@ export async function ownPills(page: Page): Promise<Array<{ text: string; weight
   )
 }
 
-/** Titoli delle card evidenziate (la card «sei tu» del dipendente loggato). */
-export async function highlightedCards(page: Page): Promise<string[]> {
-  return (await boardCards(page)).filter(c => c.highlighted).map(c => c.title)
-}
 
 export function cardByTitle(cards: BoardCard[], title: string): BoardCard | undefined {
   return cards.find(c => c.title === title)

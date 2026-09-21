@@ -13,7 +13,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 
 /** Sigla del turno reale sopra la cifra di un giorno (richiesta 13/09/2026). */
-export interface CalendarDayInfo {
+interface CalendarDayInfo {
   /** Codice di un carattere: M / P / N. */
   code: string
   /** Classe pill per il colore (pill-mattina / pill-pomeriggio / pill-notte). */

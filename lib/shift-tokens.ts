@@ -236,11 +236,6 @@ export function isSectionTurnToken(token: string | null | undefined): boolean {
   return boardPlacementOf(token)?.kind === 'card'
 }
 
-/** true se il token finisce nella riga «Altre attività» (pillola), non su una card. */
-export function isAltriPresentiPlacementToken(token: string | null | undefined): boolean {
-  return boardPlacementOf(token)?.kind === 'altri'
-}
-
 /**
  * Token del quale registrare la presenza senza sezione (per il raggruppamento).
  */

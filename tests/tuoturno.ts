@@ -16,7 +16,7 @@ const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Lug
 /** Larghezze di schermo da provare (i codici devono entrare a TUTTE). */
 export const LARGHEZZE = [320, 360, 375, 390, 414, 512, 768, 1280]
 
-export interface CellCode {
+interface CellCode {
   /** Testo del codice («MM3M40», «MDCCM», «M7»…). */
   label: string
   /** Font-size calcolato (px). */
@@ -55,7 +55,7 @@ export function fabTurno(page: Page) {
  * ASPETTA che la voce sia davvero comparsa prima di cliccarla. Chi chiama, se il
  * suo pannello non è comparso, riprova la voce: vedi `apriVoceFabConRitentativo`.
  */
-export async function apriVoceFab(page: Page, nomeVoce: string): Promise<void> {
+async function apriVoceFab(page: Page, nomeVoce: string): Promise<void> {
   const fab = fabTurno(page)
   // Se il menu era rimasto aperto (tentativo precedente andato a vuoto), il click
   // sul FAB lo CHIUDEREBBE: si riparte sempre da menu chiuso.

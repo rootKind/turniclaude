@@ -85,7 +85,7 @@ const SHIFT_SELECT = `
  * Turni (M/P/N) che il calendario assegna davvero a una persona in un giorno,
  * cercandola in tutti i posti (T/S/noSlot) e tra i tirocinanti di ogni sezione.
  */
-export function actualShiftsForPerson(
+function actualShiftsForPerson(
   day: DaySchedule | undefined,
   cognome?: string | null,
   nome?: string | null,
@@ -344,7 +344,7 @@ interface ScheduleRow {
 }
 
 /** Carica utenti e calendari dei mesi indicati (per risolvere i turni reali). */
-export async function loadShiftLookupContext(
+async function loadShiftLookupContext(
   supabase: SupabaseClient,
   months: string[],
 ): Promise<ShiftLookupContext> {

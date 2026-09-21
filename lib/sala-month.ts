@@ -1,7 +1,6 @@
 import type { DaySchedule, SalaMonthData } from '@/types/database'
 import { NON_SECTION_DUTIES, applyTokenToDay, boardPlacementOf, isPresentNoSection, isShiftWorkCode, parseShiftCode, sectionTurnOf } from '@/lib/shift-tokens'
 import { classifyAltriToken } from '@/lib/altri-gruppi'
-import { matchesCognome } from '@/lib/utils'
 import { personNameMatches, type PersonRef } from '@/lib/person-shift'
 import type { BareOwnerMap } from '@/lib/shift-teams-matching'
 
@@ -102,17 +101,6 @@ export function findMonthPerson(
   return people.find(p => personNameMatches(p.name, user, duplicateCognomi, bareOwners)) ?? null
 }
 
-/** Come sopra ma con la variante «solo cognome» usata dal calendario di sala. */
-export function findMonthPersonByCognome(
-  people: MonthPersonShifts[] | null | undefined,
-  cognome: string | null | undefined,
-  nome?: string | null,
-  duplicateCognomi?: Set<string>,
-  bareOwners?: BareOwnerMap | null,
-): MonthPersonShifts | null {
-  if (!people?.length || !cognome) return null
-  return people.find(p => matchesCognome([p.name], cognome, nome, duplicateCognomi, bareOwners)) ?? null
-}
 
 // ─── significato dei codici ─────────────────────────────────────────────────
 

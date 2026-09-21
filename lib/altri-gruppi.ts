@@ -48,9 +48,6 @@ export function classifyAltriToken(token: string): AltriGruppo['key'] {
   return 'altro'
 }
 
-// Compat: nome usato dai test contrattuali prima del rename (23/09/2026).
-export const classificaAltriToken = classifyAltriToken
-
 const LABELS: Record<AltriGruppo['key'], string> = {
   corsi: 'Corsi',
   istruttori: 'Istruttori',
@@ -64,7 +61,7 @@ const ORDER: AltriGruppo['key'][] = ['trasferte', 'corsi', 'istruttori', 'altro'
 /** Tinta dedicata di ogni gruppo: classe pill definita in app/globals.css
  *  (variabili --altri-pill-*-bg/text → chip P/M/N e card verdi di /tuoturno,
  *  per tema chiaro e scuro). */
-export const ALTRI_COLORS: Record<AltriGruppo['key'], string> = {
+const ALTRI_COLORS: Record<AltriGruppo['key'], string> = {
   trasferte: 'altri-pill-trasferte',
   corsi: 'altri-pill-corsi',
   istruttori: 'altri-pill-istruttori',

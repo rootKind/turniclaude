@@ -32,7 +32,7 @@ export interface BareOwner {
 export type BareOwnerMap = Map<string, BareOwner>
 
 /** Normalizzazione condivisa (stessa di lib/turni-teorici.normName). */
-export function normNameKey(s: string): string {
+function normNameKey(s: string): string {
   return s.toLowerCase().trim().replace(/\s+/g, ' ')
 }
 
@@ -135,7 +135,7 @@ export function buildBareOwners(
 }
 
 /** Proprietario del cognome, solo se il nome PDF è BARE (solo cognome). */
-export function bareOwnerOfName(name: string, bareOwners?: BareOwnerMap | null): BareOwner | null {
+function bareOwnerOfName(name: string, bareOwners?: BareOwnerMap | null): BareOwner | null {
   if (!bareOwners?.size) return null
   const key = cognomeKeyOf(name)
   if (!key || !bareOwners.has(key)) return null

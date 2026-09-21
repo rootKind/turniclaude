@@ -24,7 +24,7 @@ import type { BareOwnerMap } from '@/lib/shift-teams-matching'
  */
 
 /** Sotto questa confidenza il ciclo rigido non viene usato (si prova la rotazione). */
-export const MIN_CYCLE_CONFIDENCE = 0.85
+const MIN_CYCLE_CONFIDENCE = 0.85
 
 /** Servono almeno così tanti giorni di PDF per dedurre qualcosa. */
 const MIN_DAYS = 14
@@ -45,7 +45,7 @@ function isoFromDayKey(key: number): string {
   return new Date(key * 86400000).toISOString().slice(0, 10)
 }
 
-export function daysInMonthOf(month: string): number {
+function daysInMonthOf(month: string): number {
   const [y, m] = month.split('-').map(Number)
   return new Date(Date.UTC(y, m, 0)).getUTCDate()
 }
@@ -123,20 +123,6 @@ export interface PersonCycle {
   confidence: number
 }
 
-/**
- * Deduce il ciclo personale (periodo rigido di calendario) dalla storia dei
- * teorici dei PDF. Null se i dati non bastano o nessun periodo è coerente.
- */
-export function deducePersonCycle(
-  pdfMonths: Map<string, SalaMonthData> | Record<string, SalaMonthData>,
-  user: PersonRef | null | undefined,
-  duplicateCognomi?: Set<string>,
-  bareOwners?: BareOwnerMap | null,
-): PersonCycle | null {
-  const built = buildSeq(toMap(pdfMonths), user, duplicateCognomi, bareOwners)
-  if (!built) return null
-  return deduceCycleFromSeq(built.seq)
-}
 
 function deduceCycleFromSeq(seq: Map<number, string>): PersonCycle | null {
   if (seq.size < MIN_DAYS) return null
@@ -195,7 +181,7 @@ function deduceCycleFromSeq(seq: Map<number, string>): PersonCycle | null {
 }
 
 /** Teorico previsto per `dateISO` dal ciclo rigido. '' se non coperto. */
-export function tokenFromCycle(
+function tokenFromCycle(
   cycle: PersonCycle | null | undefined,
   dateISO: string,
 ): string {
@@ -486,8 +472,6 @@ export const CARD_KINDS: { kind: CardKind; label: string; hint: string }[] = [
  */
 export type PaletteMode = 'light' | 'dark'
 
-/** I due temi, nell'ordine in cui si mostrano. */
-export const PALETTE_MODES: PaletteMode[] = ['light', 'dark']
 
 /** La busta per tema: `null` = nessuna scelta per quel tema (vale il default). */
 interface Busta<T> { light: T | null; dark: T | null }

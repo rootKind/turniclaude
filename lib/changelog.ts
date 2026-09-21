@@ -5,7 +5,7 @@ export interface ChangelogEntry {
   changes: string[]
 }
 
-export interface ChangelogData {
+interface ChangelogData {
   entries: ChangelogEntry[]
   lastSeenVersion: number
 }

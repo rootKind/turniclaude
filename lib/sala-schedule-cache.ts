@@ -12,7 +12,7 @@
 // clearAllLocalData → wipeSalaScheduleCache() su logout/cambio account.
 import type { SalaSchedule } from '@/types/database'
 
-export const SALA_SCHEDULE_DB = 'turni-sala-cache'
+const SALA_SCHEDULE_DB = 'turni-sala-cache'
 const STORE = 'months'
 const DB_VERSION = 1
 
@@ -140,7 +140,7 @@ export async function wipeSalaScheduleCache(): Promise<void> {
 
 // ── Tipi (jsonb-serializzabili, nessun referenziale esterno) ─────────────────
 
-export interface CachedSchedule {
+interface CachedSchedule {
   schedule: SalaSchedule
   cachedAt: number
 }

@@ -62,7 +62,7 @@ export function personNameMatches(
   return matchesCognome([fullName], user.cognome, user.nome, duplicateCognomi, bareOwners)
 }
 
-export function anyNameMatches(
+function anyNameMatches(
   names: string[] | undefined,
   user: PersonRef | null | undefined,
   duplicateCognomi?: Set<string>,
@@ -210,7 +210,7 @@ export function tokenLabel(token: string): string {
  * Chiave di confronto reale↔teorico: turno + sezione. Lo slot T/S e il suffisso
  * TIR NON differenziano due turni dello stesso tipo nella stessa sezione.
  */
-export function tokenCompareKey(token: string | null | undefined): string {
+function tokenCompareKey(token: string | null | undefined): string {
   if (!token) return ''
   return tokenLabel(token).replace(/TIR$/, '')
 }

@@ -44,12 +44,12 @@ export const SALA_SHIFTS: SalaShiftType[] = ['M', 'P', 'N']
 
 /** Ordine dei turni dentro il giorno: serve a sapere se una voce è già in vigore.
  *  M = 0, P = 1, N = 2 (il turno di notte è l'ultimo della giornata). */
-export function shiftIndex(shift: SalaShiftType): number {
+function shiftIndex(shift: SalaShiftType): number {
   return shift === 'M' ? 0 : shift === 'P' ? 1 : 2
 }
 
 /** Turno dichiarato da una voce: assente = «M» (vale dall'inizio del giorno). */
-export function entryShift(entry: Pick<SalaMinimoEntry, 'fromShift'>): SalaShiftType {
+function entryShift(entry: Pick<SalaMinimoEntry, 'fromShift'>): SalaShiftType {
   return entry.fromShift ?? 'M'
 }
 

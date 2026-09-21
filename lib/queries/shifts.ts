@@ -19,7 +19,7 @@ const SHIFTS_SELECT = `
   )
 `
 
-export interface ShiftViewer {
+interface ShiftViewer {
   isSecondary: boolean
   isDcoPlus: boolean
 }

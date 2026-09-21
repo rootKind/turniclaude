@@ -98,7 +98,7 @@ function leggiProp(cs: CSSStyleDeclaration, prop: string): string {
  */
 const VAR_INTERNE = /^--(tw-|spacing|radius|font-|text-|leading|tracking|container|animate|default-|ease|blur|shadow|perspective|aspect|scrollbar|lightningcss)/
 
-export function variabileUtile(nome: string): boolean {
+function variabileUtile(nome: string): boolean {
   return !VAR_INTERNE.test(nome)
 }
 
@@ -155,7 +155,7 @@ function convertiConCanvas(valore: string): string {
 }
 
 /** Un colore che si VEDE: esiste e non è del tutto trasparente. */
-export function coloreVisibile(valore: string): string {
+function coloreVisibile(valore: string): string {
   const c = risolviColore(valore)
   return c && c !== 'rgba(0, 0, 0, 0)' ? c : ''
 }
@@ -258,7 +258,7 @@ function variabileDelColore(dichiarato: string, regole: RegolaCss[]): { nome: st
 }
 
 /** Dove è dichiarata una variabile: preferendo il blocco del tema in vigore. */
-export function origineVariabile(regole: RegolaCss[], nome: string, tema: TemaSonda): string {
+function origineVariabile(regole: RegolaCss[], nome: string, tema: TemaSonda): string {
   const dichiarano = regole.filter(r => r.stile.getPropertyValue(nome))
   if (dichiarano.length === 0) return 'non dichiarata in un foglio (stile in linea?)'
   const delTema = dichiarano.find(r => r.selettore.split(',').some(s => s.trim() === (tema === 'dark' ? '.dark' : ':root')))
@@ -344,7 +344,7 @@ export function selettoreDi(el: Element): string {
  * non hanno uno sfondo proprio (e uno che chiede «questo grigio da dove viene?»
  * merita la risposta).
  */
-export function sfondoVisibile(el: Element): { colore: string; da: string } | null {
+function sfondoVisibile(el: Element): { colore: string; da: string } | null {
   let nodo: Element | null = el
   while (nodo) {
     const bg = getComputedStyle(nodo).backgroundColor

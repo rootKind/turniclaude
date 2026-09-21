@@ -14,16 +14,16 @@ import { type BareOwnerMap } from '@/lib/shift-teams-matching'
 
 const DAY_MS = 86400000
 
-export function parseDateUTC(iso: string): number {
+function parseDateUTC(iso: string): number {
   const [y, m, d] = iso.split('-').map(Number)
   return Date.UTC(y, m - 1, d)
 }
 
-export function daysBetween(fromISO: string, toISO: string): number {
+function daysBetween(fromISO: string, toISO: string): number {
   return Math.round((parseDateUTC(toISO) - parseDateUTC(fromISO)) / DAY_MS)
 }
 
-export function monthStartISO(date = new Date()): string {
+function monthStartISO(date = new Date()): string {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
   return `${y}-${m}-01`

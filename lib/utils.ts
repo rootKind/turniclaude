@@ -120,7 +120,7 @@ export function formatDateShort(dateStr: string): string {
   return `${dd}/${mm}`
 }
 
-export type ShiftItemState = 'others' | 'own-empty' | 'own-interest'
+type ShiftItemState = 'others' | 'own-empty' | 'own-interest'
 
 export function getShiftItemState(opts: {
   isOwn: boolean

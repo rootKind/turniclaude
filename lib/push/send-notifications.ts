@@ -5,7 +5,7 @@
 // mostra come report. «Skipped» = nessuna subscription push attiva.
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { pushToUser } from '@/lib/push/send-to-user'
-import { renderNotifTemplate, type NotifOverrides } from '@/lib/notification-templates'
+import { renderNotifTemplate } from '@/lib/notification-templates'
 
 export interface SendTarget {
   id: string
@@ -118,16 +118,3 @@ export async function sendAdminNotification(req: AdminSendRequest): Promise<Send
   return outcomes
 }
 
-/** Anteprima del testo per il pannello (nessun invio). */
-export function previewAdminNotification(
-  title: string,
-  body: string,
-  vars: Record<string, string | null | undefined>,
-): { title: string; body: string } {
-  return { title: renderNotifTemplate(title, vars), body: renderNotifTemplate(body, vars) }
-}
-
-/** Override risolti: helper per il pannello. */
-export function overridesForPanel(overrides: NotifOverrides | null | undefined) {
-  return overrides ?? {}
-}

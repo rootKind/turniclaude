@@ -10,12 +10,11 @@
 //
 // Solo dati e funzioni pure: le prova tests/palette-colori.spec.ts.
 import type { CardKind, CardPalette } from '@/lib/person-cycle'
-import { contrastRatio, MIN_CONTRAST } from '@/lib/color'
 
 /** Una palette COMPLETA: un colore { sfondo, testo } per ogni tipologia di card. */
 export type FullPalette = Record<CardKind, { bg: string; text: string }>
 
-export interface PalettePreset {
+interface PalettePreset {
   id: string
   label: string
   hint: string
@@ -175,12 +174,6 @@ export function defaultPresetId(mode: ThemeMode): string {
   return mode === 'dark' ? 'notte' : 'tema'
 }
 
-/** Quanti colori di un preset sono sotto la soglia di contrasto (il pannello lo dice). */
-export function lowContrastKinds(preset: PalettePreset): CardKind[] {
-  return (Object.keys(preset.colors) as CardKind[]).filter(
-    k => contrastRatio(preset.colors[k].bg, preset.colors[k].text) < MIN_CONTRAST,
-  )
-}
 
 /**
  * Tinte rapide del selettore: righe di pastelli, di fluo, poi i fondi scuri e la
