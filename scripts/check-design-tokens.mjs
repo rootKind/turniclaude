@@ -139,7 +139,12 @@ const CONTRATTO = [
   // materiale traslucido è una scelta di iOS — ma le chiavi esistono su entrambe
   // le piattaforme, come vuole il contratto.
   '--glass-rim', '--glass-highlight',
-  '--motion-duration-enter', '--motion-duration-exit', '--motion-ease-standard',
+  '--motion-duration-enter', '--motion-duration-exit', '--motion-duration-press', '--motion-ease-standard',
+  // Moto (M7, 22/09/2026): le molle. Sono nel contratto perché le due
+  // piattaforme le esprimono in linguaggi diversi (Material: damping+stiffness;
+  // iOS: risposta+smorzamento) e i valori sono GENERATI da lib/motion.ts: una
+  // chiave mancante su un lato darebbe un controllo che non si muove affatto.
+  '--motion-spring-press', '--motion-spring-pop', '--motion-spring-fade',
   '--fs-caption', '--fs-footnote', '--fs-body', '--fs-title3', '--fs-large-title',
 ]
 for (const key of CONTRATTO) {
@@ -193,6 +198,18 @@ const DEVONO_DIFFERIRE = [
   '--chip-label', '--state-layer-hover', '--state-layer-press', '--ripple',
   // Vetro: su iOS è un bordo velato e un filo chiaro, su Android entrambi spenti.
   '--glass-rim', '--glass-highlight',
+  // Moto: le molle di iOS (linguaggio SwiftUI) contro quelle di Material
+  // (damping+stiffness). Le durate di `enter`/`exit` NON sono qui: derivano
+  // dall'assestamento delle molle e le verifica `scripts/check-motion.mjs`, che è
+  // l'unico posto in cui possono essere confrontate. La durata della PRESSIONE
+  // invece sì, ed è la differenza più visibile delle due skin: su iOS il controllo
+  // si ritrae e la molla lo riporta su (270ms, con un rimbalzo dell'1.5%), su
+  // Android la velatura si accende e si spegne in 150ms senza superare il
+  // bersaglio — cioè due gesti diversi, non due tempi diversi dello stesso gesto.
+  // Le tre molle devono divergere, perché è la prova che le due skin del moto non
+  // sono la stessa curva copiata.
+  '--motion-spring-press', '--motion-spring-pop', '--motion-spring-fade',
+  '--motion-duration-press',
 ]
 // `--input-border` NON è qui per lo stesso motivo di `--dialog-scrim-blur`: è
 // `transparent` su ENTRAMBE (né iOS né M3 mettono bordi laterali ai campi), e

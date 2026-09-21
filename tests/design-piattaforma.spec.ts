@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
 import { E2E_BASE_URL } from './employee-session'
 import { detectPlatformFromUA, PLATFORM_ATTR, PLATFORM_OVERRIDE_KEY } from '../lib/platform'
+import { EASING_OSSERVATO, TOKEN_MOTO, assestamentoMs, linearDaMolla } from '../lib/motion'
 
 /**
  * PIATTAFORMA E TOKEN — M1 del design system duale iOS/Android (20/09/2026).
@@ -253,5 +254,105 @@ test.describe('Override di QA: guardare la skin dell’altra piattaforma', () =>
 
     await expect(page.locator('html')).toHaveAttribute(PLATFORM_ATTR, altra)
     expect(await token(page, '--touch-min')).toBe(ATTESI[altra].touch)
+  })
+})
+
+/**
+ * IL MOTO (M7, 22/09/2026).
+ *
+ * Le molle sono token del foglio di stile e i valori sono GENERATI da
+ * `lib/motion.ts`: qui si prova che i due coincidano davvero, sul browser vero.
+ * È la stessa idea della piattaforma (`detectPlatformFromUA` importata invece di
+ * riscritta) applicata al movimento: il valore atteso non è scritto a mano nella
+ * spec, è quello che la libreria calcola — quindi se un giorno qualcuno "aggiusta"
+ * una molla nel CSS senza passare dalla fisica, questa spec lo prende.
+ *
+ * Le due cose che si provano, e perché:
+ *  1. ogni molla è quella calcolata, e ogni DURATA è il tempo di assestamento della
+ *     molla che governa (una molla con la durata sbagliata è una molla tagliata a
+ *     metà: il rimbalzo non si vede);
+ *  2. con «riduci movimento» le molle smettono di rimbalzare — la promessa di
+ *     accessibilità di M7, che senza prova sarebbe solo un commento nel CSS.
+ */
+test.describe('Moto: le molle sono quelle calcolate, e chi chiede meno movimento le ottiene', () => {
+  /** La skin CSS in gioco: il desktop resta sui valori di base. */
+  function skin(): 'ios' | 'android' {
+    return piattaformaDelProgetto() === 'android' ? 'android' : 'ios'
+  }
+
+  const molle = Object.fromEntries(TOKEN_MOTO.map((m) => [m.ruolo, m])) as Record<
+    string,
+    (typeof TOKEN_MOTO)[number]
+  >
+
+  test('ogni molla del foglio di stile è quella di lib/motion.ts, e la durata è il suo assestamento', async ({
+    page,
+  }) => {
+    await apri(page)
+
+    for (const voce of TOKEN_MOTO) {
+      expect(await token(page, voce.token), `${voce.token} (${skin()})`).toBe(linearDaMolla(voce[skin()]))
+    }
+
+    // In CSS una molla va in coppia con una durata: se resta quella di prima, il
+    // campione viene tagliato e il rimbalzo non si vede. La durata non è un numero
+    // a parte, è il tempo di assestamento della molla che la governa.
+    expect(await token(page, '--motion-duration-enter'), 'il pannello che sale').toBe(
+      `${assestamentoMs(molle.pop[skin()])}ms`,
+    )
+    expect(await token(page, '--motion-duration-exit'), 'il velo che si accende').toBe(
+      `${assestamentoMs(molle.fade[skin()])}ms`,
+    )
+    expect(await token(page, '--motion-duration-press'), 'la pressione e il suo ritorno').toBe(
+      `${assestamentoMs(molle.press[skin()])}ms`,
+    )
+  })
+
+  test('la pressione risponde alla molla su ENTRAMBE le skin', async ({ page }) => {
+    await apri(page)
+    if (piattaformaDelProgetto() === 'desktop') return
+
+    // La pressione è la prova che le molle non sono token decorativi: iOS le usa
+    // per il RITORNO del controllo che si è ritirato, Android per la velatura di
+    // stato (famiglia effects). Fino a ieri Android non le usava affatto.
+    const scatti = await page.evaluate(() => {
+      const letture: string[] = []
+      for (const foglio of Array.from(document.styleSheets)) {
+        let regole: CSSRuleList
+        try {
+          regole = foglio.cssRules
+        } catch {
+          continue
+        }
+        for (const regola of Array.from(regole)) {
+          const testo = regola.cssText
+          if (testo.includes(":active") || testo.includes("::after")) letture.push(testo)
+        }
+      }
+      return letture.join('\n')
+    })
+
+    const atteso = skin() === 'ios' ? 'transform' : 'background'
+    expect(scatti, `la pressione ${skin()} deve dichiarare la molla`).toContain('var(--motion-spring-press)')
+    expect(scatti, `la molla della pressione su ${skin()} deve governare ${atteso}`).toMatch(
+      new RegExp(`${atteso}[^;]*var\\(--motion-spring-press\\)`),
+    )
+  })
+
+  test('con «riduci movimento» le molle smettono di rimbalzare', async ({ page }) => {
+    const suDesktop = piattaformaDelProgetto() === 'desktop'
+    await apri(page)
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+
+    for (const voce of TOKEN_MOTO) {
+      const valore = await token(page, voce.token)
+      expect(valore, `${voce.token}: niente molla campionata quando l'utente chiede meno movimento`).not.toContain(
+        'linear(',
+      )
+      // Sulle due piattaforme il collasso porta all'easing sobrio di quella skin;
+      // sul desktop le molle non esistevano già prima, e restano l'easing di base
+      // (cioè: il desktop non si muove, come promesso da M6 in poi).
+      if (!suDesktop) expect(valore, `${voce.token}: collassa su --motion-ease-standard`).toBe(EASING_OSSERVATO[skin()])
+    }
   })
 })

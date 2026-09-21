@@ -143,6 +143,21 @@
   --motion-duration-enter: 300ms;
   --motion-duration-exit: 200ms;
   --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  /* M7 — LE MOLLE, valori di BASE (desktop). Sul desktop non c'è nessun rimbalzo
+     e non si sposta niente: le tre molle sono l'easing di sempre, e le durate
+     restano 300/200. Le skin vere stanno nei blocchi di piattaforma, dove queste
+     righe diventano `linear(...)` — cioè la molla campionata (vedi lib/motion.ts).
+     Sono GENERATE: `node scripts/check-motion.mjs --print` le ricalcola, e la
+     verifica senza argomenti pretende che il foglio di stile contenga esattamente
+     quelle. */
+  --motion-spring-press: var(--motion-ease-standard);
+  --motion-spring-pop: var(--motion-ease-standard);
+  --motion-spring-fade: var(--motion-ease-standard);
+  /* La durata che va in coppia con la molla della pressione: qui è il valore web
+     di sempre (120ms), sulle due skin è il tempo di assestamento della loro molla.
+     In CSS una molla da sola non basta — `transition` vuole anche una durata — ed è
+     la ragione per cui le durate sono DERIVATE, non scelte (check-motion.mjs). */
+  --motion-duration-press: 120ms;
   /* M6 — la scala in `rem` × `--type-scale` invece che in px secchi. `rem` è ciò che
      rende la misura sensibile all'impostazione di testo del sistema (e alle
      preferenze del browser): un px non lo è, mai. A `--type-scale: 1` e radice 16px
@@ -687,9 +702,13 @@
   --elevation-nav: 0 -1px 0 var(--separator);
   --elevation-dialog: 0 20px 60px rgb(0 0 0 / 0.22);
   --scrim: rgb(0 0 0 / 0.32);
-  --motion-duration-enter: 320ms;
-  --motion-duration-exit: 220ms;
+  --motion-duration-enter: 360ms;
+  --motion-duration-exit: 290ms;
+  --motion-duration-press: 270ms;
   --motion-ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --motion-spring-fade: linear(0, 0.034 3.1%, 0.114 6.3%, 0.215 9.4%, 0.321 12.5%, 0.423 15.6%, 0.517 18.8%, 0.599 21.9%, 0.671 25%, 0.732 28.1%, 0.783 31.3%, 0.826 34.4%, 0.86 37.5%, 0.888 40.6%, 0.911 43.8%, 0.93 46.9%, 0.945 50%, 0.956 53.1%, 0.966 56.3%, 0.973 59.4%, 0.979 62.5%, 0.984 65.6%, 0.987 68.8%, 0.99 71.9%, 0.992 75%, 0.994 78.1%, 0.995 81.3%, 0.996 84.4%, 0.997 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 0.999 100%);
+  --motion-spring-pop: linear(0, 0.045 3.1%, 0.153 6.3%, 0.292 9.4%, 0.439 12.5%, 0.58 15.6%, 0.704 18.8%, 0.808 21.9%, 0.89 25%, 0.951 28.1%, 0.994 31.3%, 1.022 34.4%, 1.038 37.5%, 1.045 40.6%, 1.046 43.8%, 1.042 46.9%, 1.037 50%, 1.03 53.1%, 1.023 56.3%, 1.017 59.4%, 1.012 62.5%, 1.007 65.6%, 1.004 68.8%, 1.001 71.9%, 1 75%, 0.999 78.1%, 0.998 81.3%, 0.998 84.4%, 0.998 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 0.999 100%);
+  --motion-spring-press: linear(0, 0.03 3.1%, 0.106 6.3%, 0.206 9.4%, 0.316 12.5%, 0.428 15.6%, 0.533 18.8%, 0.629 21.9%, 0.712 25%, 0.784 28.1%, 0.842 31.3%, 0.89 34.4%, 0.927 37.5%, 0.956 40.6%, 0.977 43.8%, 0.992 46.9%, 1.003 50%, 1.009 53.1%, 1.013 56.3%, 1.015 59.4%, 1.015 62.5%, 1.014 65.6%, 1.013 68.8%, 1.012 71.9%, 1.01 75%, 1.008 78.1%, 1.007 81.3%, 1.005 84.4%, 1.004 87.5%, 1.003 90.6%, 1.002 93.8%, 1.002 96.9%, 1.001 100%);
   /* M6: stessa scala di prima, in `rem` perché l'utente possa ingrandirla. */
   --fs-caption: calc(0.75rem * var(--type-scale));
   --fs-footnote: calc(0.8125rem * var(--type-scale));
@@ -809,9 +828,13 @@
   --elevation-nav: 0 -2px 6px rgb(0 0 0 / 0.10);
   --elevation-dialog: 0 8px 24px rgb(0 0 0 / 0.22);
   --scrim: rgb(0 0 0 / 0.32);
-  --motion-duration-enter: 300ms;
-  --motion-duration-exit: 200ms;
+  --motion-duration-enter: 280ms;
+  --motion-duration-exit: 230ms;
+  --motion-duration-press: 150ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-spring-fade: linear(0, 0.035 3.1%, 0.115 6.3%, 0.217 9.4%, 0.323 12.5%, 0.425 15.6%, 0.519 18.8%, 0.602 21.9%, 0.674 25%, 0.735 28.1%, 0.785 31.3%, 0.827 34.4%, 0.862 37.5%, 0.89 40.6%, 0.913 43.8%, 0.931 46.9%, 0.946 50%, 0.957 53.1%, 0.966 56.3%, 0.974 59.4%, 0.979 62.5%, 0.984 65.6%, 0.987 68.8%, 0.99 71.9%, 0.992 75%, 0.994 78.1%, 0.995 81.3%, 0.996 84.4%, 0.997 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 0.999 100%);
+  --motion-spring-pop: linear(0, 0.045 3.1%, 0.152 6.3%, 0.291 9.4%, 0.439 12.5%, 0.579 15.6%, 0.704 18.8%, 0.807 21.9%, 0.889 25%, 0.951 28.1%, 0.994 31.3%, 1.022 34.4%, 1.038 37.5%, 1.045 40.6%, 1.046 43.8%, 1.042 46.9%, 1.037 50%, 1.03 53.1%, 1.023 56.3%, 1.017 59.4%, 1.012 62.5%, 1.007 65.6%, 1.004 68.8%, 1.001 71.9%, 1 75%, 0.999 78.1%, 0.998 81.3%, 0.998 84.4%, 0.998 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 0.999 100%);
+  --motion-spring-press: linear(0, 0.035 3.1%, 0.115 6.3%, 0.215 9.4%, 0.321 12.5%, 0.424 15.6%, 0.517 18.8%, 0.6 21.9%, 0.672 25%, 0.733 28.1%, 0.784 31.3%, 0.826 34.4%, 0.861 37.5%, 0.889 40.6%, 0.912 43.8%, 0.93 46.9%, 0.945 50%, 0.957 53.1%, 0.966 56.3%, 0.973 59.4%, 0.979 62.5%, 0.984 65.6%, 0.987 68.8%, 0.99 71.9%, 0.992 75%, 0.994 78.1%, 0.995 81.3%, 0.996 84.4%, 0.997 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 0.999 100%);
   /* M6: stessa scala di prima, in `rem` perché l'utente possa ingrandirla. */
   --fs-caption: calc(0.75rem * var(--type-scale));
   --fs-footnote: calc(0.75rem * var(--type-scale));
@@ -936,7 +959,12 @@
   border-radius: inherit;
   background: transparent;
   pointer-events: none;
-  transition: background 120ms var(--motion-ease-standard);
+  /* M7: lo stato (velatura) è la famiglia EFFECTS di Material — colore e alpha —
+     quindi prende la molla `effects` dello schema espressivo (ζ 1: non supera mai
+     il bersaglio, un'alpha che rimbalza si vede come uno sfarfallio) e la durata
+     che quella molla impiega a posarsi (150ms). Prima era «120ms + bezier del
+     web»: la stessa curva di un sito, non quella di Material. */
+  transition: background var(--motion-duration-press) var(--motion-spring-press);
 }
 [data-platform='android'] [data-slot='button']:hover::after,
 [data-platform='android'] [data-slot='chip']:hover::after {
@@ -965,6 +993,11 @@
 }
 [data-platform='android'] [data-slot='button']:active::before,
 [data-platform='android'] [data-slot='chip']:active::before {
+  /* L'increspatura è l'unico movimento GUIDATO che resta a durata ed easing fissi,
+     ed è fedeltà a Material, non pigrizia: la sua onda nella spec è un'animazione a
+     velocità propria (esce dal punto del dito e si spegne), non una molla — non ha
+     una rigidità da cui derivare una durata. Il resto della pressione (velatura,
+     ritorno) è molla in tutti e due i posti. */
   animation: ripple-m3 450ms var(--motion-ease-standard);
 }
 @keyframes ripple-m3 {
@@ -982,9 +1015,17 @@
 /* Lo stato su iOS: il controllo non si muove e non si vela — sotto il dito il
    suo CONTENUTO si spegne un po', come il «highlighted» di UIButton. */
 [data-platform='ios'] [data-slot='button']:active {
-  transform: none;
+  /* M7: il controllo si RITRAE. Fino a ieri qui c'era `transform: none`, perché
+     la convenzione web (`active:translate-y-px`) su iOS è un difetto — ma
+     «nuoversi per finta» e «non muoversi affatto» non sono le uniche due
+     possibilità: iOS 26 fa ritrarre il controllo di vetro sotto il dito. Ora il
+     controllo si ritrae, e il CONTENUTO si spegne come prima (l'`opacity` resta:
+     è il «highlighted» di UIButton). */
+  transform: scale(0.96);
   opacity: 0.65;
-  transition: opacity 80ms linear;
+  /* La discesa è IMMEDIATA (il dito è già lì, non c'è niente da accompagnare);
+     è il RILASCIO che prende la molla, ed è quello che si sente. */
+  transition: opacity 80ms linear, transform 90ms ease-out;
 }
 
 /* Il campo di M3: la sottolineatura diventa primaria al focus (l'«active
@@ -1145,6 +1186,60 @@ html {
   [data-platform='android'] {
     --glass-rim: var(--foreground);
     --glass-highlight: none;
+  }
+}
+
+/* ══ M7 — IL MOTO È UNA MOLLA (22/09/2026) ═════════════════════════════════
+   I token delle molle nascono nei blocchi di piattaforma (generati da
+   `lib/motion.ts`, verificati da `scripts/check-motion.mjs`); qui c'è ciò che li
+   USA e ciò che li SPEGNE.
+
+   La regola che tiene insieme il tutto: il moto GUIDATO dall'utente (un tocco, un
+   pannello che si apre) prende la molla; il moto OSSERVATO (una barra di
+   avanzamento, uno scheletro che pulsa, un velo che si accende) resta tempo +
+   easing, perché là una molla non racconta niente: è il sistema che scorre, non la
+   persona che agisce. */
+
+/* IL RILASCIO DEL CONTROLLO (iOS). La discesa è secca e sta nella skin M4 (90ms,
+   il dito è già lì); qui c'è il RITORNO, che è la parte che si sente: la molla
+   riporta il controllo a 1.0 con un rimbalzo dell'1.5% — impercettibile come
+   numero, ed è esattamente la differenza fra «torna su» e «scatta su». */
+[data-platform='ios'] [data-slot='button'] {
+  transition: transform var(--motion-duration-press) var(--motion-spring-press);
+}
+/* Il velo di luce sul bordo alto. Su iOS `::before` è LIBERO (su Android lo occupa
+   l'increspatura di M4 e `::after` lo stato), quindi la luce si accende lì senza
+   toccare la skin di Material. Si accende con la molla delle EFFECTS, che per
+   definizione non supera il bersaglio: un'alpha che rimbalza si vede come uno
+   sfarfallio. */
+[data-platform='ios'] [data-slot='button']::before,
+[data-platform='ios'] [data-slot='chip']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
+  transition: opacity var(--motion-duration-exit) var(--motion-spring-fade);
+}
+[data-platform='ios'] [data-slot='button']:active::before,
+[data-platform='ios'] [data-slot='chip']:active::before {
+  opacity: 1;
+  transition-duration: 90ms;
+}
+
+/* CHI HA CHIESTO MENO MOVIMENTO. La molla non sparisce — il contenuto deve
+   arrivare comunque — smette di rimbalzare: tutte e tre collassano sull'easing
+   sobrio. Le animazioni che già si spegnevano (l'increspatura, il foglio) restano
+   spente. È un interruttore in UN punto solo, ed è la ragione per cui le molle
+   sono token e non curve scritte dentro i singoli componenti. */
+@media (prefers-reduced-motion: reduce) {
+  [data-platform='ios'],
+  [data-platform='android'] {
+    --motion-spring-press: var(--motion-ease-standard);
+    --motion-spring-pop: var(--motion-ease-standard);
+    --motion-spring-fade: var(--motion-ease-standard);
   }
 }
 
@@ -1450,12 +1545,17 @@ html {
   /* `.fab-mini-pop` è stato ELIMINATO in M2 (20/09/2026): animava la colonna dei
      mini-FAB che la barra non ha più (le azioni ora si aprono in una sheet). Era
      l'unico uso, verificato: nessuna pagina la nomina più. */
+  /* M7: i keyframe sono due, non tre. Il rimbalzo c'era SCRITTO a mano (il
+     fotogramma al 60% con `translateY(1px) scale(1.02)`): un'imitazione della
+     molla dentro l'animazione, che non sapeva né quanto è lungo il viaggio né
+     quanto tempo ha — infatti la durata (.28s) era un numero a parte, da tenere
+     allineato a mano. Ora la curva è la molla dichiarata e l'animazione dice solo
+     da dove a dove. */
   @keyframes month-pop {
-    0% { opacity: 0; transform: translateY(-7px) scale(.9); }
-    60% { opacity: 1; transform: translateY(1px) scale(1.02); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
+    from { opacity: 0; transform: translateY(-7px) scale(.9); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
   }
-  .month-pop { animation: month-pop .28s cubic-bezier(.34, 1.56, .64, 1) both; }
+  .month-pop { animation: month-pop var(--motion-duration-enter) var(--motion-spring-pop) both; }
   @media (prefers-reduced-motion: reduce) {
     .month-pop { animation: none; }
   }
@@ -1476,8 +1576,12 @@ html {
     from { opacity: 0; }
     to   { opacity: 1; }
   }
-  .nav-sheet { animation: nav-sheet-in var(--motion-duration-enter) var(--motion-ease-standard) both; }
-  .nav-scrim { animation: nav-scrim-in var(--motion-duration-exit) var(--motion-ease-standard) both; }
+  /* Il foglio SALE (spatial) e prende la molla del pannello; il velo si ACCENDE
+     (effects) e prende quella della dissolvenza, che non rimbalza mai. Sono le due
+     famiglie di Material usate come le usa Material: la prima muove qualcosa, la
+     seconda cambia un'alpha. */
+  .nav-sheet { animation: nav-sheet-in var(--motion-duration-enter) var(--motion-spring-pop) both; }
+  .nav-scrim { animation: nav-scrim-in var(--motion-duration-exit) var(--motion-spring-fade) both; }
   @media (prefers-reduced-motion: reduce) {
     .nav-sheet, .nav-scrim { animation: none; }
   }

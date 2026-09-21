@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, EyeOff, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser, X, Palette } from 'lucide-react'
+import { BarChart2, Bell, Users, MessageSquare, ChevronRight, Eye, EyeOff, ChevronLeft, FlaskConical, Megaphone, LayoutGrid, ArrowLeftRight, Eraser, X, Palette, Waves } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { NotificationBadge } from '@/components/ui/notification-badge'
@@ -172,6 +172,12 @@ export function AdminPanel() {
           label="Statistiche"
           description="Accessi, turni pubblicati, interessi per utente"
           onClick={() => router.push('/admin/statistiche')}
+        />
+        <PanelButton
+          icon={<Waves size={15} />}
+          label="Movimento"
+          description="Le molle dell'app fianco a fianco, sulle due skin: qui si tara il moto"
+          onClick={() => router.push('/admin/movimento')}
         />
         <PanelButton
           icon={<MessageSquare size={15} />}

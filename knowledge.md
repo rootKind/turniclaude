@@ -58,7 +58,9 @@ Script riusabili da CONSERVARE: `make-dev-icons.mjs` (icone «Turni DEV»), `mak
 (rigenera la migration 020), `apply-release-migrations.mjs` (applica migration via Management
 API), `allinea-rotazione-prod.mjs`, `apply-super-cycle.mjs`, `verify-seed.mjs`,
 `measure-nav-prod.mjs`, `measure-cache-first.mjs`, `check-notif-templates.mjs` (contratto del
-registry notifiche), `sala-gialli-mese.mjs` (sonda manuale d'emergenza).
+registry notifiche), `check-design-tokens.mjs` (contratto del design system duale: token
+coerenti, contrasti AA, nessun token senza lettore), `check-motion.mjs` (contratto del moto:
+molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emergenza).
 
 ---
 
@@ -205,7 +207,7 @@ registry notifiche), `sala-gialli-mese.mjs` (sonda manuale d'emergenza).
   priorità: riga base del PDF (mesi caricati) → predizione dalla storia
   (`lib/person-cycle.ts`, per mesi senza PDF) → rotazione DB (fallback).
 
-### Design system duale iOS/Android (M1–M5, 20/09/2026)
+### Design system duale iOS/Android (M1–M7, 20–22/09/2026)
 
 - **La piattaforma la decide il SERVER, una volta sola:** `lib/platform.ts` (PURO, la sola
   regex UA dell'app — ratchet 0 regex fuori da lì, contrato in `check-design-tokens.mjs`);
@@ -235,6 +237,32 @@ registry notifiche), `sala-gialli-mese.mjs` (sonda manuale d'emergenza).
   una modifica al CSS serve `rm -rf .next` e riavvio (misurare il CSS vecchio è il falso
   «bug» più frequente). `:hover`/`:active` sintetici non esistono su WebKit/iPhone: è vero
   comportamento, le prove di pressione stanno su chromium/android.
+- **MOTO — la divisione che regge tutto (M7):** il moto GUIDATO dall'utente (un tocco, un
+  pannello che si apre) prende una MOLLA; il moto OSSERVATO (velo, avanzamento, scheletro,
+  increspatura di Material) resta durata + easing, perché là una molla non racconta niente:
+  è il sistema che scorre, non la persona che agisce. Senza questa distinzione le molle
+  rendono l'app stancante.
+- **Le molle sono GENERATE, non scritte:** la fisica vive in `lib/motion.ts` (massa 1:
+  `posizione()`, `rimbalzo()`, `assestamento()`) e diventa `linear(...)` (≈400 caratteri di
+  numeri) nei blocchi di piattaforma via `node scripts/check-motion.mjs --write`; `--print`
+  li mostra. **Una molla non sta mai da sola in CSS**: le durate `--motion-duration-enter`
+  (pannello che sale), `--motion-duration-press` (pressione) e `--motion-duration-exit`
+  (velo) sono il TEMPO DI ASSESTAMENTO della molla che governano — non numeri a parte, e il
+  contratto `check-motion.mjs` pretende l'uguaglianza. Su desktop le molle sono l'easing di
+  sempre e le durate 300/200: il desktop non si muove.
+- **Due famiglie, due schemi:** `spatial` (posizione/dimensione) può rimbalzare, `effects`
+  (colore/alpha) **mai** — un'alpha sopra il bersaglio si vede come sfarfallio, e il
+  contratto lo misura. Schemi: `standard` (ζ 0.9, il Material sobrio) ed **espressivo**
+  (ζ 0.7), quest'ultimo SCELTO per l'app; iOS esprime le sue tre molle nel linguaggio
+  SwiftUI (risposta + smorzamento) via `daRisposta()`, non con una seconda tabella. `/admin/movimento`
+  è la sonda di taratura: confronta gli schemi con le molle vere, con i controlli veri, e gira
+  le due skin (nessun valore copiato lì dentro — mostrerebbe un confronto falso).
+- **La pressione risponde in modo diverso, ed è voluto:** su iOS il controllo si ritrae
+  (`scale(.96)`), la luce sul bordo alto si accende (`::before`, libero perché su Android lo
+  occupano increspatura e stato) e il RITORNO lo fa la molla (270ms, rimbalzo 1.5%); su
+  Android la superficie si VELA con la molla delle effects (150ms, nessun rimbalzo) e
+  l'increspatura resta a durata fissa — è fedeltà alla spec, non pigrizia. `prefers-reduced-motion`
+  collassa tutte le molle sull'easing sobrio in UN punto solo (è la ragione per cui sono token).
 
 ### «Il tuo turno» (/tuoturno)
 
