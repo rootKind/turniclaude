@@ -8,7 +8,7 @@ import type {
   VacationPeriod,
   VacationYearOverride,
 } from '@/types/database'
-import { getEffectivePeriodForYear } from '@/lib/vacations'
+import { getEffectivePeriodForYear, periodInteressatoThisYear } from '@/lib/vacations'
 
 export interface VacationAssignmentWithUser extends VacationAssignment {
   user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
@@ -126,9 +126,7 @@ export function mapVacationRequestsWithInterests(
         user_id:         i.user_id,
         created_at:      i.created_at,
         user:            i.user,
-        period_this_year: i.user?.vacation_assignments?.[0]?.base_period != null
-          ? getEffectivePeriodForYear(i.user.vacation_assignments[0].base_period as VacationPeriod, year, overrides, i.user_id)
-          : (1 as VacationPeriod),
+        period_this_year: periodInteressatoThisYear(i, year, overrides),
       })),
     }))
 }

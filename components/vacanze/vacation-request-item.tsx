@@ -45,10 +45,12 @@ const PERIOD_PILL_CLASS: Record<number, string> = {
   1: 'p1-pill', 2: 'p2-pill', 3: 'p3-pill', 4: 'p4-pill', 5: 'p5-pill', 6: 'p6-pill',
 }
 
-function PeriodPill({ period }: { period: VacationPeriod }) {
-  const label = VACATION_PERIOD_LABELS[period].label
+function PeriodPill({ period }: { period: VacationPeriod | null }) {
+  // Il periodo dell'interessato può essere IGNOTO (nessuna assegnazione ferie,
+  // o embed non risolto): si DICE, invece di mostrare un periodo finto.
+  const label = period == null ? 'Periodo non noto' : VACATION_PERIOD_LABELS[period].label
   return (
-    <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[period] ?? 'offered-box text-offered-label')}>
+    <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap', period == null ? 'offered-box text-offered-label' : PERIOD_PILL_CLASS[period] ?? 'offered-box text-offered-label')}>
       {label}
     </span>
   )
@@ -426,9 +428,7 @@ export function VacationRequestItem({
                           .map(i => (
                             <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0 gap-2">
                               <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
-                              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[i.period_this_year] ?? 'offered-box text-offered-label')}>
-                                {VACATION_PERIOD_LABELS[i.period_this_year].label}
-                              </span>
+                              <PeriodPill period={i.period_this_year} />
                               <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(i.created_at)}</span>
                             </div>
                           ))}
@@ -549,9 +549,7 @@ export function VacationRequestItem({
                           .map(i => (
                             <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0 gap-2">
                               <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
-                              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[i.period_this_year] ?? 'offered-box text-offered-label')}>
-                                {VACATION_PERIOD_LABELS[i.period_this_year].label}
-                              </span>
+                              <PeriodPill period={i.period_this_year} />
                               <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(i.created_at)}</span>
                             </div>
                           ))}
@@ -574,9 +572,7 @@ export function VacationRequestItem({
                           .map(i => (
                             <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0 gap-2">
                               <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
-                              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full whitespace-nowrap', PERIOD_PILL_CLASS[i.period_this_year] ?? 'offered-box text-offered-label')}>
-                                {VACATION_PERIOD_LABELS[i.period_this_year].label}
-                              </span>
+                              <PeriodPill period={i.period_this_year} />
                               <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(i.created_at)}</span>
                             </div>
                           ))}

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { getEffectivePeriodForYear, getVacationPeriodForYear, vacationFilterKeeps, VACATION_PERIOD_LABELS_SHORT } from '../lib/vacations'
+import { getEffectivePeriodForYear, getVacationPeriodForYear, vacationFilterKeeps, VACATION_PERIOD_LABELS_SHORT, basePeriodInteressato, periodInteressatoThisYear, labelPeriodoInteressato } from '../lib/vacations'
 import { renderFlowTemplate, resolveMessage } from '../lib/notification-templates'
 import type { VacationPeriod } from '../types/database'
 
@@ -60,5 +60,49 @@ test.describe('nuovo cambio ferie: il filtro per periodo compatibile', () => {
     })).toBe('Bianchi offre 01–15 Lug (2027) e cerca 16–31 Lug: tu sei in 16–31 Lug, uno dei periodi che cerca')
     // Il generico resta il testo di chi NON ha il filtro: i due convivono.
     expect(resolveMessage({}, 'new_vacation.title').title).toBe('Nuovo cambio ferie disponibile')
+  })
+})
+
+test.describe('il periodo dell\'interessato nelle card ferie', () => {
+  /**
+   * IL BUG «16–30 GIUGNO» (21/09/2026): nella card della richiesta, la pillola
+   * del periodo dell'interessato mostrava SEMPRE P1. Il mapper leggeva l'embed
+   * users → vacation_assignments come ARRAY, ma user_id è la PRIMARY KEY della
+   * tabella: PostgREST classifica la relazione one-to-one e torna un OGGETTO —
+   * l'indice [0] era undefined e tutti cascavano sul fallback finto P1.
+   */
+  const anno = 2027
+  const overrides = new Map<string, VacationPeriod>()
+
+  test('l\'embed one-to-one (oggetto) adesso dà il periodo vero', () => {
+    // Forma REALE del payload di produzione (verificata con la sonda):
+    const oggetto = { user_id: 'u1', user: { id: 'u1', nome: 'A', cognome: 'B', is_secondary: false, vacation_assignments: { base_period: 6 } } }
+    expect(basePeriodInteressato(oggetto).base).toBe(6)
+    expect(periodInteressatoThisYear(oggetto, anno, overrides)).toBe(4) // 2026→2027: 6→4
+  })
+
+  test('l\'embed many-to-one (array) resta supportato', () => {
+    const array = { user_id: 'u2', user: { id: 'u2', nome: 'C', cognome: 'D', is_secondary: false, vacation_assignments: [{ base_period: 3 }] } }
+    expect(basePeriodInteressato(array).base).toBe(3)
+    expect(periodInteressatoThisYear(array, anno, overrides)).toBe(5) // 2026→2027: 3→5
+  })
+
+  test('niente riga di assegnazione: NULL, mai più un periodo finto', () => {
+    const vuoto = { user_id: 'u3', user: { id: 'u3', nome: 'E', cognome: 'F', is_secondary: false, vacation_assignments: null } }
+    expect(basePeriodInteressato(vuoto).base).toBeNull()
+    expect(periodInteressatoThisYear(vuoto, anno, overrides)).toBeNull()
+  })
+
+  test('l\'override admin dell\'anno vince sull\'embed', () => {
+    const i = { user_id: 'u4', user: { id: 'u4', nome: 'G', cognome: 'H', is_secondary: false, vacation_assignments: { base_period: 6 } } }
+    const conOverride = new Map<string, VacationPeriod>([['u4', 2]])
+    expect(periodInteressatoThisYear(i, anno, conOverride)).toBe(2)
+  })
+
+  test('l\'etichetta dice «Periodo non noto» quando l\'assegnazione è ignota', () => {
+    const i = { user_id: 'u5', user: { id: 'u5', nome: 'I', cognome: 'L', is_secondary: false, vacation_assignments: null } }
+    expect(labelPeriodoInteressato(i, anno, overrides)).toBe('Periodo non noto')
+    const noto = { user_id: 'u6', user: { id: 'u6', nome: 'M', cognome: 'N', is_secondary: false, vacation_assignments: { base_period: 1 } } }
+    expect(labelPeriodoInteressato(noto, 2026, overrides)).toBe('16–30 Giugno')
   })
 })
