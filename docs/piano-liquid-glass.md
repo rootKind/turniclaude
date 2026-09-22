@@ -1,7 +1,8 @@
 # Piano M6–M12 — Material 3 Expressive (Android) e Liquid Glass (iOS)
 
-Stato analizzato: **dev @fbaed52**, M6 **implementata** in `f437402`, M7
-**implementata** in `fbaed52`.
+Stato analizzato: **dev @0eb8ca3**, M6 **implementata** in `f437402`, M7
+**implementata** in `fbaed52`, M8 **implementata** in `0eb8ca3` — con la coda che
+le milestone vere si portano dietro: vedi «M8b» in fondo alla sezione.
 Seguito di `docs/audit-ios-material.md` (audit del 19/09, *prima* delle milestone
 M1–M5): non ripete quello che le M1–M5 hanno fatto, dice cosa manca e in che
 ordine farlo.
@@ -38,17 +39,21 @@ prova nel codice o nella guida.
 | Piattaforma decisa dal server (`data-platform` nell'HTML iniziale) | fatto, puro e testato |
 | Token a due livelli (semantici → piattaforma) + utility tipografiche `@theme inline` | fatto |
 | Contratto `scripts/check-design-tokens.mjs` (chiavi pari, skin viva, utility, WCAG, ratchet **+ token mai letti**) | fatto (M6) |
-| Contratto `scripts/check-motion.mjs` (molle generate, durate derivate, effects che non rimbalzano) | fatto (M7) |
-| Contratto E2E `tests/design-piattaforma.spec.ts` su motori veri | fatto, esteso in M6 e M7 |
+| Contratto `scripts/check-motion.mjs` (molle generate, durate derivate, effects che non rimbalzano, easing che chiude) | fatto (M7, esteso in M8) |
+| Contratto E2E `tests/design-piattaforma.spec.ts` su motori veri | fatto, esteso in M6, M7 e M8 |
 | Skin iOS dei controlli (switch 51×31, campo a inserto, segmented, chip 32) | fatto |
 | Skin Android dei controlli (state layer, ripple dal dito, campo M3, switch 52×32) | fatto |
 | Safe area (ora anche laterali), `dvh`/`svh`, `prefers-reduced-motion` | fatto (M6 completa i lati) |
 | Barra di navigazione + superficie delle azioni con scriminatura | fatto (M2) |
 | Moto a molle (fisica generata in CSS, due schemi, pressione per piattaforma) | fatto (M7) |
+| Barra a **isola** su iOS e a **banda** altrove, con lo stato «scrolled» | fatto (M8) |
+| **Back di sistema** che chiude l'overlay più in alto (Android) | fatto (M8) |
+| **Fogli trascinabili** dalla maniglia, con la molla viva | fatto (M8) |
+| Arrivo di pagina a molla (`--motion-duration-enter` + molla `pop`) | fatto (M8, al posto della dissolvenza scritta a mano) |
 
-Mancano: le **forme espressive** (nessun morph), il **vetro**, il **chrome di
-navigazione** (barre, titolo grande, indietro), i **fogli trascinabili**, il
-**back di sistema** di Android, la **PWA** e l'**adattività**.
+Mancano: il **resto del chrome di navigazione** (titolo grande su iOS, gesto di
+ritorno dal bordo, top app bar di Android: è la coda M8b), le **forme espressive**
+(nessun morph), il **vetro**, la **PWA** e l'**adattività**.
 
 ---
 
@@ -71,9 +76,10 @@ Tutto il movimento era tempo + `cubic-bezier`. Ora la fisica sta in `lib/motion.
 (massa 1: posizione, rimbalzo, assestamento) e scende in CSS come `linear()`
 campionata: le sei molle di Material (spatial/effects × fast/default/slow) nei due
 schemi, il trio iOS in linguaggio SwiftUI, e le durate **derivate**
-dall'assestamento. Resta scritto a mano un solo movimento guidato — la molla del
-gesto di trascinamento dei fogli, che non è esprimibile con una `linear()` e
-arriva in M8 (Web Animations o `motion`).
+dall'assestamento. Restava scritto a mano un solo movimento guidato — la molla del
+gesto di trascinamento dei fogli, che non è esprimibile con una `linear()`: è
+arrivata in **M8** (`hooks/use-drag-to-close.ts`, Web Animations, integrata dalla
+stessa fisica).
 
 ### D. Niente forme espressive · ALTA (Android)
 M3 Expressivo è, in gran parte, **forma che cambia stato**: la voce attiva della
@@ -89,22 +95,35 @@ M3 Expressive aggiunge gli stili **emphasized** (stessa misura, peso e presenza
 maggiori: è così che «l'occhio si ferma»). Qui il vocabolario è solo la scala di
 misura. (La scalabilità del testo è stata sistemata in M6: `rem` × `--type-scale`.)
 
-### F. Chrome di navigazione assente · ALTA
-L'unico `router.back()` è in `admin-panel`. Su iOS mancano barra, titolo grande e
-gesto dal bordo (in standalone WebKit **non** naviga col gesto); su Android manca
-la top app bar e — ben più grave — **il back di sistema non chiude gli overlay**:
-zero `pushState`, zero `popstate`, quindi con un foglio aperto il gesto indietro
-esce dalla pagina. La convenzione Android è l'opposto.
+### F. Chrome di navigazione assente · ALTA → **risolta in M8, con una coda (M8b)**
+Le due cose che il piano chiamava per nome sono fatte:
 
-### G. I fogli non si trascinano · MEDIA-ALTA
-`dialog.tsx` disegna la scriminatura ma non si chiude trascinando. Lo chiedono
-**entrambe** le guide (action sheet HIG, bottom sheet M3).
+- **Il back di sistema di Android chiude l'overlay più in alto**, invece di uscire
+  dalla pagina (era il difetto più grave della metà Android, e invisibile da un
+  iPhone). Contratto unico: `hooks/use-back-to-close.ts`, montato **una volta** in
+  `components/ui/dialog.tsx` e in `nav-action-surface.tsx`.
+- **La barra è un'isola su iOS e una banda altrove**, e bordo/ombra sono uno
+  **stato** («scrolled»), non un decoro sempre accesso: lo scrive il componente
+  (`data-scrolled`), lo disegna il token di piattaforma.
+
+Resta per **M8b**: il titolo grande che si riduce scorrendo e il **gesto di
+ritorno dal bordo** su iOS (in standalone WebKit non naviga col gesto), la **top
+app bar** di Android (small/medium, con lo stato «scrolled» che già esiste), e
+`@view-transition { navigation: auto }` per il **predictive back** al posto
+dell'arrivo di pagina scritto a mano (che in M8 è comunque diventato una molla
+vera, non una dissolvenza).
+
+### G. I fogli non si trascinano · MEDIA-ALTA → **risolta in M8**
+`dialog.tsx` disegnava la scriminatura ma il foglio non si chiudeva trascinando:
+un'affordance che insegna un gesto che non esiste. Ora la maniglia è vera
+(`.drag-handle`), e il rilascio decide uscita o ritorno dalla **velocità** del
+dito, non solo dalla distanza.
 
 ### H. Liquid Glass: 1 livello su 6 · ALTA (iOS)
 La barra ha `blur(20px) saturate(180%)` su `color-mix(background 82%)`; da M6 ha
 anche bordo e luce di bordo (e il loro spegnimento accessibile). Mancano ombra
-adattiva, grana e **la risposta al tocco**; e la geometria è quella pre-26 (barra
-da 49pt), mentre iOS 26 vuole la **capsula flottante**.
+adattiva, grana e **la risposta al tocco**. La geometria pre-26 è stata chiusa in
+M8: la barra è ora la **capsula flottante** (8pt di distacco, raggio 999px).
 Trappole misurate: **il vetro non campiona il vetro** (due `backdrop-filter`
 sovrapposti danno nero/grigio, e la superficie delle azioni sta *esattamente*
 sopra la barra); **`corner-shape: squircle` è solo Chromium 139+**; **costo GPU**
@@ -128,7 +147,9 @@ sopra la barra); **`corner-shape: squircle` è solo Chromium 139+**; **costo GPU
 ### J. Adattività assente · MEDIA
 Tutte le pagine sono `max-w-lg mx-auto`. Su un tablet Android la barra in basso è
 fuori specifica (M3 vuole una **navigation rail** da 600dp in su); su iPad manca il
-layout largo.
+layout largo. Nota per M12, da M8: fuori da iOS la banda della barra è **a tutta
+larghezza** e il contenuto resta limitato ai 32rem (è la struttura di M2); su iOS
+l'isola ha la larghezza del telefono.
 
 ### K. Token dichiarati e mai letti · ALTA (era MEDIA: si è rivelato un difetto di
 sostanza, non di forma) → **risolta in M6**, con un seguito in M7
@@ -138,15 +159,19 @@ font di sistema (la prova E2E controllava il token, non il font disegnato).
 `--radius-card` senza lettori: rimosso. Il contratto ora boccia un token di
 piattaforma senza lettore — e in M7 ha ripreso lo stesso difetto in piccolo:
 `--motion-spring-press` era dichiarato su **Android** e non lo leggeva nessuno
-(il rilascio della pressione usava una bezier del web).
+(il rilascio della pressione usava una bezier del web). In M8 il controllo ha
+tenuto: `--nav-inset`, `--nav-radius`, `--nav-space` e `--nav-edge` hanno un
+lettore vero nell'istante in cui nascono.
 
 ### L. Accessibilità e comodità · MEDIA
 M6 ha fatto: tap-highlight, riduzione trasparenza/contrasto, scala del testo,
 safe area laterali. M7 ha aggiunto: il collasso delle molle con
-`prefers-reduced-motion` in **un punto solo**. Restano: `role="status"`/`aria-live`
-fuori dai toast, aptica su Android (usata una volta sola), **undo** invece della
-conferma dove è reversibile (M3), `inputMode`/`enterKeyHint` in tre punti soltanto,
-stati offline.
+`prefers-reduced-motion` in **un punto solo**. M8 ha aggiunto: il gesto
+trascinato che con «riduci movimento» non ha una molla da guardare (la chiusura è
+immediata, il ritorno istantaneo — la stessa promessa, applicata a un gesto).
+Restano: `role="status"`/`aria-live` fuori dai toast, aptica su Android (usata una
+volta sola), **undo** invece della conferma dove è reversibile (M3),
+`inputMode`/`enterKeyHint` in tre punti soltanto, stati offline.
 
 ---
 
@@ -216,30 +241,84 @@ giro di accessibilità.
   poteva reggere anche la molla di pressione, perché su Android la molla della
   pressione è della famiglia *effects* (colore) e non *spatial*: sono state
   separate, ed è la ragione per cui le due skin ora divergono anche nella durata.
-- **Resta da fare a mano prima del merge su `master`**: la suite Playwright in dev
-  (`npx playwright test`) — qui non c'è l'ambiente Supabase e non esiste un
-  workflow CI.
 
-### M8 — Chrome di navigazione (iOS + Android)
-1. **iOS**: barra flottante a capsula (geometria iOS 26), titolo grande che si
-   riduce scorrendo, comando indietro, **gesto di ritorno dal bordo** (partenza nei
-   primi ~20px, blocco della direzione, senza litigare con lo swipe dei mesi).
-2. **Android**: top app bar (small/medium, stato «scrolled»), navigation bar
-   espressiva (la forma è M9), e il **back di sistema che chiude l'overlay più in
-   alto**: all'apertura si scrive uno stato di history, `popstate` chiude
-   (`useBackToClose` unico, come `chiedi()` per le conferme).
-3. **Predictive back**: `@view-transition { navigation: auto }` (Chromium 126+ e
-   Safari 18.2+): su Android Chrome dà l'anteprima animata del gesto indietro, su
-   Safari la transizione dal bordo, e sostituisce la dissolvenza scritta a mano di
-   `PageTransitionWrapper`.
-4. **Fogli trascinabili** (entrambe): chiusura verso il basso con resistenza,
-   velocità e ritorno a molla; la scriminatura diventa un'affordance vera; su iOS i
-   detents approssimati. È l'unico posto in cui la molla dev'essere **viva** mentre
-   il dito si muove (la `linear()` campiona un tempo già deciso): serve Web
-   Animations con la stessa fisica di `lib/motion.ts`, ed è il gancio che M7 ha
-   lasciato pronto.
-5. **Scroll edge effect** HIG 26 / stato «scrolled» M3: maschera, **non** un secondo
-   strato di vetro (costo).
+### M8 — Chrome di navigazione ✅ `0eb8ca3` (con la coda M8b)
+
+**Le due cose che il piano chiamava per nome.**
+
+1. **Il back di sistema che chiude l'overlay più in alto** (l'unica voce del piano
+   che *nessuno* aveva visto, perché da un iPhone non esiste). Contratto unico,
+   `hooks/use-back-to-close.ts`, montato in un punto solo per tutti e trenta gli
+   overlay (`components/ui/dialog.tsx`, più la superficie delle azioni).
+   **Non** un `pushState` + `history.back()`, che era la strada ovvia: misurato,
+   `back()` risveglia il router di Next e RIFA la rotta (la pagina sotto si
+   rimonta, e un overlay che chiude l'altro è peggio del difetto di partenza).
+   Si usa la **Navigation API** (`navigate` + `preventDefault()` su `traverse`),
+   che annulla il gesto **prima** che avvenga: nessun `popstate`, il router non se
+   ne accorge. Serve una voce di scorta perché in una PWA appena aperta dietro non
+   c'è niente da attraversare: si scrive una volta per sessione e **non si toglie
+   mai** (toglierla vorrebbe dire chiamare `back()`). Prezzo dichiarato: quando non
+   c'è nessun overlay aperto, il primo «indietro» consuma la scorta — stessa URL,
+   l'utente non vede cambiare niente. Senza Navigation API il gesto resta del
+   browser e l'overlay non si chiude: sta fra le cose che il web non può fare
+   dappertutto.
+2. **La barra è un'isola su iOS e una banda altrove.** Due token (`--nav-inset`,
+   `--nav-radius`) e nessun ramo nel JSX: su iOS 8pt di distacco e capsula
+   (`999px` su 49pt di altezza si riduce da sé), su Android e desktop valgono zero
+   — cioè la fascia di M2, identica al pixel. Con un limite misurato e scritto: sui
+   **320px** l'isola cede (`@media (max-width: 20rem) { --nav-inset: 0 }`), perché
+   gli 8pt tolgono 16px alla barra e «Cambi turno» a 10px ne chiede 63 contro i
+   60,8 disponibili.
+
+**Le altre tre.** Lo stato **«scrolled»** (HIG: scroll edge effect; M3: stato
+scrolled) è uno stato che scrive il componente (`data-scrolled`) e il CSS disegna
+col token giusto — filo di vetro su iOS, **elevazione di Material** su Android —
+invece di un bordo sempre acceso; e il contenuto riceve lo spazio che la barra
+**occupa davvero** (`--nav-space`) e chi le fluttua sopra il suo bordo alto
+(`--nav-edge`), che sull'isola non sono lo stesso numero. I **fogli si chiudono
+trascinando la maniglia** (`hooks/use-drag-to-close.ts`) con la molla **viva** di
+`lib/motion.ts` — resistenza verso l'alto, la velocità del dito che conta più
+della distanza, l'uscita che finisce fuori schermo con la stessa molla
+dell'ingresso, e con «riduci movimento» la molla sparisce invece di rallentare.
+Infine l'**arrivo di pagina** è diventato una molla (`.pagina-arrivo`) al posto
+della dissolvenza scritta a mano.
+
+**I difetti che sono venuti fuori strada facendo** (tutti trovati da prove, non a
+occhio):
+
+- **Un easing che non chiudeva su 1.** La molla si assesta *asintoticamente*,
+  quindi l'ultimo campione della `linear()` valeva 0,9998…: il foglio non tornava
+  mai a `transform: none` e restava a 0,014px dal suo posto. Ora l'easing chiude su
+  `1 100%` esatto, e il contratto del moto lo pretende (è una regola, non una
+  correzione).
+- **`animation-fill-mode: both` lascia un `transform` perenne.** Sul foglio di
+  Android il valore calcolato restava `matrix(…, 0)`: un `transform` permanente
+  rende l'elemento il CONTENITORE di ogni figlio `position: fixed`, e significa che
+  il foglio non torna mai davvero a riposo. Dove il fotogramma finale combacia con
+  lo stato naturale si usa `backwards`; `.desk-card-flash` è l'eccezione
+  dichiarata (il suo `100%` deve spegnere contorno e alone, e c'è una prova che lo
+  pretende).
+- **`.touch-expand` (M6) disattivava l'`absolute` della «Chiudi».** La regola è
+  fuori dai layer, quindi vince sulle utility: il comando finiva al *centro* della
+  maniglia e con la sua area da 44pt la rendeva **non afferrabile** — un difetto
+  preesistente che solo un gesto vero poteva rivelare. I comandi dentro la maniglia
+  ora stanno in un contenitore posizionato.
+- **Il limite dei 32rem sulla superficie sbagliata.** Nella prima stesura la
+  superficie della barra era limitata a `max-width: 32rem`: su un desktop largo la
+  banda si sarebbe interrotta a metà schermo. La suite non poteva vederlo (gira a
+  320px), quindi oltre alla correzione c'è ora la **prova a 1280px**.
+- **Una prova che si fidava di due letture in fila.** Lo snackbar vive pochi
+  secondi e Sonner toglie dal DOM anche la sua sezione: aspettare il messaggio e
+  *poi* cercare il contenitore era una corsa. Ora posizione e geometria si leggono
+  nello stesso fotogramma.
+
+**M8b — la coda dichiarata** (quello che M8 *non* ha fatto, e non è un dettaglio):
+il **titolo grande** che si riduce scorrendo e il **gesto di ritorno dal bordo** su
+iOS; la **top app bar** di Android (small/medium) che sfrutterebbe lo stato
+«scrolled» già in piedi; `@view-transition { navigation: auto }` per il
+**predictive back** (Chromium 126+, Safari 18.2+). Sono le tre voci che richiedono
+di toccare l'impalcatura delle pagine (titoli, livelli, gerarchie), non la barra:
+meritano una milestone loro invece di allargare questa.
 
 ### M9 — Forme espressive (Android) — *il grosso della M3 Expressive*
 1. **Sistema di morph**: due forme per controllo (riposo / attivo) e transizione a
@@ -318,7 +397,8 @@ giro di accessibilità.
 |---|---|---|
 | M6 Igiene ✅ | area di tocco 44pt invisibile, safe area laterali, primi 2 livelli di vetro, **font di sistema applicato** | scorrimento annidato corretto, tap-highlight, testo ingrandibile, elevazione della barra che finalmente si vede, contratto che non ammette più token morti |
 | M7 Moto ✅ | molle in rilascio (è ciò che fa «liquido» il vetro): pressione che si ritrae, ritorno a molla con 1.5% di rimbalzo, luce di bordo che si accende | sistema a molle di M3E (schemi standard/espressivo, spatial/effects), pressione velata con la molla delle effects, **un contratto che genera e verifica le molle** — e la base per ogni morph di M9 |
-| M8 Chrome | barra flottante, titolo grande, gesto dal bordo, fogli trascinabili | top app bar, **back di sistema che chiude gli overlay**, predictive back, fogli trascinabili |
+| M8 Chrome ✅ | barra a **isola** (capsula flottante), stato «scrolled» col filo di vetro, fogli trascinabili che escono con la molla dell'ingresso | **il back di sistema che chiude l'overlay più in alto**, stato «scrolled» con l'elevazione di Material, fogli trascinabili, e la barra che resta la banda di sempre |
+| M8b Chrome (coda) | titolo grande che si riduce, gesto di ritorno dal bordo | top app bar (small/medium), predictive back con `@view-transition` |
 | M9 Forme | — (solo angoli concentrici condivisi) | morph su press/selezione, barra espressiva, switch, button group, FAB menu, loading a 7 forme, **taglia 48dp vera**, enfasi tipografica, elevazione tonale, aptica |
 | M10 Vetro | il materiale completo, 6 livelli, capsula flottante | — (nessun vetro, per scelta) |
 | M11 PWA | chrome dallo sfondo, regola 26.1 | **orientamento sbloccato**, shortcuts, screenshots, maskable, edge-to-edge |
@@ -340,6 +420,10 @@ material-components-android (`docs/theming/Motion.md`): lo scheletro `linear()` 
 stato validato su Chromium e WebKit veri (6 easing su 6 accettati come
 `transition-timing-function`, e il percorso misurato coincide con la curva
 campionata).
+Per M8, in più: la **Navigation API** (Chromium e WebKit, `canIntercept` sui
+viaggi di sola cronologia) misurata prima di scriverci sopra l'hook, e i valori di
+riferimento della tab bar flottante di iOS 26 (8pt di distacco, raggio pieno su
+49pt di altezza) approssimati come il piano dichiara di fare.
 
 **`github.com/material-esm/material` — utile, ma come RIFERIMENTO, non come
 dipendenza.** È un fork della libreria ufficiale Material Web (che Google ha
@@ -376,13 +460,15 @@ proprio per giudicarli con l'occhio.
   scendono, e un token di piattaforma senza lettore è un errore.
 - `node scripts/check-motion.mjs` (M7): le molle nei blocchi di piattaforma devono
   essere quelle **calcolate**, le durate devono essere il tempo di assestamento
-  della molla che governano, le `effects` non devono rimbalzare.
+  della molla che governano, le `effects` non devono rimbalzare, e l'easing deve
+  **chiudere su `1 100%`** (M8: la molla si assesta all'infinito, l'animazione no).
 - `tests/design-piattaforma.spec.ts` esteso sui motori veri (WebKit/iPhone,
   Chromium/Pixel): mai a occhio. Già in M6: token risolti in px, **font disegnato**,
   area di tocco. In M7: molle e durate ricalcolate dal vivo, pressione che legge la
-  molla su entrambe le skin, collasso con `prefers-reduced-motion`. In arrivo: vetro
-  spento con `prefers-reduced-transparency`, back di sistema che chiude l'overlay,
-  manifest senza `orientation`.
+  molla su entrambe le skin, collasso con `prefers-reduced-motion`. In M8: la barra
+  misurata a 320px **e a 1280px** (isola e banda), lo stato «scrolled» prima e dopo
+  lo scorrimento, il **gesto indietro** che chiude l'overlay senza toccare la
+  cronologia, il foglio trascinato che si posa (e l'uscita con la molla).
 - Il desktop resta identico al pixel: ogni regola nuova sta sotto
   `[data-platform='ios'|'android']`, e la suite E2E è la prova. Vale anche per le
   molle: sul desktop sono l'easing di sempre e le durate 300/200.
@@ -393,6 +479,10 @@ proprio per giudicarli con l'occhio.
 - **Il moto si giudica guardandolo**: `/admin/movimento` è lo strumento di taratura
   (schema contro schema, sulla skin vera), e la taratura che ne esce si scrive in
   `lib/motion.ts`, non nel foglio di stile.
+- **Trappola dell'ambiente, costata due diagnosi false**: il dev server può servire
+  un `globals.css` **vecchio** anche dopo una modifica (e anche dopo un tocco al
+  file). Se una regola di stile non si vede, prima di cercare un difetto nel codice
+  si fa `rm -rf .next` e si riavvia — è scritto anche nel knowledge.
 
 ---
 
@@ -409,5 +499,8 @@ proprio per giudicarli con l'occhio.
 - **`theme-color` non è affidabile su Safari 26**: il chrome si guida con lo sfondo.
 - **Una `linear()` non è una molla viva**: campiona un tempo già deciso, quindi non
   sa reagire al dito che si muove (gesti trascinati) e non si può «rilanciare» a
-  metà corsa. Per i fogli trascinabili (M8) serve Web Animations con la stessa
-  fisica.
+  metà corsa. In M8 si è risolto così: Web Animations con la stessa fisica.
+- **Senza Navigation API il back di sistema non chiude l'overlay**: l'alternativa
+  (riscrivere la cronologia con `pushState`/`back()`) rimonta la pagina sotto perché
+  il router la legge come una navigazione estranea. Sui motori senza `navigation`
+  (Firefox) il gesto resta del browser, e l'overlay si chiude col pulsante.
