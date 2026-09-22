@@ -45,6 +45,9 @@ const dialogo = (page: import('@playwright/test').Page) =>
   page.locator('[data-slot="dialog-content"]').first()
 const velo = (page: import('@playwright/test').Page) =>
   page.locator('[data-slot="dialog-overlay"]').first()
+/** La barra di navigazione: serve per navigare con un link VERO (vedi M8). */
+const nav = (page: import('@playwright/test').Page) =>
+  page.locator('nav[aria-label="Navigazione principale"]')
 
 /**
  * Forma, geometria e velo del dialog aperto, misurati sul motore vero.
@@ -354,6 +357,130 @@ test.describe('Overlay (M3): la forma la decide la piattaforma', () => {
     await expect(page.locator('[data-slot="dialog-content"]'), 'il pannello resta aperto').toHaveCount(1)
   })
 
+  test('il GESTO INDIETRO chiude l’overlay, non la pagina', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    test.skip(
+      piattaformaDelProgetto() === 'desktop',
+      'sul desktop il pulsante indietro del browser resta la cronologia: nessun sequestro',
+    )
+    const page = await asEmployee('Minino')
+
+    // Si arriva in /tuoturno con una navigazione DENTRO l'app. Non è pignoleria:
+    // il gesto può essere annullato solo se l'attraversamento avviene fra due
+    // pagine dello stesso documento (annullabile); tornare indietro verso la
+    // pagina bianca del browser è un attraversamento fra documenti, e lì il gesto
+    // resta del browser — che è un altro caso, e non quello che M8 promette.
+    await page.goto(`${E2E_BASE_URL}/dashboard?${DEV}`, { waitUntil: 'domcontentloaded' })
+    await nav(page).locator('a[aria-label="Il tuo turno"]').click()
+    await page.waitForURL(/\/tuoturno/, { timeout: 15_000 })
+    await page.getByLabel('Scegli di chi vedere i turni').click()
+    await expect(dialogo(page)).toBeVisible({ timeout: 20_000 })
+
+    const percorsoPrima = new URL(page.url()).pathname
+
+    // IL GESTO: una navigazione di storia all'indietro vera, non un click su un
+    // pulsante dell'app. È quello che fa il tasto di sistema su Android.
+    await page.evaluate(() => history.back())
+
+    await expect(dialogo(page), 'il gesto deve chiudere il foglio').toHaveCount(0, { timeout: 10_000 })
+    expect(
+      new URL(page.url()).pathname,
+      'e la PAGINA non deve cambiare: il gesto era per il foglio, non per la cronologia',
+    ).toBe(percorsoPrima)
+  })
+
+  test('chiuso col PULSANTE, la voce di cronologia non resta fantasma', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    test.skip(
+      piattaformaDelProgetto() === 'desktop',
+      'sul desktop l’hook non è attivo (vedi la spec precedente)',
+    )
+    const page = await asEmployee('Minino')
+
+    // Si arriva in /tuoturno con una navigazione CLIENT (un link della barra),
+    // così c'è una voce di cronologia vera a cui tornare: senza, il gesto indietro
+    // qui non avrebbe dove andare e la prova non direbbe niente.
+    await page.goto(`${E2E_BASE_URL}/dashboard?${DEV}`, { waitUntil: 'domcontentloaded' })
+    await nav(page).locator('a[aria-label="Il tuo turno"]').click()
+    await page.waitForURL(/\/tuoturno/, { timeout: 15_000 })
+
+    await page.getByLabel('Scegli di chi vedere i turni').click()
+    await expect(dialogo(page)).toBeVisible({ timeout: 20_000 })
+
+    // Chiusura col pulsante: la voce che l'hook aveva scritto in cronologia deve
+    // sparire con lui. Se restasse, il PRIMO indietro dell'utente verrebbe speso
+    // per un foglio che non c'è più — un gesto che sembra rotto.
+    await dialogo(page).getByRole('button', { name: 'Chiudi' }).click()
+    await expect(dialogo(page)).toHaveCount(0)
+
+    await page.evaluate(() => history.back())
+    await expect.poll(() => new URL(page.url()).pathname, { timeout: 10_000 }).toBe('/dashboard')
+  })
+
+  test('il foglio si chiude TRASCINANDO la maniglia', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const atteso = piattaformaDelProgetto()
+    test.skip(atteso === 'desktop', 'il trascinamento è un gesto del dito')
+    const page = await asEmployee('Minino')
+
+    // Su iOS il foglio dei TASK (la scriminatura c'è sempre); su Android i task
+    // sono dialog centrati — e lì l'unico foglio dell'app è l'elenco delle
+    // azioni, che è anche l'overlay più frequente di tutti.
+    const superficie =
+      atteso === 'ios'
+        ? dialogo(page)
+        : page.getByRole('dialog')
+
+    if (atteso === 'ios') {
+      await page.goto(`${E2E_BASE_URL}/tuoturno?${DEV}`, { waitUntil: 'domcontentloaded' })
+      await page.getByLabel('Scegli di chi vedere i turni').click()
+    } else {
+      await page.goto(`${E2E_BASE_URL}/tuoturno?${DEV}`, { waitUntil: 'domcontentloaded' })
+      await page.locator('button[data-nav-actions="control"]').click()
+    }
+    await expect(superficie).toBeVisible({ timeout: 20_000 })
+
+    const maniglia = superficie.locator('.drag-handle')
+    await expect(maniglia, 'la maniglia c’è su entrambe le skin').toBeVisible()
+    expect(
+      await maniglia.evaluate((n) => getComputedStyle(n).touchAction),
+      'senza `touch-action: none` il browser legge il gesto come scorrimento e il foglio non si muove',
+    ).toBe('none')
+    // LA TRAPPOLA DI SEMPRE (vedi la spec del TASK): il foglio entra con
+    // un'animazione che parte da `translateY(100%)`, quindi per i primi 300ms il
+    // suo rettangolo è quello di PARTENZA. Misurare lì vuol dire premere dove la
+    // maniglia sarà, non dove è: il dito cade fuori e non succede niente.
+    await expect(superficie).toHaveCSS('transform', 'none', { timeout: 5_000 })
+
+    const riquadro = await maniglia.boundingBox()
+    if (!riquadro) throw new Error('la maniglia non ha un riquadro: non è misurabile')
+    const x = riquadro.x + riquadro.width / 2
+    const y = riquadro.y + riquadro.height / 2
+
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x, y + 60, { steps: 5 })
+
+    // IL FOGLIO SEGUE IL DITO, e di quanto si è mosso il dito: è la parte che una
+    // `transition` non può fare (il tempo lo decide il dito, non il foglio di
+    // stile). La misura è la TRASLAZIONE e non un «non è `none`»: quel controllo
+    // l'avrebbe passato anche l'animazione d'ingresso del foglio, che è
+    // esattamente il difetto trovato qui (il dito che afferra un foglio ancora in
+    // arrivo veniva scavalcato dalla sua animazione).
+    await expect
+      .poll(async () =>
+        superficie.evaluate((n) => {
+          const m = new DOMMatrixReadOnly(getComputedStyle(n).transform)
+          return Math.round(m.m42)
+        }),
+      )
+      .toBeGreaterThan(40)
+
+    await page.mouse.up()
+
+    await expect(superficie, 'al rilascio il foglio se ne va').toHaveCount(0, { timeout: 10_000 })
+  })
+
   test('lo snackbar di Material sta in basso, sopra la barra', async ({ asEmployee }) => {
     test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
     const atteso = piattaformaDelProgetto()
@@ -373,28 +500,54 @@ test.describe('Overlay (M3): la forma la decide la piattaforma', () => {
     // La board deve esserci PRIMA del giudizio: è la stessa attesa di
     // `card-cambio-to-sala.spec.ts` (l'avviso vive della board, non della URL).
     await expect(page.locator('.sala-card-bg').first()).toBeVisible({ timeout: 20_000 })
-    await expect(page.locator('[data-sonner-toast]').filter({ hasText: /non è in sala/i })).toBeVisible({
-      timeout: 20_000,
-    })
 
-    const contenitore = page.locator('[data-sonner-toaster]')
-    await expect(contenitore).toHaveAttribute('data-y-position', atteso === 'android' ? 'bottom' : 'top')
-
-    if (atteso === 'android') {
-      // Lo snackbar è in basso ma SOPRA la navigation bar: il token
-      // `--nav-height` è l'unico posto che sa quanto è alta, e la distanza la
-      // detta il componente (`components/ui/sonner.tsx`).
-      const geo = await page.evaluate(() => {
-        const t = document.querySelector('[data-sonner-toaster]') as HTMLElement
-        const n = document.querySelector('nav[aria-label="Navigazione principale"]') as HTMLElement
+    /**
+     * Posizione e geometria dello snackbar, lette IN UN COLPO SOLO.
+     *
+     * Perché non due `expect` in fila: lo snackbar è un AVVISO, non un pannello —
+     * vive pochi secondi, e Sonner toglie dal DOM anche la sua sezione quando non
+     * ha più niente da mostrare. Aspettare il messaggio e POI cercare il
+     * contenitore sono due letture separate, e fra le due il messaggio può essere
+     * già uscito: era la ragione per cui questa prova era instabile (sul desktop
+     * l'avviso dura meno dell'attesa che lo precede). Qui il messaggio giusto si
+     * trova, il suo contenitore si legge e le due misure si prendono nello stesso
+     * fotogramma.
+     */
+    const leggiAvviso = () =>
+      page.evaluate(() => {
+        const toast = Array.from(document.querySelectorAll('[data-sonner-toast]')).find(n =>
+          /non è in sala/i.test(n.textContent ?? ''),
+        )
+        const contenitore = toast?.closest('[data-sonner-toaster]') as HTMLElement | null
+        const barra = document.querySelector('nav[aria-label="Navigazione principale"]') as HTMLElement | null
+        if (!toast || !contenitore) return null
         return {
-          base: Math.round(t.getBoundingClientRect().bottom),
-          bordoBarra: Math.round(n.getBoundingClientRect().top),
+          posizione: contenitore.getAttribute('data-y-position'),
+          base: Math.round(contenitore.getBoundingClientRect().bottom),
+          bordoBarra: barra ? Math.round(barra.getBoundingClientRect().top) : null,
         }
       })
-      expect(geo.base, 'lo snackbar non deve finire sotto la barra').toBeLessThanOrEqual(
-        geo.bordoBarra + 1,
+
+    // Un solo `poll` che dice anche PERCHÉ non è ancora a posto: se lo snackbar
+    // tardasse, o comparisse nel posto sbagliato, il messaggio lo direbbe.
+    await expect
+      .poll(
+        async () => {
+          const letto = await leggiAvviso()
+          if (!letto) return 'non ancora a schermo'
+          const attesa = atteso === 'android' ? 'bottom' : 'top'
+          if (letto.posizione !== attesa) return `posizione ${letto.posizione} invece di ${attesa}`
+          // Su Android lo snackbar sta in basso ma SOPRA la navigation bar: la
+          // distanza la detta il componente (`components/ui/sonner.tsx`), che
+          // legge `--nav-edge` — il token che sa dove sta il bordo alto della
+          // barra (sull'isola di iOS non è l'altezza della barra).
+          if (atteso === 'android' && letto.bordoBarra !== null && letto.base > letto.bordoBarra + 1) {
+            return `sotto la barra (${letto.base} > ${letto.bordoBarra})`
+          }
+          return 'a posto'
+        },
+        { timeout: 20_000, message: 'lo snackbar «non è in sala» deve comparire, e sopra la barra' },
       )
-    }
+      .toBe('a posto')
   })
 })

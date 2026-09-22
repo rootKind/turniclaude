@@ -1492,7 +1492,7 @@ export function DeskBoard({
           e «teletrasportato» in fondo quando il transform veniva rimosso a
           animazione finita. Dal body non può più essere intrappolato. */}
       {!isEditing && schedule && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-[calc(var(--nav-height)_+_var(--safe-bottom))] inset-x-0 flex justify-center pointer-events-none z-30">
+        <div className="fixed bottom-[var(--nav-edge)] inset-x-0 flex justify-center pointer-events-none z-30">
           <span className="text-[10px] text-muted-foreground/60 bg-background/80 backdrop-blur-sm px-2 py-0.5 rounded-full">
             {schedule.source === 'theoretical'
               ? 'Turno teorico'

@@ -102,7 +102,13 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
           // scavalcare lo stacking context di questo contenitore.
           className="pointer-events-none fixed left-0 right-0 z-40 mx-auto max-w-lg"
           style={{
-            bottom: 'calc(var(--nav-height) + var(--safe-bottom) + var(--fab-offset))',
+            // `--nav-edge` e non l'altezza della barra: da M8 su iPhone la barra è
+            // un'isola staccata dal bordo, quindi il suo bordo alto sta un
+            // distacco più su. Con l'altezza soltanto, il pulsante sarebbe
+            // finito DENTRO l'isola — e la spec che pretende «le azioni stanno
+            // sopra la barra» l'avrebbe detto. Su Android e desktop il valore è
+            // identico a prima.
+            bottom: 'calc(var(--nav-edge) + var(--fab-offset))',
           }}
         >
           <div className="flex justify-end px-4">

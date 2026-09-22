@@ -210,11 +210,21 @@ export function assestamentoMs(molla: Molla): number {
 export function linearDaMolla(molla: Molla, punti = 32, decimali = 3): string {
   const totale = assestamento(molla)
   const valori: string[] = ['0']
-  for (let i = 1; i <= punti; i++) {
+  for (let i = 1; i < punti; i++) {
     const t = (totale * i) / punti
     const y = posizione(molla, t)
     valori.push(`${arrotonda(y, decimali)} ${arrotonda((100 * i) / punti, 1)}%`)
   }
+  // L'ULTIMO CAMPIONE È 1 ESATTO, non `posizione(assestamento)`.
+  //
+  // Perché non è un arrotondamento di comodo: la molla si assesta
+  // ASINTOTICAMENTE, quindi il suo ultimo campione vale 0,9998… e la proprietà
+  // animata si fermerebbe a 0,014px dal bersaglio — un residuo che non si vede
+  // ma che ESISTE nel valore calcolato (e che ha già fatto fallire una prova:
+  // `transform` non tornava mai a `none`). La morte della molla è infinita; la
+  // sua presentazione in CSS no. Un easing che non finisce su 1 è un'animazione
+  // che non arriva: qui il bersaglio si dichiara.
+  valori.push('1 100%')
   return `linear(${valori.join(', ')})`
 }
 
@@ -245,6 +255,101 @@ export const TOKEN_MOTO = [
   { token: '--motion-spring-pop', ios: MOLLE_IOS.pop, android: MOLLE_M3.espresso.fast.spatial, ruolo: 'pop' },
   { token: '--motion-spring-fade', ios: MOLLE_IOS.fade, android: MOLLE_M3.espresso.default.effects, ruolo: 'fade' },
 ] as const
+
+/**
+ * LA MOLLA VIVA (M8 del piano, 22/09/2026).
+ *
+ * `linear(...)` campiona un tempo GIÀ DECISO: va benissimo per un pannello che si
+ * apre (il tempo è noto dal momento in cui parte) e non va bene per un gesto
+ * trascinato, dove il tempo lo decide il dito e la molla deve RISPONDERE mentre
+ * il dito si muove — e poi ripartire dalla velocità che il dito le lascia.
+ *
+ * Qui c'è la stessa fisica del resto del file, ma integrata un passo alla volta
+ * (Eulero semi-implicito, il metodo che non esplode con le molle rigide):
+ *   a = −k·(x − bersaglio) − c·v,  con c = 2ζ√k (massa 1)
+ * `avanza` fa un passo, `fotogrammiMolla` ne fa quanti ne servono e restituisce la
+ * traiettoria in pixel — che è quello che serve a Web Animations per suonare la
+ * stessa molla su un elemento vero.
+ */
+export interface StatoMolla {
+  /** Dove sta (stessa unità del bersaglio: qui i pixel del trascinamento). */
+  posizione: number
+  /** Quanto va veloce (unità al secondo). */
+  velocita: number
+}
+
+/** Un passo di integrazione della molla (dt in secondi). */
+export function avanza(
+  molla: Molla,
+  stato: StatoMolla,
+  dt: number,
+  bersaglio = 0,
+): StatoMolla {
+  const k = molla.stiffness
+  const c = 2 * molla.damping * Math.sqrt(molla.stiffness)
+  const accelerazione = -k * (stato.posizione - bersaglio) - c * stato.velocita
+  const velocita = stato.velocita + accelerazione * dt
+  return { posizione: stato.posizione + velocita * dt, velocita }
+}
+
+/**
+ * Quanti passi di integrazione per fotogramma: vedi la nota in `fotogrammiMolla`.
+ */
+const SOTTOPASSI = 8
+
+/**
+ * LA TRAIETTORIA di una molla che riparte da `da` con velocità `velocita`
+ * (pixel e pixel/s), campionata a `dt`.
+ *
+ * `bersaglio` è dove la molla sta andando: 0 quando il foglio torna al suo posto,
+ * l'altezza del foglio quando invece deve USCIRNE (una molla che porta fuori
+ * schermo va nella direzione opposta al riposo — è il caso della chiusura, ed è
+ * l'unico motivo per cui questo parametro esiste).
+ *
+ * `tolleranza` è la distanza dal bersaglio sotto la quale si considera arrivata,
+ * e il criterio sulla velocità le è legato dalla fisica: una molla che si è
+ * posata a `tolleranza` dal bersaglio ha una velocità dell'ordine di
+ * `tolleranza · ω`. Chiedendo `|v| < tolleranza` e basta, l'integrazione si
+ * sarebbe fermata molto più tardi della forma chiusa — cioè i due modi di
+ * misurare la stessa molla avrebbero detto due tempi diversi.
+ */
+export function fotogrammiMolla(
+  molla: Molla,
+  da: number,
+  velocita: number,
+  opzioni: { dt?: number; tolleranza?: number; bersaglio?: number } = {},
+): number[] {
+  const { dt = 1 / 60, tolleranza = 0.5, bersaglio = 0 } = opzioni
+  const omega = Math.sqrt(molla.stiffness)
+  const traiettoria: number[] = [da]
+  let stato: StatoMolla = { posizione: da, velocita }
+  // Il tetto esiste solo per non poter mai ciclare: la tolleranza esce molto prima.
+  for (let i = 0; i < 600; i++) {
+    // OTTO SOTTO-PASSI per fotogramma, e non è pignoleria: un passo solo, con
+    // queste molle, SMORZA NUMERICAMENTE. Misurato (molla `pop`): a un passo per
+    // fotogramma la molla di iOS si posa in 250ms invece di 360, quella di
+    // Android in 183 invece di 280 — cioè un foglio che torna su con un movimento
+    // più secco di quello con cui è entrato, che è esattamente il difetto che
+    // `scripts/check-motion.mjs` ora intercetta. Il costo è otto moltiplicazioni
+    // per fotogramma, e la traiettoria si calcola UNA volta al rilascio del dito.
+    for (let passo = 0; passo < SOTTOPASSI; passo++) stato = avanza(molla, stato, dt / SOTTOPASSI, bersaglio)
+    traiettoria.push(stato.posizione)
+    const ferma = Math.abs(stato.posizione - bersaglio) < tolleranza && Math.abs(stato.velocita) < tolleranza * omega
+    if (ferma) break
+  }
+  return traiettoria
+}
+
+/**
+ * La molla di un RUOLO su una piattaforma — la stessa che il foglio di stile usa
+ * per quel ruolo. È il legame che tiene insieme il gesto e l'animazione: il
+ * foglio che si trascina torna su con la molla con cui è arrivato.
+ */
+export function mollaPerRuolo(ruolo: string, piattaforma: 'ios' | 'android'): Molla {
+  const voce = TOKEN_MOTO.find((m) => m.ruolo === ruolo)
+  if (!voce) throw new Error(`ruolo di moto sconosciuto: «${ruolo}»`)
+  return voce[piattaforma]
+}
 
 /**
  * L'ALTRA META' DEL MOTO: l'easing a durate di Material, quello che resta ai

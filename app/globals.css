@@ -184,9 +184,32 @@
   --on-nav-indicator: var(--foreground);
   --nav-bg: var(--background);
   --nav-blur: none;
+  /* M8 — LA GEOMETRIA DELLA BARRA FLOTTANTE (22/09/2026). Qui e su Android
+     valgono ZERO, cioè la barra resta la fascia appoggiata al bordo di sempre
+     (sul desktop non si sposta un pixel, ed è la proprietà che rende la suite
+     E2E una prova); su iOS diventano l'isola di iOS 26: staccata dagli angoli e
+     dal bordo inferiore, coi lati corti completamente tondi. Due token e non
+     una classe condizionale, perché la geometria è una scelta di piattaforma
+     come il raggio — e il contratto la difende come tale. */
+  --nav-inset: 0px;
+  --nav-radius: 0px;
   --fab-size: 48px;
   --fab-radius: 9999px;
   --fab-offset: 12px;
+  /* Quanto spazio il contenuto deve lasciare in fondo: non l'altezza della
+     barra, ma quello che la barra OCCUPA DAVVERO — altezza + area sicura + i
+     due distacchi (che valgono zero quando la barra è appoggiata al bordo).
+     Se restasse l'altezza soltanto, sull'iPhone l'ultima riga di contenuto
+     finirebbe sotto l'isola. */
+  --nav-space: calc(var(--nav-height) + var(--safe-bottom) + 2 * var(--nav-inset));
+  /* …e a che altezza sta il suo BORDO ALTO, per ciò che le fluttua sopra (il
+     pulsante delle azioni, i toast, gli avvisi della board). Sull'iPhone i due
+     valori NON coincidono: l'isola è staccata dal bordo, quindi sotto di lei ci
+     sono due distacchi (sopra e sotto) mentre un elemento appoggiato al suo
+     bordo alto ne conta uno solo. Su Android e desktop, dove i distacchi valgono
+     zero, `--nav-edge` e `--nav-space` sono lo stesso numero — cioè i valori di
+     sempre. */
+  --nav-edge: calc(var(--nav-height) + var(--safe-bottom) + var(--nav-inset));
 
   /* ── Selettore di vista (M2b, 20/09/2026) — la lingua che porta da /turnisala
      a /turniferie DENTRO le due pagine. I valori di BASE sono la struttura di
@@ -706,9 +729,9 @@
   --motion-duration-exit: 290ms;
   --motion-duration-press: 270ms;
   --motion-ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
-  --motion-spring-fade: linear(0, 0.034 3.1%, 0.114 6.3%, 0.215 9.4%, 0.321 12.5%, 0.423 15.6%, 0.517 18.8%, 0.599 21.9%, 0.671 25%, 0.732 28.1%, 0.783 31.3%, 0.826 34.4%, 0.86 37.5%, 0.888 40.6%, 0.911 43.8%, 0.93 46.9%, 0.945 50%, 0.956 53.1%, 0.966 56.3%, 0.973 59.4%, 0.979 62.5%, 0.984 65.6%, 0.987 68.8%, 0.99 71.9%, 0.992 75%, 0.994 78.1%, 0.995 81.3%, 0.996 84.4%, 0.997 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 0.999 100%);
-  --motion-spring-pop: linear(0, 0.045 3.1%, 0.153 6.3%, 0.292 9.4%, 0.439 12.5%, 0.58 15.6%, 0.704 18.8%, 0.808 21.9%, 0.89 25%, 0.951 28.1%, 0.994 31.3%, 1.022 34.4%, 1.038 37.5%, 1.045 40.6%, 1.046 43.8%, 1.042 46.9%, 1.037 50%, 1.03 53.1%, 1.023 56.3%, 1.017 59.4%, 1.012 62.5%, 1.007 65.6%, 1.004 68.8%, 1.001 71.9%, 1 75%, 0.999 78.1%, 0.998 81.3%, 0.998 84.4%, 0.998 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 0.999 100%);
-  --motion-spring-press: linear(0, 0.03 3.1%, 0.106 6.3%, 0.206 9.4%, 0.316 12.5%, 0.428 15.6%, 0.533 18.8%, 0.629 21.9%, 0.712 25%, 0.784 28.1%, 0.842 31.3%, 0.89 34.4%, 0.927 37.5%, 0.956 40.6%, 0.977 43.8%, 0.992 46.9%, 1.003 50%, 1.009 53.1%, 1.013 56.3%, 1.015 59.4%, 1.015 62.5%, 1.014 65.6%, 1.013 68.8%, 1.012 71.9%, 1.01 75%, 1.008 78.1%, 1.007 81.3%, 1.005 84.4%, 1.004 87.5%, 1.003 90.6%, 1.002 93.8%, 1.002 96.9%, 1.001 100%);
+  --motion-spring-fade: linear(0, 0.034 3.1%, 0.114 6.3%, 0.215 9.4%, 0.321 12.5%, 0.423 15.6%, 0.517 18.8%, 0.599 21.9%, 0.671 25%, 0.732 28.1%, 0.783 31.3%, 0.826 34.4%, 0.86 37.5%, 0.888 40.6%, 0.911 43.8%, 0.93 46.9%, 0.945 50%, 0.956 53.1%, 0.966 56.3%, 0.973 59.4%, 0.979 62.5%, 0.984 65.6%, 0.987 68.8%, 0.99 71.9%, 0.992 75%, 0.994 78.1%, 0.995 81.3%, 0.996 84.4%, 0.997 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 1 100%);
+  --motion-spring-pop: linear(0, 0.045 3.1%, 0.153 6.3%, 0.292 9.4%, 0.439 12.5%, 0.58 15.6%, 0.704 18.8%, 0.808 21.9%, 0.89 25%, 0.951 28.1%, 0.994 31.3%, 1.022 34.4%, 1.038 37.5%, 1.045 40.6%, 1.046 43.8%, 1.042 46.9%, 1.037 50%, 1.03 53.1%, 1.023 56.3%, 1.017 59.4%, 1.012 62.5%, 1.007 65.6%, 1.004 68.8%, 1.001 71.9%, 1 75%, 0.999 78.1%, 0.998 81.3%, 0.998 84.4%, 0.998 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 1 100%);
+  --motion-spring-press: linear(0, 0.03 3.1%, 0.106 6.3%, 0.206 9.4%, 0.316 12.5%, 0.428 15.6%, 0.533 18.8%, 0.629 21.9%, 0.712 25%, 0.784 28.1%, 0.842 31.3%, 0.89 34.4%, 0.927 37.5%, 0.956 40.6%, 0.977 43.8%, 0.992 46.9%, 1.003 50%, 1.009 53.1%, 1.013 56.3%, 1.015 59.4%, 1.015 62.5%, 1.014 65.6%, 1.013 68.8%, 1.012 71.9%, 1.01 75%, 1.008 78.1%, 1.007 81.3%, 1.005 84.4%, 1.004 87.5%, 1.003 90.6%, 1.002 93.8%, 1.002 96.9%, 1 100%);
   /* M6: stessa scala di prima, in `rem` perché l'utente possa ingrandirla. */
   --fs-caption: calc(0.75rem * var(--type-scale));
   --fs-footnote: calc(0.8125rem * var(--type-scale));
@@ -733,6 +756,15 @@
   --nav-item-label: 10px;
   --nav-bg: color-mix(in srgb, var(--background) 82%, transparent);
   --nav-blur: blur(20px) saturate(180%);
+  /* L'ISOLA (M8). Fino a iOS 26 la tab bar era una fascia a tutta larghezza
+     appoggiata al bordo; il sistema ora la disegna staccata dagli angoli e dal
+     bordo inferiore, coi lati corti tondi. 8pt di distacco e `999px` di raggio
+     (su 49pt di altezza il raggio si riduce da sé alla capsula) sono
+     l'approssimazione onesta di quella geometria sul web: la misura vera la
+     decide il sistema operativo, e qui non c'è nessun valore di sistema da
+     leggere. */
+  --nav-inset: 8px;
+  --nav-radius: 999px;
   /* Dichiarati anche qui, e trasparenti, perché il contratto
      (`scripts/check-design-tokens.mjs`) pretende che le due piattaforme
      dichiarino LE STESSE CHIAVI: una skin «mezza vestita» è esattamente il
@@ -832,9 +864,9 @@
   --motion-duration-exit: 230ms;
   --motion-duration-press: 150ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --motion-spring-fade: linear(0, 0.035 3.1%, 0.115 6.3%, 0.217 9.4%, 0.323 12.5%, 0.425 15.6%, 0.519 18.8%, 0.602 21.9%, 0.674 25%, 0.735 28.1%, 0.785 31.3%, 0.827 34.4%, 0.862 37.5%, 0.89 40.6%, 0.913 43.8%, 0.931 46.9%, 0.946 50%, 0.957 53.1%, 0.966 56.3%, 0.974 59.4%, 0.979 62.5%, 0.984 65.6%, 0.987 68.8%, 0.99 71.9%, 0.992 75%, 0.994 78.1%, 0.995 81.3%, 0.996 84.4%, 0.997 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 0.999 100%);
-  --motion-spring-pop: linear(0, 0.045 3.1%, 0.152 6.3%, 0.291 9.4%, 0.439 12.5%, 0.579 15.6%, 0.704 18.8%, 0.807 21.9%, 0.889 25%, 0.951 28.1%, 0.994 31.3%, 1.022 34.4%, 1.038 37.5%, 1.045 40.6%, 1.046 43.8%, 1.042 46.9%, 1.037 50%, 1.03 53.1%, 1.023 56.3%, 1.017 59.4%, 1.012 62.5%, 1.007 65.6%, 1.004 68.8%, 1.001 71.9%, 1 75%, 0.999 78.1%, 0.998 81.3%, 0.998 84.4%, 0.998 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 0.999 100%);
-  --motion-spring-press: linear(0, 0.035 3.1%, 0.115 6.3%, 0.215 9.4%, 0.321 12.5%, 0.424 15.6%, 0.517 18.8%, 0.6 21.9%, 0.672 25%, 0.733 28.1%, 0.784 31.3%, 0.826 34.4%, 0.861 37.5%, 0.889 40.6%, 0.912 43.8%, 0.93 46.9%, 0.945 50%, 0.957 53.1%, 0.966 56.3%, 0.973 59.4%, 0.979 62.5%, 0.984 65.6%, 0.987 68.8%, 0.99 71.9%, 0.992 75%, 0.994 78.1%, 0.995 81.3%, 0.996 84.4%, 0.997 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 0.999 100%);
+  --motion-spring-fade: linear(0, 0.035 3.1%, 0.115 6.3%, 0.217 9.4%, 0.323 12.5%, 0.425 15.6%, 0.519 18.8%, 0.602 21.9%, 0.674 25%, 0.735 28.1%, 0.785 31.3%, 0.827 34.4%, 0.862 37.5%, 0.89 40.6%, 0.913 43.8%, 0.931 46.9%, 0.946 50%, 0.957 53.1%, 0.966 56.3%, 0.974 59.4%, 0.979 62.5%, 0.984 65.6%, 0.987 68.8%, 0.99 71.9%, 0.992 75%, 0.994 78.1%, 0.995 81.3%, 0.996 84.4%, 0.997 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 1 100%);
+  --motion-spring-pop: linear(0, 0.045 3.1%, 0.152 6.3%, 0.291 9.4%, 0.439 12.5%, 0.579 15.6%, 0.704 18.8%, 0.807 21.9%, 0.889 25%, 0.951 28.1%, 0.994 31.3%, 1.022 34.4%, 1.038 37.5%, 1.045 40.6%, 1.046 43.8%, 1.042 46.9%, 1.037 50%, 1.03 53.1%, 1.023 56.3%, 1.017 59.4%, 1.012 62.5%, 1.007 65.6%, 1.004 68.8%, 1.001 71.9%, 1 75%, 0.999 78.1%, 0.998 81.3%, 0.998 84.4%, 0.998 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 1 100%);
+  --motion-spring-press: linear(0, 0.035 3.1%, 0.115 6.3%, 0.215 9.4%, 0.321 12.5%, 0.424 15.6%, 0.517 18.8%, 0.6 21.9%, 0.672 25%, 0.733 28.1%, 0.784 31.3%, 0.826 34.4%, 0.861 37.5%, 0.889 40.6%, 0.912 43.8%, 0.93 46.9%, 0.945 50%, 0.957 53.1%, 0.966 56.3%, 0.973 59.4%, 0.979 62.5%, 0.984 65.6%, 0.987 68.8%, 0.99 71.9%, 0.992 75%, 0.994 78.1%, 0.995 81.3%, 0.996 84.4%, 0.997 87.5%, 0.998 90.6%, 0.998 93.8%, 0.999 96.9%, 1 100%);
   /* M6: stessa scala di prima, in `rem` perché l'utente possa ingrandirla. */
   --fs-caption: calc(0.75rem * var(--type-scale));
   --fs-footnote: calc(0.75rem * var(--type-scale));
@@ -859,6 +891,12 @@
      chiave va dichiarata lo stesso per il contratto. */
   --nav-bg: var(--background);
   --nav-blur: none;
+  /* M8: sulla fascia di Material niente isola — la navigation bar di M3 è una
+     superficie a tutta larghezza, e il distacco dal bordo è una convenzione di
+     iOS. Le chiavi esistono e valgono zero: è la divergenza che il contratto
+     pretende, non un vestito mancante. */
+  --nav-inset: 0px;
+  --nav-radius: 0px;
   --fab-size: 56px;
   --fab-radius: 16px;
   --fab-offset: 16px;
@@ -928,6 +966,25 @@
 @media (max-width: 359px) {
   [data-platform='android'] {
     --nav-item-label: 10px;
+  }
+}
+
+/* L'ISOLA CEDE SUI 320px, IL NOME DELLA DESTINAZIONE NO.
+   Misurato, non stimato: a 320px i due distacchi da 8pt dell'isola (M8) tolgono
+   16px alla barra, cioè 60,8px per destinazione, mentre «Cambi turno» a 10px ne
+   chiede 63 — e finiva con i puntini (`.truncate`). Provate tutte le misure: a
+   3px di distacco entra, a 2px entra di 0,2px, a 8px no. L'isola è una
+   convenzione di iOS 26, il nome di una destinazione è un requisito: su uno
+   schermo da 320px vince il secondo. Da 390px in su (iPhone 13) la barra torna
+   ad avere 74,8px per voce e l'isola resta quella di sempre.
+   Unlayered e dopo il blocco di piattaforma, per la stessa ragione della regola
+   qui sopra: dentro `@layer components` questa dichiarazione perderebbe contro
+   quella di base, senza che niente lo segnali. E il valore non entra nel
+   contratto dei token di proposito: non è una seconda verità sulla piattaforma,
+   è un adattamento alla larghezza — come il corpo 10sp di Android lì sopra. */
+@media (max-width: 20rem) {
+  [data-platform='ios'] {
+    --nav-inset: 0px;
   }
 }
 
@@ -1157,12 +1214,30 @@ html {
   font-family: var(--font-ui);
 }
 
-[data-platform='ios'] .nav-surface {
+[data-platform='android'] .nav-surface {
+  border-top-width: 0;
+}
+/* M8 — L'EFFETTO DI BORDO DELLO SCORRIMENTO (HIG 26) E LO STATO «SCROLLED» (M3).
+   Fino a ieri il bordo e l'ombra c'erano SEMPRE, anche a pagina in cima: una
+   barra che dichiara «c'è del contenuto sotto di me» quando sotto non c'è niente.
+   Entrambe le guide lo trattano come uno STATO — la barra si alza quando il
+   contenuto le scorre sotto — e lo stato lo scrive il componente
+   (`data-scrolled`, in `nav-bar.tsx`), perché è l'unica cosa che sa dove si
+   trova la pagina.
+
+   Il desktop resta com'era: là `border-t border-border` c'è sempre, e la M2 non
+   tocca un pixel — la suite E2E gira anche lì ed è la prova che nessuna
+   milestone ha spostato niente.
+
+   E la scelta di FONDO di questa milestone: l'effetto non è un secondo strato di
+   vetro (HIG lo chiama «scroll edge effect», ma due `backdrop-filter`
+   sovrapposti danno grigio e costano GPU) — è il bordo che si accende, cioè
+   niente di nuovo da disegnare. */
+[data-platform='ios'] .nav-surface[data-scrolled] {
   border-top-color: var(--glass-rim);
   box-shadow: var(--glass-highlight);
 }
-[data-platform='android'] .nav-surface {
-  border-top-width: 0;
+[data-platform='android'] .nav-surface[data-scrolled] {
   box-shadow: var(--elevation-nav);
 }
 
@@ -1555,7 +1630,7 @@ html {
     from { opacity: 0; transform: translateY(-7px) scale(.9); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
-  .month-pop { animation: month-pop var(--motion-duration-enter) var(--motion-spring-pop) both; }
+  .month-pop { animation: month-pop var(--motion-duration-enter) var(--motion-spring-pop) backwards; }
   @media (prefers-reduced-motion: reduce) {
     .month-pop { animation: none; }
   }
@@ -1580,8 +1655,22 @@ html {
      (effects) e prende quella della dissolvenza, che non rimbalza mai. Sono le due
      famiglie di Material usate come le usa Material: la prima muove qualcosa, la
      seconda cambia un'alpha. */
-  .nav-sheet { animation: nav-sheet-in var(--motion-duration-enter) var(--motion-spring-pop) both; }
-  .nav-scrim { animation: nav-scrim-in var(--motion-duration-exit) var(--motion-spring-fade) both; }
+  /* `backwards`, NON `both` — e vale per tutte le animazioni di questo foglio che
+     finiscono sullo stato naturale dell'elemento. `both` tiene vivo anche il
+     fotogramma finale: il valore calcolato resta quello del `to`, cioè
+     `transform: matrix(…, 0)` per sempre invece di `none`. Non è pignoleria: un
+     `transform` permanente rende l'elemento il CONTENITORE di ogni figlio
+     `position: fixed` (che si ancora al foglio invece che alla finestra) e
+     significa che il foglio non torna mai davvero a riposo. Trovato dalla prova
+     del gesto trascinato in M8: sul foglio di Android `transform` non tornava
+     mai a `none`, quindi non si poteva sapere quando il foglio è fermo. Con
+     `backwards` l'inizio resta protetto (nessun lampo prima dell'animazione,
+     che era la ragione del `both`) e la fine la detta il CSS dell'elemento.
+     La regola vale dove il fotogramma finale È lo stato naturale: `.desk-card-flash`
+     qui sotto fa l'opposto di proposito — il suo `100%` deve SPEGNERE contorno e
+     alone, e c'è una prova che lo pretende. */
+  .nav-sheet { animation: nav-sheet-in var(--motion-duration-enter) var(--motion-spring-pop) backwards; }
+  .nav-scrim { animation: nav-scrim-in var(--motion-duration-exit) var(--motion-spring-fade) backwards; }
   @media (prefers-reduced-motion: reduce) {
     .nav-sheet, .nav-scrim { animation: none; }
   }
@@ -1595,6 +1684,44 @@ html {
     background: var(--nav-bg);
     backdrop-filter: var(--nav-blur);
     -webkit-backdrop-filter: var(--nav-blur);
+  }
+
+  /* LA BARRA COME SUPERFICIE A SÉ (M8). Il materiale e il raggio stanno
+     sull'elemento INTERNO, non sul `<nav>`: il `<nav>` è il contenitore che
+     tiene l'area sicura (e su iPhone è alto 49pt + 34pt di home indicator),
+     quindi un raggio lì arrotonderebbe anche la banda sotto — che è il
+     contrario dell'isola. L'interno invece è alto esattamente `--nav-height`, e
+     su iOS diventa la capsula.
+     Nessun `max-width` QUI, di proposito: fino a M7 la superficie era il `<nav>` a
+     tutta larghezza e il limite dei 32rem stava sul CONTENUTO (`max-w-lg` nel
+     JSX). Portarlo sulla superficie — com'era nella prima stesura di M8 — la
+     faceva finire a 512px su un desktop largo: la barra si interrompeva a metà
+     schermo, e la suite non poteva vederlo perché gira a 320px. Il limite è
+     tornato dov'era, e la prova che il desktop non si è mosso è che la banda è
+     larga quanto il `<nav>`. */
+  .nav-bar {
+    border-radius: var(--nav-radius);
+    /* I due distacchi si tolgono dalla LARGHEZZA, non dal massimo: su un telefono
+       (390px) un `max-width` più stretto non stringerebbe niente, perché il
+       massimo è comunque più largo dello schermo — ed è il caso che conta, visto
+       che l'isola esiste solo lì. `100% - 0px` sul desktop vale `100%`, cioè
+       esattamente la banda di sempre. */
+    width: calc(100% - 2 * var(--nav-inset));
+    margin-inline: auto;
+  }
+
+
+  /* LA MANIGLIA (M8): `touch-action: none` è la riga che rende possibile il
+     gesto. Senza, il browser legge il trascinamento verticale come scorrimento
+     della pagina e il foglio non si muove di un pixel: la scriminatura resta un
+     disegno che insegna un gesto che non esiste. Sul desktop non cambia niente
+     (il mouse non scorre così) e il cursore dice che si può afferrare. */
+  .drag-handle {
+    touch-action: none;
+    cursor: grab;
+  }
+  .drag-handle:active {
+    cursor: grabbing;
   }
 
   /* La «pillola» della voce attiva nella navigation bar di Material: la forma con
@@ -1968,4 +2095,31 @@ html {
 /* Il bottone-giorno è flex-col centrato: con la pillola in alto la cifra verrebbe
    a toccarla (gap −2px misurato). Si abbassa la cifra di 6px per lasciare aria. */
 .cal-has-shift { padding-top: 6px; }
+
+/* ══ M8 — L'ARRIVO DI UNA PAGINA (22/09/2026) ══════════════════════════════
+   Questa era una `motion.div` di framer-motion con durata ed easing scritti nel
+   JSX (`duration: 0.2, ease: 'easeOut'`, 7px di salita): tre numeri che nessuna
+   skin conosceva e che `prefers-reduced-motion` non spegneva — chi aveva chiesto
+   meno movimento se lo prendeva lo stesso.
+
+   Ora la fa il foglio di stile, con i token delle molle: la distanza è breve e
+   la pagina ARRIVA (spatial), quindi prende `--motion-spring-pop` — la stessa
+   molla del foglio, con la durata che è il suo tempo di assestamento — e con
+   «riduci movimento» sparisce del tutto. Il `from` è senza `fill`: finita
+   l'animazione non resta nessuna trasformazione attaccata all'elemento, che è
+   ciò che impedirebbe a un figlio `position: fixed` di ancorarsi alla finestra. */
+.pagina-arrivo {
+  animation: pagina-arrivo var(--motion-duration-enter) var(--motion-spring-pop);
+}
+@keyframes pagina-arrivo {
+  from {
+    opacity: 0;
+    translate: 0 7px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pagina-arrivo {
+    animation: none;
+  }
+}
 

@@ -263,7 +263,7 @@ export default function TurniFeriePage() {
   return (
     <main
       className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
-      style={{ minHeight: 'calc(100dvh - var(--nav-height) - var(--safe-bottom))' }}
+      style={{ minHeight: 'calc(100dvh - var(--nav-space))' }}
     >
       {/* M2b (20/09/2026): il passaggio sala/ferie è QUI, in testa alla pagina,
           non nel menu delle azioni (dove era un'azione che in realtà è un cambio

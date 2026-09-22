@@ -6,10 +6,85 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { usePlatform } from "@/components/providers/platform-provider"
+import { useBackToClose } from "@/hooks/use-back-to-close"
+import { useDragToClose } from "@/hooks/use-drag-to-close"
 import { XIcon } from "lucide-react"
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+/**
+ * I DETTAGLI DELLA CHIUSURA, per base-ui (M8 del piano, 22/09/2026).
+ *
+ * `onOpenChange` di base-ui vuole due argomenti, e il secondo dice PERCHÉ si sta
+ * chiudendo. Le due chiusure nuove di M8 (il gesto indietro e il trascinamento)
+ * non nascono da un evento del browser che base-ui conosca, quindi il dettaglio
+ * se lo costruisce il componente: `imperativeAction` è esattamente il motivo
+ * giusto — «l'ha chiuso qualcosa dentro di noi, non un tocco fuori». `cancel()` e
+ * `allowPropagation()` non hanno niente da annullare: a quel punto la chiusura è
+ * già avvenuta.
+ *
+ * Serve perché i 30 chiamanti dell'app passano callback che leggono solo il
+ * primo argomento, ma il TIPO è di base-ui: fabbricarlo per intero qui è la
+ * differenza fra usare l'API e aggirarla con un cast.
+ */
+function dettagliDiChiusura(evento: Event): DialogPrimitive.Root.ChangeEventDetails {
+  return {
+    reason: 'imperative-action',
+    event: evento,
+    cancel: () => {},
+    allowPropagation: () => {},
+    isCanceled: false,
+    isPropagationAllowed: false,
+    trigger: undefined,
+    preventUnmountOnClose: () => {},
+  }
+}
+
+/**
+ * LA VIA PER CHIUDERE, per i figli. Il foglio deve poter chiedere la chiusura al
+ * rilascio del trascinamento, e chi conosce `onOpenChange` è il Root — che è
+ * SOPRA il foglio nella gerarchia, non un suo antenato diretto con le prop
+ * giuste. Un contesto di tre righe evita di far sapere a 30 chiamanti che esiste
+ * un trascinamento: la maniglia la disegna `DialogContent`, e basta.
+ */
+const ContestoChiusura = React.createContext<(() => void) | null>(null)
+
+function Dialog({ open, onOpenChange, children, ...props }: DialogPrimitive.Root.Props) {
+  const platform = usePlatform()
+
+  /**
+   * IL BACK DI SISTEMA CHIUDE QUESTO DIALOG (M8 del piano, 22/09/2026).
+   *
+   * Sta QUI, sul Root, e non nei 30 chiamanti: ogni overlay dell'app passa da
+   * `<Dialog open onOpenChange>` (fogli, dialog centrati e allarmi compresi),
+   * quindi il gesto indietro funziona su tutti e nessuno deve ricordarsene.
+   *
+   * Su desktop NO (`platform !== 'desktop'`): lì il pulsante «indietro» del
+   * browser è visibile e ha un significato suo — la cronologia — e riscriverla
+   * per chiudere un popup sarebbe un sequestro. Su iOS e Android il gesto è un
+   * tasto di sistema che l'utente ha sempre sotto il pollice, e la convenzione è
+   * l'opposto: prima si chiude quello che è aperto.
+   */
+  useBackToClose(
+    open ?? false,
+    (evento) => onOpenChange?.(false, dettagliDiChiusura(evento)),
+    platform !== 'desktop',
+  )
+
+  const chiudi = React.useCallback(() => {
+    // `cancel`ble no: la chiusura l'ha già decisa il gesto (vedi sopra).
+    onOpenChange?.(false, dettagliDiChiusura(new Event('turni:chiusura-gesto')))
+  }, [onOpenChange])
+
+  // Il provider sta SOPRA il Root e non dentro: React porta il contesto anche
+  // attraverso i portali, quindi il foglio (che esce su `document.body`) lo legge
+  // lo stesso — e così `children` resta la prop di base-ui, che può essere un nodo
+  // o una funzione sul payload del trigger.
+  return (
+    <ContestoChiusura.Provider value={chiudi}>
+      <DialogPrimitive.Root data-slot="dialog" open={open} onOpenChange={onOpenChange} {...props}>
+        {children}
+      </DialogPrimitive.Root>
+    </ContestoChiusura.Provider>
+  )
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
@@ -101,11 +176,27 @@ function DialogContent({
 }) {
   const platform = usePlatform()
   const sheet = shape === "auto" ? platform === "ios" : shape === "sheet"
+  const chiudi = React.useContext(ContestoChiusura)
+
+  /**
+   * IL FOGLIO SI CHIUDE TRASCINANDOLO (M8 del piano, 22/09/2026).
+   *
+   * La scriminatura esisteva da M3 e non faceva NIENTE: un'affordance disegnata
+   * che non mantiene il gesto che promette è peggio di nessuna affordance,
+   * perché lo insegna. Lo chiedono entrambe le guide (action sheet HIG, bottom
+   * sheet M3), e la fisica è quella di `lib/motion.ts` — la stessa molla con cui
+   * il foglio entra, non una curva che le somiglia.
+   */
+  const { props: maniglia, rif: pannello } = useDragToClose({
+    attivo: sheet,
+    onClose: () => chiudi?.(),
+  })
 
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Popup
+        ref={pannello}
         data-slot="dialog-content"
         /* La forma è dichiarata nel DOM: è ciò che le spec della piattaforma
            leggono per dire «questo è un foglio» o «questo è un dialog», senza
@@ -146,21 +237,36 @@ function DialogContent({
         {sheet ? (
           <>
             {/* Scriminatura + la via d'uscita scritta (vedi sopra). La riga è
-                fuori dall'area che scorre: è la lezione di `shift-dialog`. */}
-            <div className="relative flex h-6 shrink-0 items-center justify-center">
+                fuori dall'area che scorre: è la lezione di `shift-dialog`.
+
+                Da M8 è anche la MANIGLIA del foglio (`.drag-handle` porta
+                `touch-action: none` senza il quale il gesto non esiste) e il suo
+                centro è l'area che si afferra: trascinare il corpo del foglio
+                funziona solo se il contenuto è già in cima, e un errore lì è un
+                foglio che non scorre più — la riga invece non si sbaglia. */}
+            <div
+              className="drag-handle relative flex h-6 shrink-0 items-center justify-center"
+              {...maniglia}
+            >
               <span className="h-1 w-9 rounded-full bg-border" aria-hidden />
               {showCloseButton && (
-                <DialogClose
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute -top-1 right-0"
-                    />
-                  }
-                >
-                  Chiudi
-                </DialogClose>
+                /* Il comando sta in un CONTENITORE posizionato, e non è pignoleria:
+                   la «Chiudi» porta la classe `.touch-expand` di M6 (l'area di
+                   tocco da 44pt, che vive di `::after` e quindi vuole
+                   `position: relative` sull'elemento), e quella regola è scritta
+                   FUORI dai layer — dove batte qualsiasi utility, `absolute`
+                   compreso. Misurato su iPhone (M8): la «Chiudi» non stava in
+                   alto a destra, stava come voce di flex al centro della riga,
+                   esattamente sopra la maniglia, e la sua area da 44pt rendeva il
+                   foglio non afferrabile dal centro. Il contenitore risolve la
+                   posizione senza toccare la classe che disegna l'area. */
+                <div className="absolute -top-1 right-0">
+                  <DialogClose
+                    render={<Button variant="ghost" size="sm" />}
+                  >
+                    Chiudi
+                  </DialogClose>
+                </div>
               )}
             </div>
             {children}

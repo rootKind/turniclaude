@@ -272,6 +272,102 @@ test.describe('Le due skin: il motore vero dice quale', () => {
     }
   })
 
+  test('la barra è un’ISOLA su iOS e una fascia altrove, e si alza solo quando si scorre', async ({
+    asEmployee,
+  }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const atteso = piattaformaDelProgetto()
+    const page = await asEmployee('Minino')
+
+    // Serve una pagina che SCORRA davvero — e che stia DENTRO la barra: senza
+    // contenuto sotto di sé lo stato «scrolled» non esiste, è il suo senso. Due
+    // trappole già pagate: la board di sala sta tutta nello schermo (misurata), e
+    // il pannello di amministrazione NON è una pagina del gruppo `(app)`, quindi
+    // non ha la barra affatto. La bacheca delle notifiche invece è lunga per
+    // costruzione: la storia vive in localStorage, quindi si semina prima che
+    // l'app parta e la lunghezza dello scorrimento è certa, non sperata.
+    const storia = Array.from({ length: 40 }, (_, i) => ({
+      id: `prova-scorrimento-${i}`,
+      title: `Notifica ${i}`,
+      body: `Corpo della notifica ${i}`,
+      timestamp: Date.now() - i * 60_000,
+      read: i > 0,
+      type: 'info',
+    }))
+    await page.addInitScript(entries => {
+      localStorage.setItem('notification-history', JSON.stringify(entries))
+    }, storia)
+
+    await page.goto(`${E2E_BASE_URL}/notifiche?${DEV}`, { waitUntil: 'domcontentloaded' })
+    await expect(nav(page)).toBeVisible({ timeout: 20_000 })
+
+    /** Geometria e stato della barra, prima e dopo lo scorrimento. */
+    const misura = () =>
+      page.evaluate(() => {
+        const nav = document.querySelector('nav[aria-label="Navigazione principale"]') as HTMLElement
+        const barra = nav.firstElementChild as HTMLElement
+        const stile = getComputedStyle(barra)
+        return {
+          larghezzaNav: Math.round(nav.getBoundingClientRect().width),
+          larghezzaBarra: Math.round(barra.getBoundingClientRect().width),
+          raggio: stile.borderRadius,
+          scrolled: barra.hasAttribute('data-scrolled'),
+          ombra: stile.boxShadow,
+          scorrevole: document.documentElement.scrollHeight - window.innerHeight > 60,
+        }
+      })
+
+    const inCima = await misura()
+    test.skip(!inCima.scorrevole, 'questa pagina non scorre a questo viewport: lo stato non avrebbe senso')
+
+    // 1. LA GEOMETRIA. L'isola di iOS 26 è staccata dai lati; su Android e sul
+    //    desktop la barra occupa tutta la larghezza, come da M2.
+    if (atteso === 'ios') {
+      expect(inCima.raggio, 'capsula: l’altezza è 49, quindi il raggio si riduce da sé').toBe('999px')
+      expect(inCima.larghezzaBarra, 'l’isola lascia 8pt per lato').toBe(inCima.larghezzaNav - 16)
+    } else {
+      expect(inCima.raggio, 'nessuna capsula fuori da iOS').toBe('0px')
+      expect(inCima.larghezzaBarra, 'la barra è larga quanto lo schermo').toBe(inCima.larghezzaNav)
+    }
+
+    // 2. A PAGINA IN CIMA niente ombra: il bordo che si accende dice «c'è del
+    //    contenuto sotto», e sotto non c'è niente. È il difetto che M8 chiude —
+    //    prima la barra lo dichiarava SEMPRE.
+    expect(inCima.scrolled, 'a pagina in cima lo stato è spento').toBe(false)
+    expect(inCima.ombra, `a pagina in cima la barra su ${atteso} non si alza`).toBe('none')
+
+    // 3. SCORRENDO si accende: su iOS il filo chiaro di bordo, su Android
+    //    l'elevazione di Material. Sul desktop NIENTE: lì la barra ha il suo
+    //    filo da sempre e la M8 non tocca un pixel.
+    await page.evaluate(() => window.scrollTo(0, 400))
+    await expect
+      .poll(async () => (await misura()).scrolled, { message: 'scorrendo la barra deve accendersi' })
+      .toBe(true)
+
+    const scorrendo = await misura()
+    if (atteso === 'desktop') {
+      expect(scorrendo.ombra, 'sul desktop l’ombra resta quella di prima: nessuna').toBe('none')
+    } else {
+      expect(scorrendo.ombra, `scorrendo la barra su ${atteso} si alza`).not.toBe('none')
+    }
+
+    // 4. LA BANDA NON SI INTERROMPE A METÀ SCHERMO. La suite gira a 320px, dove il
+    //    difetto non si vede: se il limite dei 32rem finisse sulla SUPERFICIE
+    //    invece che sul contenuto, su un desktop largo la barra diventerebbe una
+    //    striscia di 512px in mezzo al nulla (è successo nella prima stesura di
+    //    M8, e nessuna prova se n'era accorta). Qui si misura a 1280px: fuori da
+    //    iOS la banda è larga quanto la barra che la contiene, su iOS è l'isola
+    //    (i due distacchi, che non dipendono dalla larghezza perché si tolgono
+    //    dalla PERCENTUALE e non dal massimo).
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.waitForTimeout(200)
+    const largo = await misura()
+    expect(
+      largo.larghezzaBarra,
+      atteso === 'ios' ? 'a 1280px l’isola resta staccata di 8pt per lato' : 'a 1280px la banda è a tutta larghezza, come prima di M8',
+    ).toBe(atteso === 'ios' ? largo.larghezzaNav - 16 : largo.larghezzaNav)
+  })
+
   test('la superficie dell’elenco è quella della piattaforma', async ({ asEmployee }) => {
     test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
     const atteso = piattaformaDelProgetto()

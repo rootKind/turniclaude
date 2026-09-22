@@ -101,6 +101,11 @@ const CONTRATTO = [
   // quel confronto.
   '--nav-height', '--nav-item-label',
   '--nav-indicator', '--on-nav-indicator', '--nav-bg', '--nav-blur',
+  // La GEOMETRIA della barra (M8, 22/09/2026): i due distacchi dall'isola di
+  // iOS 26 e il raggio della capsula. Nel contratto perché su iOS sono la forma
+  // della barra e su Android sono zero — una chiave dichiarata solo da un lato
+  // darebbe una skin mezza vestita, che è esattamente ciò che questo file
+  // impedisce.
   '--fab-size', '--fab-radius', '--fab-offset',
   // Il selettore di vista delle pagine «Turni» (M2b, 20/09/2026). Stanno nel
   // contratto perché sono la PROVA che la skin è viva: le stesse classi
@@ -175,6 +180,10 @@ const DEVONO_DIFFERIRE = [
   // tornassero uguali, la M2 sarebbe una skin copiata: è la ragione per cui sono
   // qui.
   '--nav-height', '--nav-item-label', '--nav-indicator', '--nav-bg', '--nav-blur',
+  // M8: l'isola iOS (8pt di distacco, capsula) contro la fascia di Material
+  // appoggiata al bordo (0 e 0). Se questi due tornassero uguali, la geometria
+  // della barra sarebbe di nuovo una sola — cioè l'isola non esisterebbe.
+  '--nav-inset', '--nav-radius',
   '--fab-size', '--fab-radius',
   // Selettore di vista: iOS tinto e con il thumb (9pt, alto 32), Android
   // trasparente e con la barretta da 3dp (alto 48). Tutti e otto divergono — è

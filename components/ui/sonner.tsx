@@ -45,12 +45,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
       visibleToasts={android ? 1 : undefined}
       offset={
         android
-          ? { bottom: "calc(var(--nav-height) + var(--safe-bottom) + 12px)" }
+          ? { bottom: "calc(var(--nav-edge) + 12px)" }
           : undefined
       }
       mobileOffset={
         android
-          ? { bottom: "calc(var(--nav-height) + var(--safe-bottom) + 12px)" }
+          ? { bottom: "calc(var(--nav-edge) + 12px)" }
           : undefined
       }
       className="toaster group"

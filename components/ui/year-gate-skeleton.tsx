@@ -14,7 +14,7 @@ interface YearGateSkeletonProps {
 export function YearGateSkeleton({ variant }: YearGateSkeletonProps) {
   if (variant === 'turniferie') {
     return (
-      <main className="mx-auto px-3 pt-5 max-w-2xl flex flex-col" style={{ height: 'calc(100dvh - var(--nav-height) - var(--safe-bottom))' }}>
+      <main className="mx-auto px-3 pt-5 max-w-2xl flex flex-col" style={{ height: 'calc(100dvh - var(--nav-space))' }}>
         <div className="flex items-center gap-2 mb-3 bg-card border border-border rounded-xl px-3 py-2 mr-14">
           <Skeleton className="h-6 w-28 flex-1" />
           <Skeleton className="h-7 w-24 rounded-lg" />

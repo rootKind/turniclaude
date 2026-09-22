@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { ArrowLeftRight, Calendar, CalendarRange, Palmtree, Settings, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -47,6 +48,13 @@ const ICONE: Record<NavDestinationId, LucideIcon> = {
  * Le voci sono `Link` con `aria-current="page"`: è ciò che un lettore di schermo
  * annuncia come «pagina corrente», e regge anche quando la voce attiva è una
  * vista sola di un gruppo (sala o ferie dentro «Turni»).
+ *
+ * M8 (22/09/2026) le ha cambiato la GEOMETRIA su iOS: da fascia a tutta larghezza
+ * a ISOLA staccata dal bordo e dagli angoli, come fa iOS 26. La struttura non
+ * cambia (le due skin restano `TabBar` e `NavigationBar`): cambiano `--nav-inset`
+ * e `--nav-radius`, che su Android e sul desktop valgono zero — quindi lì la
+ * barra è identica a prima, e la suite E2E che gira anche da desktop resta la
+ * prova che nessuno ha spostato un pixel.
  */
 export interface NavBarProps {
   /** La destinazione attiva, o `null` per le pagine di dettaglio (/notifiche, /admin). */
@@ -65,36 +73,77 @@ export interface NavBarProps {
 
 export function NavBar({ activeId, hrefFor, badges }: NavBarProps) {
   const platform = usePlatform()
+  const superficie = useRef<HTMLDivElement>(null)
+
+  /**
+   * LO STATO «SCROLLED» (M8 del piano, 22/09/2026).
+   *
+   * HIG 26 lo chiama «scroll edge effect», Material 3 «stato scrolled»: il bordo
+   * e l'ombra della barra compaiono quando il contenuto le scorre SOTTO, non a
+   * pagina in cima — altrimenti la barra dichiara una separazione che non c'è.
+   *
+   * Perché un attributo scritto nel DOM e non uno `useState`: questo è un
+   * ascoltatore di scorrimento, e ridisegnare React (con la barra intera e le
+   * sue cinque voci) a ogni evento sarebbe pagare un render per una riga di
+   * CSS. È lo stesso meccanismo del provider di piattaforma, ed è anche più
+   * onesto: il CSS legge la stessa verità che legge l'utente.
+   *
+   * La soglia di 4px non è un pixel preciso: è «la pagina si è mossa», cioè
+   * esattamente quando lo scorrimento è percettibile.
+   */
+  useEffect(() => {
+    const nodo = superficie.current
+    if (!nodo) return
+    const leggi = () => {
+      if (window.scrollY > 4) nodo.setAttribute('data-scrolled', '')
+      else nodo.removeAttribute('data-scrolled')
+    }
+    leggi()
+    window.addEventListener('scroll', leggi, { passive: true })
+    return () => window.removeEventListener('scroll', leggi)
+  }, [])
 
   return (
     <nav
       aria-label="Navigazione principale"
-      className="nav-surface safe-area-pb fixed bottom-0 left-0 right-0 z-50 border-t border-border"
+      className="safe-area-pb fixed bottom-0 left-0 right-0 z-50"
       style={{ height: 'calc(var(--nav-height) + var(--safe-bottom))' }}
     >
+      {/* Il materiale, il raggio e il filo stanno QUI e non sul `<nav>`: il
+          `<nav>` tiene l'area sicura (su iPhone è alto 49pt + 34pt di home
+          indicator) e un raggio lì arrotonderebbe anche la banda sotto. Questo
+          elemento è alto esattamente `--nav-height`, ed è lui l'isola.
+          Da M8 la superficie è la BANDA INTERA (a tutta larghezza fuori da iOS),
+          quindi il limite dei 32rem che c'era qui in M2 è tornato dove era: sul
+          CONTENUTO, qui sotto. Limitare la superficie l'avrebbe fatta finire a
+          512px su un desktop largo — cioè una barra che si interrompe a metà
+          schermo, il difetto che la suite E2E non vede perché gira a 320px. */}
       <div
-        className="mx-auto flex max-w-lg items-stretch"
+        ref={superficie}
+        className="nav-surface nav-bar border-t border-border"
         style={{ height: 'var(--nav-height)' }}
       >
-        {NAV_DESTINATIONS.map((destination) =>
-          platform === 'android' ? (
-            <MaterialItem
-              key={destination.id}
-              destination={destination}
-              href={hrefFor(destination)}
-              active={destination.id === activeId}
-              badge={badges?.[destination.id] ?? 0}
-            />
-          ) : (
-            <TabItem
-              key={destination.id}
-              destination={destination}
-              href={hrefFor(destination)}
-              active={destination.id === activeId}
-              badge={badges?.[destination.id] ?? 0}
-            />
-          ),
-        )}
+        <div className="mx-auto flex h-full max-w-lg items-stretch">
+          {NAV_DESTINATIONS.map((destination) =>
+            platform === 'android' ? (
+              <MaterialItem
+                key={destination.id}
+                destination={destination}
+                href={hrefFor(destination)}
+                active={destination.id === activeId}
+                badge={badges?.[destination.id] ?? 0}
+              />
+            ) : (
+              <TabItem
+                key={destination.id}
+                destination={destination}
+                href={hrefFor(destination)}
+                active={destination.id === activeId}
+                badge={badges?.[destination.id] ?? 0}
+              />
+            ),
+          )}
+        </div>
       </div>
     </nav>
   )

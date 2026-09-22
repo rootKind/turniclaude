@@ -207,7 +207,7 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   priorità: riga base del PDF (mesi caricati) → predizione dalla storia
   (`lib/person-cycle.ts`, per mesi senza PDF) → rotazione DB (fallback).
 
-### Design system duale iOS/Android (M1–M7, 20–22/09/2026)
+### Design system duale iOS/Android (M1–M8, 20–22/09/2026)
 
 - **La piattaforma la decide il SERVER, una volta sola:** `lib/platform.ts` (PURO, la sola
   regex UA dell'app — ratchet 0 regex fuori da lì, contrato in `check-design-tokens.mjs`);
@@ -257,6 +257,40 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   SwiftUI (risposta + smorzamento) via `daRisposta()`, non con una seconda tabella. `/admin/movimento`
   è la sonda di taratura: confronta gli schemi con le molle vere, con i controlli veri, e gira
   le due skin (nessun valore copiato lì dentro — mostrerebbe un confronto falso).
+- **CHROME DI NAVIGAZIONE (M8):** la barra è un'**isola** su iOS (`--nav-inset` 8px,
+  `--nav-radius: 999px`, capsula) e una **fascia** su Android; lo stato «c'è contenuto sotto»
+  lo scrive il COMPONENTE (`data-scrolled`, `nav-bar.tsx`) e il CSS lo disegna col token giusto
+  (filo di vetro su iOS, `--elevation-nav` su Android) — mai un bordo sempre presente. Il
+  contenuto riceve lo spazio che la barra OCCUPA (`--nav-space`) e chi le fluttua sopra il suo
+  bordo alto (`--nav-edge`): due token derivati, perché sull'isola i due valori non coincidono.
+  **Sui 320px l'isola cede** (`@media (max-width: 20rem) { --nav-inset: 0 }`, unlayered e DOPO
+  il blocco di piattaforma): misurato, gli 8pt tolgono 16px alla barra e «Cambi turno» a 10px
+  chiede 63px contro i 60,8 disponibili. L'arrivo di pagina è `.pagina-arrivo` (molla `pop`).
+- **IL BACK DI SISTEMA CHIUDE L'OVERLAY — e il contratto è un hook solo:**
+  `hooks/use-back-to-close.ts`, montato UNA volta nella primitiva (`components/ui/dialog.tsx`)
+  e in `nav-action-surface.tsx`. Meccanismo: **Navigation API** (`navigate` con `preventDefault()`
+  su `traverse`) più una voce di scorta che non si toglie mai. NON si usa `history.back()`:
+  qualunque back scritto da noi sveglia il router di Next e rimonta la pagina (fallisce la prova
+  E2E e l'overlay sotto ne esce). Un overlay nuovo quindi NON deve inventarsi il proprio back;
+  su iOS l'hook è inerte (lì il back di sistema non esiste).
+- **FOGLI TRASCINABILI (M8):** `hooks/use-drag-to-close.ts` — la maniglia è `.drag-handle`
+  (`touch-action: none`, altrimenti il gesto diventa scorrimento di pagina) e `DialogContent`
+  la disegna da sé; il rilascio decide uscita o ritorno dalla VELOCITÀ della strisciata; la
+  traiettoria si INTEGRA mentre il dito si muove (Web Animations, stessa molla del token `pop`)
+  perché una `linear()` campiona un tempo già deciso e non sa reagire al dito. Il dito prende
+  il comando subito: un'animazione di ingresso che scrive `transform` scavalcherebbe il gesto.
+  `setPointerCapture` è una comodità, non un requisito: su WebKit può lanciare.
+- **`animation-fill-mode: both` È VIETATO quando il fotogramma finale è lo stato naturale**
+  dell'elemento (era la ragione per cui il foglio di Android non tornava mai a `transform: none`).
+  `both` tiene vivo il `to`, e un `transform` permanente rende l'elemento il CONTENITORE di
+  ogni figlio `position: fixed`. Si usa `backwards`; se il fotogramma finale deve invece
+  divergere dallo stato naturale, quello va scritto a mano e giustificato. Corollario sulle
+  molle: l'easing generato **chiude su `1 100%` esatto** (la molla si assesta
+  asintoticamente, l'animazione no: un easing che non arriva è un'animazione che non finisce).
+- **TRAPPOLA `.touch-expand` (M6) con i comandi posizionati:** la regola è fuori dai layer,
+  quindi `position: relative` batte l'`absolute` delle utility e il comando finisce al centro
+  della maniglia, rendendola non afferrabile (l'area da 44pt del comando copre quella del
+  gesto). I comandi dentro la maniglia stanno in un contenitore posizionato.
 - **La pressione risponde in modo diverso, ed è voluto:** su iOS il controllo si ritrae
   (`scale(.96)`), la luce sul bordo alto si accende (`::before`, libero perché su Android lo
   occupano increspatura e stato) e il RITORNO lo fa la molla (270ms, rimbalzo 1.5%); su

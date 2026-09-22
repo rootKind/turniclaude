@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePlatform } from '@/components/providers/platform-provider'
+import { useBackToClose } from '@/hooks/use-back-to-close'
+import { useDragToClose } from '@/hooks/use-drag-to-close'
 import type { NavAction } from './use-nav-actions'
 
 /**
@@ -57,6 +59,22 @@ export function NavActionSurface({
   const [open, setOpen] = useState(false)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressFired = useRef(false)
+
+  /**
+   * IL BACK DI SISTEMA E IL TRASCINAMENTO (M8 del piano, 22/09/2026).
+   *
+   * Questa superficie è l'unico overlay dell'app che NON passa da
+   * `components/ui/dialog.tsx` (è un portale locale, vedi la nota in testa),
+   * quindi è l'unico posto in cui i due gesti nuovi vanno collegati a mano.
+   * Vale la pena perché è l'overlay più frequente di tutti: è l'elenco delle
+   * azioni, e su Android con quel foglio aperto il gesto indietro usciva dalla
+   * pagina — il difetto più grave che M8 chiude.
+   */
+  useBackToClose(open, () => setOpen(false), platform !== 'desktop')
+  const { props: maniglia, rif: foglio } = useDragToClose({
+    attivo: true,
+    onClose: () => setOpen(false),
+  })
 
   // Il pannello si chiude con Esc: su desktop è l'unico modo di uscire senza
   // toccare col mouse (il tocco fuori funziona, ma non tutti lo cercano).
@@ -167,6 +185,7 @@ export function NavActionSurface({
         >
           <div className="nav-scrim absolute inset-0" style={{ background: 'var(--scrim)' }} />
           <div
+            ref={foglio}
             role="dialog"
             aria-modal="true"
             aria-label={controlName}
@@ -187,9 +206,22 @@ export function NavActionSurface({
                 comando è un FAB, non una pill): non è una piattaforma a sé, è
                 «non-iOS», e inventargli una terza superficie sarebbe stato
                 disegnare una cosa che nessuno ha chiesto. */}
-            {platform !== 'ios' && (
-              <div className="mx-auto mt-2 h-1 w-8 rounded-full bg-border" aria-hidden />
-            )}
+            {/* LA MANIGLIA, su ENTRAMBE le skin (M8). Prima la scriminatura
+                esisteva solo sul ramo Material e su iOS non c'era niente da
+                afferrare: ma l'action sheet di HIG si trascina come la bottom
+                sheet di M3, quindi la riga c'è sempre — su iOS è solo la zona
+                che si afferra, senza il segno disegnato (che è una convenzione
+                di Material, non di iOS). */}
+            <div
+              className="drag-handle mx-auto mt-2 flex h-6 w-full shrink-0 items-center justify-center"
+              {...maniglia}
+            >
+              {platform !== 'ios' && (
+                // `div` e non `span`: la scriminatura è il contratto con la spec
+                // della barra (`div[aria-hidden="true"]`), che la cerca così.
+                <div className="h-1 w-8 rounded-full bg-border" aria-hidden />
+              )}
+            </div>
 
             <ul className="py-1">
               {actions.map((action) => {

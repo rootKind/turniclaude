@@ -104,6 +104,17 @@ try {
       }
       assert.ok(rimbalzo <= 0.12, `${voce.token} (${piattaforma}): rimbalzo ${(rimbalzo * 100).toFixed(2)}%, oltre il 12% il movimento sembra instabile`)
 
+      // 4b. L'EASING CHIUDE SU 1 ESATTO. La molla si assesta asintoticamente, ma
+      //     l'easing che la rappresenta DEVE arrivare: un `linear()` che finisce
+      //     su 0,9998 lascia la proprietà animata a un centesimo di pixel dal
+      //     bersaglio — invisibile a occhio, ma è il valore calcolato, e per un
+      //     `transform` significa non tornare mai a `none`. (Difetto trovato da
+      //     una prova E2E in M8: il foglio trascinato non si posava.)
+      assert.ok(
+        moto.linearDaMolla(molla).endsWith('1 100%)'),
+        `${voce.token} (${piattaforma}): l'easing deve chiudere su «1 100%», altrimenti l'animazione non arriva`,
+      )
+
       righe.push(
         `  ${voce.token} (${piattaforma}/${voce.ruolo}): ζ=${molla.damping} k=${molla.stiffness} ` +
           `→ assesta in ${moto.assestamentoMs(molla)}ms, rimbalzo ${(rimbalzo * 100).toFixed(2)}%`,
@@ -209,6 +220,53 @@ try {
       attesi.ios[voce.token],
       attesi.android[voce.token],
       `${voce.token}: iOS e Android devono avere molle diverse (valore identico = skin copiata)`,
+    )
+  }
+
+  // 5. LA MOLLA VIVA (M8). Il gesto trascinato non può usare la `linear(...)` (un
+  //    tempo già deciso): la molla viene INTEGRATA mentre il dito si muove, e al
+  //    rilascio riparte dalla velocità che il dito le lascia. Sono quindi due
+  //    strade per la stessa fisica — forma chiusa per il foglio di stile,
+  //    integrazione per il gesto — e se divergessero il foglio tornerebbe su con
+  //    un movimento diverso da quello con cui è entrato: un difetto che si vede
+  //    solo al rallentatore, e solo se si guarda il gesto giusto.
+  for (const piattaforma of ['ios', 'android']) {
+    const molla = moto.mollaPerRuolo('pop', piattaforma)
+    assert.deepEqual(
+      molla,
+      moto.TOKEN_MOTO.find((v) => v.ruolo === 'pop')[piattaforma],
+      `mollaPerRuolo('pop', ${piattaforma}): il gesto deve usare la STESSA molla del token del foglio`,
+    )
+
+    // (a) integrazione e forma chiusa si posano insieme. La distanza è 1 unità e la
+    //     tolleranza è quella di `assestamento` (un millesimo): confrontare tempi
+    //     misurati con criteri diversi sarebbe un confronto falso.
+    const passi = moto.fotogrammiMolla(molla, 1, 0, { tolleranza: 0.001 }).length - 1
+    const integrato = Math.round((passi / 60) * 1000)
+    const chiuso = moto.assestamentoMs(molla)
+    assert.ok(
+      Math.abs(integrato - chiuso) <= 40,
+      `molla viva (${piattaforma}): la forma chiusa si posa in ${chiuso}ms, l'integrazione in ${integrato}ms — ` +
+        `le due strade devono misurare lo stesso tempo (±40ms = un fotogramma di campionamento)`,
+    )
+
+    // (b) il bersaglio lo raggiunge davvero, anche partendo dalla velocità del
+    //     dito: un foglio tirato a 160px con 900px/s di velocità deve uscire, non
+    //     fermarsi a metà.
+    const uscita = moto.fotogrammiMolla(molla, 160, 900, { bersaglio: 400 })
+    const ultimo = uscita[uscita.length - 1]
+    assert.ok(
+      Math.abs(ultimo - 400) < 0.6,
+      `molla viva (${piattaforma}): la traiettoria deve finire sul bersaglio (400), è finita a ${ultimo.toFixed(2)}`,
+    )
+
+    // (c) le `effects` non superano il bersaglio nemmeno integrate: è la regola di
+    //     M7, e vale sulla strada del gesto come su quella del CSS.
+    const viva = moto.fotogrammiMolla(moto.mollaPerRuolo('press', piattaforma), 1, 0, { tolleranza: 0.001 })
+    const massimo = Math.max(...viva)
+    assert.ok(
+      massimo <= 1.0001,
+      `molla viva (${piattaforma}): la molla della pressione non deve superare il bersaglio (integrata arriva a ${massimo.toFixed(4)})`,
     )
   }
 

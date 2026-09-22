@@ -299,7 +299,14 @@ test('il campionario confronta lo stesso elemento fra due pagine', async ({ asEm
     expect(nav, 'barra di navigazione non trovata').not.toBeNull()
     await premiALungo(page, nav!.x + 24, nav!.y + nav!.height / 2)
     await expect(pannello).toBeVisible()
-    await pannello.getByRole('button', { name: /^nav/ }).first().click()
+    // Il livello da scegliere è quello che PORTA LA SUPERFICIE. Da M8 la barra ha
+    // un livello in più nella pila: il `<nav>` tiene solo l'area sicura (su iPhone
+    // è alto 49pt + 34pt di home indicator) e il materiale sta nell'elemento
+    // dentro, che è l'isola di iOS 26 e la banda su Android/desktop. Scegliendo il
+    // `<nav>` si otterrebbe un elemento senza sfondo — cioè il colore della barra
+    // sarebbe «non modificabile da qui», che è proprio ciò che questa prova
+    // impedisce.
+    await pannello.getByRole('button', { name: /nav-(surface|bar)/ }).first().click()
     const riga = pannello.locator('button[aria-expanded]').first()
     await expect(riga, 'lo sfondo della barra non è modificabile da qui').toContainText(/sfondo/i)
     const etichetta = ((await riga.innerText()).split('\n')[0] ?? '').trim()
