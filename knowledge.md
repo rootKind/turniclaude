@@ -207,7 +207,7 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   priorità: riga base del PDF (mesi caricati) → predizione dalla storia
   (`lib/person-cycle.ts`, per mesi senza PDF) → rotazione DB (fallback).
 
-### Design system duale iOS/Android (M1–M8, 20–22/09/2026)
+### Design system duale iOS/Android (M1–M8b, 20–23/09/2026)
 
 - **La piattaforma la decide il SERVER, una volta sola:** `lib/platform.ts` (PURO, la sola
   regex UA dell'app — ratchet 0 regex fuori da lì, contrato in `check-design-tokens.mjs`);
@@ -265,7 +265,7 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   bordo alto (`--nav-edge`): due token derivati, perché sull'isola i due valori non coincidono.
   **Sui 320px l'isola cede** (`@media (max-width: 20rem) { --nav-inset: 0 }`, unlayered e DOPO
   il blocco di piattaforma): misurato, gli 8pt tolgono 16px alla barra e «Cambi turno» a 10px
-  chiede 63px contro i 60,8 disponibili. L'arrivo di pagina è `.pagina-arrivo` (molla `pop`).
+  chiede 63px contro i 60,8 disponibili. L'arrivo di pagina è `.pagina` (molla `pop`; il nome viene dalla View Transition di M8b).
 - **IL BACK DI SISTEMA CHIUDE L'OVERLAY — e il contratto è un hook solo:**
   `hooks/use-back-to-close.ts`, montato UNA volta nella primitiva (`components/ui/dialog.tsx`)
   e in `nav-action-surface.tsx`. Meccanismo: **Navigation API** (`navigate` con `preventDefault()`
@@ -280,6 +280,33 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   perché una `linear()` campiona un tempo già deciso e non sa reagire al dito. Il dito prende
   il comando subito: un'animazione di ingresso che scrive `transform` scavalcherebbe il gesto.
   `setPointerCapture` è una comodità, non un requisito: su WebKit può lanciare.
+- **LA TESTATA DI PAGINA (M8b):** `components/nav/testata.tsx`. Su iOS il **titolo grande**
+  (34pt) vive nel CONTENUTO e scorre via; la barra compatta (44pt, 17pt semibold, vetro) entra
+  quando la pagina si muove — `data-scrolled`, lo STESSO hook della barra in basso
+  (`hooks/use-scrolled.ts`: una verità, non due). Su Android è la **top app bar** (64dp, titolo
+  compatto 22sp) che scorrendo prende colore ed elevazione di Material (`--head-bar-bg`,
+  `--head-bar-shadow`). Sul **desktop non esiste**: `--head-bar-height: 0px` e il titolo resta
+  l'`<h1>` di sempre con le classi che la pagina si passa. Titolo e barra sono FRATELLI (la
+  barra è `fixed`, la riga del titolo sta nel contenuto): dentro lo stesso blocco uno `sticky`
+  si fermerebbe appena il titolo esce. Non c'è interpolazione continua legata allo scorrimento
+  (`animation-timeline: scroll()` è solo Chromium): due stati, non un continuum.
+- **IL GESTO DI RITORNO DAL BORDO (M8b), solo su iOS:** in una PWA standalone WebKit NON dà il
+  gesto alle pagine, quindi l'unico ritorno era il pulsante. `hooks/use-swipe-back.ts`: nasce
+  nei primi 20px dal bordo, si impegna solo se l'orizzontale vince il verticale, non parte sopra
+  uno scorrimento orizzontale né con un overlay aperto (lì il back è di `use-back-to-close`) e
+  **non parte sulle cinque destinazioni** — lì dietro non c'è una pagina dell'app ma la
+  cronologia di prima, e un gesto che porta fuori dall'app è il difetto peggiore che un gesto
+  possa fare. Al rilascio decide la molla `pop` integrata da `lib/motion.ts` (la stessa dei
+  fogli): il dito comanda, la molla conclude.
+- **LE TRANSIZIONI FRA PAGINE LE DISEGNA IL BROWSER (M8b):**
+  `components/providers/transizioni-pagina.tsx` + `experimental.viewTransition` in
+  `next.config.ts`. Il flag da solo NON basta (misurato: con il flag una navigazione client
+  chiama `startViewTransition` ZERO volte), quindi la transizione si avvolge dove la navigazione
+  nasce: un intercettatore di clic sul documento che chiama lo stesso `router.push` dentro
+  `startViewTransition` (con `flushSync`). Su WebKit non parte affatto — la fotografia del
+  motore fa CRASHARE la pagina se dentro c'è un discendente `position: fixed` (`usaWebKit`),
+  quindi lì l'arrivo resta la molla di M8. Da qui viene anche il **predictive back** di Chrome
+  Android, che per l'anteprima usa la transizione dichiarata per quel viaggio.
 - **`animation-fill-mode: both` È VIETATO quando il fotogramma finale è lo stato naturale**
   dell'elemento (era la ragione per cui il foglio di Android non tornava mai a `transform: none`).
   `both` tiene vivo il `to`, e un `transform` permanente rende l'elemento il CONTENITORE di
@@ -291,6 +318,15 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   quindi `position: relative` batte l'`absolute` delle utility e il comando finisce al centro
   della maniglia, rendendola non afferrabile (l'area da 44pt del comando copre quella del
   gesto). I comandi dentro la maniglia stanno in un contenitore posizionato.
+- **TRAPPOLA `view-transition-name` PERMANENTE (M8b):** un elemento con un nome di transizione
+  diventa un **contesto di impilamento**. Scritto sempre (`[data-slot='pagina'] {
+  view-transition-name: pagina }`) il pannello dei minimi (`z-50`, DENTRO la pagina) finisce
+  sotto il comando delle Azioni (`z-40`, fuori) e la sua «Salva» non è più cliccabile: nessuna
+  prova di geometria lo vedeva, l'ha preso la suite dei minimi (che nessuna run completa
+  eseguiva: vedi Testing E2E). Il nome vive quindi solo nella finestra `html[data-vt]`, che
+  `transizioni-pagina.tsx` accende PRIMA di `startViewTransition` — e la prova E2E lo legge in
+  quel momento, perché è l'unico che conta. Costo dichiarato: le transizioni fra DOCUMENTI
+  (ricaricamenti, link esterni) non si animano.
 - **La pressione risponde in modo diverso, ed è voluto:** su iOS il controllo si ritrae
   (`scale(.96)`), la luce sul bordo alto si accende (`::before`, libero perché su Android lo
   occupano increspatura e stato) e il RITORNO lo fa la molla (270ms, rimbalzo 1.5%); su
@@ -372,6 +408,16 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   riscritto nel formato `@supabase/ssr` (`sb-<ref>-auth-token` = `base64-`+base64url del JSON
   di sessione). Senza sessione valida il test «app reale» si AUTOSALTA (non è un fallimento).
 - **Login:** email + password (`signInWithPassword`); l'OTP è SOLO per il reset password.
+- **Il mouse SINTETICO di WebKit è inaffidabile per i gesti:** dopo un trascinamento, il flusso
+  del puntatore che segue si INTERROMPE dopo la prima mossa (misurato: 13 mosse in una pagina
+  pulita contro 2 dopo un trascinamento; si sblocca ricaricando). Non è il codice: su Chromium
+  con la stessa skin la stessa sequenza consegna 13 mosse su 13, e l'hook prende il gesto in
+  entrambi i casi. Le due affermazioni di un gesto si scrivono quindi in DUE prove, con una
+  pagina fresca ciascuna.
+- **Le spec dei minimi sono le uniche che girano DOPO tutto e che SCRIVONO** (`minimi` project,
+  `dependencies: ['chromium']`): una run filtrata per progetto può non eseguirle affatto, ed è
+  così che per una milestone intera è rimasto invisibile il difetto del `view-transition-name`.
+  Una prova che nessuna run completa esegue è una prova che non esiste.
 
 ## Convenzioni di lavoro
 

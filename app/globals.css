@@ -211,6 +211,28 @@
      sempre. */
   --nav-edge: calc(var(--nav-height) + var(--safe-bottom) + var(--nav-inset));
 
+  /* ── LA TESTATA DI PAGINA (M8b, 23/09/2026) — vedi `components/nav/testata.tsx`.
+     Qui, sul desktop, la barra compatta NON esiste: `--head-bar-height` è zero, la
+     barra è `display: none` e il titolo resta l'`<h1>` che le pagine hanno sempre
+     avuto, con le classi che si passano da sole. I valori base sotto sono la
+     verità del desktop (i titoli delle pagine sono `text-lg font-bold`), non
+     segnaposto: sul desktop le regole che li leggono semplicemente non esistono. */
+  --head-bar-height: 0px;
+  --head-bar-safe: 0px;
+  --head-bar-bg: transparent;
+  --head-bar-blur: none;
+  --head-bar-shadow: none;
+  --head-bar-border: transparent;
+  --head-title-large: 1.125rem;
+  --head-title-large-weight: 700;
+  --head-title-compact: 1rem;
+  --head-title-compact-weight: 600;
+  --head-large-gap: 0px;
+  /* Quanto scivola una pagina mentre l'altra prende il posto (transizione fra
+     pagine, M8b). È una distanza breve di proposito: la pagina che ARRIVA è
+     quella che conta, e chi esce accompagna e basta. */
+  --pagina-scivola: 12px;
+
   /* ── Selettore di vista (M2b, 20/09/2026) — la lingua che porta da /turnisala
      a /turniferie DENTRO le due pagine. I valori di BASE sono la struttura di
      Material (tab su fondo trasparente con l'indicatore in basso): è la stessa
@@ -765,6 +787,28 @@
      leggere. */
   --nav-inset: 8px;
   --nav-radius: 999px;
+  /* LA TESTATA (M8b) — larghe title delle HIG: il titolo grande sta nel CONTENUTO
+     (34pt bold, un filo stretto come i titoli di sistema) e scorre via; la barra
+     compatta è alta 44pt, prende lo STESSO materiale della barra di navigazione
+     (due vetri diversi per due superfici dello stesso livello sarebbe una
+     differenza che nessuno ha chiesto) e porta il titolo a 17pt semibold. Il
+     `--head-bar-safe` è l'area della barra di stato: la barra ci scorre sotto, e
+     senza quello il vetro comincerebbe 47pt troppo in basso. */
+  --head-bar-height: 44px;
+  --head-bar-safe: var(--safe-top);
+  --head-bar-bg: color-mix(in srgb, var(--background) 82%, transparent);
+  --head-bar-blur: blur(20px) saturate(180%);
+  --head-bar-shadow: var(--glass-highlight);
+  --head-bar-border: var(--glass-rim);
+  --head-title-large: 34px;
+  --head-title-large-weight: 700;
+  --head-title-compact: 17px;
+  --head-title-compact-weight: 600;
+  --head-large-gap: 16px;
+  /* Il «push» di iOS è un movimento piccolo: la pagina nuova entra di lato di
+     poco e quella vecchia l'accompagna. Il gesto dal bordo (M8b) aggiunge il
+     resto — lì è il dito a decidere quanto si sposta. */
+  --pagina-scivola: 12px;
   /* Dichiarati anche qui, e trasparenti, perché il contratto
      (`scripts/check-design-tokens.mjs`) pretende che le due piattaforme
      dichiarino LE STESSE CHIAVI: una skin «mezza vestita» è esattamente il
@@ -897,6 +941,26 @@
      pretende, non un vestito mancante. */
   --nav-inset: 0px;
   --nav-radius: 0px;
+  /* LA TESTATA (M8b) — top app bar di Material: 64dp di altezza, titolo compatto
+     22sp, e lo stato «scrolled» che aggiunge colore (elevazione TONALE: M3 non
+     alza solo con l'ombra, tinge la superficie) più l'ombra di elevazione. Il
+     titolo grande è 28sp, come il large app bar espressivo. */
+  --head-bar-height: 64px;
+  --head-bar-safe: var(--safe-top);
+  --head-bar-bg: color-mix(in srgb, var(--foreground) 5%, var(--background));
+  --head-bar-blur: none;
+  --head-bar-shadow: var(--elevation-nav);
+  --head-bar-border: transparent;
+  --head-title-large: 28px;
+  --head-title-large-weight: 600;
+  --head-title-compact: 22px;
+  --head-title-compact-weight: 600;
+  --head-large-gap: 16px;
+  /* Su Android il predictive back ha uno spostamento più ampio: il gesto di
+     sistema accompagna il dito per un tratto lungo, e la transizione che Chrome
+     usa per l'anteprima deve somigliargli — una differenza di 8px qui è la
+     differenza fra «si muove» e «scatta». */
+  --pagina-scivola: 20px;
   --fab-size: 56px;
   --fab-radius: 16px;
   --fab-offset: 16px;
@@ -1239,6 +1303,109 @@ html {
 }
 [data-platform='android'] .nav-surface[data-scrolled] {
   box-shadow: var(--elevation-nav);
+}
+
+/* ══ M8b — LA TESTATA DI PAGINA (23/09/2026) ═════════════════════════════════
+   Regole FUORI da `@layer`, come quelle dei controlli (M4), e per la stessa
+   ragione: devono vincere sulle classi che le pagine passano al titolo
+   (`text-lg`, `font-bold`, `mb-4`), che vivono nel layer `utilities`. Sul desktop
+   non esistono — tutto è sotto `[data-platform='ios'|'android']` — quindi lì il
+   titolo resta quello di sempre e la barra compatta non c'è: è la prova che il
+   desktop non si è mosso, e la suite E2E che gli gira sopra la verifica.
+
+   LA BARRA È `fixed`, NON `sticky`, e non è un dettaglio: `sticky` toglierebbe
+   spazio nel flusso (44pt di vetro vuoto fra il titolo e il contenuto a ogni
+   pagina) — mentre `fixed` a riposo non esiste e quando serve si limita a
+   sovrapporsi al contenuto che le scorre sotto, che è esattamente quello che fa
+   la barra di sistema. */
+[data-platform='ios'] .testata-titolo,
+[data-platform='android'] .testata-titolo {
+  font-size: var(--head-title-large);
+  font-weight: var(--head-title-large-weight);
+  line-height: 1.12;
+  /* I titoli grandi di sistema sono leggermente stretti: è la ragione per cui un
+     titolo a 34pt col tracking di un testo a 15pt sembra «spaziato». */
+  letter-spacing: -0.4px;
+  margin-bottom: var(--head-large-gap);
+  min-width: 0;
+}
+[data-platform='android'] .testata-titolo {
+  letter-spacing: 0;
+}
+/* La riga del titolo: dentro `main` la pagina porta già i suoi margini, quindi
+   qui serve solo togliere la `min-w-[120px]` che alcune pagine usano per la
+   versione desktop (su un telefono stringe senza motivo). */
+[data-platform='ios'] .testata-riga > *,
+[data-platform='android'] .testata-riga > * {
+  min-width: 0;
+}
+
+.testata-barra {
+  display: none;
+}
+[data-platform='ios'] .testata-barra,
+[data-platform='android'] .testata-barra {
+  display: flex;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  box-sizing: border-box;
+  height: calc(var(--head-bar-height) + var(--head-bar-safe));
+  padding-top: var(--head-bar-safe);
+  background: var(--head-bar-bg);
+  backdrop-filter: var(--head-bar-blur);
+  -webkit-backdrop-filter: var(--head-bar-blur);
+  border-bottom: 1px solid transparent;
+  /* A pagina in cima la barra non esiste (il titolo grande basta): niente vetro
+     su una riga vuota. Compare quando la pagina si muove — `data-scrolled` lo
+     scrive `hooks/use-scrolled.ts`, la stessa verità della barra di navigazione. */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--motion-duration-exit) var(--motion-spring-fade);
+}
+[data-platform='ios'] .testata-barra[data-scrolled],
+[data-platform='android'] .testata-barra[data-scrolled] {
+  opacity: 1;
+  visibility: visible;
+  border-bottom-color: var(--head-bar-border);
+  box-shadow: var(--head-bar-shadow);
+}
+/* Il titolo compatto sta nella stessa colonna del contenuto (`max-w-lg`, 16px di
+   imbottitura): centrato sul desktop largo, allineato alla pagina sul telefono. */
+.testata-barra-interno {
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 32rem;
+  height: var(--head-bar-height);
+  padding-inline: 16px;
+}
+[data-platform='ios'] .testata-compatta,
+[data-platform='android'] .testata-compatta {
+  overflow: hidden;
+  font-size: var(--head-title-compact);
+  font-weight: var(--head-title-compact-weight);
+  color: var(--foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .testata-barra {
+    transition: none;
+  }
+}
+/* Chi non vuole il vetro non deve averlo (M6): la barra compatta resta, il
+   materiale diventa un fondo pieno. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-platform='ios'] .testata-barra {
+    background: var(--background);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /* 6. CHI NON VUOLE IL VETRO NON DEVE AVERLO. «Riduci trasparenza» e «Aumenta
@@ -2096,20 +2263,104 @@ html {
    a toccarla (gap −2px misurato). Si abbassa la cifra di 6px per lasciare aria. */
 .cal-has-shift { padding-top: 6px; }
 
-/* ══ M8 — L'ARRIVO DI UNA PAGINA (22/09/2026) ══════════════════════════════
-   Questa era una `motion.div` di framer-motion con durata ed easing scritti nel
-   JSX (`duration: 0.2, ease: 'easeOut'`, 7px di salita): tre numeri che nessuna
-   skin conosceva e che `prefers-reduced-motion` non spegneva — chi aveva chiesto
-   meno movimento se lo prendeva lo stesso.
+/* ══ M8b — LA TRANSIZIONE FRA PAGINE, E IL GESTO CHE LA GUIDA (23/09/2026) ══
+   In M8 l'arrivo di pagina era una `@keyframes` nostra (qui sotto, in git, la
+   storia: framer-motion con tre numeri nel JSX → poi la molla del foglio di
+   stile). In M8b quella `@keyframes` **sparisce**: la transizione la disegna il
+   browser (View Transition), e da lì viene anche il **predictive back** di
+   Chrome Android, che per l'anteprima del gesto indietro usa proprio la
+   transizione dichiarata per quel viaggio.
 
-   Ora la fa il foglio di stile, con i token delle molle: la distanza è breve e
-   la pagina ARRIVA (spatial), quindi prende `--motion-spring-pop` — la stessa
-   molla del foglio, con la durata che è il suo tempo di assestamento — e con
-   «riduci movimento» sparisce del tutto. Il `from` è senza `fill`: finita
-   l'animazione non resta nessuna trasformazione attaccata all'elemento, che è
-   ciò che impedirebbe a un figlio `position: fixed` di ancorarsi alla finestra. */
-.pagina-arrivo {
+   Due gruppi e non tre: il `root` (tutto il chrome) NON si anima — la barra in
+   basso e la testata stanno fuori dalla pagina, e una transizione che li muove
+   racconterebbe che si è spostato il livello di navigazione invece del contenuto.
+   Si anima solo `pagina`, che è l'elemento con il nome (`data-slot='pagina'`). */
+/* IL NOME DELLA PAGINA ESISTE SOLO MENTRE LA TRANSIZIONE CORRE.
+
+   Scritto come attributo permanente (`[data-slot='pagina'] { view-transition-name:
+   pagina }`) sembrava la cosa ovvia — e invece è un'arma carica: un elemento con
+   un `view-transition-name` diventa un CONTESTO DI IMPILAMENTO. Da lì tutto
+   quello che la pagina contiene con uno `z-index` alto smette di competere con il
+   chrome di fuori: il pannello dei minimi (`z-50`, dentro la pagina) è finito
+   SOTTO il comando delle Azioni (`z-40`, fuori), e la sua «Salva» non era più
+   cliccabile — misurato: la suite dei minimi, che nel frattempo era l'unica a
+   guardare lì, lo ha preso al primo giro.
+
+   La finestra `[data-vt]` la scrive `transizioni-pagina.tsx` PRIMA di chiamare
+   `startViewTransition` (e la toglie alla fine): il nome c'è quando il browser
+   fotografa, e non c'è un istante dopo. Costo dichiarato: le transizioni fra
+   DOCUMENTI (`@view-transition { navigation: auto }`, ricaricamenti e link
+   esterni) restano senza animazione — l'animazione la fanno le navigazioni
+   dell'app, che sono quelle che l'utente vede. */
+html[data-vt] [data-slot='pagina'] {
+  view-transition-name: pagina;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  /* Il chrome resta fermo: la fotografia del `root` c'è, ma non si anima. */
+  animation: none;
+}
+
+::view-transition-old(pagina) {
+  /* Chi esce non svanisce: scivola appena nella direzione opposta a chi entra —
+     è il gesto delle due piattaforme (push e pop), e dura poco apposta, perché
+     la pagina che conta è quella che ARRIVA. */
+  animation: vt-esce var(--motion-duration-exit) var(--motion-spring-fade) both;
+}
+::view-transition-new(pagina) {
+  animation: vt-arriva var(--motion-duration-enter) var(--motion-spring-pop) both;
+}
+
+@keyframes vt-esce {
+  to {
+    opacity: 0;
+    transform: translateX(calc(-1 * var(--pagina-scivola)));
+  }
+}
+@keyframes vt-arriva {
+  from {
+    opacity: 0;
+    transform: translateX(var(--pagina-scivola));
+  }
+}
+/* Il VERSO del viaggio lo scrive l'intercettatore sul `<html>` prima di partire:
+   tornare indietro deve sembrare tornare indietro. Senza il verso, tutti i
+   viaggi si assomiglierebbero. */
+[data-nav='indietro'] ::view-transition-old(pagina) {
+  animation-name: vt-esce-indietro;
+}
+[data-nav='indietro'] ::view-transition-new(pagina) {
+  animation-name: vt-arriva-indietro;
+}
+@keyframes vt-esce-indietro {
+  to {
+    opacity: 0;
+    transform: translateX(var(--pagina-scivola));
+  }
+}
+@keyframes vt-arriva-indietro {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-1 * var(--pagina-scivola)));
+  }
+}
+
+/* LA MOLLA DI M8 (22/09/2026), che resta per chi non ha la View Transition.
+   Quando la transizione c'è la pagina porta `data-arrivo="no"` e questa
+   animazione TACE: senza quella riga la pagina arriverebbe due volte — una per
+   la transizione del browser e una per la nostra molla. L'attributo sta
+   sull'ELEMENTO (scritto prima del primo disegno, vedi `page-transition.tsx`) e
+   non su un flag globale: un flag cancellato alla fine della transizione
+   farebbe ripartire l'animazione proprio allora, cioè a cose fatte.
+   Le due strade restano perché il motore non regge la seconda dappertutto
+   (WebKit e il `position: fixed` dentro la fotografia: vedi `usaWebKit`), e
+   perché le navigazioni programmatiche non passano dall'intercettatore. */
+.pagina {
   animation: pagina-arrivo var(--motion-duration-enter) var(--motion-spring-pop);
+}
+.pagina[data-arrivo='no'] {
+  animation: none;
 }
 @keyframes pagina-arrivo {
   from {
@@ -2117,8 +2368,19 @@ html {
     translate: 0 7px;
   }
 }
+
+/* LA PAGINA CHE SI TRASCINA (gesto di ritorno dal bordo, iOS): durante il gesto
+   il contenuto è spostato dal dito e il bordo di sinistra prende un'ombra, che è
+   ciò che fa capire che sotto c'è un'altra schermata. */
+[data-slot='pagina'][data-swipe] {
+  box-shadow: -10px 0 30px rgb(0 0 0 / 0.18);
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .pagina-arrivo {
+  ::view-transition-old(pagina),
+  ::view-transition-new(pagina),
+  .pagina {
     animation: none;
   }
 }

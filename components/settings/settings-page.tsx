@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Sun, Moon } from 'lucide-react'
+import { Testata } from '@/components/nav/testata'
 import { FeedbackDialog } from './feedback-dialog'
 import { CHANGELOG_SHOW_ALL_EVENT } from '@/components/providers/changelog-dialog'
 import { versioneTesto } from '@/lib/app-version'
@@ -53,7 +54,9 @@ export function SettingsPage() {
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4 space-y-6">
-      <h1 className="text-lg font-bold">Impostazioni</h1>
+      {/* M8b: la testata di pagina (titolo grande su iOS/Android, `h1` di sempre
+          sul desktop). */}
+      <Testata titolo="Impostazioni" className="text-lg font-bold" />
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tema</h2>

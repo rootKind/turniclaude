@@ -4,6 +4,7 @@ import { BottomNav } from '@/components/nav/bottom-nav'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import { isAdmin } from '@/types/database'
 import { PageTransitionWrapper } from '@/components/providers/page-transition'
+import { TransizioniPagina } from '@/components/providers/transizioni-pagina'
 import { ChangelogDialog } from '@/components/providers/changelog-dialog'
 import { PushPermissionPrompt } from '@/components/providers/push-permission-prompt'
 import { RealtimeInvalidation } from '@/components/providers/realtime-invalidation'
@@ -44,6 +45,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* Un solo canale realtime per l'app: invalida le query anagrafiche
           (utenti, albero squadre, mesi tuoturno) sui cambi delle tabelle. */}
       <RealtimeInvalidation />
+      {/* M8b: la transizione fra pagine la disegna il browser (e da lì arriva
+          anche il predictive back di Chrome Android). Nessun markup: è un
+          intercettatore di clic sul documento. */}
+      <TransizioniPagina />
       <PageTransitionWrapper>{children}</PageTransitionWrapper>
       <NotificationBell />
       <ChangelogDialog />

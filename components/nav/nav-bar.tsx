@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import Link from 'next/link'
 import { ArrowLeftRight, Calendar, CalendarRange, Palmtree, Settings, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useScrolledAttr } from '@/hooks/use-scrolled'
 import { usePlatform } from '@/components/providers/platform-provider'
 import { NotificationBadge } from '@/components/ui/notification-badge'
 import { NAV_DESTINATIONS, type NavDestination, type NavDestinationId } from './nav-destinations'
@@ -82,26 +83,12 @@ export function NavBar({ activeId, hrefFor, badges }: NavBarProps) {
    * e l'ombra della barra compaiono quando il contenuto le scorre SOTTO, non a
    * pagina in cima — altrimenti la barra dichiara una separazione che non c'è.
    *
-   * Perché un attributo scritto nel DOM e non uno `useState`: questo è un
-   * ascoltatore di scorrimento, e ridisegnare React (con la barra intera e le
-   * sue cinque voci) a ogni evento sarebbe pagare un render per una riga di
-   * CSS. È lo stesso meccanismo del provider di piattaforma, ed è anche più
-   * onesto: il CSS legge la stessa verità che legge l'utente.
-   *
-   * La soglia di 4px non è un pixel preciso: è «la pagina si è mossa», cioè
-   * esattamente quando lo scorrimento è percettibile.
+   * Da M8b l'ascoltatore è UNO per tutta l'app (`hooks/use-scrolled.ts`): la
+   * testata di pagina ha bisogno della stessa risposta, e due implementazioni
+   * della stessa verità sono due verità. Qui la soglia resta quella di M8 (4px:
+   * «la pagina si è mossa»), la stessa della testata.
    */
-  useEffect(() => {
-    const nodo = superficie.current
-    if (!nodo) return
-    const leggi = () => {
-      if (window.scrollY > 4) nodo.setAttribute('data-scrolled', '')
-      else nodo.removeAttribute('data-scrolled')
-    }
-    leggi()
-    window.addEventListener('scroll', leggi, { passive: true })
-    return () => window.removeEventListener('scroll', leggi)
-  }, [])
+  useScrolledAttr(superficie)
 
   return (
     <nav

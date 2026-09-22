@@ -58,6 +58,32 @@ export function detectPlatformFromUA(
   return 'desktop'
 }
 
+/**
+ * Il MOTORE del browser è WebKit? (M8b, 23/09/2026)
+ *
+ * Serve per una decisione sola, e misurata: **le View Transition**. Su Chromium
+ * (Chrome Android, dove il gesto indietro predittivo esiste) reggono; su WebKit
+ * fanno **crashare** il motore se l'elemento che porta il `view-transition-name`
+ * contiene un discendente `position: fixed` — e le nostre pagine ne hanno (la
+ * testata di M8b, i pannelli della board, il selettore del giorno). Verificato:
+ * senza il nome (`view-transition-name: none`) la stessa navigazione passa e la
+ * transizione si completa; col nome, la pagina muore.
+ *
+ * Quindi su WebKit la transizione fra pagine resta quella a molla di M8
+ * (`.pagina` in `globals.css`), che è un'animazione nostra e non ha niente a che
+ * vedere con la fotografia del motore.
+ *
+ * Perché qui e non nel componente: la lettura dello User-Agent sta in QUESTO
+ * file, ed è una regola di casa con un ratchet (`check-design-tokens.mjs`: zero
+ * regex UA altrove). Una seconda lettura sparsa nel codice sarebbe la prima
+ * crepa di quella regola.
+ */
+export function usaWebKit(ua: string | null | undefined): boolean {
+  if (!ua) return false
+  // `AppleWebKit` sta anche nel UA di Chrome; a distinguerli è `Chrome`.
+  return /AppleWebKit/i.test(ua) && !/Chrome|Chromium|Edg\//i.test(ua)
+}
+
 /** `?platform=ios|android|desktop` — override per una singola apertura (spec e QA a mano). */
 export function parsePlatformParam(search: string): Platform | null {
   const value = new URLSearchParams(search).get('platform')

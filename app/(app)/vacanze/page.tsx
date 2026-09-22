@@ -9,6 +9,7 @@ import { isAdmin, isManager } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getMyVacationAssignment } from '@/lib/queries/vacations'
 import { VACATION_PERIOD_LABELS } from '@/lib/vacations'
+import { Testata } from '@/components/nav/testata'
 import { useAppSettings } from '@/hooks/use-app-settings'
 import { VacationRequestList } from '@/components/vacanze/vacation-request-list'
 import { VacationRequestDialog } from '@/components/vacanze/vacation-request-dialog'
@@ -144,7 +145,11 @@ function VacanzeContent() {
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
       <div className="flex items-center flex-wrap gap-2 mb-3 pr-12">
-        <h1 className="text-lg font-bold min-w-[120px]">Ferie Sala C.C.C.</h1>
+        {/* M8b: la testata di pagina. Le classi sono quelle del DESKTOP: su
+            iOS/Android le regole di piattaforma le scavalcano (e la
+            `min-w-[120px]`, che serve a non far stringere il titolo nella riga
+            del desktop, su un telefono si toglie). */}
+        <Testata titolo="Ferie Sala C.C.C." className="text-lg font-bold min-w-[120px]" />
         {profile && canToggleCategory && (
           <button
             onClick={() => setViewSecondary(v => !v)}

@@ -515,3 +515,261 @@ test.describe('Override di QA: guardare la skin dell’altra piattaforma', () =>
       .toBe(ALTEZZA_BARRA[altra])
   })
 })
+
+/**
+ * M8b — LA TESTATA, LA TRANSIZIONE FRA PAGINE E IL GESTO DAL BORDO (23/09/2026).
+ *
+ * Tre cose che si vedono solo guardando il chrome mentre si naviga, e che nessun
+ * controllo statico può difendere:
+ *
+ *   1. **La testata.** Il titolo grande che scorre via e la barra compatta che
+ *      entra: su iOS 34pt + barra 44pt (large title), su Android 28sp + 64dp (top
+ *      app bar), sul desktop NIENTE — la barra non esiste e il titolo resta quello
+ *      che la pagina ha sempre avuto. È la stessa proprietà delle altre spec: il
+ *      valore atteso lo decide il PROGETTO, cioè il motore vero.
+ *   2. **Chi disegna la transizione fra pagine.** Dove la View Transition del
+ *      browser regge (Chromium: Android e desktop) la molla di M8 deve TACERE,
+ *      altrimenti la pagina arriverebbe due volte; su WebKit — dove la fotografia
+ *      del motore fa crashare la pagina se dentro c'è un `position: fixed` (vedi
+ *      `usaWebKit`) — la transizione non parte e la molla resta. Non è un dettaglio
+ *      interno: è la differenza fra due comportamenti visibili.
+ *   3. **Il gesto di ritorno dal bordo.** Su iOS trascina la pagina e torna
+ *      indietro davvero; altrove non esiste, perché su Android quel gesto è del
+ *      sistema (e aggiungerne un secondo sarebbe un secondo gesto sopra il primo).
+ */
+test.describe('M8b: testata di pagina, transizione e gesto dal bordo', () => {
+  test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local')
+
+  /** Geometria e stato della testata, in una lettura sola. */
+  const misuraTestata = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => {
+      const barra = document.querySelector('[data-slot="testata-barra"]') as HTMLElement | null
+      const titolo = document.querySelector('[data-slot="testata-titolo"]') as HTMLElement | null
+      const compatta = document.querySelector('[data-slot="testata-compatta"]') as HTMLElement | null
+      if (!barra || !titolo) return null
+      const stileBarra = getComputedStyle(barra)
+      return {
+        display: stileBarra.display,
+        altezza: stileBarra.height,
+        visibile: stileBarra.visibility === 'visible',
+        scrolled: barra.hasAttribute('data-scrolled'),
+        titolo: getComputedStyle(titolo).fontSize,
+        compatta: compatta ? getComputedStyle(compatta).fontSize : '',
+        scorrevole: document.documentElement.scrollHeight > window.innerHeight + 40,
+      }
+    })
+
+  test('la testata: titolo grande nel contenuto, barra compatta che entra scorrendo', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const atteso = piattaformaDelProgetto()
+    const page = await asEmployee('Minino')
+
+    await page.goto(`${E2E_BASE_URL}/dashboard?${DEV}`, { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('[data-slot="testata-titolo"]').first()).toBeVisible()
+    const inCima = await misuraTestata(page)
+    expect(inCima, 'la pagina deve avere una testata').not.toBeNull()
+
+    // SUL DESKTOP LA TESTATA NON ESISTE, ed è una promessa: la barra compatta è
+    // `display: none` e il titolo è quello che la pagina ha sempre avuto (18px,
+    // cioè `text-lg`). Se un giorno comparisse, il desktop non sarebbe più
+    // «identico al pixel» — ed è la proprietà che rende questa suite una prova.
+    if (atteso === 'desktop') {
+      expect(inCima!.display, 'sul desktop la barra compatta non esiste').toBe('none')
+      expect(inCima!.titolo, 'il titolo del desktop resta quello di sempre').toBe('18px')
+      return
+    }
+
+    test.skip(!inCima!.scorrevole, 'questa pagina non scorre: la barra compatta non avrebbe senso')
+    expect(inCima!.titolo, atteso === 'ios' ? 'large title: 34pt' : 'large app bar: 28sp').toBe(
+      atteso === 'ios' ? '34px' : '28px',
+    )
+    expect(inCima!.compatta, atteso === 'ios' ? 'titolo compatto 17pt' : 'titolo compatto 22sp').toBe(
+      atteso === 'ios' ? '17px' : '22px',
+    )
+    expect(inCima!.altezza, atteso === 'ios' ? 'barra 44pt' : 'top app bar 64dp').toBe(
+      atteso === 'ios' ? '44px' : '64px',
+    )
+    // A PAGINA IN CIMA la barra non c'è: il titolo grande basta, e un velo di
+    // vetro su una riga vuota sarebbe una superficie che non dice niente.
+    expect(inCima!.scrolled, 'a pagina in cima lo stato è spento').toBe(false)
+    expect(inCima!.visibile, 'a pagina in cima la barra compatta è invisibile').toBe(false)
+
+    await page.evaluate(() => window.scrollTo(0, 500))
+    await expect
+      .poll(async () => (await misuraTestata(page))?.scrolled, { message: 'scorrendo la barra deve entrare' })
+      .toBe(true)
+    expect((await misuraTestata(page))!.visibile, 'e deve diventare visibile').toBe(true)
+  })
+
+  test('la transizione fra pagine: la disegna il browser dove regge, la molla dove no', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const atteso = piattaformaDelProgetto()
+    const page = await asEmployee('Minino')
+
+    // La sonda conta le chiamate al motore e tiene d'occhio le animazioni che
+    // partono: è l'unico modo di distinguere «transizione del browser» da «molla
+    // nostra» — a occhio sono due arrivi di pagina.
+    await page.addInitScript(() => {
+      const w = window as unknown as { __vt: number; __molla: number; __nome: string | null }
+      w.__vt = 0
+      w.__molla = 0
+      w.__nome = null
+      const originale = document.startViewTransition?.bind(document)
+      if (originale) {
+        document.startViewTransition = ((...args: Parameters<typeof originale>) => {
+          w.__vt++
+          // IL NOME DELLA PAGINA DEVE ESSERE ACCESO PROPRIO ADESSO. Da M8b il nome
+          // vive solo dentro la finestra `html[data-vt]` (fuori è un contesto di
+          // impilamento che intrappola i pannelli della pagina sotto il chrome:
+          // vedi `globals.css`), quindi la prova lo legge nel momento in cui il
+          // browser sta per fotografare — che è l'unico momento che conta.
+          const pagina = document.querySelector('[data-slot="pagina"]')
+          w.__nome = pagina ? getComputedStyle(pagina).viewTransitionName : null
+          return originale(...args)
+        }) as typeof document.startViewTransition
+      }
+      // SI CONTANO LE PARTENZE, NON LE PRESENZE. Guardare `document.getAnimations()`
+      // a intervalli non distingue una molla che parte da una che sta ancora
+      // correndo: l'arrivo della pagina fredda (una molla anche su Chromium, e la
+      // transizione non c'entra) veniva contato a ogni giro — misurato: 9 «molle»
+      // che erano una sola. `animationstart` scatta una volta sola per animazione.
+      ;(
+        window as unknown as { __durante: number }
+      ).__durante = 0
+      document.addEventListener(
+        'animationstart',
+        (evento) => {
+          if ((evento as AnimationEvent).animationName !== 'pagina-arrivo') return
+          w.__molla++
+          // DURANTE LA TRANSIZIONE: `data-vt` è acceso dal momento in cui la
+          // navigazione parte fino a quando la transizione finisce, ed è la
+          // finestra in cui la molla di M8 deve tacere. Contare tutte le
+          // partenze sarebbe sbagliato: misurato su Android, l'idratazione della
+          // pagina FREDDA fa ripartire la sua molla (un elemento nuovo, quindi
+          // una nuova animazione) qualche istante dopo — fuori dalla transizione,
+          // e non è quello che questa prova deve vedere.
+          if (document.documentElement.dataset.vt) {
+            ;(window as unknown as { __durante: number }).__durante++
+          }
+        },
+        true,
+      )
+      ;(window as unknown as { __azzera: () => void }).__azzera = () => {
+        w.__molla = 0
+        ;(window as unknown as { __durante: number }).__durante = 0
+      }
+    })
+
+    await page.goto(`${E2E_BASE_URL}/dashboard?${DEV}`, { waitUntil: 'domcontentloaded' })
+    await expect(nav(page).locator('a')).toHaveCount(5)
+    // L'arrivo della pagina fredda è una molla anche su Chromium (la transizione
+    // non c'entra): si azzera il contatore prima di navigare.
+    await page.evaluate(() => (window as unknown as { __azzera: () => void }).__azzera())
+
+    await nav(page).locator('a[aria-label="Cambi ferie"]').click()
+    await expect(page).toHaveURL(/\/vacanze/, { timeout: 15_000 })
+
+    const esito = await page.evaluate(() => ({
+      vt: (window as unknown as { __vt: number }).__vt,
+      molla: (window as unknown as { __molla: number }).__molla,
+      nome: (window as unknown as { __nome: string | null }).__nome,
+      arrivo: document.querySelector('[data-slot="pagina"]')?.getAttribute('data-arrivo') ?? null,
+      durante: (window as unknown as { __durante: number }).__durante,
+    }))
+
+    if (atteso === 'ios') {
+      // WebKit: la fotografia del motore fa crashare la pagina con un figlio
+      // `position: fixed` (misurato), quindi la transizione non parte e la molla
+      // di M8 resta la sola animazione. La prova MISURA anche che l'animazione
+      // sia davvero partita: se un giorno partisse e basta la transizione, questa
+      // riga lo direbbe.
+      expect(esito.vt, 'su WebKit la View Transition non deve partire').toBe(0)
+      expect(esito.arrivo, 'e la soppressione non deve essere scritta: l’arrivo è la molla di M8').toBe(null)
+      expect(esito.molla, 'su WebKit l’arrivo lo fa la molla di M8').toBeGreaterThan(0)
+    } else {
+      expect(esito.vt, 'su Chromium la navigazione passa dalla View Transition').toBe(1)
+      expect(esito.nome, 'e la pagina ha il suo nome NEL MOMENTO della fotografia').toBe('pagina')
+      expect(esito.arrivo, 'e la molla di M8 deve TACERE (una sola animazione)').toBe('no')
+      expect(esito.durante, 'nessuna molla DURANTE la transizione').toBe(0)
+    }
+  })
+
+  /**
+   * LE DUE AFFERMAZIONI DEL GESTO SONO DUE PROVE, e non è ordine estetico.
+   *
+   * Misurato: su WebKit, dopo un trascinamento col mouse sintetico di Playwright,
+   * il flusso di eventi del puntatore che segue si INTERROMPE dopo la prima mossa
+   * — 13 mosse in una pagina pulita contro 2 dopo un trascinamento (si sblocca
+   * ricaricando). Nelle due prove che erano una, la prima affermazione avvelenava
+   * la seconda. Non è un difetto dell'hook: l'hook prende il gesto in entrambi i
+   * casi (misurato), e la stessa sequenza su Chromium con la stessa skin
+   * (`?platform=ios`) consegna **13 mosse su 13** anche dopo un trascinamento.
+   * Quindi qui ogni affermazione ha la sua pagina fresca.
+   */
+  const vaiANotifiche = async (page: import('@playwright/test').Page) => {
+    // Si arriva a /notifiche con una navigazione VERA (la campanella): il gesto ha
+    // senso solo dove c'è una pagina dell'app da cui tornare — e /notifiche non è
+    // una delle cinque destinazioni, quindi lì l'indietro esiste.
+    await page.goto(`${E2E_BASE_URL}/dashboard?${DEV}`, { waitUntil: 'domcontentloaded' })
+    await page.locator('[aria-label*="otifiche" i]').first().click()
+    await expect(page).toHaveURL(/\/notifiche/, { timeout: 15_000 })
+  }
+
+  /** Dove sta la pagina, e se il gesto l'ha presa: una lettura sola. */
+  const statoGesto = (page: import('@playwright/test').Page) =>
+    page.evaluate(() => {
+      const pagina = document.querySelector('[data-slot="pagina"]') as HTMLElement
+      const matrice = new DOMMatrixReadOnly(getComputedStyle(pagina).transform)
+      return { spostato: Math.round(matrice.m41), inGesto: pagina.hasAttribute('data-swipe') }
+    })
+
+  test('lontano dal bordo la pagina non si trascina', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const page = await asEmployee('Minino')
+    await vaiANotifiche(page)
+
+    // Se un trascinamento normale spostasse la pagina, scorrere una lista col
+    // pollice vicino al bordo diventerebbe un terno al lotto: è la ragione per cui
+    // il gesto nasce solo nei primi 20px.
+    const altezza = page.viewportSize()!.height
+    await page.mouse.move(90, altezza / 2)
+    await page.mouse.down()
+    await page.mouse.move(230, altezza / 2, { steps: 8 })
+    const durante = await statoGesto(page)
+    await page.mouse.up()
+
+    expect(durante.spostato, 'lontano dal bordo la pagina non si sposta').toBe(0)
+    expect(durante.inGesto, 'e il gesto non si accende').toBe(false)
+    await expect(page, 'e la pagina non cambia').toHaveURL(/\/notifiche/)
+  })
+
+  test('il gesto di ritorno dal bordo: su iOS torna indietro, altrove non è nostro', async ({
+    asEmployee,
+  }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const atteso = piattaformaDelProgetto()
+    const page = await asEmployee('Minino')
+    await vaiANotifiche(page)
+
+    // Il gesto vero: dal bordo, verso destra.
+    const altezza = page.viewportSize()!.height
+    await page.mouse.move(4, altezza / 2)
+    await page.mouse.down()
+    await page.mouse.move(40, altezza / 2, { steps: 4 })
+    await page.mouse.move(160, altezza / 2, { steps: 8 })
+    const durante = await statoGesto(page)
+    await page.mouse.move(260, altezza / 2, { steps: 6 })
+    await page.mouse.up()
+
+    if (atteso === 'ios') {
+      expect(durante.inGesto, 'il dito ha preso il comando: la pagina si trascina').toBe(true)
+      expect(durante.spostato, 'la pagina segue il dito').toBeGreaterThan(60)
+      await expect(page, 'al rilascio si torna alla pagina di prima').toHaveURL(/\/dashboard/, {
+        timeout: 15_000,
+      })
+    } else {
+      expect(durante.spostato, 'fuori da iOS il gesto non è nostro').toBe(0)
+      await expect(page, 'e la pagina non cambia').toHaveURL(/\/notifiche/)
+    }
+  })
+})

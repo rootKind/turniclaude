@@ -7,6 +7,7 @@ import { useCurrentUser } from '@/hooks/use-current-user'
 import { usePush } from '@/hooks/use-push'
 import { isAdmin, isManager } from '@/types/database'
 import { X, Palmtree } from 'lucide-react'
+import { Testata } from '@/components/nav/testata'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
@@ -124,7 +125,10 @@ function DashboardContent() {
 
       <div className="flex items-center justify-between mb-4 pr-12 gap-y-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <h1 className="text-lg font-bold leading-snug">Turni Sala C.C.C.</h1>
+          {/* M8b: la testata di pagina. Qui il titolo vive in una riga di comandi
+              (congedo, impersonazione) e ci resta: la barra compatta è `fixed`,
+              quindi non ha bisogno di essere la prima cosa della pagina. */}
+          <Testata titolo="Turni Sala C.C.C." className="text-lg font-bold leading-snug" />
           {/* Richiesta congedo (modulo esterno) — stesso stile del tasto Esci (destructive + bordo).
               La scritta "Chiedi congedo" è SEMPRE visibile (non interrotta da breakpoint):
               se manca spazio la riga dell'header va a capo (flex-wrap sul contenitore), senza
