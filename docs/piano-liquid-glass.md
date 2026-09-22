@@ -1,8 +1,8 @@
 # Piano M6–M12 — Material 3 Expressive (Android) e Liquid Glass (iOS)
 
-Stato analizzato: **dev @0eb8ca3**, M6 **implementata** in `f437402`, M7
-**implementata** in `fbaed52`, M8 **implementata** in `0eb8ca3` — con la coda che
-le milestone vere si portano dietro: vedi «M8b» in fondo alla sezione.
+Stato analizzato: **dev @7a2bcdc**, M6 **implementata** in `f437402`, M7
+**implementata** in `fbaed52`, M8 **implementata** in `0eb8ca3` e la sua coda
+**M8b chiusa** in `7a2bcdc` — vedi «M8b» in fondo alla sezione.
 Seguito di `docs/audit-ios-material.md` (audit del 19/09, *prima* delle milestone
 M1–M5): non ripete quello che le M1–M5 hanno fatto, dice cosa manca e in che
 ordine farlo.
@@ -50,10 +50,12 @@ prova nel codice o nella guida.
 | **Back di sistema** che chiude l'overlay più in alto (Android) | fatto (M8) |
 | **Fogli trascinabili** dalla maniglia, con la molla viva | fatto (M8) |
 | Arrivo di pagina a molla (`--motion-duration-enter` + molla `pop`) | fatto (M8, al posto della dissolvenza scritta a mano) |
+| **Testata di pagina**: titolo grande iOS che scorre via, top app bar di Android, desktop intatto | fatto (M8b) |
+| **Gesto di ritorno dal bordo** su iOS, con la molla viva e tre rifiuti dichiarati | fatto (M8b) |
+| **Transizioni fra pagine disegnate dal browser** (`startViewTransition`) + predictive back Android | fatto (M8b) |
 
-Mancano: il **resto del chrome di navigazione** (titolo grande su iOS, gesto di
-ritorno dal bordo, top app bar di Android: è la coda M8b), le **forme espressive**
-(nessun morph), il **vetro**, la **PWA** e l'**adattività**.
+Mancano: le **forme espressive** (nessun morph), il **vetro**, la **PWA** e
+l'**adattività**.
 
 ---
 
@@ -312,13 +314,55 @@ occhio):
   *poi* cercare il contenitore era una corsa. Ora posizione e geometria si leggono
   nello stesso fotogramma.
 
-**M8b — la coda dichiarata** (quello che M8 *non* ha fatto, e non è un dettaglio):
-il **titolo grande** che si riduce scorrendo e il **gesto di ritorno dal bordo** su
-iOS; la **top app bar** di Android (small/medium) che sfrutterebbe lo stato
-«scrolled» già in piedi; `@view-transition { navigation: auto }` per il
-**predictive back** (Chromium 126+, Safari 18.2+). Sono le tre voci che richiedono
-di toccare l'impalcatura delle pagine (titoli, livelli, gerarchie), non la barra:
-meritano una milestone loro invece di allargare questa.
+### M8b — la coda di M8, chiusa ✅ `7a2bcdc`
+
+Le tre voci che M8 aveva dichiarato di non aver fatto, e che richiedono di toccare
+l'**impalcatura delle pagine** (titoli, livelli, gerarchie) invece della barra.
+
+1. **La testata di pagina** (`components/nav/testata.tsx`): su iOS il titolo grande
+   (34pt) vive nel contenuto e scorre via, la barra compatta (44pt, 17pt semibold,
+   vetro) entra quando la pagina si muove; su Android è la **top app bar** (64dp,
+   titolo compatto 22sp) che scorrendo prende colore ed elevazione di Material.
+   Sul desktop **non esiste** (`--head-bar-height: 0px`) e il titolo resta l'`<h1>`
+   di sempre: è ciò che rende la suite (che gira anche da desktop) la prova che
+   nessuno ha spostato un pixel. Lo stato «la pagina si è mossa» è **un hook solo**
+   (`hooks/use-scrolled.ts`), condiviso con la barra in basso: due implementazioni
+   della stessa verità sono due verità.
+2. **Il gesto di ritorno dal bordo** (`hooks/use-swipe-back.ts`), solo iOS — in una
+   PWA standalone WebKit non lo dà alle pagine, quindi l'unico ritorno era il
+   pulsante. Tre rifiuti dichiarati: non parte sopra uno scorrimento laterale, non
+   parte con un overlay aperto (lì il back è di `use-back-to-close`), e **non parte
+   sulle cinque destinazioni** — lì dietro non c'è una pagina dell'app ma la
+   cronologia di prima. Il rilascio lo decide la molla `pop` di `lib/motion.ts`.
+3. **Le transizioni fra pagine le disegna il browser**
+   (`components/providers/transizioni-pagina.tsx`): l'intercettatore di clic avvolge
+   la navigazione in `startViewTransition` con `flushSync`. Il flag di Next da solo
+   **non basta** (misurato: zero chiamate al motore per una navigazione client),
+   e su WebKit la transizione **non parte affatto** — la fotografia del motore fa
+   crashare la pagina con un discendente `position: fixed` (`usaWebKit`), quindi lì
+   l'arrivo resta la molla di M8. Da questa strada arriva il **predictive back** di
+   Chrome Android. Il predictive back resta però **non provabile in CI**: le spec
+   girano su un Chromium desktop, dove il gesto di sistema non esiste.
+
+**I due difetti che le prove hanno trovato** (e che l'occhio non avrebbe visto):
+
+- **`view-transition-name` permanente = contesto di impilamento.** Scritto sempre su
+  `[data-slot='pagina']`, il nome della transizione rende la pagina un contesto di
+  impilamento: il pannello dei minimi (`z-50`, *dentro* la pagina) è finito sotto il
+  comando delle Azioni (`z-40`, *fuori*) e la sua «Salva» non era più cliccabile.
+  Nessuna prova di geometria lo vedeva; l'ha preso la **suite dei minimi** — che
+  nessuna run completa eseguiva da una milestone (il progetto `minimi` dipende da
+  `chromium` e le run filtrate non lo toccavano). Il nome vive ora solo nella
+  finestra `html[data-vt]`, accesa prima di `startViewTransition`; costo dichiarato:
+  le transizioni fra **documenti** (ricaricamenti, link esterni) non si animano.
+  Corollario per il futuro: `@view-transition { navigation: auto }` resta **fuori**
+  finché non si accetta un nome permanente.
+- **Una prova che si avvelenava da sola.** Su WebKit il mouse *sintetico* di
+  Playwright smette di consegnare il flusso del puntatore dopo un trascinamento
+  (misurato: 2 mosse su 13 dopo un drag, 13 su 13 su pagina fresca; su Chromium la
+  stessa sequenza consegna sempre 13 su 13). Le due affermazioni del gesto sono
+  quindi **due prove con una pagina fresca ciascuna** — la prima non deve poter
+  avvelenare la seconda.
 
 ### M9 — Forme espressive (Android) — *il grosso della M3 Expressive*
 1. **Sistema di morph**: due forme per controllo (riposo / attivo) e transizione a
