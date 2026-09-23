@@ -1,8 +1,11 @@
 # Piano M6–M12 — Material 3 Expressive (Android) e Liquid Glass (iOS)
 
 Stato analizzato: **dev @7a2bcdc**, M6 **implementata** in `f437402`, M7
-**implementata** in `fbaed52`, M8 **implementata** in `0eb8ca3` e la sua coda
-**M8b chiusa** in `7a2bcdc` — vedi «M8b» in fondo alla sezione.
+**implementata** in `fbaed52`, M8 **implementata** in `0eb8ca3` con la sua coda
+**M8b** in `7a2bcdc`, M9 **chiusa**, M10 **implementata**, M11 **implementata** e M12
+**chiusa salvo la coda dichiarata** (M12f: la rail; M12b: l'annulla e le vie d'uscita).
+Lo stato puntuale di ogni milestone è nelle sue tabelle, più in basso: le voci date per
+*fuori* sono dichiarate una per una e non vanno date per fatte.
 Seguito di `docs/audit-ios-material.md` (audit del 19/09, *prima* delle milestone
 M1–M5): non ripete quello che le M1–M5 hanno fatto, dice cosa manca e in che
 ordine farlo.
@@ -148,7 +151,7 @@ sopra la barra); **`corner-shape: squircle` è solo Chromium 139+**; **costo GPU
 
 ### J. Adattività assente · MEDIA
 Tutte le pagine sono `max-w-lg mx-auto`. Su un tablet Android la barra in basso è
-fuori specifica (M3 vuole una **navigation rail** da 600dp in su); su iPad manca il
+fuori specifica (M3 vuole una **navigation rail** da 600dp in su — arrivata in M12f); su iPad manca il
 layout largo. Nota per M12, da M8: fuori da iOS la banda della barra è **a tutta
 larghezza** e il contenuto resta limitato ai 32rem (è la struttura di M2); su iOS
 l'isola ha la larghezza del telefono.
@@ -408,7 +411,83 @@ l'**impalcatura delle pagine** (titoli, livelli, gerarchie) invece della barra.
 7. **Chiusa solo da un iPhone vero**: sul simulatore il `backdrop-filter` annidato
    si comporta diversamente.
 
-### M11 — PWA, stato di sistema e offline
+### M9/M10 — esito reale
+
+**Cosa è atterrato** (il vocabolario portable della specifica, non tutto il catalogo):
+
+| punto | esito |
+|---|---|
+| M9.1 morph | **la pressione deforma**: ogni controllo che si dichiara `[data-gl]` si tira verso il dito (`scale .85`) e la forma scappa verso la pillola (raggio 24), 120ms all'andata e 350ms al ritorno su `--m3-expressive`; sullo switch M3 il pollice acceso diventa **pillola** (24×32); l'indicatore attivo della navigation bar prende la forma «a plenilunio» (`--pill-corners`) |
+| M9.2 scala di forma | tre valori usati per gerarchia: `--pill-corners` 10, `--gl-press-radius` 24, il raggio del FAB (16, che resta quello letto), **più la scala di taglie XS–XL** legata al componente (`data-size` → `--control-h-*`) |
+| M9.3 componenti | **tutti**: barra ✅, switch ✅, comando/FAB ✅, button e icon button ✅, **segmented** ✅ (la voce premuta si tira verso il dito), **FAB menu** ✅ (il comando aperto prende la forma estesa con l'etichetta), **toolbar** ✅ (raggio ed elevazione expressive), **loading a sette forme** ✅ (`LoadingShape`, otto vertici per forma), increspatura → **glow** expressiva ✅. Fuori: split button e campo di ricerca che si squadra al focus |
+| M9.4 taglie XS–XL | ✅ i due gradini PRIMARI prendono la misura vera del dito su Android (48 e 56) e altrove restano quelli di oggi; la scala è cinque token letti da `[data-size]` |
+| M9.5 enfasi tipografica | ✅ l'asse `--type-emphasis-*` (peso 700 e tracking −0,02em) entra nel titolo grande e in quello compatto su Android; su iOS/desktop i token sono neutri e i titoli restano quelli di HIG |
+| M9.6 elevazione tonale | **parziale**: l'ombra di terzo livello dell'indicatore attivo c'è, la toolbar ha la sua; la scala `--surface-container*` per livello e l'increspatura estesa a voci di lista e card restano fuori |
+| M9.7 aptica | ✅ quattro accenti (`--aptica-tap/avviso/conferma/errore`), durate decise dalla skin, `navigator.vibrate`; su iOS il canale è muto per scelta (HIG non mette il feedback a scatti nel vocabolario dei controlli, e WebKit non distribuisce l'API) |
+| M10.1–2 composito e superfici | **parziale ma coerente**: la superficie delle azioni e il foglio prendono la **riga di luce** sul bordo alto (il 30% del filo di vetro, smorzata in 28px), spenta da `prefers-reduced-transparency`; velo e sfocatura restano quelli di M6. Toast non toccato |
+| M10.3 risposta al tocco | ✅ scatto, luce di bordo e ritorno a molla (M7 + M10) |
+| M10.4 angoli concentrici | **non fatto** |
+| M10.6 soglia di leggibilità | **parziale**: le coppie AA sono misurate con la matematica di `lib/color.ts`, le sei su fondo traslucido restano dichiarate saltate |
+| M10.7 iPhone vero | resta l'unica chiusura valida, come già scritto |
+
+**Due difetti trovati dalle prove, non dall'occhio:**
+
+1. **`--nav-indicator-shadow` era letto e mai dichiarato.** `box-shadow: var(...)` con la chiave
+   inesistente **non** è «nessun effetto»: è una dichiarazione INVALIDA, che il browser scarta e
+   la proprietà cade al valore iniziale. L'ombra di terzo livello dell'indicatore attivo non
+   esisteva, e nessuna guardia se n'era accorta: il contratto chiedeva che un token *dichiarato*
+   fosse letto, non il rovescio. Ora la chiave c'è (su iOS e desktop `none`, su Android l'ombra
+   vera) e c'è la guardia mancante: `check-design-tokens.mjs` pretende che **ogni `var()` del
+   progetto abbia una dichiarazione**, con un elenco chiuso e motivato di deroghe (i font di
+   `next/font`, i token che il `<Button>` scrive a runtime, i token dello stile in linea del
+   testo che si adatta). Provata togliendo una dichiarazione: morde.
+2. **La pillola dell'indicatore non esiste sul desktop.** La prova la pretendeva su «Android e
+   desktop» e passava solo perché leggeva l'albero prima che la skin fosse indossata: la barra
+   del desktop è quella classica, e il suo primo `span` è il contenitore dell'icona (24×24).
+
+**Difetti delle prove stesse, corretti qui** (erano misure, non app): il cronometro del respiro
+osservava le **mutazioni** e leggeva 409ms su una card accesa 3s (ora campiona a tempo); la prova
+del FAB leggeva la geometria **prima** che la transizione di forma arrivasse (misurava 56 invece
+di 48) e confrontava `rounded-full` come stringa, mentre il valore saturato differisce fra i
+motori; su iOS il rilascio del comando **naviga** (`/dashboard?new=1`) e interrompeva il `goto`
+dell'iterazione dopo.
+
+**Verifica:** `tsc` ed `eslint` puliti su tutto il toccato; contratti verdi (85 chiavi × 2,
+molle generate e misurate, **0 `var()` orfane di dichiarazione**); suite completa **355 passate /
+11 saltate / 0 fallite** in 6,2 minuti a 2 worker.
+
+**Lo snellimento della suite, misurato.** La leva grossa era già stata presa: `dismissChangelog`
+esce subito quando il contesto di test è preparato (era «la voce più cara dell'intera suite»), le
+attese fisse sono 25 in tutto il progetto (≈26s di valori dichiarati) e le molle hanno sostituito
+i `waitForTimeout`. Numeri di oggi: **366 prove, 719s di tempo di prova, 6,2 minuti a muro con 2
+worker** (parallelizzazione ≈1,9×). Il tempo sta quasi tutto in due posti: `card-cambio-to-sala`
+(198s, il 27%: prove con DB e fino a tre navigazioni di ricerca, che su WebKit girano una seconda
+volta) e le prove sopra i 5s (32 prove, 309s — il 43% del totale). Le strade per scendere, col
+prezzo accanto: **togliere `card-cambio-to-sala` dal progetto `ios`** (~70s, il 10%) al prezzo
+della copertura WebKit su evidenzia e cronologia di quel salto; **4 worker** (~3,3 minuti) al
+prezzo dei fallimenti da carico già misurati in M8b; oppure **non scendere** — sei minuti per 366
+prove su due motori e tre skin è un prezzo che il progetto ha già scelto di pagare.
+
+### M9 chiusa — le sei voci che restavano (23/09/2026)
+
+**M9 è chiusa il 23/09/2026** con le sei voci che la tabella sopra dava per mancanti — scala di
+taglie, segno di caricamento, enfasi, FAB menu, segmented, toolbar — e le prove sono in
+`tests/m9-completa.spec.ts`: per OGNI voce c'è l'affermazione su Android (dove la forma esiste) e
+quella sulla skin che non deve muoversi, perché «non implementato» e «implementato che tocca anche
+l'altra piattaforma» sono due difetti diversi. Restano fuori, dichiarati: il **vicino che si sposta**
+nel segmented (la specifica lo chiede, il web lo fa con una misura a runtime: è un cambio di layout,
+non di pelle), il **FAB menu a pila di FAB piccoli** (sostituirebbe il foglio delle azioni, che quattro
+spec pinnano: è una modifica alla navigazione, da fare per scelta e non in coda a una milestone), la
+scala tonale e l'increspatura estesa, e tutto M10 che non è composito (angoli concentrici, chiusura su
+iPhone vero).
+
+Il prezzo è stato in gran parte CAPIRE le misure, non scriverle — e le due trappole sono in
+`knowledge.md`: una regola di stessa specificità che perde per ORDINE nel foglio (il peso del titolo
+restava 600: si lega il token, non si aggiunge una regola) e la misura di una forma sotto una
+trasformazione (il rect di un comando di 168 scalato a 0,85 è 143, e quello di un quadrato che ruota è
+più grande del suo lato: si misura la larghezza COMPUTATA).
+
+### M11 — PWA, stato di sistema e offline ✅ (23/09/2026)
 1. **Manifest**: via `orientation: 'portrait'` (fix Android più visibile del
    piano), più `scope`, `id`, `lang: 'it'`, `dir`, `shortcuts`, `categories`,
    `display_override`, `screenshots`, la maskable 192; riga DEV sistemata.
@@ -419,7 +498,20 @@ l'**impalcatura delle pagine** (titoli, livelli, gerarchie) invece della barra.
    del service worker, possibilità di riprovare, `role="status"`.
 4. **Install flow**: già presente; da allineare alle voci nuove del manifest.
 
-### M12 — Adattività, accessibilità e comodità d'uso
+#### M11 — esito reale
+
+| punto | esito |
+|---|---|
+| 1. manifest | ✅ `orientation` **via** (la rotazione la decide il telefono), `id`/`scope` espliciti (**senza `id` l'identità è lo `start_url`: cambiarlo creerebbe una seconda app installata**), `lang`/`dir`, 4 `shortcuts`, `categories`, `display_override`, maskable **192** accanto alla 512, due `screenshots` (1179×2556 narrow e 1440×900 wide) e i due rami — prod e DEV — costruiti su una **base comune**, così la riga malformata del ramo DEV non può tornare. Le screenshot si generano con `scripts/genera-screenshot-manifest.mjs`: larghezza 393 CSS px a densità 3, perché **la larghezza decide il layout** e una foto da 1080 di lato mostrerebbe il desktop in cornice da telefono. |
+| 2. chrome | ✅ il meta `theme-color` resta adattivo al tema (`#f0f7fc`/`#0a0a0a`) come **fallback**, ma su iOS 26 il colore della fascia di stato è quello che la pagina disegna sotto di essa: la regola è scritta dove si decide (`appleWebApp.statusBarStyle: 'default'`), insieme al ritiro della barra piena nella 26.1. |
+| 2b. edge-to-edge | ✅ `viewport-fit=cover` più **gli inset veri del sistema**, letti dai token di M6 (`--safe-*`). Nessun fallback inventato («se `env()` è zero allora 24px» aggiungerebbe spazio dove il sistema non ne chiede — e su Chrome di Android 15 gli inset ARRIVANO: verificato con `Emulation.setSafeAreaInsetsOverride` via CDP). Le prove iniettano 47/34 e pretendono che testata, banda della barra e avviso di rete crescano di quell'esatto numero. |
+| 3. offline | ✅ `components/providers/offline-bar.tsx` nel layout di RADICE (fuori da `PwaGuard`: senza rete la prima pagina che deve poterlo dire è `/login`), `role="status"`, `navigator.onLine` + eventi, **stato della cache** risposto dal service worker (messaggio `STATO_CACHE` → `clients.matchAll`) e «Riprova» che fa un **ping vero** (`fetch` `no-store`) invece di fidarsi del flag di sistema. |
+| 4. install flow | ✅ la pagina dichiara le voci nuove che l'utente non poteva indovinare: le quattro scorciatoie del menu dell'icona (nominate col gesto giusto per la piattaforma) e la verità sull'offline — **le pagine non sono in cache di proposito**, quindi il testo non promette un'app che funziona senza rete. |
+| fuori, dichiarato | screenshot `wide` non provata su iPad vero; il foglio di installazione nativo di Chrome non è pilotabile da un test (si prova il contenuto del manifest, che è ciò che lo alimenta); lo splash di iOS resta un colore solido (limite di piattaforma, vedi §7). |
+
+Le prove sono in `tests/m11-pwa.spec.ts` (11 prove, ~4s): leggono il **manifest servito**, l'**header dei PNG** (un `sizes` che non combacia fa scartare la screenshot in silenzio: nessun errore da nessuna parte), le **scorciatoie confrontate con le cartelle reali** di `app/(app)`, i meta del `<head>`, i token risolti con gli inset emulati e il canale del service worker.
+
+### M12 — Adattività, accessibilità e comodità d'uso — *chiusa salvo la coda dichiarata* (23/09/2026)
 1. **Adattività**: navigation rail M3E (≥600dp) e barra flessibile per i
    pieghevoli; layout largo su iPad; board in orizzontale con le safe area laterali
    di M6.
@@ -433,6 +525,39 @@ l'**impalcatura delle pagine** (titoli, livelli, gerarchie) invece della barra.
 4. **Prestazioni**: budget dichiarato (max 3 vetri, board a 60fps) e **misurato sul
    telefono vero**, non sul desktop.
 
+#### M12 — esito reale (la parte fatta)
+
+| punto | esito |
+|---|---|
+| 2. accessibilità della board | ✅ **la board parla.** Regione etichettata (`Board di sala — giorno, turno`), live region che annuncia giorno/turno/numero di card, ogni card `role="group"` con «SEZIONE — N persone, M scoperti», i nomi come **elenco** (l'ordine è informazione), i tre turni come gruppo con `aria-pressed` e nome per esteso, il calendario `role="dialog"` dichiarato da `aria-haspopup`/`aria-expanded`, `aria-label` su ogni comando a icona, i pallini colorati `aria-hidden`. |
+| 2. annunci realtime | ✅ due live region distinte: quella della board (contesto) e `data-slot="realtime-annuncio"`, che dice «Dati aggiornati: turni, alle 14:32» e si svuota dopo 6s (una live region parla quando il **testo cambia**). **Non coperta da prove**: servirebbe una scrittura sul DB e un evento realtime vero. |
+| 3. dimensione del testo | ✅ **Impostazioni → Testo**, quattro gradini. Agisce sulla **misura di base del documento** (`html { font-size: N% }`) e non su `--type-scale`: la scala `--fs-*` è in `rem` come le classi di Tailwind, e con il solo token sarebbero cresciute le intestazioni e non i cognomi della board. `--type-scale` resta 1 per non scalare due volte; è una percentuale (compone con la preferenza del browser) ed è del dispositivo. |
+| 3. campi | ✅ `inputMode`/`enterKeyHint`/`autoComplete` su accesso, recupero password, OTP, cambio password e sui campi admin (email, nomi, numeri, ricerca). |
+| 3. «torna su» | ✅ su Notifiche (dalla pagina, non dall'elenco: l'altezza è della pagina) e in fondo a destra **no**: il posto è della campanella/FAB, quindi a sinistra. Con `prefers-reduced-motion` salta in cima invece di scorrere. |
+| 3. stati vuoti | ✅ parzialmente: l'elenco notifiche vuoto offre «Vai ai turni di sala». Gli altri stati vuoti/di errore dell'app restano da passare uno per uno. |
+| 4. prestazioni | ✅ **budget del vetro misurato**: massimo tre superfici con `backdrop-filter` attivo per schermata (`/turnisala`, `/dashboard`), contate dalla prova. La board a 60fps sul telefono vero resta da misurare su un dispositivo. |
+| 1. orizzontale | ✅ verificato: a 852×393 la board non sborda e il contenuto si sposta di quanto dichiara l'inset laterale (`--safe-left`). |
+| 3. stati vuoti | ✅ **chiusa in M12b** (sotto): elenco notifiche, classifica utenti delle statistiche, ricerca di «Vedi come», ricerca del confronto in «Il tuo turno», feedback dell'admin (con «Ricarica»: la lista può essere vuota per un colpo di rete), debug notifiche (idem) e grafico attività, che offre il periodo più largo. Ogni uscita dipende dalla CAUSA del vuoto. |
+
+#### M12f — LA RAIL (il primo punto della lista, 23/09/2026): fatta
+
+| punto | esito |
+|---|---|
+| navigation rail M3E ≥600dp | ✅ su Android, `@media (min-width: 600px) and (min-height: 480px)`: la barra diventa una **colonna a sinistra** larga 80dp e alta quanto la finestra, voci impilate, indicatore 56×32. La decide il CSS, perché la scelta è della FINESTRA (in JS sarebbe un primo disegno con la forma sbagliata); i tre agganci (`nav-shell`, `nav-items`, `nav-item`) esistono in tutte le configurazioni e sono inerti dove la rail non c'è. |
+| tutti gli offset | ✅ una chiave nuova (`--nav-rail-w`) e un derivato (`--nav-start`) che la pagina legge senza sapere dove sia la navigazione: `.shell-nav` (lo spazio laterale), `.nav-fab-layer` (il FAB resta in basso a destra della FINESTRA, non della banda dei 32rem), «torna su». In rail `--nav-space`/`--nav-edge` diventano `var(--safe-bottom)`, NON zero: sulla barra gesti l'area sicura c'è comunque. La geometria che il componente scrive in `style` è diventata token (`--nav-shell-h`, `--nav-bar-h`), altrimenti lo stile in linea vincerebbe su qualunque regola. |
+| layout largo della board | ✅ `.board-largo`: sopra i 600dp la griglia prende un tetto di lettura (56rem), si centra nello spazio che resta e la toolbar smette di andare a capo. La griglia resta di TRE colonne: il modello delle card è riga × allineamento, e una quarta colonna sarebbe una pagina nuova, non una finestra più larga. |
+| dove NON si accende | ✅ sotto i 600dp, su iOS, sul desktop e su un telefono in orizzontale (largo 900dp ma alto 412: lì una colonna ruberebbe larghezza alla board). Le prove misurano anche questo, perché «la rail non esiste dove non deve» è metà del contratto. |
+
+#### M12b — l'annulla e le vie d'uscita (23/09/2026): fatta
+
+| punto | esito |
+|---|---|
+| undo nello snackbar | ✅ `lib/undo.ts`: «Annulla» per 6s (dentro la finestra 4-10s che M3 dà agli snackbar con un'azione) sulle TRE azioni reversibili — la riga cancellata con lo swipe, «Segna tutte come lette» e la cronologia svuotata. Sono reversibili perché vivono in `localStorage`, e l'istantanea la prende chi muta (l'elenco INTERO: ricostruire la voce pezzo per pezzo sbaglia l'ordine e la posizione). Lo svuotamento tiene **conferma e annulla**: togliere la conferma a un'azione distruttiva sarebbe stato un favore a metà. Tutto ciò che scrive sul DATABASE resta con la conferma. |
+| stati vuoti e di errore | ✅ `components/ui/via-uscita.tsx` per la forma unica; sette schermate passate (vedi la tabella qui sopra). |
+| **fuori, dichiarato** | **giro con VoiceOver/TalkBack su dispositivo vero** (l'albero è corretto e provato, ma la lettura reale è un'altra cosa); barra flessibile per i pieghevoli; layout largo su iPad (la rail è di Material); i 60fps della board misurati su un telefono vero. |
+
+Le prove di M12 sono in `tests/m12-comodita.spec.ts` (10 prove, ~16s: l'albero di accessibilità della board, il gradino del testo, gli attributi dei campi, «torna su», il budget del vetro, l'orizzontale), in `tests/m12f-rail.spec.ts` (5 prove × 2 progetti, ~13s: forma, posto, offset, il largo della board e i casi in cui non si accende) e in `tests/m12b-undo.spec.ts` (5 prove, ~7s: le tre azioni reversibili e due vie d'uscita vere).
+
 ---
 
 ## 4. Chi guadagna cosa
@@ -445,8 +570,8 @@ l'**impalcatura delle pagine** (titoli, livelli, gerarchie) invece della barra.
 | M8b Chrome (coda) | titolo grande che si riduce, gesto di ritorno dal bordo | top app bar (small/medium), predictive back con `@view-transition` |
 | M9 Forme | — (solo angoli concentrici condivisi) | morph su press/selezione, barra espressiva, switch, button group, FAB menu, loading a 7 forme, **taglia 48dp vera**, enfasi tipografica, elevazione tonale, aptica |
 | M10 Vetro | il materiale completo, 6 livelli, capsula flottante | — (nessun vetro, per scelta) |
-| M11 PWA | chrome dallo sfondo, regola 26.1 | **orientamento sbloccato**, shortcuts, screenshots, maskable, edge-to-edge |
-| M12 Adattività | iPad, board in orizzontale | navigation rail, pieghevoli, TalkBack, undo |
+| M11 PWA ✅ | chrome dallo sfondo (la pagina sotto la fascia di stato è la verità: Safari 26 non legge il meta), regola 26.1 scritta dove si decide, inset di sistema senza numeri di riserva | **orientamento sbloccato**, shortcuts, screenshots, maskable 192, edge-to-edge verificato con gli inset emulati, avviso di rete con lo stato della cache e un «Riprova» che pinga davvero |
+| M12 Comodità | gradino del testo sul dispositivo (la base del documento, non il token: è ciò che fa crescere anche i cognomi), «torna su» a sinistra perché il basso a destra è della campanella, elenco vuoto con una via d'uscita | **la board parla** (regione, annunci, elenchi, dialog dichiarato), campi con tastiera e tasto giusti, budget del vetro misurato, orizzontale verificato; **la rail** sopra i 600dp — la navigazione diventa una colonna a sinistra — e la board in largo con un tetto di lettura; **l'annulla** sulle tre azioni reversibili e le vie d'uscita sugli stati vuoti |
 
 ---
 

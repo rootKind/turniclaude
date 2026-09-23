@@ -207,7 +207,7 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   priorità: riga base del PDF (mesi caricati) → predizione dalla storia
   (`lib/person-cycle.ts`, per mesi senza PDF) → rotazione DB (fallback).
 
-### Design system duale iOS/Android (M1–M8b, 20–23/09/2026)
+### Design system duale iOS/Android (M1–M11, 20–23/09/2026)
 
 - **La piattaforma la decide il SERVER, una volta sola:** `lib/platform.ts` (PURO, la sola
   regex UA dell'app — ratchet 0 regex fuori da lì, contrato in `check-design-tokens.mjs`);
@@ -266,6 +266,32 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   **Sui 320px l'isola cede** (`@media (max-width: 20rem) { --nav-inset: 0 }`, unlayered e DOPO
   il blocco di piattaforma): misurato, gli 8pt tolgono 16px alla barra e «Cambi turno» a 10px
   chiede 63px contro i 60,8 disponibili. L'arrivo di pagina è `.pagina` (molla `pop`; il nome viene dalla View Transition di M8b).
+- **LA RAIL (M12f, 23/09/2026): la barra diventa una COLONNA sopra i 600dp.** Su Android,
+  `@media (min-width: 600px) and (min-height: 480px)` porta `--nav-rail-w: 80px` e la
+  navigazione si sposta a sinistra, alta quanto la finestra, con le voci impilate e
+  l'indicatore a 56×32 invece di 64×32. Quattro cose da non dimenticare:
+  · **la decide la FINESTRA, quindi la decide il CSS** (niente ramo JS, niente `useState`):
+    farla in JS significherebbe un primo disegno con la forma sbagliata, cioè il lampo di
+    skin che il design system evita dall'inizio. I tre agganci (`nav-shell`, `nav-items`,
+    `nav-item`) esistono in TUTTE le configurazioni e sono inerti dove la rail non c'è;
+  · **spostare un elemento non è cambiare un valore**: l'involucro porta `bottom-0 left-0
+    right-0` come utility, quindi servono REGOLE (unlayered: battono le utility) e non
+    token. Ma la geometria che il componente scrive in `style` va resa TOKEN, altrimenti lo
+    stile in linea vince su qualunque foglio: per questo l'involucro legge `--nav-shell-h` e
+    la superficie `--nav-bar-h`;
+  · **`--nav-start` deriva da `--nav-rail-w`** ed è l'unico numero che la pagina chiede
+    (`.shell-nav`: `padding-left: calc(var(--safe-left) + var(--nav-start))`). Chi la usa non
+    sa se la navigazione è in basso o a sinistra — è `--nav-space` girato di novanta gradi.
+    In rail `--nav-space` e `--nav-edge` NON diventano zero: diventano `var(--safe-bottom)`
+    (sulla barra gesti l'area sicura c'è comunque, e azzerarli ci farebbe finire il contenuto
+    sotto il pollice);
+  · **due condizioni, non una**: un telefono in orizzontale è largo 900dp ma alto 412, e lì
+    una colonna ruberebbe 80dp alla board — che in orizzontale è la vista che conta (M6 le ha
+    dato le safe area laterali per questo). Material stessa avvisa di guardare anche l'altezza.
+  Insieme alla rail arriva il **layout largo della board** (`.board-largo`: tetto di 56rem e
+  `margin-inline: auto`, come flex item di una colonna) e la toolbar che smette di andare a
+  capo. Le prove sono in `tests/m12f-rail.spec.ts` (5 prove × 2 progetti) e il contratto
+  difende le sei chiavi nuove come tutte le altre.
 - **IL BACK DI SISTEMA CHIUDE L'OVERLAY — e il contratto è un hook solo:**
   `hooks/use-back-to-close.ts`, montato UNA volta nella primitiva (`components/ui/dialog.tsx`)
   e in `nav-action-surface.tsx`. Meccanismo: **Navigation API** (`navigate` con `preventDefault()`
@@ -333,6 +359,215 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   Android la superficie si VELA con la molla delle effects (150ms, nessun rimbalzo) e
   l'increspatura resta a durata fissa — è fedeltà alla spec, non pigrizia. `prefers-reduced-motion`
   collassa tutte le molle sull'easing sobrio in UN punto solo (è la ragione per cui sono token).
+- **FORME E VIBRAZIONI — M9/M10 (22–23/09/2026), solo dove la specifica le rende una lingua:**
+  la **pressione deforma** ogni controllo che si dichiara `[data-gl]` (`scale .85` + raggio →
+  pillola; 120ms all'andata, 350ms al ritorno, entrambi su `--m3-expressive`) e l'attributo
+  `data-gl-press` lo scrive il componente al pointerdown — la regola è pura CSS e non conosce
+  React. Lo switch M3 accende il pollice **a pillola**, l'indicatore attivo della barra prende
+  la forma «a plenilunio» (`--pill-corners`) e l'**aptica** ha quattro accenti (`--aptica-*`:
+  tocco, avviso a metà pressione lunga, conferma distruttiva, rifiuto) che leggono le durate
+  dalla skin — su iOS sono 0ms e il canale resta muto (WebKit non distribuisce `navigator.vibrate`).
+  Su iOS l'aptica *non* è un ramo mancante: HIG non ha il feedback a scatti nel vocabolario dei
+  controlli, quindi non c'è nemmeno un uso nostro da coprire. Fuori restano (dichiarati nel
+  piano): button group, FAB menu, toolbar, loading a 7 forme, taglie XS–XL, enfasi tipografica,
+  angoli concentrici.
+- **TRAPPOLA `var()` SENZA DICHIARAZIONE (M9, 23/09/2026):** `box-shadow: var(--nav-indicator-shadow)`
+  con la chiave dichiarata in nessun blocco **non** vale «nessun effetto»: è una dichiarazione
+  INVALIDA, che il browser scarta e la proprietà cade al valore iniziale. L'ombra di terzo
+  livello dell'indicatore attivo non esisteva e nessuna guardia se n'era accorta (il contratto
+  chiedeva che un token DICHIARATO fosse letto, non il rovescio). Ora `check-design-tokens.mjs`
+  pretende che **ogni `var()` del progetto abbia una dichiarazione**: le deroghe sono poche,
+  esplicite e con la ragione accanto (`next/font`, i token che il `<Button>` scrive a runtime,
+  gli stili in linea del testo che si adatta).
+- **TRAPPOLA geometria in stile IN LINEA (M9):** l'in-linea batte sempre i fogli di stile. Il
+  raggio del FAB era un `style={{ borderRadius }}`: nel momento in cui la pressione lo cambia
+  da CSS, quella dichiarazione lo vinceva e il controllo si scalava senza cambiare forma. Se un
+  valore deve poter essere governato da una regola (e da `:active`), vive nel foglio — `
+  [data-platform='android'] .nav-comando { border-radius: var(--fab-radius) }` — non su `style`.
+- **M9 CHIUSA (23/09/2026) — le sei voci che restavano:**
+  · **scala di taglie XS–XL**: il `<Button>` scrive `data-size`, e le altezze vengono da
+    `[data-slot='button'][data-size=…]` nel foglio (i gradini piccoli con `min-height`, così non
+    schiacciano chi si scrive più alto). Su Android i due PRIMARI crescono (lg 48, xl 56) perché lì
+    il target di tocco è la taglia VERA (M6); altrove i valori sono quelli di oggi.
+  · **il segno di attesa** (`components/ui/loading-shape.tsx`): sette forme da OTTO vertici in
+    `clip-path` (con un numero di punti diverso il browser non interpola), su Android; altrove un
+    quadrato che gira. `role="status"`: l'attesa si annuncia, e il segno è `aria-hidden`.
+  · **l'enfasi tipografica**: l'asse `--type-emphasis-*` (peso 700, tracking −0,02em) entra nei
+    titoli di Android tramite i token che il titolo già usa (`--head-title-*-weight`), non con una
+    regola nuova.
+  · **il FAB menu**: il comando, aperto, prende la forma ESTESA (`data-menu-open` → larghezza del
+    menu + etichetta) — la geometria è nel foglio, non in linea, altrimenti nessuna regola potrebbe
+    governarla.
+  · **il segmented espressivo**: la voce premuta si tira verso il dito (`data-gl-press`).
+  · **la toolbar della board**: raggio ed elevazione da `--toolbar-*` (28px e l'ombra del chrome su
+    Android; 12 e nessuna ombra altrove).
+  Fuori, dichiarati: il vicino che si sposta nel segmented, il FAB menu a pila (sostituirebbe il
+  foglio che quattro spec pinnano), la scala tonale, l'increspatura estesa, e M10 che non è composito.
+- **TRAPPOLA stessa specificità, ordine sbagliato (23/09/2026):** una regola
+  `[data-platform='android'] .testata-compatta { font-weight: … }` NON batte
+  `[data-platform='ios'] .testata-compatta, [data-platform='android'] .testata-compatta { … }` se
+  sta PRIMA nel foglio: stessa specificità, vince l'ultima. Il peso dell'enfasi restava 600 e la
+  prova lo diceva. La cura non è spostare la regola: è LEGARE IL TOKEN che quella proprietà già
+  leggeva (`--head-title-*-weight: var(--type-emphasis-wght)`) — nessuna precedenza da indovinare.
+- **TRAPPOLA misurare una forma TRASFORMATA (23/09/2026):** `getBoundingClientRect` di un quadrato
+  che RUOTA è più grande del lato (48 → 54/65) e quello di un comando PREMUTO è scalato (168 → 143,
+  cioè il FAB menu che funzionava accusato di non esistere). Le dimensioni si leggono dalla
+  larghezza COMPUTATA (`getComputedStyle(el).width`), che né la rotazione né la scala toccano.
+
+### M11 — PWA, chrome di sistema e offline (23/09/2026)
+
+- **MANIFEST = installazione.** `app/manifest.ts` è la BASE comune dei due rami (prod `master`,
+  altrimenti DEV) — il ramo DEV aveva un difetto di formattazione su `orientation` e non doveva
+  più poter divergere per un campo che non riguarda il nome. Le scelte che contano:
+  · **niente `orientation`**: la rotazione la decide il telefono. Era l'errore Android più
+    visibile del piano: la board di sala si legge MEGLIO in orizzontale (M6 le ha dato le safe
+    area laterali per questo).
+  · **`id` e `scope` espliciti**: senza `id` l'identità dell'app è lo `start_url`, e cambiarlo
+    un giorno creerebbe una SECONDA app installata (doppia icona, doppia dati).
+  · **`shortcuts`**: pinnate da `tests/m11-pwa.spec.ts` contro le cartelle REALI di `app/(app)` —
+    il menu dell'icona non è dentro l'app, e una rotta rinominata lì non rompe nessun altro test.
+  · **maskable 192 accanto alla 512**: Android sceglie la taglia per densità; con la sola 512
+    scala la tile (bordi morbidi).
+  · **`screenshots`**: la misura dichiarata DEVE combaciare con l'header del PNG, altrimenti il
+    browser la scarta in silenzio e il foglio di installazione torna a una riga di testo (la prova
+    legge `readUInt32BE(16/20)`). Si rigenerano con `scripts/genera-screenshot-manifest.mjs`:
+    **la LARGHEZZA della finestra decide il layout**, quindi il telefono è 393 CSS px a densità 3
+    (1179×2556), non 1080 di lato — che mostrerebbe il layout desktop in cornice da telefono.
+- **IL CHROME NON È IL META.** Su iOS 26 **Safari non legge più il meta `theme-color`**: il colore
+  della fascia di stato è quello che la pagina disegna sotto di essa. Quindi il meta (mantenuto
+  adattivo da `components/providers/theme-color.tsx`: `#f0f7fc` chiaro, `#0a0a0a` scuro) è il
+  FALLBACK per i browser che ancora lo leggono, e la verità è `--background` sulla pagina.
+  `statusBarStyle: 'default'` è una scelta, non un default: la barra piena (`black-translucent`)
+  è stata ritirata nella 26.1 e `#0a0a0a` è esattamente lo sfondo dell'app.
+- **EDGE-TO-EDGE SU ANDROID 15.** Android 15 lo ha reso OBBLIGATORIO: la finestra si disegna sotto
+  la barra di stato e quella gesti. `viewport-fit=cover` (app/layout.tsx) dice che ACCETTIAMO il
+  ritaglio; gli inset li consegna il sistema in `env()`, che M6 legge una volta in `:root`
+  (`--safe-*`) e le skin compongono. **Nessun fallback inventato** (niente «se env è zero allora
+  24px»): Chrome di Android 15 li consegna davvero — verificato con
+  `Emulation.setSafeAreaInsetsOverride` via CDP — e un numero di riserva aggiungerebbe spazio dove
+  il sistema non ne chiede. Chi sta ancorato a un bordo DEVE leggere i token: testata
+  (`padding-top: var(--head-bar-safe)`), banda della barra (`--nav-height + --safe-bottom`),
+  contenuto (`--nav-space`), avviso di rete (`max(var(--safe-top), 8px)`).
+- **OFFLINE: LE PAGINE NON SONO IN CACHE, DI PROPOSITO.** Il service worker mette in cache SOLO gli
+  asset statici (icone, manifest, chunk); un HTML stantio in un'app di turni mostrerebbe i turni di
+  ieri come se fossero di oggi. Per questo `components/providers/offline-bar.tsx` non promette
+  niente di più: dice che le modifiche non si salvano e quante risorse sono in cache.
+  · vive nel layout di RADICE (fuori da `PwaGuard`): quando la rete manca, la prima pagina che
+    deve poterlo dire è `/login`, che il guard protegge;
+  · `role="status"` + `aria-live="polite"`: si annuncia, non ruba il fuoco, e non si disegna
+    finché `navigator.onLine` non è stato letto (niente mismatch di idratazione);
+  · **`navigator.onLine` può essere STORTO** (Wi-Fi che risponde ai ping di sistema senza
+    internet): «Riprova» fa un `fetch` vero (`no-store` sul manifest, la risorsa più piccola) e
+    ritira l'avviso solo se il ping riesce;
+  · il conteggio della cache lo dà il SW con un messaggio `STATO_CACHE` (la pagina non può leggere
+    `caches` del worker), risposto a TUTTE le finestre via `clients.matchAll`.
+- **TRAPPOLA colore computato in un altro spazio (M11):** `getComputedStyle(body).backgroundColor`
+  con un token oklch restituisce **`lab(2.75 0 0)`**, non `rgb(10,10,10)`: confrontarlo con
+  l'esadecimale del manifest fallisce su due colori identici. Per confrontare due colori si
+  portano entrambi in sRGB — un canvas da 1px e `getImageData` — con 2/255 di tolleranza.
+- **TRAPPOLA la testata non esiste ovunque:** `[data-slot="testata-barra"]` è reso solo dalle
+  pagine che montano `<Testata>` — `/dashboard`, `/notifiche`, `/vacanze`, **non** `/tuoturno`.
+  Misurare la testata su una pagina che non ce l'ha dà `null`, non zero (e su desktop la barra è
+  `display:none` ma il NODO c'è: il `null` è la spia di «pagina sbagliata»).
+- **`CACHE_NAME` in `public/sw.js` va bumpato a ogni cambio del manifest o degli asset precachati**
+  (v6 con M11: shortcuts/screenshots/maskable 192), altrimenti la copia vecchia resta in cache-first.
+
+### M12 — Accessibilità, comodità e adattività (23/09/2026)
+
+- **LA BOARD PARLA (il «punto peggiore» del piano).** La board di sala è una griglia densa
+  dove l'informazione viaggia per POSIZIONE; con un lettore di schermo, fino a ieri, si sentiva
+  una fila di cognomi e lettere. Ora:
+  · la griglia è una **regione etichettata** (`role="region" aria-label="Board di sala — SAB 12
+    Settembre 2026, turno Pomeriggio"`) e c'è una **live region** (`data-slot="sala-annuncio"`,
+    `role="status"`) che dice giorno, turno e numero di card — comprese le variazioni, perché chi
+    non vede la toolbar non ha altro modo di sapere che il turno è cambiato;
+  · ogni **card** è un `role="group"` con l'etichetta «SEZIONE — N persone, M scoperti» e i nomi
+    sono un **elenco** (`role="list"`/`listitem`: l'ordine è informazione);
+  · i **tre turni** sono un gruppo di pulsanti con `aria-pressed` e il nome per esteso («N M P» non
+    dice niente a una sintesi vocale); il **calendario** è `role="dialog"` dichiarato da
+    `aria-haspopup`/`aria-expanded`; i comandi a icona hanno un `aria-label` (il `title` da solo non
+    nomina un comando); i **pallini colorati** sono `aria-hidden` — sono un marcatore scelto
+    dall'admin, non un dato (tradurli in parole significherebbe inventarli).
+- **DUE LIVE REGION, DUE COSE DIVERSE.** `data-slot="sala-annuncio"` parla di **quello che stai
+  guardando** (giorno, turno, card); `data-slot="realtime-annuncio"` (in
+  `components/providers/realtime-invalidation.tsx`) parla di **quello che è cambiato altrove**
+  («Dati aggiornati: turni, alle 14:32»). Il messaggio del realtime si SVUOTA dopo 6 secondi:
+  una live region parla quando il TESTO cambia, quindi due eventi identici di fila senza lo
+  svuotamento non verrebbero annunciati. **Non è coperto da prove**: servirebbe una scrittura sul
+  DB più un evento realtime vero, e nessuna spec della suite scrive a quel livello — la verifica è
+  a mano.
+- **IL GRADINO DEL TESTO (Impostazioni → Testo).** Agisce sulla **misura di base del documento**
+  (`html { font-size: 125% }`), non su `--type-scale`: la scala `--fs-*` è in `rem` come le classi
+  di Tailwind, e una preferenza appoggiata al solo token avrebbe ingrandito le intestazioni
+  lasciando piccoli i cognomi della board. Tre conseguenze da non dimenticare:
+  · **`--type-scale` resta 1**: se seguisse anche lui il gradino, ogni `--fs-*`
+    (`calc(0.75rem * var(--type-scale))`) scalerebbe DUE volte (una dal `rem`, una dal
+    moltiplicatore);
+  · è una **percentuale**, quindi compone con la preferenza di sistema del browser invece di
+    sovrascriverla;
+  · è una preferenza del **dispositivo** (`localStorage` `turni-text-scale`), e come tutte le altre
+    la cancella `clearAllLocalData()` al logout: chi cambia utente se la ritrova da scegliere.
+    È una conseguenza dichiarata, non un difetto.
+- **TRAPPOLA stato esterno letto con `useState` + `useEffect` (M12):** la prima versione di
+  «torna su» (`components/ui/torna-su.tsx`) aggiornava uno stato da un ascoltatore di scorrimento:
+  funzionava solo per gli scorrimenti DOPO il montaggio, e una pagina che si apre già scorsa (o un
+  dito veloce durante l'idratazione) lasciava il pulsante invisibile per sempre. La posizione di
+  scorrimento è stato ESTERNO e si legge con `useSyncExternalStore` (snapshot al primo render +
+  ascoltatore). Stessa medicina del `location.host` nella pagina di installazione (M11), e del
+  gradino del testo. **Regola:** se il valore vive fuori da React, `useSyncExternalStore`;
+  `useState` + `useEffect` è la strada che introduce il difetto e la cascata di render che il lint
+  boccia.
+- **TRAPPOLA il posto in basso a destra è già occupato (M12):** campanella delle notifiche e FAB
+  delle azioni stanno lì (`--fab-offset`, `z-40`), quindi un controllo flottante NUOVO o va a
+  **sinistra** o si **impila** (`bottom: calc(var(--nav-edge) + …)`). La prima versione di «torna
+  su» finiva esattamente sotto la campanella: il pulsante c'era, visibile, e il tocco non arrivava
+  mai — lo dice la prova (`intercepts pointer events`), non l'occhio.
+- **BUDGET DEL VETRO = 3 superfici velate per schermata**, misurato da `tests/m12-comodita.spec.ts`
+  contando gli elementi visibili con un `backdrop-filter` attivo su `/turnisala` e `/dashboard`.
+  Ogni vetro è un livello di compositing che il telefono paga a ogni fotogramma: se ne serve un
+  quarto, si discute, non si aggiunge. Per questo «torna su» e l'avviso di rete NON hanno vetro.
+- **ORIZZONTALE:** la board in landscape (852×393) non sborda e il contenuto si sposta di quanto
+  dice l'inset laterale (`--safe-left`), che è la promessa di M6 ora verificata. **Fuori,
+  dichiarato:** la barra flessibile per i pieghevoli, il giro con VoiceOver/TalkBack su
+  dispositivo vero (l'albero è corretto e provato, ma la lettura reale è un'altra cosa) e il
+  layout largo su iPad. Il primo punto della lista — la rail — è arrivato in M12f (vedi la
+  «CHROME DI NAVIGAZIONE» qui sopra).
+
+### M12b — l'annulla e le vie d'uscita (23/09/2026)
+
+- **L'UNDO NON È UN INTERRUTTORE, È UNA DOMANDA PER AZIONE.** `lib/undo.ts` (`avvisoAnnulla`)
+  mostra lo snackbar con l'azione «Annulla» per 6s (dentro la finestra 4-10s che M3 dà agli
+  snackbar con un'azione). Perché una sola funzione: l'istantanea la prende **chi muta** — ha in
+  mano lo stato corrente, e catturarla dentro l'helper significherebbe catturare quella
+  sbagliata (al primo render invece che al momento del gesto). E si rimette l'**elenco intero**,
+  non la voce: `hooks/use-notification-history.ts` espone `ripristina(istantanea)`, perché
+  ricostruire una voce cancellata pezzo per pezzo sbaglia un caso su dieci (l'ordine, la
+  posizione, le voci arrivate nel frattempo).
+- **DOVE l'undo, e dove resta la conferma.** Reversibile = **lo storico delle notifiche**, che è
+  LOCALE (`localStorage`): la riga cancellata con lo swipe, «Segna tutte come lette», «Elimina
+  tutte». Il resto dell'app scrive sul DATABASE, e un `delete` sul DB non si annulla con un array
+  in memoria: lì resta la conferma, che è la rete giusta per ciò che non si può disfare. Lo
+  svuotamento ha **entrambe** (conferma + annulla): il piano diceva «undo dove è reversibile e
+  conferma dove no», e togliere la conferma a un'azione distruttiva sarebbe stato un favore a
+  metà.
+- **LE VIE D'USCITA (`components/ui/via-uscita.tsx`).** La passata ha trovato stati vuoti senza
+  uscita in una decina di schermate; il componente esiste perché siano la STESSA cosa (testo
+  primario, semibold, sottolineato al passaggio) e non sette modi di dire «prova da qui».
+  La regola che conta: l'uscita **dipende dalla causa del vuoto** — con una ricerca attiva è
+  «azzera la ricerca» (e il comando si offre SOLO se c'è una ricerca da azzerare: altrove sarebbe
+  un pulsante che promette e non mantiene), con un filtro attivo è togliere il filtro, senza
+  niente è «ricarica» (feedback, debug notifiche) o il periodo più largo (statistiche).
+- **TRAPPOLA il lint vieta lo stato scritto da un effetto (M12b):** `void carica()` dentro un
+  `useEffect` fallisce (`react-hooks/set-state-in-effect`) perché il setState è raggiunto
+  sincronicamente; una catena `.then(...)` no, perché scrive quando ARRIVA la risposta. Per
+  «ricarica» si usa quindi un **contatore nello stato** messo fra le dipendenze
+  (`const [ricarica, setRicarica] = useState(0)`), non una funzione da chiamare nell'effetto.
+- **TRAPPOLA due volte 320px nella stessa prova (M12f):** nel progetto `android` lo User-Agent
+  del server è Android, quindi la metà «desktop non si muove» di una spec deve chiedere
+  `?platform=desktop` ESPLICITO — senza override misura la rail (successo: 700 al posto di 64).
+  E una voce di rail larga 80 mostra un contenuto di 79: il filo di separazione (`border-right`)
+  sta DENTRO la larghezza (preflight: `box-sizing: border-box`), quindi le prove confrontano con
+  la superficie, non con un numero scritto a mano.
 
 ### «Il tuo turno» (/tuoturno)
 
@@ -414,6 +649,24 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
   con la stessa skin la stessa sequenza consegna 13 mosse su 13, e l'hook prende il gesto in
   entrambi i casi. Le due affermazioni di un gesto si scrivono quindi in DUE prove, con una
   pagina fresca ciascuna.
+- **Un LAMPO non è un'accensione (23/09/2026):** l'evidenzia «vengo da qui» può sparire mentre
+  il respiro corre, perché la board SOSTITUISCE la copia in cache con quella fresca e lì la
+  persona può non essere più su quella card (misurato: 48ms di accensione su 3000). Un
+  candidato vale solo se è ancora acceso mezzo secondo dopo — la stessa logica con cui un test
+  deve distinguere «è successo» da «è passato».
+- **I CRONOMETRI SI CAMPIONANO A TEMPO, NON A MUTAZIONI (23/09/2026):** un `MutationObserver` su
+  `.desk-card-flash` misurava 409ms su una card accesa 3s, perché un re-render che stacca e
+  riattacca l'elemento per un fotogramma viene letto come «finito». Un `setInterval` da 50ms con
+  `begin`/`ultima`/`assenteDa` (assente ⇒ fine solo dopo 300ms di assenza) misura la durata vera.
+- **La MISURA DI UNA TRANSIZIONE va attesa:** `data-gl-press` si accende all'istante, la
+  geometria ci arriva in 120ms — letta subito, la larghezza è quella di riposo (56 invece di 48).
+  Si aspetta che il RAGGIO si assesti e poi si legge; e i valori saturati (`rounded-full`) si
+  confrontano per GEOMETRIA, non per stringa: il massimo rappresentabile non è lo stesso fra i
+  motori (WebKit 3.35e7, Chromium 3.4e38).
+- **Su iOS il rilascio del comando di dashboard NAVIGA** (il tap esegue l'azione primaria,
+  «Nuovo turno» → `/dashboard?new=1`) e quella navigazione può interrompere il `goto`
+  dell'iterazione successiva: il `goto` si riprova, e della skin giusta risponde la guardia
+  `SKIN()` — mai il silenzio di un `catch`.
 - **Le spec dei minimi sono le uniche che girano DOPO tutto e che SCRIVONO** (`minimi` project,
   `dependencies: ['chromium']`): una run filtrata per progetto può non eseguirle affatto, ed è
   così che per una milestone intera è rimasto invisibile il difetto del `view-transition-name`.
@@ -436,5 +689,10 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
 
 ## Stato attuale — azioni pendenti
 
-- Nessuna al 22/09/2026. (La migration 034 `notify_vacation_filter` è applicata su
-  produzione: colonna presente e versione registrata in `schema_migrations`.)
+- **M9 è CHIUSA (23/09/2026)**; di M10 resta composito (angoli concentrici, chiusura su un iPhone
+  vero) e di M9 le deroghe dichiarate nel piano (vicino che si sposta, FAB menu a pila, scala tonale,
+  increspatura su liste e card). Vedi `docs/piano-liquid-glass.md`, «M9 chiusa».
+- **M11 e M12 non sono cominciate**: PWA/chrome di sistema/offline, e adattività + accessibilità +
+  comodità d'uso.
+- Migration 034 `notify_vacation_filter` applicata su produzione (colonna presente e versione
+  registrata in `schema_migrations`).
