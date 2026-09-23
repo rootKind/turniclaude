@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { ArrowUpDown, Search } from 'lucide-react'
 import type { StatsUser } from '@/app/api/admin/stats/route'
+import { ViaUscita } from '@/components/ui/via-uscita'
 import { cn } from '@/lib/utils'
 
 type SortKey = 'name' | 'access' | 'shifts' | 'interest' | 'last_access'
@@ -118,7 +119,21 @@ export function StatsUserTable({ users }: { users: StatsUser[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">Nessun utente trovato.</p>
+        /* M12: qui lo stato vuoto può avere DUE cause — la ricerca o il filtro
+           DCO/Noni — e azzerarne una sola lascerebbe la tabella vuota con la
+           sensazione che il comando non abbia funzionato. Le due si azzerano
+           insieme, ed è quello che la riga dice. */
+        <div className="flex flex-col items-center gap-1.5 py-6">
+          <p className="text-sm text-muted-foreground text-center">Nessun utente trovato.</p>
+          <ViaUscita
+            onClick={() => {
+              setSearch('')
+              setFilter('all')
+            }}
+          >
+            Azzera ricerca e filtro
+          </ViaUscita>
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

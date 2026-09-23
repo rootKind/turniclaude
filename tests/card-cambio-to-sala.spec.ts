@@ -278,20 +278,29 @@ test('la persona che è in sala si accende: «respiro» di 3s, anche con «riduc
   // della classe, qualunque cosa faccia il resto della spec nel frattempo.
   await page.addInitScript(`
     (() => {
-      window.__flash = { begin: 0, end: 0, testo: '' }
+      // IL CRONOMETRO CAMPIONA A TEMPO, NON A MUTAZIONI (25/09/2026).
+      // Le due versioni precedenti sbagliavano in modo opposto: la prima
+      // guardava a intervalli del test e misurava le letture DOM della spec
+      // invece del respiro; la seconda osservava le MUTAZIONI, e un re-render
+      // che stacca e riattacca la card per un fotogramma le faceva credere che
+      // il respiro fosse finito lì (409ms misurati su una card accesa da 3s).
+      // Qui si campiona ogni 50ms: begin è la prima volta che la card si
+      // accende, ultima l'ultima volta che è stata vista accesa — la
+      // differenza è la durata VERA a muro, buchi di re-render inclusi.
+      window.__flash = { begin: 0, ultima: 0, assenteDa: 0, testo: '' }
       const guarda = () => {
         const el = document.querySelector('.desk-card-flash')
         const t = Date.now()
         if (el) {
           if (!window.__flash.begin) { window.__flash.begin = t; window.__flash.testo = el.innerText.replace(/\\s+/g, ' ').trim() }
-          window.__flash.end = 0
-        } else if (window.__flash.begin) {
-          window.__flash.end = t
+          window.__flash.ultima = t
+          window.__flash.assenteDa = 0
+        } else if (window.__flash.ultima && !window.__flash.assenteDa) {
+          window.__flash.assenteDa = t
         }
       }
-      // Si osserva document e non documentElement: uno script di init gira
-      // PRIMA che l'albero esista, e osservare un figlio non ancora creato lancia.
-      new MutationObserver(guarda).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] })
+      // Si campiona dal primo istante: la sonda regge l'albero vuoto.
+      setInterval(guarda, 50)
       document.addEventListener('DOMContentLoaded', guarda)
       guarda()
     })()
@@ -326,15 +335,26 @@ test('la persona che è in sala si accende: «respiro» di 3s, anche con «riduc
   let acceso: (typeof candidati)[number] | null = null
   for (const [i, url] of urls.entries()) {
     await page.goto(url, { waitUntil: 'domcontentloaded' })
-    const ok = await flash.first().waitFor({ state: 'visible', timeout: 12_000 }).then(() => true).catch(() => false)
-    if (ok) { acceso = candidati[i]; break }
+    // UN LAMPO NON BASTA (25/09/2026). Un candidato non è «acceso» se la card si
+    // illumina per un fotogramma: mentre il respiro corre la board può
+    // SOSTITUIRE la copia in cache con quella fresca, e se lì la persona non è
+    // più su quella card l'evidenzia sparisce (misurato: 48ms su 3000). Il
+    // candidato vale solo se è ancora acceso mezzo secondo dopo — che è ciò che
+    // vede l'utente. Gli altri si provano come prima.
+    const lampo = await flash.first().waitFor({ state: 'visible', timeout: 12_000 }).then(() => true).catch(() => false)
+    if (!lampo) continue
+    await page.waitForTimeout(600)
+    if (await flash.count() > 0) { acceso = candidati[i]; break }
   }
   expect(
     acceso,
-    `nessuno dei candidati in board (${candidati.slice(0, 3).map(c => c.display).join(', ')}) si è acceso`,
+    `nessuno dei candidati in board (${candidati.slice(0, 3).map(c => c.display).join(', ')}) è rimasto acceso`,
   ).not.toBeNull()
   const cognome = acceso!.cognome
-  await expect(flash).toContainText(cognome)
+  // `.first()`: se il cognome è OMONIMO (due Espositi in board) l'app accende
+  // tutte le card plausibili — è il comportamento giusto per un'ambiguità, e la
+  // prova guarda la prima come già fa per l'attesa e per lo stile.
+  await expect(flash.first()).toContainText(cognome)
 
   // Il segno è quello di casa (contorno di 2px nel colore dell'evidenzia) e attorno
   // pulsa un alone: 3 respiri da 1s = 3s, la durata di SALA_FLASH_MS lato JS.
@@ -415,17 +435,20 @@ test('la persona che è in sala si accende: «respiro» di 3s, anche con «riduc
   // Il contorno è nel colore dell'evidenzia: se il tema lo cambia, la card segue.
   expect(stile.bordo).toBe(stile.rgb)
 
-  // QUANTO È DURATA: dal cronometro dell'osservatore, non da una pausa del test.
+  // QUANTO È DURATA: dal cronometro del campionatore, non da una pausa del test.
+  // Si aspetta che la card resti assente per 300ms: una sparizione di un
+  // fotogramma (re-render) non è la fine del respiro.
   await page.waitForFunction(
-    () => (window as unknown as { __flash?: { end: number } }).__flash?.end
-      ? true
-      : false,
+    () => {
+      const f = (window as unknown as { __flash?: { assenteDa: number } }).__flash
+      return !!f?.assenteDa && Date.now() - f.assenteDa > 300
+    },
     undefined,
     { timeout: 15_000 },
   )
   const cronometro = await page.evaluate(() =>
-    (window as unknown as { __flash: { begin: number; end: number; testo: string } }).__flash)
-  const durata = cronometro.end - cronometro.begin
+    (window as unknown as { __flash: { begin: number; ultima: number; testo: string } }).__flash)
+  const durata = cronometro.ultima - cronometro.begin
   expect(cronometro.testo, 'il respiro deve accendersi sulla card della persona').toContain(cognome)
   expect(durata, `il respiro è durato ${durata}ms (attesi 3s)`).toBeGreaterThan(2400)
   expect(durata, `il respiro è durato ${durata}ms (attesi 3s)`).toBeLessThan(4200)

@@ -6,6 +6,8 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { ThemeColor } from '@/components/providers/theme-color'
+import { OfflineBar } from '@/components/providers/offline-bar'
+import { TextScale } from '@/components/providers/text-scale'
 import { ThemeInspector } from '@/components/admin/theme-inspector'
 import { PlatformProvider } from '@/components/providers/platform-provider'
 import { detectPlatformFromUA } from '@/lib/platform'
@@ -28,6 +30,30 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
 // qualsiasi altro branch (e il dev locale, dove la env non esiste) = «DEV».
 const IS_PROD = process.env.VERCEL_GIT_COMMIT_REF === 'master'
 
+/**
+ * M11 — IL CHROME DI SISTEMA (23/09/2026), e le due regole che lo governano.
+ *
+ * **1. Il colore lo detta lo sfondo della pagina, non questo file.** Il meta
+ * `theme-color` qui sotto è il valore di partenza (chiaro/scuro secondo la
+ * preferenza di sistema al momento del render), ma chi vince è
+ * `components/providers/theme-color.tsx`: legge `--background` calcolato e
+ * riscrive il meta a ogni cambio di tema. Da M11 vale anche per **iOS**, perché
+ * **Safari 26 non legge più il meta `theme-color`**: da lì in avanti la fascia
+ * della barra di stato prende il colore di ciò che la pagina disegna SOTTO di
+ * essa. È una notizia buona per questa app — lo sfondo è già `var(--background)`
+ * su tutta la pagina, e il vetro della testata (M8b/M10) ci scorre sotto — ma è
+ * la ragione per cui il colore del chrome non può più essere «deciso» da una
+ * meta tag: va lasciato trasparente e lo decide la pagina.
+ *
+ * **2. `statusBarStyle: 'default'` è una scelta, non un default.** Su iOS la
+ * barra di stato a tutto schermo (`black-translucent`) è stata RITIRATA nella
+ * 26.1: le app che ci contavano si sono ritrovate il chrome spostato di colpo.
+ * Con `'default'` la barra ha un fondo proprio e il contenuto parte sotto di lei,
+ * il che combacia con lo sfondo di questa app: `#0a0a0a` (lib/color-defaults.ts)
+ * — cioè la scelta sicura **e** quella che vogliamo, non un ripiego. Chi un
+ * giorno volesse il pieno schermo dovrà riprovare la 26.1 su un iPhone vero: è
+ * scritto nella tabella delle trappole di knowledge.md.
+ */
 export const metadata: Metadata = {
   title: IS_PROD ? 'Turni Sala C.C.C.' : 'Turni DEV',
   description: 'Gestione scambi turni',
@@ -80,6 +106,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <AuthCacheGuard />
             <SwRegistrar />
             <ThemeColor />
+            {/* M12: la preferenza di dimensione del testo scelta dall'utente (in
+                Impostazioni). Non rende niente: scrive la percentuale su `html`,
+                così vale anche per gli overlay e per il primo paint successivo. */}
+            <TextScale />
+            {/* M11: l'avviso di rete sta QUI, fuori dal PwaGuard e fuori dal
+                QueryProvider — quando la rete manca, la prima pagina che deve
+                poterlo dire è quella che si apre per prima (`/login`), che il
+                guard protegge. Rende `null` finché c'è connessione. */}
+            <OfflineBar />
             <QueryProvider>
               <PwaGuard>
                 {children}

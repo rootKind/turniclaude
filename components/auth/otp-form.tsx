@@ -63,6 +63,9 @@ export function OtpForm() {
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
+            // M12: il codice è già lungo quanto serve e non c'è un campo dopo:
+            // il tasto dice «fatto» invece di far cercare l'invio.
+            enterKeyHint="done"
             placeholder="123456"
             {...register('token')}
           />

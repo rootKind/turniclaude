@@ -115,5 +115,21 @@ export function useNotificationHistory() {
     setHistory([])
   }, [])
 
-  return { history, markAllRead, markEntryRead, deleteEntry, clearAll, unreadCount }
+  /**
+   * M12 — IL RITORNO (23/09/2026).
+   *
+   * «Annulla» in uno snackbar ha bisogno di rimettere le cose come stavano, e
+   * l'unico modo di farlo BENE è riavere l'elenco intero: ricostruire una voce
+   * cancellata pezzo per pezzo (la posizione, l'ordine, le altre voci nel
+   * frattempo arrivate) è il tipo di ricostruzione che sbaglia un caso su dieci —
+   * la voce che torna in fondo invece che al suo posto, o che riappare letta.
+   * L'istantanea la prende chi chiama, al momento del gesto: la cronologia è
+   * scritta su `localStorage`, quindi rimetterla è esatto per definizione.
+   */
+  const ripristina = useCallback((istantanea: NotificationEntry[]) => {
+    writeHistory(istantanea)
+    setHistory(istantanea)
+  }, [])
+
+  return { history, markAllRead, markEntryRead, deleteEntry, clearAll, ripristina, unreadCount }
 }

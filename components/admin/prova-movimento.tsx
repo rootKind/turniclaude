@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { usePlatform } from '@/components/providers/platform-provider'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { FilterChip } from '@/components/ui/filter-chip'
+import { LoadingShape } from '@/components/ui/loading-shape'
 import { PLATFORM_OVERRIDE_KEY, PLATFORMS, type Platform } from '@/lib/platform'
 import {
   EASING_OSSERVATO,
@@ -46,6 +48,10 @@ const DISTANZA = 132
 export function ProvaMovimento() {
   const piattaforma = usePlatform()
   const [giro, setGiro] = useState(0)
+  /** La pressione VIVA (M9), per il primo bottone: il dito giù, non l'hover. */
+  const [premuto, setPremuto] = useState(false)
+  /** L'allarme di prova: la conferma distruttiva senza conseguenze. */
+  const [allarmeAperto, setAllarmeAperto] = useState(false)
 
   /** La piattaforma su cui stiamo tarando: se è desktop, le molle sono quelle di base. */
   const skin: 'ios' | 'android' = piattaforma === 'android' ? 'android' : 'ios'
@@ -233,6 +239,77 @@ export function ProvaMovimento() {
           </Button>
           <FilterChip selected>Miei</FilterChip>
           <FilterChip>Compatibili</FilterChip>
+        </div>
+      </section>
+
+      {/* ── M9: la FORMA espressiva — dove esiste, e dove no. ──────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-title3 font-semibold">La forma espressiva</h2>
+        <p className="text-caption text-muted-foreground">
+          Su Android la pressione DEFORMA (scala 0.85, angoli a 24) e la glow della specifica parte dal punto del dito;
+          su iOS nessuna regola tocca i controlli — HIG non ha forme expressive, e la skin non la copia.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            data-gl
+            data-gl-press={premuto ? 'true' : undefined}
+            onPointerDown={() => setPremuto(true)}
+            onPointerUp={() => setPremuto(false)}
+            onPointerCancel={() => setPremuto(false)}
+            onPointerLeave={() => setPremuto(false)}
+          >
+            Conferma
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setAllarmeAperto(true)}>
+            Prova l&apos;allarme
+          </Button>
+          <Button data-gl variant="destructive" size="sm">
+            Elimina
+          </Button>
+          <FilterChip data-gl selected>
+            Miei
+          </FilterChip>
+        </div>
+        <p className="text-caption text-muted-foreground">
+          Solo il primo ha la pressione VIVA (data-gl-press scritta dal componente): gli altri mostrano
+          l&apos;onda expressive al tocco, che è per tutti i controlli con l&apos;attributo data-gl.
+        </p>
+
+        {/* L'ALLARME DI PROVA: la stessa primitiva `Alert` dell'app, con una
+            conferma distruttiva che NON distrugge niente — è ciò che permette di
+            provare l'accento pesante dell'aptica senza toccare il database. */}
+        <Alert
+          open={allarmeAperto}
+          onOpenChange={setAllarmeAperto}
+          title="Eliminare il documento di prova?"
+          description="Questa è una sonda: la conferma non elimina niente di vero."
+          confirmLabel="Elimina"
+          destructive
+          onConfirm={() => setAllarmeAperto(false)}
+        />
+      </section>
+
+      {/* ── M9: la SCALA DI TAGLIE e il SEGNO DI ATTESA. ───────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-title3 font-semibold">La scala e l&apos;attesa</h2>
+        <p className="text-caption text-muted-foreground">
+          I cinque gradini XS–XL della stessa scala: i due PRIMARI crescono su Android (48 e 56 contro 36 e 44),
+          perché lì la taglia vera è la strada del target di tocco (l&apos;increspatura non lascia spazio agli
+          pseudo-elementi). Fuori da Android i valori sono quelli di oggi.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {(['xs', 'sm', 'default', 'lg', 'xl'] as const).map((gradino) => (
+            <Button key={gradino} size={gradino} variant="outline" data-gradino={gradino}>
+              {gradino}
+            </Button>
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <LoadingShape etichetta="Caricamento di prova" />
+          <span className="text-caption text-muted-foreground">
+            Su Android il segno cambia forma mentre gira (sette forme da otto vertici l&apos;una); altrove è un
+            quadrato arrotondato che gira.
+          </span>
         </div>
       </section>
 

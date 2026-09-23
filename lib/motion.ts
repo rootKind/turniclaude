@@ -372,3 +372,27 @@ export const RUOLO_MOTO: Record<string, string> = {
   pop: 'Il pannello piccolo che sale (foglio azioni, mese)',
   fade: 'Il velo e le trasparenze (scrim, toast)',
 }
+
+/**
+ * LA CURVA EXPRESSIVE (M9 del piano, 22/09/2026).
+ *
+ * Material 3 Expressive porta un'easing propria, la «emphasized decelerate»:
+ * una decelerazione decisa, con entrate più rapide e assestamenti più morbidi
+ * della standard. Non sostituisce le molle di M7 — i TEMPI restano loro —
+ * accompagna i cambi di FORMA (la deformazione della pressione, il pollice che
+ * diventa pillola): è il gesto che la specifica chiama «shape morph».
+ *
+ * Il token `--m3-expressive` dei blocchi di piattaforma DEVE coincidere con
+ * questo valore: `scripts/check-motion.mjs` lo pretende (§6), con la stessa
+ * logica con cui pretende che `--motion-ease-standard` coincida con
+ * `EASING_OSSERVATO` — se qualcuno cambia la curva nel foglio di stile senza
+ * passare da qui, il contratto lo ferma.
+ *
+ * Su iOS la skin resta quella di SwiftUI: HIG non ha una curva «expressive» da
+ * contrapporre, e inventarsene una sarebbe la skin copiata che il contratto
+ * esiste per impedire. Per questo il token iOS vale `var(--motion-ease-standard)`
+ * e il controllo si aspetta ESATTAMENTE quello.
+ */
+export const EASING_EXPRESSIVE = {
+  android: 'cubic-bezier(0.2, 0, 0, 1)',
+} as const

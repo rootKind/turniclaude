@@ -398,8 +398,12 @@ function DaysInput({ value, disabled, onChange }: {
       >
         <ChevronLeft size={16} />
       </button>
+      {/* M12: tastiera numerica — sono giorni, e con la tastiera completa si
+          sbaglia tasto tre volte su quattro. */}
       <input
         type="number"
+        inputMode="numeric"
+        enterKeyHint="done"
         min={1}
         max={365}
         value={value}

@@ -223,6 +223,14 @@ test.describe('Le due skin: il motore vero dice quale', () => {
     await page.goto(`${E2E_BASE_URL}/dashboard?${DEV}`, { waitUntil: 'domcontentloaded' })
     await expect(nav(page).locator('a')).toHaveCount(5)
 
+    // La skin va ATTESA (lezione M9): data-platform arriva al mount del
+    // provider, e leggere prima significa leggere la geometria del desktop.
+    await page.waitForFunction(
+      (p) => document.documentElement.getAttribute('data-platform') === p,
+      atteso,
+      { timeout: 20_000 },
+    )
+
     const skin = await page.evaluate(() => {
       const n = document.querySelector('nav[aria-label="Navigazione principale"]')!
       const attiva = n.querySelector('a[aria-current="page"]')!

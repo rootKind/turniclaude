@@ -22,6 +22,7 @@ import {
   type NotifTemplateDef,
 } from '@/lib/notification-templates'
 import { Button } from '@/components/ui/button'
+import { ViaUscita } from '@/components/ui/via-uscita'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -103,7 +104,13 @@ export function NotificationDebugDialog({ open, onClose }: Props) {
         {loading && !data ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Caricamento…</p>
         ) : !data ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">Nessun dato</p>
+          /* M12: «Nessun dato» senza un modo di riprovare è un vicolo cieco — e
+             qui la richiesta può essere caduta per un'attimo di rete (il
+             fallimento lo dice già il toast, ma il toast sparisce). */
+          <div className="flex flex-col items-center gap-1.5 py-6">
+            <p className="text-sm text-muted-foreground text-center">Nessun dato</p>
+            <ViaUscita onClick={() => void refresh()}>Ricarica</ViaUscita>
+          </div>
         ) : (
           <Tabs value={tab} onValueChange={setTab} className="flex-1 min-h-0 flex flex-col">
             <TabsList className="grid grid-cols-3">
@@ -606,7 +613,19 @@ function DevicesTab({ data, refresh }: { data: GetPayload; refresh: () => Promis
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">{totalDevices} dispositivi iscritti fra {data.users.length} utenti</p>
-      <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Cerca utente…" className="h-8 text-xs" />
+      {/* M12: è una ricerca, e lo dice: tasto «cerca» sulla tastiera, memoria del
+          browser spenta (qui si cercano cognomi, non indirizzi). */}
+      <Input
+        type="search"
+        inputMode="search"
+        enterKeyHint="search"
+        autoComplete="off"
+        value={q}
+        onChange={e => setQ(e.target.value)}
+        placeholder="Cerca utente…"
+        className="h-8 text-xs"
+        aria-label="Cerca utente"
+      />
       <div className="rounded-lg border divide-y max-h-80 overflow-y-auto">
         {list.map(u => (
           <div key={u.id} className="flex items-center gap-2 px-2.5 py-1.5">

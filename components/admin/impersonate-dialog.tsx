@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { ViaUscita } from '@/components/ui/via-uscita'
 import { cn } from '@/lib/utils'
 
 type UserOption = { id: string; nome: string | null; cognome: string | null; is_secondary: boolean; is_dco_plus?: boolean }
@@ -65,7 +66,14 @@ export function ImpersonateDialog({ open, onClose }: Props) {
               </button>
             ))}
             {filtered.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">Nessun utente trovato</p>
+              /* M12: lo stato vuoto offre la via d'uscita che serve QUI, che è
+                 disfare la ricerca. Il pulsante «Annulla» del dialog non è una
+                 via d'uscita: chiude tutto, e chi ha sbagliato una lettera non
+                 vuole chiudere — vuole riprovare. */
+              <div className="flex flex-col items-center gap-1.5 py-4">
+                <p className="text-sm text-muted-foreground text-center">Nessun utente trovato</p>
+                <ViaUscita onClick={() => setSearch('')}>Azzera la ricerca</ViaUscita>
+              </div>
             )}
           </div>
           <Button variant="outline" className="w-full" onClick={onClose}>Annulla</Button>

@@ -56,6 +56,12 @@ function Switch({
         data-slot="switch-thumb"
         className={cn(
           "pointer-events-none block rounded-full bg-background ring-0 transition-[transform,width,height]",
+          // M9 (Material 3 Expressive): il pollice dello switch M3 quando è
+          // ACCESO non è un cerchio, è una PILLOLA 24×32 (la forma «pill
+          // shaped thumb» della specifica). Il raggio lo scrive la regola CSS
+          // in globals.css (`[data-platform='android'] … [data-slot='switch-thumb']`),
+          // perché `data-platform` sta su <html> e una variante Tailwind qui
+          // guarderebbe l'elemento sbagliato. Spento resta il cerchio 16 di M3.
           // Variante SM: com'era (corsa in % della propria misura).
           "group-data-[size=sm]/switch:size-3 group-data-[size=sm]/switch:data-checked:translate-x-[calc(100%-2px)] group-data-[size=sm]/switch:data-unchecked:translate-x-0",
           // Variante DEFAULT: il pollice di piattaforma. Spento è

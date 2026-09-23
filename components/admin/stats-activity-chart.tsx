@@ -2,18 +2,44 @@
 import { useMemo, useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import type { StatsActivityPoint } from '@/app/api/admin/stats/route'
+import { ViaUscita } from '@/components/ui/via-uscita'
 import { cn } from '@/lib/utils'
 
 type Mode = 'access' | 'new_shift'
 
 const MODE_LABEL: Record<Mode, string> = { access: 'Accessi', new_shift: 'Turni' }
 
-export function StatsActivityChart({ data }: { data: StatsActivityPoint[] }) {
+/**
+ * `onAmpliaPeriodo` (M12, 23/09/2026) è la VIA D'USCITA dello stato vuoto, e
+ * arriva da fuori perché il grafico non sa nulla del periodo: il selettore 30g /
+ * 90g / 1 anno / Tutto sta nella pagina, ed è quello che risponde alla domanda
+ * «e adesso?» — che è sempre la stessa: allarga la finestra. Facoltativa, perché
+ * il grafico non deve pretendere di conoscere la pagina che lo ospita.
+ */
+export function StatsActivityChart({
+  data,
+  onAmpliaPeriodo,
+  periodoMassimo = false,
+}: {
+  data: StatsActivityPoint[]
+  onAmpliaPeriodo?: () => void
+  periodoMassimo?: boolean
+}) {
   const [mode, setMode] = useState<Mode>('access')
   const max = useMemo(() => Math.max(1, ...data.map(d => d[mode])), [data, mode])
 
   if (data.length === 0) {
-    return <p className="text-sm text-muted-foreground text-center py-6">Nessun dato nel periodo selezionato.</p>
+    return (
+      <div className="flex flex-col items-center gap-1.5 py-6">
+        <p className="text-sm text-muted-foreground text-center">Nessun dato nel periodo selezionato.</p>
+        {/* «Tutto» è il periodo più largo che esiste: lì il comando non si offre,
+            perché non ci sarebbe nulla da allargare e sarebbe un pulsante che
+            promette e non mantiene. */}
+        {onAmpliaPeriodo && !periodoMassimo && (
+          <ViaUscita onClick={onAmpliaPeriodo}>Guarda tutto lo storico</ViaUscita>
+        )}
+      </div>
+    )
   }
 
   const W = 600

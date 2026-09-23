@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { usePlatform } from '@/components/providers/platform-provider'
+import { haptics } from '@/lib/haptics'
 import { cn } from '@/lib/utils'
 
 /**
@@ -68,6 +69,10 @@ export function Alert({
   const ios = piattaforma === 'ios'
 
   function conferma() {
+    /* M10: una decisione irreversibile merita l'accento pesante — il doppio
+       colpo forte del canale, non il tocco riconosciuto (che il <Button> o
+       il <button> sotto emettono già da sé). */
+    if (destructive) haptics.conferma()
     onOpenChange(false)
     onConfirm()
   }

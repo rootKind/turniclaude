@@ -17,6 +17,7 @@ import { Testata } from '@/components/nav/testata'
 import { FeedbackDialog } from './feedback-dialog'
 import { CHANGELOG_SHOW_ALL_EVENT } from '@/components/providers/changelog-dialog'
 import { versioneTesto } from '@/lib/app-version'
+import { GRADINI_TESTO, useTextScale } from '@/components/providers/text-scale'
 import { NotificationHelpDialog } from './notification-help-dialog'
 import { toast } from 'sonner'
 import { useState } from 'react'
@@ -31,6 +32,8 @@ export function SettingsPage() {
   const { permission, isSubscribed, requestAndSubscribe } = usePush()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  // M12: la dimensione del testo (vedi components/providers/text-scale.tsx).
+  const [gradinoCorrente, cambiaGradino] = useTextScale()
 
   async function handleToggle(field: 'notify_on_interest' | 'notify_on_new_shift' | 'notify_on_vacation_interest' | 'notify_on_new_vacation' | 'notify_on_cross_shifts' | 'notify_shift_filter' | 'notify_vacation_filter' | 'notification_enabled', value: boolean) {
     try {
@@ -89,6 +92,44 @@ export function SettingsPage() {
             </button>
           </div>
         </div>
+      </section>
+
+      <Separator />
+
+      {/* M12 — QUANTO GRANDE SI LEGGE (23/09/2026).
+          È la prima sezione che non riguarda il COME si guarda ma il SE si
+          riesce a leggere: fino a ieri l'unico modo di ingrandire i testi era lo
+          zoom del browser, che ingrandisce anche tutto il resto e va rifatto su
+          ogni pagina. Il gradino vale per tutta l'app e resta sul dispositivo. */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Testo</h2>
+        <div className="flex items-center justify-between">
+          <Label>Dimensione</Label>
+          <div
+            className="flex items-center rounded-full border p-1 gap-0.5"
+            role="group"
+            aria-label="Dimensione del testo"
+          >
+            {GRADINI_TESTO.map((gradino) => (
+              <button
+                key={gradino.id}
+                onClick={() => cambiaGradino(gradino.id)}
+                aria-pressed={gradinoCorrente === gradino.id}
+                className={cn(
+                  'px-2.5 h-8 rounded-full transition-colors text-xs font-semibold capitalize',
+                  gradinoCorrente === gradino.id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {gradino.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="text-caption text-muted-foreground">
+          Vale per tutta l&apos;app, su questo dispositivo.
+        </p>
       </section>
 
       <Separator />

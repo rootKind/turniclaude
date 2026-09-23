@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import Link from 'next/link'
 import { ArrowLeftRight, Calendar, CalendarRange, Palmtree, Settings, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { haptics } from '@/lib/haptics'
 import { useScrolledAttr } from '@/hooks/use-scrolled'
 import { usePlatform } from '@/components/providers/platform-provider'
 import { NotificationBadge } from '@/components/ui/notification-badge'
@@ -56,6 +57,16 @@ const ICONE: Record<NavDestinationId, LucideIcon> = {
  * e `--nav-radius`, che su Android e sul desktop valgono zero — quindi lì la
  * barra è identica a prima, e la suite E2E che gira anche da desktop resta la
  * prova che nessuno ha spostato un pixel.
+ *
+ * M12f (23/09/2026) le dà una TERZA forma, e non è una skin: è la stessa skin su
+ * una finestra più larga. Sopra i 600dp (e con almeno 480 di altezza) la barra
+ * diventa la RAIL di Material — una colonna a sinistra, alta quanto la finestra.
+ * Qui non c'è nessun ramo JS: cambiano `--nav-rail-w` e le poche regole di
+ * geometria in `globals.css`, e i tre agganci (`nav-shell`, `nav-items`,
+ * `nav-item`) esistono in tutte le configurazioni. La decisione è della
+ * FINESTRA, quindi la prende il foglio di stile: farla in JS significherebbe un
+ * primo disegno con la forma sbagliata, cioè il lampo di skin che il design
+ * system evita dal primo giorno.
  */
 export interface NavBarProps {
   /** La destinazione attiva, o `null` per le pagine di dettaglio (/notifiche, /admin). */
@@ -93,8 +104,8 @@ export function NavBar({ activeId, hrefFor, badges }: NavBarProps) {
   return (
     <nav
       aria-label="Navigazione principale"
-      className="safe-area-pb fixed bottom-0 left-0 right-0 z-50"
-      style={{ height: 'calc(var(--nav-height) + var(--safe-bottom))' }}
+      className="nav-shell fixed bottom-0 left-0 right-0 z-50"
+      style={{ height: 'var(--nav-shell-h)' }}
     >
       {/* Il materiale, il raggio e il filo stanno QUI e non sul `<nav>`: il
           `<nav>` tiene l'area sicura (su iPhone è alto 49pt + 34pt di home
@@ -108,9 +119,9 @@ export function NavBar({ activeId, hrefFor, badges }: NavBarProps) {
       <div
         ref={superficie}
         className="nav-surface nav-bar border-t border-border"
-        style={{ height: 'var(--nav-height)' }}
+        style={{ height: 'var(--nav-bar-h)' }}
       >
-        <div className="mx-auto flex h-full max-w-lg items-stretch">
+        <div className="nav-items mx-auto flex h-full max-w-lg items-stretch">
           {NAV_DESTINATIONS.map((destination) =>
             platform === 'android' ? (
               <MaterialItem
@@ -155,7 +166,7 @@ function TabItem({
       prefetch
       aria-current={active ? 'page' : undefined}
       aria-label={destination.ariaLabel}
-      className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-[3px]"
+      className="nav-item relative flex min-w-0 flex-1 flex-col items-center justify-center gap-[3px]"
     >
       <span className="relative">
         <Icon
@@ -202,11 +213,19 @@ function MaterialItem({
       prefetch
       aria-current={active ? 'page' : undefined}
       aria-label={destination.ariaLabel}
-      className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1"
+      onPointerDown={haptics.tap}
+      className="nav-item flex min-w-0 flex-1 flex-col items-center justify-center gap-1"
     >
+      {/* IL VOLUME DELLA VOCE ATTIVA (M9, Material 3 Expressive). Il contenitore
+          resta la pillola 32×64 che la spec E2E prova da M2; la FORMA expressiva
+          sta nel pseudo-elemento: quadrato con angoli laterali tondi
+          (`--pill-corners`), la forma «a plenilunio» della specifica, che è
+          implicitamente attiva quando la voce lo è. La glow della pressione
+          lì dentro non c'è (non è un controllo pressabile a sé): lo stato
+          premuto lo dice la velatura `--state-layer-press` sulla voce intera. */}
       <span
         className={cn(
-          'pointer-events-none relative grid h-8 w-16 place-items-center rounded-full transition-colors',
+          'pointer-events-none relative grid h-[var(--nav-item-h)] w-[var(--nav-item-w)] place-items-center rounded-full transition-colors',
           active && 'nav-indicator',
         )}
       >

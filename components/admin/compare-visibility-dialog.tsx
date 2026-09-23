@@ -8,9 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { ViaUscita } from '@/components/ui/via-uscita'
 import { buildCompareGroups } from '@/lib/compare-groups'
 import type { ShiftTeamTree } from '@/types/database'
-import { cn } from '@/lib/utils'
 
 /**
  * Editor di massa della visibilità nel Confronto (13/09/2026): una checklist di
@@ -36,7 +36,6 @@ export function CompareVisibilityDialog({ open, onClose }: { open: boolean; onCl
   const [rows, setRows] = useState<Row[]>([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
-  const [savingId, setSavingId] = useState<string | null>(null)
   // coda dei cambiamenti non ancora persistiti: il salvataggio è immediato ma
   // raggruppato (debounce 600ms) per chi attiva/disattiva in rapida successione
   const pending = useRef<Map<string, boolean>>(new Map())
@@ -193,7 +192,16 @@ export function CompareVisibilityDialog({ open, onClose }: { open: boolean; onCl
           {loading ? (
             <p className="text-sm text-muted-foreground px-1 py-2">Caricamento…</p>
           ) : visibleGroups.length === 0 ? (
-            <p className="text-sm text-muted-foreground px-1 py-2">Nessun dipendente trovato.</p>
+            /* M12: la via d'uscita è togliere la ricerca. Chi arriva qui con la
+               casella vuota vede lo stesso stato, ma non ha niente da azzerare:
+               in quel caso il messaggio dice l'altra verità — «non c'è nessuno
+               da mostrare», che è un fatto, non un errore di battitura. */
+            <div className="flex flex-col items-start gap-1.5 px-1 py-2">
+              <p className="text-sm text-muted-foreground">Nessun dipendente trovato.</p>
+              {query.trim() !== '' && (
+                <ViaUscita onClick={() => setQuery('')}>Azzera la ricerca</ViaUscita>
+              )}
+            </div>
           ) : (
             visibleGroups.map(g => (
               <div key={g.key} className="mb-2">

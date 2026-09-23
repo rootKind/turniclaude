@@ -45,6 +45,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ViaUscita } from '@/components/ui/via-uscita'
 
 const MONTHS_IT = [
   'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -1119,7 +1120,17 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto -mx-1">
             {compareVisibleGroups.length === 0 ? (
-              <p className="text-sm text-muted-foreground px-1 py-2">Nessun dipendente trovato.</p>
+              /* M12: la via d'uscita è togliere la ricerca — e si offre SOLO se
+                 c'è una ricerca da togliere. Nel selettore del confronto la
+                 lista può essere vuota anche con la casella pulita (non si
+                 confronta con sé stessi, e i colleghi nascosti non entrano):
+                 «Azzera la ricerca» lì sarebbe un comando che non fa niente. */
+              <div className="flex flex-col items-start gap-1.5 px-1 py-2">
+                <p className="text-sm text-muted-foreground">Nessun dipendente trovato.</p>
+                {query.trim() !== '' && (
+                  <ViaUscita onClick={() => setQuery('')}>Azzera la ricerca</ViaUscita>
+                )}
+              </div>
             ) : (
               compareVisibleGroups.map(group => (
                 <div key={group.key} className="mb-2">
@@ -1193,7 +1204,17 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 
           <div className="flex-1 min-h-0 overflow-y-auto -mx-1">
             {compareVisibleGroups.length === 0 ? (
-              <p className="text-sm text-muted-foreground px-1 py-2">Nessun dipendente trovato.</p>
+              /* M12: la via d'uscita è togliere la ricerca — e si offre SOLO se
+                 c'è una ricerca da togliere. Nel selettore del confronto la
+                 lista può essere vuota anche con la casella pulita (non si
+                 confronta con sé stessi, e i colleghi nascosti non entrano):
+                 «Azzera la ricerca» lì sarebbe un comando che non fa niente. */
+              <div className="flex flex-col items-start gap-1.5 px-1 py-2">
+                <p className="text-sm text-muted-foreground">Nessun dipendente trovato.</p>
+                {query.trim() !== '' && (
+                  <ViaUscita onClick={() => setQuery('')}>Azzera la ricerca</ViaUscita>
+                )}
+              </div>
             ) : (
               compareVisibleGroups.map(group => (
                 <div key={group.key} className="mb-2">

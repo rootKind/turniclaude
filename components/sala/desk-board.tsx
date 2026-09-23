@@ -70,6 +70,17 @@ export const MONTHS_IT = [
   'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
 ]
 
+/**
+ * M12 — I TRE TURNI, CON IL LORO NOME (23/09/2026).
+ *
+ * Sulla toolbar i turni sono le lettere «N M P»: tre caratteri che a occhio
+ * bastano (la posizione e il colore dicono il resto) e che a un lettore di
+ * schermo non dicono niente. Questa mappa serve SOLO all'accessibilità — l'etichetta
+ * `aria-label` dei tre pulsanti e la frase annunciata dal vivo — quindi non è un
+ * token di design e non vive in `globals.css`: è testo, e il testo è codice.
+ */
+const TURNO_LABEL = { M: 'Mattina', P: 'Pomeriggio', N: 'Notte' } as const
+
 const ALIGNS = ['left', 'center', 'right'] as const
 type Align = typeof ALIGNS[number]
 
@@ -1103,14 +1114,60 @@ export function DeskBoard({
   // persona QUI, non una notizia da portarsi dietro (vedi SALA_FOCUS_WARNING_ID).
   useEffect(() => () => { toast.dismiss(SALA_FOCUS_WARNING_ID) }, [])
 
+  /**
+   * M12 — COSA ANNUNCIA LA BOARD (23/09/2026).
+   *
+   * La board è una griglia densa: a occhio si legge in un colpo, con un lettore
+   * di schermo NON si legge affatto (senza etichette si sente una fila di
+   * cognomi e lettere: «Nevano P Minino M»). Le due cose che servono sono la
+   * CONTESTO («quale giorno, quale turno») e il CAMBIO di contesto — perché chi
+   * non vede lo schermo non ha modo di accorgersi che il turno è cambiato.
+   *
+   * Non si aggiunge informazione: le stesse parole che la toolbar disegna (e che
+   * il badge del browser mostra) diventano etichetta della regione e testo della
+   * live region. `role="status"` è `aria-live="polite"`: si annuncia a fine frase,
+   * senza interrompere, e non ruba il fuoco (non è una finestra di dialogo).
+   */
+  const fraseBoard = `${weekdayLabel} ${selectedDay} ${MONTHS_IT[cm - 1]} ${cy}, turno ${TURNO_LABEL[selectedShift]}`
+  const annuncioBoard = isEditing
+    ? `${fraseBoard} — layout in modifica`
+    : `${fraseBoard} — ${displayCards.length} card`
+
   return (
-    <div className="flex flex-col gap-2 p-4">
+    <div
+      /* M12f — LA BOARD IN LARGO: `.board-largo` non fa niente sotto la rail (e
+         sul desktop non esiste), e sopra i 600dp mette un tetto di lettura alla
+         griglia, che altrimenti si allunga quanto lo schermo. La griglia resta
+         di tre colonne: il modello delle card è riga × allineamento, e una
+         quarta colonna sarebbe una pagina nuova, non una finestra più larga. */
+      className="board-largo flex flex-col gap-2 p-4"
+      role="region"
+      aria-label={`Board di sala — ${fraseBoard}`}
+    >
+      <p role="status" data-slot="sala-annuncio" className="sr-only">{annuncioBoard}</p>
       {/* Schedule header — hidden during layout edit */}
       {!isEditing && (
-        <div className="flex items-center flex-wrap gap-1 sala-toolbar-bg border desk-schedule-border rounded-xl px-3 py-2 mr-14">
+        <div
+          /* M9 — LA TOOLBAR ESPRESSIVA (23/09/2026): raggio e ombra vengono dai
+             token (`--toolbar-radius`, `--toolbar-shadow`), che su Android
+             portano il raggio grande e l'elevazione del chrome di M8 e altrove
+             restano il blocco bordato di oggi. Il DISTACCO dal bordo non si fa:
+             questa toolbar è ancorata a una griglia densa, e staccarla
+             cambierebbe la pagina, non la pelle. */
+          style={{ borderRadius: 'var(--toolbar-radius)', boxShadow: 'var(--toolbar-shadow)' }}
+          /* `board-toolbar` (M12f): sopra la rail la riga non va più a capo e il
+             margine a destra — che serve a non finire sotto il FAB — sparisce,
+             perché lì il FAB è in basso a destra e la toolbar in cima. */
+          className="board-toolbar flex items-center flex-wrap gap-1 sala-toolbar-bg border desk-schedule-border px-3 py-2 mr-14"
+        >
           <div className="relative">
             <button
               onClick={() => setShowDayPicker(v => !v)}
+              /* M12: il pannello è una finestra di dialogo (calendario), e il
+                 pulsante la dichiara: chi naviga da tastiera sa che si apre
+                 qualcosa, e `aria-expanded` dice se è aperto. */
+              aria-haspopup="dialog"
+              aria-expanded={showDayPicker}
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none sala-toolbar-nav-bg sala-toolbar-nav-text"
             >
               {/* STILE OMogeneo (richiesta 12/09/2026): font, misura e colore
@@ -1134,7 +1191,11 @@ export function DeskBoard({
             </button>
             {showDayPicker && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowDayPicker(false)} />                <div className="absolute top-full left-0 z-50 mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden cal-panel">
+                <div className="fixed inset-0 z-40" onClick={() => setShowDayPicker(false)} />                <div
+                  className="absolute top-full left-0 z-50 mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden cal-panel"
+                  role="dialog"
+                  aria-label="Scegli il giorno"
+                >
                   {/* Selettori MESE e ANNO in testa (come «Il tuo turno»): il teorico
                       si calcola per qualsiasi mese, quindi l'anno copre il millennio. */}
                   <div className="flex gap-1.5 p-2 border-b border-border bg-muted/40">
@@ -1198,7 +1259,14 @@ export function DeskBoard({
 
           <div className="flex-1 min-w-1" />
 
-          <div className="flex rounded-lg overflow-hidden border sala-toolbar-nav-border text-xs font-semibold shrink-0">
+          {/* M12: i tre turni sono un gruppo di pulsanti a pressione — la lettera
+              da sola («N M P») non dice niente a un lettore di schermo, e senza
+              `aria-pressed` non si sa quale sia quello scelto. */}
+          <div
+            className="flex rounded-lg overflow-hidden border sala-toolbar-nav-border text-xs font-semibold shrink-0"
+            role="group"
+            aria-label="Turno da mostrare"
+          >
             {SHIFT_ORDER.map((s, i) => {
               const isSelected = selectedShift === s
               const prevNotSelected = i === 0 || selectedShift !== SHIFT_ORDER[i - 1]
@@ -1206,6 +1274,8 @@ export function DeskBoard({
                 <button
                   key={s}
                   onClick={() => setSelectedShift(s)}
+                  aria-label={TURNO_LABEL[s]}
+                  aria-pressed={isSelected}
                   className={`px-2 py-1.5 transition-colors ${
                     isSelected
                       ? 'sala-toolbar-chip'

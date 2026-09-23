@@ -68,7 +68,13 @@ export function StatsPage() {
 
           <section className="rounded-xl border bg-card px-4 py-3">
             <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">Attività nel tempo</h2>
-            <StatsActivityChart data={data.activity} />
+            <StatsActivityChart
+              data={data.activity}
+              /* M12: se il periodo scelto non ha dati, la via d'uscita è il
+                 periodo più largo — che è già un comando di questa pagina. */
+              onAmpliaPeriodo={() => setDays(0)}
+              periodoMassimo={days === 0}
+            />
           </section>
 
           <section className="rounded-xl border bg-card px-4 py-3">

@@ -212,10 +212,14 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
     // Pallino del COLORE scelto dall'admin (verde/salmone/personalizzato):
     // coesiste con la chip gialla (fianco a fianco, fix 25/09/2026).
     const col = getColor(name)
+    // M12: il pallino è `aria-hidden` — è un MARCATORE scelto dall'admin (verde,
+    // salmone, un colore suo), non un dato del turno: un lettore di schermo che
+    // leggesse «pallino» non saprebbe cosa farsene, e il colore non è
+    // un'informazione che si possa tradurre in parole senza inventarla.
     const admin = !col ? null
-      : col === 'green' ? <span key="a" className="text-emerald-500 select-none">●</span>
-      : col === 'salmon' ? <span key="a" className="text-red-400 select-none">●</span>
-      : <span key="a" style={{ color: col }} className="select-none">●</span>
+      : col === 'green' ? <span key="a" className="text-emerald-500 select-none" aria-hidden="true">●</span>
+      : col === 'salmon' ? <span key="a" className="text-red-400 select-none" aria-hidden="true">●</span>
+      : <span key="a" style={{ color: col }} className="select-none" aria-hidden="true">●</span>
     if (y?.target === 'teo' && admin) return admin
     if (!admin) return null
     return admin
@@ -357,6 +361,20 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
     ? card.surnames.map((surname, i) => ({ surname, i })).filter(s => s.surname)
     : card.surnames.map((surname, i) => ({ surname, i }))
 
+  /**
+   * M12 — LA CARD SI PRESENTA (23/09/2026).
+   *
+   * `role="group"` + l'etichetta che un lettore di schermo sente PRIMA di
+   * entrare nella card: la sezione (che a occhio è il titolo), quante persone ci
+   * sono e quanti posti sono scoperti. Senza, la board si legge come una fila di
+   * cognomi senza appartenenza — cioè il contrario di quello che la griglia dice
+   * a chi la guarda.
+   */
+  const personeInCard = slots.filter(s => s.surname).length + yellowInList.length
+  const etichettaCard = `${displayTitle} — ${personeInCard} ${personeInCard === 1 ? 'persona' : 'persone'}${
+    mancanti > 0 ? `, ${mancanti} ${mancanti === 1 ? 'scoperto' : 'scoperti'}` : ''
+  }`
+
   return (
     <div
       ref={setNodeRef}
@@ -364,6 +382,8 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
       // `data-slot='desk-card'` (M5a): la maniglia con cui le skin di piattaforma
       // vestono la card (raggio/ombra via token) senza un ramo nel JSX.
       data-slot="desk-card"
+      role="group"
+      aria-label={etichettaCard}
       // `sala-card-fit` (container query per .sala-fit-text) SOLO sulla card in
       // griglia: nell'overlay di trascinamento la card è shrink-to-fit e la
       // containment in linea la farebbe collassare a zero.
@@ -379,9 +399,14 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
           style={{ height: '28px' }}
         >
           {isEditing && (
+            /* M12: `attributes` di dnd-kit porta ruolo di pulsante, tabIndex e la
+               descrizione del trascinamento — l'etichetta la scriviamo noi, dopo
+               lo spread, perché il `title` da solo non basta a nominare il
+               comando per chi non lo vede. */
             <button
               {...attributes}
               {...listeners}
+              aria-label="Trascina la card per riposizionarla"
               className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
               title="Trascina per riposizionare"
             >
@@ -394,6 +419,8 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
               value={card.title}
               onChange={e => onUpdate({ ...card, title: e.target.value })}
               placeholder="Titolo scrivania"
+              aria-label={`Titolo della card${displayTitle ? `: ${displayTitle}` : ''}`}
+              enterKeyHint="done"
             />
           ) : (
             <span className="text-xs font-semibold whitespace-nowrap">{displayTitle}</span>
@@ -403,6 +430,7 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
               {card.type === 'double' && (
                 <button
                   onClick={toggleDoubleLayout}
+                  aria-label={isDoubleCol ? 'Nomi sovrapposti' : 'Nomi affiancati'}
                   className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
                   title={isDoubleCol ? 'Nomi affiancati' : 'Nomi sovrapposti'}
                 >
@@ -411,6 +439,7 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
               )}
               <button
                 onClick={cycleTirocinanti}
+                aria-label={`Tirocinanti: ${tirocinanti.length} su 2`}
                 className={`p-0.5 rounded transition-colors ${tirocinanti.length > 0 ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                 title={`Tirocinanti: ${tirocinanti.length}/2`}
               >
@@ -418,6 +447,7 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
               </button>
               <button
                 onClick={() => onDelete(card.id)}
+                aria-label="Elimina la card"
                 className="p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors"
               >
                 <Trash2 size={13} />
@@ -427,6 +457,8 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
           {!isEditing && canEditColors && pickerNames.length > 0 && (
             <button
               onClick={() => setColorPickerOpen(v => !v)}
+              aria-label="Imposta i colori dei nomi"
+              aria-expanded={colorPickerOpen}
               className={`p-0.5 rounded transition-colors shrink-0 ${colorPickerOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               title="Imposta colori"
             >
@@ -466,6 +498,8 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
                     {/* none */}
                     <button
                       onClick={() => onColorChange?.(name, null)}
+                      aria-label={`Nessun colore per ${label}`}
+                      aria-pressed={current === null}
                       className={`w-4 h-4 rounded-full border-2 transition-colors ${
                         current === null ? 'border-primary bg-primary/20' : 'border-border bg-transparent hover:border-muted-foreground'
                       }`}
@@ -474,6 +508,8 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
                     {/* green */}
                     <button
                       onClick={() => onColorChange?.(name, 'green')}
+                      aria-label={`Colore verde per ${label}`}
+                      aria-pressed={current === 'green'}
                       className={`w-4 h-4 rounded-full border-2 transition-colors bg-emerald-500 ${
                         current === 'green' ? 'border-primary scale-110' : 'border-transparent opacity-60 hover:opacity-100'
                       }`}
@@ -482,6 +518,8 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
                     {/* salmon */}
                     <button
                       onClick={() => onColorChange?.(name, 'salmon')}
+                      aria-label={`Colore salmone per ${label}`}
+                      aria-pressed={current === 'salmon'}
                       className={`w-4 h-4 rounded-full border-2 transition-colors bg-red-400 ${
                         current === 'salmon' ? 'border-primary scale-110' : 'border-transparent opacity-60 hover:opacity-100'
                       }`}
@@ -498,6 +536,7 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
                       <input
                         ref={el => { colorInputRefs.current[name] = el }}
                         type="color"
+                        aria-label={`Colore personalizzato per ${label}`}
                         className="sr-only"
                         value={colorToHex(current)}
                         onChange={e => onColorChange?.(name, e.target.value)}
@@ -512,9 +551,11 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
 
         {/* Surnames */}
         {useColLayout ? (
-          <div className="flex flex-col flex-1 sala-card-body items-center justify-center">
+          /* M12: l'elenco delle persone è un elenco — anche per chi lo ascolta
+             invece di vederlo (l'ordine conta: primo, secondo, terzo slot). */
+          <div className="flex flex-col flex-1 sala-card-body items-center justify-center" role="list">
             {slots.map(({ surname, i }) => (
-              <div key={i} className="flex items-center px-2 py-0.5">
+              <div key={i} className="flex items-center px-2 py-0.5" role="listitem">
                 {isEditing ? (
                   <input
                     className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground w-full"
@@ -528,19 +569,19 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
             {/* v5: le aggiunte gialle in CODA all'elenco, senza separatore
                 (es. Minino sulla card della P8, Langione sulla PDCP). */}
             {!isEditing && yellowInList.map((y, i) => (
-              <div key={`yl-${i}`} className="flex items-center px-2 py-0.5">{renderYellowRow(y)}</div>
+              <div key={`yl-${i}`} className="flex items-center px-2 py-0.5" role="listitem">{renderYellowRow(y)}</div>
             ))}
             {/* Card scoperta (anch'essa in coda agli altri nomi): una riga
                 per persona mancante. */}
             {!isEditing && Array.from({ length: mancanti }, (_, i) => (
-              <div key={`sc-${i}`} className="flex items-center px-2 py-0.5">{renderScopertoRow(i)}</div>
+              <div key={`sc-${i}`} className="flex items-center px-2 py-0.5" role="listitem">{renderScopertoRow(i)}</div>
             ))}
           </div>
         ) : (
           <div className="flex flex-col flex-1">
-            <div className="flex flex-1 items-center justify-center px-2 py-2 gap-3 sala-card-body">
+            <div className="flex flex-1 items-center justify-center px-2 py-2 gap-3 sala-card-body" role="list">
               {slots.map(({ surname, i }) => (
-                <div key={i} className="shrink-0">
+                <div key={i} className="shrink-0" role="listitem">
                   {isEditing ? (
                     <input
                       className="text-sm bg-transparent outline-none border-b border-border focus:border-primary text-foreground placeholder:text-muted-foreground"
@@ -560,10 +601,10 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
                 scuro (#171717 contro #262626), perché nel chiaro le due tinte
                 differiscono di 3 unità su 255. */}
             {!isEditing && (yellowInList.length > 0 || mancanti > 0) && (
-              <div className="sala-card-body flex flex-col items-center gap-0.5 px-2 pb-1.5">
-                {yellowInList.map((y, i) => <span key={`yl-${i}`}>{renderYellowRow(y)}</span>)}
+              <div className="sala-card-body flex flex-col items-center gap-0.5 px-2 pb-1.5" role="list">
+                {yellowInList.map((y, i) => <span key={`yl-${i}`} role="listitem">{renderYellowRow(y)}</span>)}
                 {/* Card scoperta: una riga gialla per persona mancante. */}
-                {Array.from({ length: mancanti }, (_, i) => <span key={`sc-${i}`}>{renderScopertoRow(i)}</span>)}
+                {Array.from({ length: mancanti }, (_, i) => <span key={`sc-${i}`} role="listitem">{renderScopertoRow(i)}</span>)}
               </div>
             )}
           </div>

@@ -150,6 +150,39 @@ const CONTRATTO = [
   // iOS: risposta+smorzamento) e i valori sono GENERATI da lib/motion.ts: una
   // chiave mancante su un lato darebbe un controllo che non si muove affatto.
   '--motion-spring-press', '--motion-spring-pop', '--motion-spring-fade',
+  // M9/M10 (22/09/2026): la curva expressive (i cambi di FORMA), l'opacità della
+  // glow della pressione (la specifica la dà a 63% sulle superfici di stato), la
+  // forma «a plenilunio» della pillola della voce attiva e i quattro accenti
+  // aptici. Le chiavi esistono su ENTRAMBE perché il contratto pretende le stesse
+  // chiavi: su iOS valgono spenti/neutrali, perché HIG non ha forme expressive né
+  // un canale aptico distribuito sul web di WebKit — ma la chiave manca = skin
+  // mezza vestita, che è esattamente ciò che questo controllo esiste per impedire.
+  '--m3-expressive', '--gl-spec-opacity', '--pill-corners',
+  // `--nav-indicator-shadow` è dell'indicatore attivo di M3 (il terzo livello
+  // di elevazione): su iOS/desktop vale `none`, su Android è l'ombra vera.
+  // Il 22/09/2026 questa chiave era LETTA e non dichiarata da nessuna parte —
+  // da qui in fondo il controllo «letto e mai dichiarato» che la prende.
+  '--nav-indicator-shadow',
+  '--aptica-tap', '--aptica-avviso', '--aptica-conferma', '--aptica-errore',
+  // M9 chiusa (23/09/2026): la scala di taglie XS–XL, l'asse dell'enfasi
+  // tipografica, il segno di caricamento, la toolbar della board e la forma
+  // estesa del FAB menu. Su iOS valgono i valori di oggi o sono neutrali
+  // (HIG non ha la scala di M3E: ha le sue taglie), ma le CHIAVI ci sono —
+  // «skin mezza vestita» è il difetto che questo controllo esiste per
+  // impedire, e vale anche per i token dell'espressive.
+  '--control-h-xs', '--control-h-sm', '--control-h-md', '--control-h-lg', '--control-h-xl',
+  // M12f (23/09/2026): la RAIL. La forma «colonna» è di Material e sopra i 600dp
+  // la barra cambia posizione, altezza e misura dell'indicatore. Le chiavi
+  // esistono su ENTRAMBE le piattaforme e valgono zero/come-la-barra dove la rail
+  // non c'è: una chiave dichiarata da un lato solo darebbe una skin mezza
+  // vestita — e qui la metà che manca non sarebbe un colore, sarebbe la
+  // POSIZIONE della navigazione (la pagina lascerebbe 80px di vuoto a sinistra
+  // con la barra ancora in basso, o viceversa).
+  '--nav-rail-w', '--nav-start', '--nav-shell-h', '--nav-bar-h',
+  '--nav-item-w', '--nav-item-h',
+  '--type-emphasis-wght', '--type-emphasis-tracking',
+  '--load-shape-size', '--load-shape-duration', '--load-shape-color',
+  '--toolbar-radius', '--toolbar-shadow', '--fab-menu-w',
   '--fs-caption', '--fs-footnote', '--fs-body', '--fs-title3', '--fs-large-title',
 ]
 for (const key of CONTRATTO) {
@@ -179,7 +212,8 @@ const DEVONO_DIFFERIRE = [
   // sono una pill a 48px contro un FAB a 56 con angoli a 16. Se questi valori
   // tornassero uguali, la M2 sarebbe una skin copiata: è la ragione per cui sono
   // qui.
-  '--nav-height', '--nav-item-label', '--nav-indicator', '--nav-bg', '--nav-blur',
+  '--nav-height', '--nav-item-label', '--nav-indicator', '--nav-indicator-shadow',
+  '--nav-bg', '--nav-blur',
   // M8: l'isola iOS (8pt di distacco, capsula) contro la fascia di Material
   // appoggiata al bordo (0 e 0). Se questi due tornassero uguali, la geometria
   // della barra sarebbe di nuovo una sola — cioè l'isola non esisterebbe.
@@ -195,6 +229,15 @@ const DEVONO_DIFFERIRE = [
   // (schermare senza sfocare è la convenzione comune), quindi pretenderne la
   // differenza significherebbe inventarla — come per `--radius-card` e `--scrim`.
   '--dialog-radius', '--dialog-scrim',
+  // M9 chiusa (23/09/2026): i gradini PRIMARI della scala crescono su Android
+  // (48/56 contro 36/44), il segno di caricamento è più grande e più lento, la
+  // toolbar prende raggio ed elevazione expressive, il FAB menu la sua
+  // larghezza estesa, e l'enfasi del titolo è un altro peso e un altro
+  // tracking. Se tornassero uguali, queste cinque cose non esisterebbero su
+  // nessuna delle due skin.
+  '--control-h-lg', '--control-h-xl', '--type-emphasis-wght', '--type-emphasis-tracking',
+  '--load-shape-size', '--load-shape-duration', '--toolbar-radius', '--toolbar-shadow',
+  '--fab-menu-w',
   // Controlli: le due skin divergono davvero. Il toggle di iOS è 51×31 col
   // pollice fisso e VERDE; lo switch M3 è 52×32 col pollice che cresce da 16 a
   // 24 e la traccia primaria col contorno da 2dp. I campi: inset senza bordo
@@ -219,6 +262,11 @@ const DEVONO_DIFFERIRE = [
   // sono la stessa curva copiata.
   '--motion-spring-press', '--motion-spring-pop', '--motion-spring-fade',
   '--motion-duration-press',
+  // M10: l'aptica è una scelta della skin — Android parla, iOS tace (0ms: il
+  // canale non esiste sul web di WebKit, e HIG non lo mette nel vocabolario).
+  // Se anche solo una di queste durate tornasse uguale, il canale sarebbe
+  // acceso dove non deve o spento dove deve.
+  '--aptica-tap', '--aptica-avviso', '--aptica-conferma', '--aptica-errore',
 ]
 // `--input-border` NON è qui per lo stesso motivo di `--dialog-scrim-blur`: è
 // `transparent` su ENTRAMBE (né iOS né M3 mettono bordi laterali ai campi), e
@@ -432,10 +480,57 @@ assert.equal(
     NON_LETTI.join('\n    '),
 )
 
+/* ── 3-bis. E IL ROVESCIO: una `var()` che nessuno dichiara ───────────────────
+ *
+ * Le guardie qui sopra chiedono che un token DICHIARATO sia letto. Il caso
+ * opposto — letto e mai dichiarato — non era coperto, e il 22/09/2026 è
+ * successo per davvero: l'ombra di terzo livello dell'indicatore attivo (M9)
+ * era `box-shadow: var(--nav-indicator-shadow)` e la chiave non esisteva in
+ * nessuno dei tre blocchi. Una `var()` senza token NON è «nessun effetto»: è
+ * una dichiarazione INVALIDA, che il browser scarta — il che per caso dà lo
+ * stesso risultato (`none`), ma con la proprietà caduta al valore iniziale.
+ * Se la proprietà fosse stata `background`, il difetto sarebbe stato un pezzo
+ * di skin sparito in silenzio. Da qui in avanti non passa più.
+ *
+ * `--x:` conta come dichiarazione ovunque, e anche la chiave QUOTATA di uno
+ * stile in linea (`{ '--fit-min': '8px' }`), che è il modo in cui i componenti
+ * dichiarano i token che calcolano da sé.
+ */
+/* I token dichiarati FUORI dai fogli di stile, uno per uno e con la ragione:
+ * l'elenco è chiuso di proposito — un token che finisce qui senza motivo fa
+ * smettere di proteggere la guardia, che è peggio di non averla. */
+const DICHIARATI_FUORI = new Map([
+  ['--font-geist', 'next/font la inietta nel documento'],
+  ['--font-geist-mono', 'next/font la inietta nel documento'],
+  ['--ripple-x', 'il <Button> la scrive al pointerdown (origine dell’onda)'],
+  ['--ripple-y', 'come sopra'],
+  ['--fit-min', 'stile in linea del testo che si adatta alla colonna'],
+  ['--fit-max', 'come sopra'],
+  ['--fit-em', 'come sopra'],
+  ['--fit-chars', 'come sopra'],
+  ['--fit-pad', 'come sopra'],
+  ['--c-bg', 'stile in linea della sonda colori (campionario)'],
+  ['--c-text', 'come sopra'],
+  ['--fs-', 'nome COMPOSTO a runtime: `var(--fs-${variante})`'],
+])
+
+const DICHIARATI = new Set()
+for (const file of SORGENTI_TOKEN) {
+  const testo = file.endsWith('.css') ? stripComments(readFileSync(file, 'utf8')) : readFileSync(file, 'utf8')
+  for (const m of testo.matchAll(/(--[\w-]+)['"`]?\s*:/g)) DICHIARATI.add(m[1])
+}
+const ORFANI = [...LETTURE].filter((k) => !DICHIARATI.has(k) && !DICHIARATI_FUORI.has(k)).sort()
+assert.equal(
+  ORFANI.length,
+  0,
+  'letto e mai dichiarato (una var() senza token è una dichiarazione INVALIDA, non un ripiego):\n    ' +
+    ORFANI.join('\n    '),
+)
+
 console.log(
   `OK — token di piattaforma coerenti (${chiaviIos.length} chiavi × 2), scala tipografica collegata, ` +
     `contrasto AA su ${COPPIE.length * 2 - SALTATE_ATTESE.length} coppie ` +
     `(${SALTATE_ATTESE.length} saltate: sfondo traslucido in scuro), ` +
     `ratchet: ${textPx} misure arbitrarie, ${uaRegex.length} regex UA fuori da lib/platform.ts, ` +
-    `nessun token di piattaforma senza lettore`,
+    `nessun token di piattaforma senza lettore, nessuna var() orfana di dichiarazione`,
 )

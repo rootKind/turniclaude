@@ -26,15 +26,27 @@ function uuid() {
   })
 }
 
-// Minimal offline support: cache-first for static assets (icons/manifest), so the
-// app shell renders when offline. Dynamic API calls still require network.
+// Cosa mette in cache, e cosa NON mette.
+//
+// Cache-first sugli ASSET STATICI (icone, manifest, chunk di /_next/static). Le
+// PAGINE no, e non è una dimenticanza: un HTML stantio in un'app di turni è
+// peggio di un errore di rete — mostra turni di ieri come se fossero di oggi. Il
+// comportamento giusto in assenza di rete è che l'app lo DICA, ed è quello che fa
+// `components/providers/offline-bar.tsx`, che chiede a questo file lo stato della
+// cache con un messaggio (vedi in fondo). Per lo stesso motivo il testo del
+// banner non promette «l'app funziona offline».
+//
+// v6 (M11, 23/09/2026): messaggio STATO_CACHE (l'avviso di rete mostra quante
+// risorse ci sono), maskable 192 aggiunta al precache (è la taglia che Android
+// sceglie a bassa densità) e bump per far rileggere il manifest, che ora porta
+// `shortcuts`, `screenshots` e gli id/scope espliciti.
 // v5: /manifest.json (file statico) → /manifest.webmanifest (route dinamica,
 // nome PWA «Turni DEV» vs produzione) + icone *_dev.png.
-const CACHE_NAME = 'turni-static-v5'
+const CACHE_NAME = 'turni-static-v6'
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache =>
-      cache.addAll(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/badge-96.png', '/icons/apple-icon.png', '/manifest.webmanifest'])
+      cache.addAll(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-192.png', '/icons/badge-96.png', '/icons/apple-icon.png', '/manifest.webmanifest'])
     ).catch(() => {})
   )
   self.skipWaiting()
@@ -79,6 +91,36 @@ self.addEventListener('fetch', (event) => {
       })
     )
   }
+})
+
+/**
+ * M11 — LO STATO DELLA CACHE, SU RICHIESTA (23/09/2026).
+ *
+ * La pagina non può leggere `caches` del service worker da sé: chiede e aspetta.
+ * La risposta va a TUTTE le finestre aperte (il SW non sa chi ha chiesto, e
+ * `clients.matchAll` è lo stesso giro che fa già per le notifiche): chi ascolta
+ * filtra per tipo, ed è più semplice che aprire un canale per tab.
+ *
+ * Il conteggio è quello che l'utente vede nel banner offline («N risorse in cache
+ * locale»): se un giorno la cache diventasse vuota — un cleanup, un browser che
+ * svuota per spazio — il banner lo dice invece di mostrare un numero inventato.
+ */
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'STATO_CACHE') return
+
+  const rispondi = (payload) =>
+    self.clients
+      .matchAll({ includeUncontrolled: true, type: 'window' })
+      .then((clients) => clients.forEach((client) => client.postMessage({ type: 'STATO_CACHE', ...payload })))
+      .catch(() => {})
+
+  event.waitUntil(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.keys())
+      .then((keys) => rispondi({ nome: CACHE_NAME, voci: keys.length }))
+      .catch(() => rispondi({ nome: CACHE_NAME, voci: 0, errore: true }))
+  )
 })
 
 function saveToIDB(entry) {

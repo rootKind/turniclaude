@@ -48,12 +48,28 @@ export function LoginForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" autoComplete="email" {...register('email')} />
+          {/* M12: la tastiera giusta e il tasto giusto. `type="email"` non basta a
+              far comparire la chiocciola su tutti i browser; `enterKeyHint`
+              scrive sul tasto INVIO ciò che sta per succedere (avanti, vai…). */}
+          <Input
+            id="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            enterKeyHint="next"
+            {...register('email')}
+          />
           {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
         </div>
         <div className="space-y-1">
           <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" autoComplete="current-password" {...register('password')} />
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            enterKeyHint="go"
+            {...register('password')}
+          />
           {errors.password && <p className="text-destructive text-xs">{errors.password.message}</p>}
         </div>
         <Button type="submit" className="w-full" disabled={isLoading}>

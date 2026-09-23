@@ -7,7 +7,7 @@
 // NB sala_schedule NON è qui: la pagina /turnisala ha la sua sottoscrizione
 // dedicata (espande il jsonb v2 e scrive la cache IDB); /tuoturno rilegge i
 // mesi cache-first a ogni switch, quindi la sua copia locale si sana da sé.
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { removeQueryCacheByPrefix } from '@/lib/query-idb-cache'
@@ -26,8 +26,24 @@ const TABLE_TO_PREFIX: ReadonlyArray<{ table: string; prefix: string[] }> = [
   { table: 'shift_adjustments', prefix: ['shift-team-tree'] },
 ]
 
-export function useRealtimeInvalidation(): void {
+/**
+ * M12 — L'INVALIDAZIONE SI ANNUNCIA (23/09/2026).
+ *
+ * Fino a ieri un cambiamento arrivato dal server era invisibile a chi usa un
+ * lettore di schermo: i dati cambiavano sotto le dita senza che niente lo
+ * dicesse. `onEvento` è il gancio che lo rende udibile — lo chiama il provider
+ * con un annuncio in una live region — e vive in un REF, non nelle dipendenze
+ * dell'effetto: un canale realtime che si riabbona a ogni render sarebbe un
+ * difetto peggiore di quello che stiamo correggendo (e Supabase non gradisce
+ * callback aggiunte dopo `subscribe()`: vedi knowledge.md).
+ */
+export function useRealtimeInvalidation(onEvento?: (tabella: string) => void): void {
   const queryClient = useQueryClient()
+  const eventoRef = useRef(onEvento)
+  // Il ref si aggiorna in un EFFETTO, non durante il render: scrivere
+  // `ref.current` nel corpo del componente è vietato dal lint di React (e giustamente:
+  // il valore del render non è ciò che si legge poi nell'effetto).
+  useEffect(() => { eventoRef.current = onEvento }, [onEvento])
 
   useEffect(() => {
     const supabase = createClient()
@@ -40,6 +56,7 @@ export function useRealtimeInvalidation(): void {
         () => {
           void queryClient.invalidateQueries({ queryKey: prefix })
           void removeQueryCacheByPrefix(prefix)
+          eventoRef.current?.(table)
         },
       )
     }

@@ -3,6 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { haptics } from "@/lib/haptics"
 
 const buttonVariants = cva(
   // `touch-expand` (M6): su iOS l'area di tocco si allarga a 44pt SENZA cambiare il
@@ -36,6 +37,12 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        /* IL GRADINO GRANDE (M9). L'altezza vera la scrive `globals.css` dalla
+           scala `--control-h-*` (su Android è 56, su iOS/desktop 44 come qui),
+           perché la misura è una proprietà della PIATTAFORMA, non di questa
+           pagina: qui resta la parte che non cambia — imbottitura, testo,
+           icona. */
+        xl: "h-11 gap-2 rounded-lg px-4 text-base has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3 [&_svg:not([class*='size-'])]:size-5",
       },
     },
     defaultVariants: {
@@ -82,9 +89,15 @@ function Button({
   return (
     <ButtonPrimitive
       data-slot="button"
+      /* Il GRADINO della scala, scritto sul DOM: è ciò che lega il componente
+         alle regole `[data-slot='button'][data-size='…']` di `globals.css`,
+         dove l'altezza diventa un token di piattaforma (M9). Senza questo
+         attributo la scala resterebbe una convenzione fra classi Tailwind. */
+      data-size={size ?? 'default'}
       className={cn(buttonVariants({ variant, size, className }))}
       onPointerDown={(e) => {
         doveHoToccato(e)
+        haptics.tap()
         onPointerDown?.(e)
       }}
       {...props}

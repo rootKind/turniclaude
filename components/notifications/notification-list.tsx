@@ -5,8 +5,10 @@ import { useNotificationHistory } from '@/hooks/use-notification-history'
 import { ArrowLeftRight, Bell, BellOff, Check, Megaphone, Sparkles, Trash2, TreePalm } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
 import type { NotifType, NotificationEntry } from '@/types/database'
 import type { LucideIcon } from 'lucide-react'
+import { avvisoAnnulla } from '@/lib/undo'
 
 interface Section {
   key: string
@@ -55,7 +57,7 @@ const SEZIONE_DI: Record<NotifType, SezioneId> = {
 }
 
 export function NotificationList() {
-  const { history, markEntryRead, deleteEntry } = useNotificationHistory()
+  const { history, markEntryRead, deleteEntry, ripristina } = useNotificationHistory()
   const [swipingOut, setSwipingOut] = useState<Set<string>>(new Set())
   const [liveOffsets, setLiveOffsets] = useState<Map<string, number>>(new Map())
   const touchStartX = useRef<Map<string, number>>(new Map())
@@ -81,7 +83,18 @@ export function NotificationList() {
     })
     if (delta < -80) {
       setSwipingOut(prev => new Set([...prev, id]))
-      setTimeout(() => deleteEntry(id), 300)
+      // M12 — L'ANNULLA (23/09/2026). Il gesto cancella, e un gesto veloce non
+      // deve essere una condanna: la cronologia è LOCALE, quindi la copia di
+      // prima si può rimettere tal quale (`lib/undo.ts` spiega perché la copia
+      // la prende chi muta, e perché rimettere l'elenco intero è più onesto che
+      // ricostruire la voce). L'istantanea si cattura ADESSO, non nel timeout: fra
+      // i due ci sta la disattivazione dello swipe, e un altro evento potrebbe
+      // cambiare l'elenco (arriva una push, si segna letta un'altra voce).
+      const prima = history
+      setTimeout(() => {
+        deleteEntry(id)
+        avvisoAnnulla('Notifica eliminata', () => ripristina(prima))
+      }, 300)
     } else if (delta > 80) {
       markEntryRead(id)
     }
@@ -92,6 +105,16 @@ export function NotificationList() {
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
         <BellOff size={40} strokeWidth={1.5} />
         <p className="text-sm">Nessuna notifica ricevuta</p>
+        {/* M12 — LA VIA D'USCITA (23/09/2026).
+            Uno stato vuoto che non offre niente lascia la persona in un vicolo
+            cieco: qui la domanda vera è «e adesso dove guardo?». La risposta è la
+            board, che è dove i turni accadono. */}
+        <Link
+          href="/turnisala"
+          className="text-sm font-semibold text-primary underline-offset-4 hover:underline"
+        >
+          Vai ai turni di sala
+        </Link>
       </div>
     )
   }
@@ -165,8 +188,11 @@ export function NotificationList() {
                   >
                     <Check size={18} className="text-primary-foreground" />
                   </div>
-                  {/* Swipeable row */}
+                  {/* Swipeable row. `data-notif-riga` è l'aggancio della prova:
+                      il gesto si fa con eventi touch veri, e senza un nome la
+                      spec dovrebbe indovinare la riga contando i figli. */}
                   <div
+                    data-notif-riga
                     className={cn(
                       'relative py-3 px-3 bg-background',
                       isSwipingOut

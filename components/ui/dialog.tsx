@@ -6,6 +6,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { usePlatform } from "@/components/providers/platform-provider"
+import { haptics } from "@/lib/haptics"
 import { useBackToClose } from "@/hooks/use-back-to-close"
 import { useDragToClose } from "@/hooks/use-drag-to-close"
 import { XIcon } from "lucide-react"
@@ -247,6 +248,13 @@ function DialogContent({
             <div
               className="drag-handle relative flex h-6 shrink-0 items-center justify-center"
               {...maniglia}
+              onPointerDown={(e) => {
+                /* M10: il tocco della maniglia è riconosciuto — l'accento parte
+                   SUBITO, non al rilascio, e convive col gesto dello hook
+                   (che riceve il suo stesso evento qui sotto). */
+                haptics.tap()
+                maniglia.onPointerDown?.(e)
+              }}
             >
               <span className="h-1 w-9 rounded-full bg-border" aria-hidden />
               {showCloseButton && (
@@ -262,7 +270,12 @@ function DialogContent({
                    posizione senza toccare la classe che disegna l'area. */
                 <div className="absolute -top-1 right-0">
                   <DialogClose
-                    render={<Button variant="ghost" size="sm" />}
+                    render={
+                      /* M10: chiudere senza compiere è un RIFIUTO — l'accento
+                         è più corto e più duro del tocco riconosciuto (che il
+                         <Button> emette già da sé al pointerdown). */
+                      <Button variant="ghost" size="sm" onClick={() => haptics.errore()} />
+                    }
                   >
                     Chiudi
                   </DialogClose>
@@ -281,6 +294,7 @@ function DialogContent({
                     variant="ghost"
                     className="absolute top-2 right-2"
                     size="icon-sm"
+                    onClick={() => haptics.errore()}
                   />
                 }
               >

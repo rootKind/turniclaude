@@ -1,5 +1,4 @@
 import { test, expect, E2E_BASE_URL, findEmployee, employeeLoginEnabled } from './fixtures'
-import { PLATFORM_ATTR } from '../lib/platform'
 
 /**
  * I CONTROLLI A DOPPIA SKIN — M4 del design system (20/09/2026).
@@ -17,6 +16,103 @@ import { PLATFORM_ATTR } from '../lib/platform'
  * `design-piattaforma.spec.ts`.
  */
 const DEV = 'dev=rootkind-dev-2026'
+
+/**
+ * La skin va ATTESA: l'override `?platform=` si applica al mount del provider,
+ * e sotto carico la differenza fra 30 e 300 ms è la differenza fra una misura
+ * vera e una letta con la skin sbagliata (i 5 fallimenti della prima suite M9).
+ */
+const SKIN = (page: import('@playwright/test').Page, piattaforma: 'android' | 'ios' | 'desktop') =>
+  page.waitForFunction(
+    (p) => document.documentElement.getAttribute('data-platform') === p,
+    piattaforma,
+    { timeout: 20_000 },
+  )
+
+/**
+ * LE PROVE DELLE MILESTONE M9/M10 (22/09/2026) — le FORME e la PRESSIONE.
+ *
+ * Lo stesso patto delle spec di M4: il JSX non cambia per piattaforma, cambiano
+ * i token e le regole che li leggono — quindi qui si misura la CONSEQUENZA sullo
+ * stesso motore, con `?platform=` diverso. Ciò che si prova:
+ *
+ *  · la **forma espressiva** della voce attiva (il ::before della pillola 32×64
+ *    con angoli laterali tondi e l'ombra di terzo livello, solo su Android);
+ *  · la **pressione che deforma** (`data-gl-press`, scritta dal componente della
+ *    superficie delle azioni: il FAB si tira verso il dito e scappa verso la
+ *    pillola — scala 0.85, raggio 24 — e al rilascio TORNANO i valori
+ *    `--fab-size`/`--fab-radius` di prima);
+ *  · la **glow expressive** della pressione, accesa sul fotogramma zero con
+ *    l'opacità della specifica;
+ *  · l'**aptica** come contratto letta dai token (`--aptica-*`): le durate
+ *    divergono per piattaforma e il canale spara esattamente la durata del
+ *    momento — il tutto SPIATO su `navigator.vibrate`, perché è l'unico modo
+ *    di vedere un'accensione che non disegna pixel;
+ *  · il **vetro contrasto** del foglio (la riga di luce sul bordo alto, che
+ *    l'accessibilità spegne).
+ */
+test.describe('Forme e pressione espressive (M9/M10)', () => {
+  test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local (vedi tests/README.md)')
+  test.setTimeout(120_000)
+
+  test('la voce attiva della barra ha la forma e l’ombra expressive SOLO su Android', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const page = await asEmployee('Minino')
+
+    for (const piattaforma of ['ios', 'android', 'desktop'] as const) {
+      await page.goto(`${E2E_BASE_URL}/dashboard?${DEV}&platform=${piattaforma}`, {
+        waitUntil: 'domcontentloaded',
+      })
+      // La skin va ATTESA: nav-bar sceglie il JSX della voce (HigItem vs
+      // MaterialItem) al mount, e leggere prima significa misurare l'albero
+      // della skin precedente (il 24×24 dell'icona al posto della pillola).
+      await SKIN(page, piattaforma)
+      const attiva = page
+        .locator('nav[aria-label="Navigazione principale"] a[aria-current="page"]')
+        .first()
+      await expect(attiva).toBeVisible({ timeout: 20_000 })
+
+      const m = await page.evaluate(() => {
+        const attiva = document.querySelector(
+          'nav[aria-label="Navigazione principale"] a[aria-current="page"]',
+        )!
+        const pillola = attiva.querySelector('span')! as HTMLElement
+        const prima = getComputedStyle(pillola, '::before')
+        const r = pillola.getBoundingClientRect()
+        return {
+          // Il ::before ripete il fondo (inherit): dove il fondo è trasparente
+          // (iOS, desktop) non disegna niente — è il zero-pixel del desktop.
+          formaFondo: prima.backgroundColor,
+          raggioForma: prima.borderRadius,
+          ombraForma: prima.boxShadow,
+          pillola: `${Math.round(r.width)}x${Math.round(r.height)}`,
+        }
+      })
+
+      // LA PILLOLA DELL'INDICATORE È DI MATERIAL, e solo lì: sul desktop la
+      // barra è quella classica e su iOS quella a tinta di HIG, quindi in
+      // entrambe il primo `span` della voce è il contenitore dell'icona
+      // (24×24) — non una pillola mancata. Pretenderla anche sul desktop era
+      // l'attesa sbagliata che la corsa della skin mascherava.
+      if (piattaforma === 'android') {
+        expect(m.pillola, 'la pillola della voce attiva è 32×64').toBe('64x32')
+      } else {
+        expect(m.pillola, 'solo Material ha la pillola dell’indicatore attivo').not.toBe('64x32')
+      }
+      if (piattaforma === 'android') {
+        expect(m.raggioForma, 'angoli laterali tondi (--pill-corners)').toBe('10px')
+        expect(m.ombraForma, 'ombra di terzo livello della specifica').toContain('rgba(0, 0, 0')
+        expect(m.formaFondo, 'il ::before dipinge (fondo della pillola non trasparente)').not.toBe(
+          'rgba(0, 0, 0, 0)',
+        )
+      } else {
+        expect(m.formaFondo, 'fuori da Android il ::before copia il vuoto: zero-pixel').toBe(
+          'rgba(0, 0, 0, 0)',
+        )
+      }
+    }
+  })
+})
 
 test.describe('Controlli (M4): la skin la scrivono i token, non il JSX', () => {
   test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local (vedi tests/README.md)')
@@ -39,7 +135,6 @@ test.describe('Controlli (M4): la skin la scrivono i token, non il JSX', () => {
       const m = await sw.evaluate((el) => {
         const thumb = el.querySelector('[data-slot="switch-thumb"]') as HTMLElement
         const cs = getComputedStyle(el)
-        const ct = getComputedStyle(thumb)
         const r = el.getBoundingClientRect()
         const rt = thumb.getBoundingClientRect()
         return {
@@ -302,5 +397,161 @@ test.describe('Controlli (M4): la skin la scrivono i token, non il JSX', () => {
     await expect(page.getByText('Rinomina il membro')).toHaveCount(0, { timeout: 5_000 })
     expect(putFatti, '«Annulla» ha rinominato lo stesso').toEqual([])
     expect(finestreDelBrowser, 'una finestra è rimasta quella del browser').toEqual([])
+  })
+})
+
+// ══ M9/M10 — LA PRESSIONE CHE DEFORMA E LA GLOW ═══════════════════════════════
+test.describe('La pressione espressiva del comando (M9/M10)', () => {
+  test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local (vedi tests/README.md)')
+  test.setTimeout(120_000)
+
+  test('il FAB si deforma alla pressione e torna alle misure di prima', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const page = await asEmployee('Minino')
+
+    for (const piattaforma of ['ios', 'android'] as const) {
+      // IL `goto` PUÒ ESSERE INTERROTTO (misurato su WebKit il 23/09). Su iOS il
+      // rilascio del comando è un TAP, e il tap del comando di dashboard esegue
+      // l'azione primaria — «Nuovo turno» → `/dashboard?new=1`: quella
+      // navigazione arriva mentre l'iterazione dopo sta caricando la sua URL e
+      // la interrompe. Si riprova; della SKIN giusta risponde la `SKIN()` qui
+      // sotto, che è ciò che impedisce a un riprova di falsificare la prova.
+      const vai = `${E2E_BASE_URL}/dashboard?${DEV}&platform=${piattaforma}`
+      await page
+        .goto(vai, { waitUntil: 'domcontentloaded' })
+        .catch(() => page.goto(vai, { waitUntil: 'domcontentloaded' }))
+      await SKIN(page, piattaforma)
+      const comando = page.locator('button[data-nav-actions="control"]').first()
+      await expect(comando).toBeVisible({ timeout: 20_000 })
+
+      const misura = () =>
+        comando.evaluate((el) => {
+          const cs = getComputedStyle(el)
+          const r = el.getBoundingClientRect()
+          return {
+            premuto: el.getAttribute('data-gl-press'),
+            w: Math.round(r.width),
+            h: Math.round(r.height),
+            raggio: cs.borderRadius,
+            // Il ::before è il suolo dell'onda: a riposo NON deve partire.
+            ondaPartita: getComputedStyle(el, '::before').animationName,
+          }
+        })
+
+      const riposo = await misura()
+      if (piattaforma === 'android') {
+        expect(riposo.w, 'FAB M3 a riposo').toBe(56)
+        expect(riposo.raggio).toBe('16px')
+      } else {
+        // Su iOS il comando è una pill CON ETICHETTA: la larghezza dipende dal
+        // testo (~145px su dashboard), non è 48 — il vecchio valore atteso era
+        // il bias desktop che la corsa della skin nascondeva.
+        expect(riposo.h, 'toccare HIG a 44pt').toBeGreaterThanOrEqual(44)
+        // `rounded-full` su Chromium satura al massimo rappresentabile: la pill
+        // è pill per GEOMETRIA (h≥44, piena larghezza del raggio), non per il
+        // valore letterale della stringa.
+        // `rounded-full` non dà un numero tondo ma il massimo rappresentabile, e
+        // il massimo NON è lo stesso fra i motori (WebKit 3.35e7, Chromium
+        // 3.4e38): la pill è pill per GEOMETRIA — raggio pieno, cioè almeno
+        // metà altezza — non per la stringa.
+        expect(
+          Number.parseFloat(riposo.raggio),
+          'la pill di iOS: raggio pieno, non un numero qualsiasi',
+        ).toBeGreaterThanOrEqual(riposo.h / 2)
+      }
+      expect(riposo.ondaPartita, 'a riposo nessuna onda in corso').toBe('none')
+
+      // La pressione è un GESTO sintetico che Playwright non ripete (a
+      // differenza di un click): sotto carico la prima può perdersi
+      // (idratazione in corsa o ricompilazione del dev server) e :active non
+      // arriva mai. Si riprova finché l'attributo non si accende.
+      const premi = async () => {
+        await comando.hover()
+        await page.mouse.down()
+      }
+      await premi()
+      await expect
+        .poll(
+          async () => {
+            const v = await comando.evaluate((el) => el.getAttribute('data-gl-press'))
+            if (v !== 'true') {
+              await page.mouse.up()
+              await premi()
+            }
+            return v
+          },
+          { timeout: 15_000, message: 'la pressione deve accendere data-gl-press' },
+        )
+        .toBe('true')
+      // LA FORMA ARRIVA PER TRANSIZIONE (120ms): `data-gl-press` si accende
+      // all'istante, la geometria no. Letta subito, la larghezza è ancora quella
+      // di riposo (56 invece di 48, misurato in suite il 23/09: il test passava
+      // solo perché spesso il poll aveva già speso quei millisecondi). Si
+      // aspetta che il RAGGIO — il valore che distingue la forma premuta — si
+      // assesti, e poi si legge tutto.
+      if (piattaforma === 'android') {
+        await expect
+          .poll(async () => (await misura()).raggio, { timeout: 5_000, message: 'la forma premuta deve assestarsi' })
+          .toBe('24px')
+      }
+      const premuto = await misura()
+      if (piattaforma === 'android') {
+        expect(premuto.w, 'la scala 0.85 tira il FAB verso il dito').toBe(48)
+        expect(premuto.raggio, 'la forma scappa verso la pillola (--gl-press-radius)').toBe('24px')
+      } else {
+        // La deformazione expressive è di Android: su iOS la pressione scrive
+        // solo l'attributo, e nessuna regola della skin lo legge (la sonda M9
+        // lo prova esplicitamente).
+        expect(premuto.w, 'su iOS la pressione non deforma').toBe(riposo.w)
+      }
+      await page.mouse.up()
+
+      await expect
+        .poll(() => comando.evaluate((el) => el.getAttribute('data-gl-press')), { timeout: 5_000 })
+        .toBe(null)
+      // Anche il RITORNO è una transizione (350ms), e anche qui si aspetta la
+      // forma: il raggio di riposo è il valore che la distingue da quella premuta.
+      await expect
+        .poll(async () => (await misura()).raggio, { timeout: 5_000, message: 'la forma deve tornare a riposo' })
+        .toBe(riposo.raggio)
+      const rilasciato = await misura()
+      expect(rilasciato.w, 'al rilascio torna la misura di prima').toBe(riposo.w)
+      expect(rilasciato.raggio, 'al rilascio torna il raggio di prima').toBe(riposo.raggio)
+    }
+  })
+
+  test('la glow della pressione è l’onda expressive e parte solo alla pressione', async ({ asEmployee }) => {
+    test.skip(!(await findEmployee('Minino')), 'admin non in anagrafica')
+    const page = await asEmployee('Minino')
+    await page.goto(`${E2E_BASE_URL}/dashboard?${DEV}&platform=android`, {
+      waitUntil: 'domcontentloaded',
+    })
+    await SKIN(page, 'android')
+    const comando = page.locator('button[data-nav-actions="control"]').first()
+    await expect(comando).toBeVisible({ timeout: 20_000 })
+
+    const premi = async () => {
+      await comando.hover()
+      await page.mouse.down()
+    }
+    await premi()
+    // Il discriminatore è il NOME dell'animazione (a riposo è `none`):
+    // l'uguaglianza sull'opacità misurava un fotogramma a metà strada
+    // (0.63 solo al primo istante, poi l'onda cala) ed era la mezzavita
+    // che rendeva la prova racy. La pressione si riprova, come sopra.
+    await expect
+      .poll(
+        async () => {
+          const onda = await comando.evaluate((el) => getComputedStyle(el, '::before').animationName)
+          if (onda !== 'glow-m3-expressive') {
+            await page.mouse.up()
+            await premi()
+          }
+          return onda
+        },
+        { timeout: 15_000, message: 'la glow expressive deve partire alla pressione' },
+      )
+      .toBe('glow-m3-expressive')
+    await page.mouse.up()
   })
 })

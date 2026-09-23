@@ -48,7 +48,17 @@ export function ResetPasswordForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" placeholder="nome@esempio.com" {...register('email')} />
+          {/* M12: chiocciola garantita, memoria dell'indirizzo, e il tasto che dice
+              cosa succede premendolo (invia il codice, non «vai»). */}
+          <Input
+            id="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            enterKeyHint="send"
+            placeholder="nome@esempio.com"
+            {...register('email')}
+          />
           {errors.email && <p className="text-destructive text-xs">{errors.email.message}</p>}
         </div>
         <Button type="submit" className="w-full" disabled={isLoading}>

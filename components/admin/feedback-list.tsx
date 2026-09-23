@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { motion, useMotionValue, useTransform, animate, type PanInfo } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { Check, Trash } from 'lucide-react'
+import { ViaUscita } from '@/components/ui/via-uscita'
 
 type FeedbackItem = {
   id: string
@@ -115,6 +116,22 @@ export function FeedbackList({ open, onClose }: FeedbackListProps) {
   const [selectedCategory, setSelectedCategory] = useState('Tutti')
   const [selected, setSelected] = useState<FeedbackItem | null>(null)
 
+  /**
+   * M12 — UN MODO DI RILEGGERE (23/09/2026).
+   *
+   * Il caricamento stava dentro l'effetto e basta, quindi l'unico modo di
+   * rileggere i feedback era CHIUDERE e riaprire il dialog: chi vedeva «Nessun
+   * feedback» non aveva nessuna via d'uscita, e una lista rimasta vuota per un
+   * colpo di rete non si distingue da una lista che è davvero vuota.
+   *
+   * Il contatore e non una funzione da chiamare: l'effetto sa rileggere una
+   * dipendenza, e la forma «funzione che scrive stato chiamata nell'effetto» è
+   * quella che la regola di lint vieta — con una ragione vera (una catena
+   * `.then` che scrive quando ARRIVA la risposta non è un render a cascata, una
+   * scrittura immediata sì).
+   */
+  const [ricarica, setRicarica] = useState(0)
+
   useEffect(() => {
     if (!open) return
     const supabase = createClient()
@@ -131,7 +148,7 @@ export function FeedbackList({ open, onClose }: FeedbackListProps) {
           }))
         )
       })
-  }, [open])
+  }, [open, ricarica])
 
   async function markRead(id: string) {
     const supabase = createClient()
@@ -167,7 +184,21 @@ export function FeedbackList({ open, onClose }: FeedbackListProps) {
           <ScrollArea className="flex-1 px-4 py-2">
             <div className="space-y-2">
               {filtered.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-8">Nessun feedback</p>
+                /* M12: qui i vuoti sono due, e chiedono cose diverse. Con un
+                   filtro attivo la domanda è «chi c'era nelle altre categorie»
+                   (e il comando è togliere il filtro); senza filtro i feedback
+                   non sono arrivati, o la lettura è inciampata, e il comando è
+                   rileggere. Offrirne uno solo lascerebbe l'altro caso fermo. */
+                <div className="flex flex-col items-center gap-1.5 py-8">
+                  <p className="text-sm text-muted-foreground text-center">Nessun feedback</p>
+                  {selectedCategory !== 'Tutti' ? (
+                    <ViaUscita onClick={() => setSelectedCategory('Tutti')}>
+                      Mostra tutte le categorie
+                    </ViaUscita>
+                  ) : (
+                    <ViaUscita onClick={() => setRicarica(n => n + 1)}>Ricarica</ViaUscita>
+                  )}
+                </div>
               )}
               {filtered.map(f => (
                 <FeedbackCard

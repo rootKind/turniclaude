@@ -270,13 +270,34 @@ try {
     )
   }
 
+  // 6. LA CURVA EXPRESSIVE (M9). Material 3 Expressive porta la sua easing per
+  //    i cambi di FORMA («shape morph»: la deformazione della pressione, il
+  //    pollice che diventa pillola). Il token `--m3-expressive` deve coincidere
+  //    con `EASING_EXPRESSIVE` di lib/motion.ts — stessa logica del §3-bis:
+  //    se qualcuno cambia la curva nel foglio senza passare dalla libreria, il
+  //    contratto lo ferma. Su iOS la skin non ha una curva expressive da
+  //    contrapporre (HIG non la conosce): il token vale l'easing standard, e il
+  //    controllo pretende ESATTAMENTE quello — un valore "expressive" anche solo
+  //    somigliante sull'altro lato sarebbe la skin copiata che questo file
+  //    esiste per impedire.
+  assert.equal(
+    androidTokens['--m3-expressive'],
+    moto.EASING_EXPRESSIVE.android,
+    '--m3-expressive su Android deve essere la curva dichiarata in lib/motion.ts (EASING_EXPRESSIVE)',
+  )
+  assert.equal(
+    iosTokens['--m3-expressive'],
+    'var(--motion-ease-standard)',
+    '--m3-expressive su iOS deve valere lo standard: HIG non ha una curva expressive, e la skin copiata è il difetto che questo contratto impedisce',
+  )
+
   const durate = (p) =>
     `enter ${attesi[p]['--motion-duration-enter']} / press ${attesi[p]['--motion-duration-press']} / ` +
     `exit ${attesi[p]['--motion-duration-exit']}`
   console.log(
     `OK — ${moto.TOKEN_MOTO.length} molle × 2 piattaforme, con le durate derivate dall'assestamento ` +
       `(iOS ${durate('ios')}, Android ${durate('android')}), ` +
-      `nessuna famiglia effects che rimbalza`,
+      `nessuna famiglia effects che rimbalza, curva expressive controllata`,
   )
   for (const riga of righe) console.log(riga)
 } finally {

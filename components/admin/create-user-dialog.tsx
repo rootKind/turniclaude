@@ -65,28 +65,31 @@ export function CreateUserDialog({ open, onClose }: Props) {
             <FormField control={form.control} name="email" render={({ field }) => (
               <FormItem>
                 <FormLabel>Email</FormLabel>
-                <FormControl><Input type="email" placeholder="nome@esempio.com" {...field} /></FormControl>
+                <FormControl><Input type="email" inputMode="email" autoComplete="email" enterKeyHint="next" placeholder="nome@esempio.com" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="password" render={({ field }) => (
               <FormItem>
                 <FormLabel>Password</FormLabel>
-                <FormControl><Input type="password" {...field} /></FormControl>
+                <FormControl><Input type="password" autoComplete="new-password" enterKeyHint="next" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="nome" render={({ field }) => (
               <FormItem>
                 <FormLabel>Nome</FormLabel>
-                <FormControl><Input {...field} /></FormControl>
+                {/* M12: `autoComplete="off"` sui nomi — il gestore di password che
+                    propone un indirizzo email dentro il campo «Nome» è un classico
+                    che qui non serve a nessuno. */}
+                <FormControl><Input autoComplete="off" enterKeyHint="next" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
             <FormField control={form.control} name="cognome" render={({ field }) => (
               <FormItem>
                 <FormLabel>Cognome</FormLabel>
-                <FormControl><Input {...field} /></FormControl>
+                <FormControl><Input autoComplete="off" enterKeyHint="done" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />

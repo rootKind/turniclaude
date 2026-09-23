@@ -1,4 +1,5 @@
 import { Skeleton } from '@/components/ui/skeleton'
+import { LoadingShape } from '@/components/ui/loading-shape'
 
 interface YearGateSkeletonProps {
   /** Layout della pagina: /turniferie (header card + grid 2 colonne) o /vacanze (titolo + lista). */
@@ -15,6 +16,9 @@ export function YearGateSkeleton({ variant }: YearGateSkeletonProps) {
   if (variant === 'turniferie') {
     return (
       <main className="mx-auto px-3 pt-5 max-w-2xl flex flex-col" style={{ height: 'calc(100dvh - var(--nav-space))' }}>
+        {/* Il segno di attesa (M9): la pagina sta ASPETTANDO il gate dell'anno,
+            e un `role="status"` lo dice a chi non vede lo scheletro. */}
+        <LoadingShape etichetta="Caricamento dei turni…" className="mb-2 self-center" />
         <div className="flex items-center gap-2 mb-3 bg-card border border-border rounded-xl px-3 py-2 mr-14">
           <Skeleton className="h-6 w-28 flex-1" />
           <Skeleton className="h-7 w-24 rounded-lg" />
@@ -29,6 +33,7 @@ export function YearGateSkeleton({ variant }: YearGateSkeletonProps) {
   }
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
+      <LoadingShape etichetta="Caricamento…" className="mb-3" />
       <div className="flex items-center justify-between mb-4">
         <Skeleton className="h-6 w-40" />
         <Skeleton className="h-8 w-24 rounded-lg" />

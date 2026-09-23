@@ -140,6 +140,47 @@
   --glass-highlight: none;
   --elevation-dialog: 0 20px 60px rgb(0 0 0 / 0.22);
   --scrim: rgb(0 0 0 / 0.32);
+  /* M9/M10 (22/09/2026) — FORME E VIBRAZIONI, valori di BASE: sul desktop
+     niente di tutto questo, come per ogni milestone prima (la suite E2E gira
+     anche lì, ed è la prova del zero-pixel). Le chiavi esistono per il
+     contratto. */
+  --m3-expressive: cubic-bezier(0.2, 0, 0, 1);
+  --pill-corners: 0px;
+  --gl-spec-opacity: 1;
+  --gl-press-scale: 1;
+  --gl-press-radius: 0px;
+  --aptica-tap: 0ms;
+  --aptica-avviso: 0ms;
+  --aptica-conferma: 0ms;
+  --aptica-errore: 0ms;
+  /* M9 (23/09/2026) — LA SCALA DI TAGLIE XS–XL. Cinque gradini, uno per
+     `size` del <Button>: i valori di BASE sono quelli di oggi (h-6…h-9), e il
+     quinto — `xl`, 44px — è nuovo. Qui non cambia niente: è la prova del
+     zero-pixel del desktop. Su Android i due gradini PRIMARI prendono la
+     misura vera del dito (48/56), che è dove M6 diceva che la strada non può
+     essere lo pseudo-elemento (l'increspatura richiede `overflow: hidden`). */
+  --control-h-xs: 24px;
+  --control-h-sm: 28px;
+  --control-h-md: 32px;
+  --control-h-lg: 36px;
+  --control-h-xl: 44px;
+  /* L'ENFASI TIPOGRAFICA (M9): l'asse accanto alla misura. Fuori da Android
+     nessuno legge questi due token, e i valori neutri (400/normal) sono quelli
+     dell'elemento che non ha enfasi: HIG l'enfasi non la conosce. */
+  --type-emphasis-wght: 400;
+  --type-emphasis-tracking: normal;
+  /* L'INDICATORE DI CARICAMENTO: misura, giro e tinta del segno. */
+  --load-shape-size: 32px;
+  --load-shape-duration: 1200ms;
+  --load-shape-color: var(--primary);
+  /* La TOOLBAR della board: raggio e ombra della superficie che contiene i
+     comandi. Oggi è un blocco bordato di 12px: resta così. */
+  --toolbar-radius: 12px;
+  --toolbar-shadow: none;
+  /* Il FAB MENU (M9): la larghezza che il comando prende quando è APERTO, cioè
+     la forma estesa di un FAB di Material. Fuori da Android resta la misura del
+     comando: lì il comando è già una pillola con l'etichetta. */
+  --fab-menu-w: var(--fab-size);
   --motion-duration-enter: 300ms;
   --motion-duration-exit: 200ms;
   --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
@@ -182,6 +223,15 @@
   --nav-tint: var(--foreground);
   --nav-indicator: transparent;
   --on-nav-indicator: var(--foreground);
+  /* L'ombra dell'indicatore attivo: il terzo livello di elevazione di M3. Qui
+     e su iOS vale `none` — senza la pillola di Material non c'è nessuna forma
+     da staccare dal fondo. La chiave esiste perché il contratto pretende le
+     stesse chiavi sui due lati (ed è la lezione del 22/09: `var()` senza
+     dichiarazione non è «nessun effetto», è una dichiarazione INVALIDA —
+     `box-shadow: var(--nav-indicator-shadow)` senza token diventa `none` solo
+     per caso, e il controllo nuovo di `check-design-tokens.mjs` non lo
+     ammette più). */
+  --nav-indicator-shadow: none;
   --nav-bg: var(--background);
   --nav-blur: none;
   /* M8 — LA GEOMETRIA DELLA BARRA FLOTTANTE (22/09/2026). Qui e su Android
@@ -210,6 +260,27 @@
      zero, `--nav-edge` e `--nav-space` sono lo stesso numero — cioè i valori di
      sempre. */
   --nav-edge: calc(var(--nav-height) + var(--safe-bottom) + var(--nav-inset));
+
+  /* ── LA RAIL (M12f, 23/09/2026) — la navigazione come COLONNA a sinistra.
+     Sopra i 600dp di larghezza (e con altezza sufficiente) la barra in basso
+     diventa la rail di Material: 80dp di colonna, indicatore 56×32 invece di
+     64×32. I valori di BASE sono zero — iOS e desktop non la conoscono, e
+     Android sotto i 600dp nemmeno — quindi fuori da lì non si sposta un pixel.
+       --nav-rail-w   quanto è larga la colonna
+       --nav-start    quanto spazio la PAGINA deve lasciare a sinistra: con la
+                      barra in basso è zero, con la rail è la rail
+       --nav-shell-h  l'altezza dell'involucro (la fascia in basso si prende
+                      altezza+area sicura; la colonna si prende la finestra)
+       --nav-bar-h    l'altezza della SUPERFICIE: `--nav-height` da fascia,
+                      tutta l'altezza da colonna
+     Sono token e non numeri nello stile in linea perché la stessa marcatura
+     deve poter diventare due cose — ed è la differenza che il contratto difende. */
+  --nav-rail-w: 0px;
+  --nav-start: var(--nav-rail-w);
+  --nav-shell-h: calc(var(--nav-height) + var(--safe-bottom));
+  --nav-bar-h: var(--nav-height);
+  --nav-item-w: 64px;
+  --nav-item-h: 32px;
 
   /* ── LA TESTATA DI PAGINA (M8b, 23/09/2026) — vedi `components/nav/testata.tsx`.
      Qui, sul desktop, la barra compatta NON esiste: `--head-bar-height` è zero, la
@@ -716,6 +787,10 @@
   --sala-toolbar-nav-bg: rgba(255,255,255,0);
   --sala-toolbar-nav-border: #2e2e2e;
   --sala-toolbar-nav-text: #f5f5f5;
+  /* M9: in scuro le velature scendono di grado, che è il cambio che il tema
+     scuro di sistema fa su tutti i livelli. Solo Android legge questo token
+     (su iOS la pillola della navigation bar non esiste). */
+  --nav-indicator: color-mix(in srgb, var(--foreground) 20%, transparent);
 }
 
 /* ══ LIVELLO 2 — PIATTAFORMA ══════════════════════════════════════════════════
@@ -816,6 +891,15 @@
      Material non c'è — lì l'indicatore è la tinta del testo. */
   --nav-indicator: transparent;
   --on-nav-indicator: var(--foreground);
+  --nav-indicator-shadow: none;
+  /* La rail è di Material e su iOS non esiste: le chiavi ci sono (il contratto
+     pretende le stesse su entrambi i lati) e valgono come la barra in basso. */
+  --nav-rail-w: 0px;
+  --nav-start: var(--nav-rail-w);
+  --nav-shell-h: calc(var(--nav-height) + var(--safe-bottom));
+  --nav-bar-h: var(--nav-height);
+  --nav-item-w: 64px;
+  --nav-item-h: 32px;
   --fab-size: 48px;
   --fab-radius: 9999px;
   --fab-offset: 16px;
@@ -875,6 +959,39 @@
   /* Su iOS l'altezza DINAMICA (`dvh`): la barra dell'URL collassa allo
      scorrere, e l'overlay che la segue non lascia un VuOTO in fondo. */
   --dialog-max-h: 85dvh;
+  /* ══ M9 + M10 su iOS: SPENTI, e non è un ramo mancante. ═══════════════════
+     Le forme expressive sono il vocabolario di Material: HIG non le conosce,
+     e la skin di iOS resta quella costruita in M2–M8. La vibrazione non
+     esiste sul web di WebKit (nessuna api di sistema è distribuita), e HIG
+     non mette il feedback a scatti nel vocabolario dei controlli — per questo
+     NON c'è nemmeno un uso simile da parte nostra. Le chiavi valgono spento
+     perché il contratto (`scripts/check-design-tokens.mjs`) pretende che le
+     due piattaforme dichiarino LE STESSE CHIAVI. */
+  --m3-expressive: var(--motion-ease-standard);
+  --pill-corners: 0px;
+  --gl-spec-opacity: 1;
+  --gl-press-scale: 1;
+  --gl-press-radius: 0px;
+  --aptica-tap: 0ms;
+  --aptica-avviso: 0ms;
+  --aptica-conferma: 0ms;
+  --aptica-errore: 0ms;
+  /* M9 su iOS: SPENTI, come sopra. Le chiavi esistono perché il contratto
+     pretende le stesse chiavi sui due lati; i valori sono quelli di oggi,
+     quindi la skin di iOS non si muove di un pixel. */
+  --control-h-xs: 24px;
+  --control-h-sm: 28px;
+  --control-h-md: 32px;
+  --control-h-lg: 36px;
+  --control-h-xl: 44px;
+  --type-emphasis-wght: 400;
+  --type-emphasis-tracking: normal;
+  --load-shape-size: 32px;
+  --load-shape-duration: 1200ms;
+  --load-shape-color: var(--primary);
+  --toolbar-radius: 12px;
+  --toolbar-shadow: none;
+  --fab-menu-w: var(--fab-size);
 }
 
 /* iOS in TEMA SCURO: la scala delle superfici si CAPOVOLGE, quindi traccia e
@@ -931,6 +1048,10 @@
   --nav-item-label: 12px;
   --nav-indicator: color-mix(in srgb, var(--foreground) 12%, transparent);
   --on-nav-indicator: var(--foreground);
+  /* L'indicatore attivo di M3 sta SOPRA il fondo: la specifica gli dà il terzo
+     livello di elevazione (due ombre, la prima col diffuso largo). Su iOS
+     `none`, come sopra. */
+  --nav-indicator-shadow: 0 1px 3px 1px rgb(0 0 0 / 0.15), 0 1px 2px rgb(0 0 0 / 0.30);
   /* Fondo pieno: il materiale traslucido è una scelta di iOS (vedi sopra), e la
      chiave va dichiarata lo stesso per il contratto. */
   --nav-bg: var(--background);
@@ -941,6 +1062,16 @@
      pretende, non un vestito mancante. */
   --nav-inset: 0px;
   --nav-radius: 0px;
+  /* La rail (M12f): qui i valori di BASE — sono la barra in basso di sempre.
+     La forma «colonna» arriva dalla media query più in basso, insieme al resto
+     della geometria larga: `--nav-rail-w` è l'unica che cambia, e da lei
+     derivano lo spazio a sinistra della pagina e la larghezza dell'involucro. */
+  --nav-rail-w: 0px;
+  --nav-start: var(--nav-rail-w);
+  --nav-shell-h: calc(var(--nav-height) + var(--safe-bottom));
+  --nav-bar-h: var(--nav-height);
+  --nav-item-w: 64px;
+  --nav-item-h: 32px;
   /* LA TESTATA (M8b) — top app bar di Material: 64dp di altezza, titolo compatto
      22sp, e lo stato «scrolled» che aggiunge colore (elevazione TONALE: M3 non
      alza solo con l'ombra, tinge la superficie) più l'ombra di elevazione. Il
@@ -1015,6 +1146,68 @@
   --desk-card-elevation: 0 1px 2px rgb(0 0 0 / 0.10), 0 1px 3px 1px rgb(0 0 0 / 0.06);
   --desk-card-border-w: 1px;
   --dialog-max-h: 85svh;
+  /* ══ M9 — LE FORME EXPRESSIVE (Material 3 Expressive, 22/09/2026) ═════════
+     Il vocabolario che cambia: la geometria diventa la forma «a plenilunio» —
+     il cerchio schiacciato nel quadrato, angoli laterali tondi su lati dritti
+     (`--pill-corners` è il raggio laterale dentro la pillola 32×64 della voce
+     attiva) — e l'ombra di terzo livello che la specifica mette sotto
+     l'indicatore. `--m3-expressive` è la curva «emphasized» della specifica:
+     i TEMPI restano le molle di M7, questa governa le transizioni di FORMA.
+     `--gl-spec-opacity` è l'opacità che la specifica dà alle superfici di
+     stato (63%): la glow della pressione la legge (l'onda base resta 0.20).
+     Il RAGGIO del FAB NON è qui (16dp resta il valore letto): il cambio di
+     forma è a pressione, ed è la regola M10 `[data-gl-press]`. */
+  --m3-expressive: cubic-bezier(0.2, 0, 0, 1);
+  --pill-corners: 10px;
+  --gl-spec-opacity: 0.63;
+  --gl-press-scale: 0.85;
+  --gl-press-radius: 24px;
+  /* ══ M10 — LA VIBRAZIONE (22/09/2026) ═════════════════════════════════════
+     Quattro accenti, non uno (il vocabolario di M3: recognition, tick pesante,
+     rejection, rottura — HapticsPattern.wav). Le DURATE le decide la skin:
+     qui il motorino da 10ms del tocco, il tick d'avviso sulla pressione
+     lunga, il doppio colpo forte quando una decisione distruttiva viene
+     confermata. NON sono numeri arbitrari: sono i nomi dei quattro momenti in
+     cui l'app tocca la mano, e `lib/motion.ts` li legge da qui. */
+  --aptica-tap: 10ms;
+  --aptica-avviso: 20ms;
+  --aptica-conferma: 30ms;
+  --aptica-errore: 15ms;
+  /* ══ M9 — LA SCALA DI TAGLIE E L'ENFASI (23/09/2026) ═════════════════════
+     I gradini piccoli restano le misure dense dell'app (24/28/32: una
+     dashboard con ogni bottone a 48dp non è Material, è una dashboard rotta),
+     ma i due gradini PRIMARI prendono la misura vera: `lg` a 48dp (il target
+     minimo di M3, con la taglia vera come chiedeva M6) e `xl` a 56 (il
+     «medium» di M3 Expressive, cioè il bottone che si preme senza guardare).
+     `--type-emphasis-wght` e `--type-emphasis-tracking` sono l'enfasi del
+     titolo di pagina: M3E tiene la misura e alza il peso, stringendo un
+     filo — è gerarchia senza cambiare la scala. */
+  --control-h-xs: 24px;
+  --control-h-sm: 28px;
+  --control-h-md: 32px;
+  --control-h-lg: 48px;
+  --control-h-xl: 56px;
+  --type-emphasis-wght: 700;
+  --type-emphasis-tracking: -0.02em;
+  /* L'enfasi si LEGGE QUI, dai token che il titolo usa già (M8b): il peso del
+     titolo grande e di quello compatto È l'asse emphasized. Scritto come token
+     e non come regola `[data-platform] .testata-…` perché quella avrebbe la
+     STESSA specificità delle regole del titolo e perderebbe per ordine nel
+     foglio — il modo in cui si perde un'enfasi senza accorgersene (misurato:
+     600 invece di 700 il 23/09, con la regola giusta nel posto sbagliato). */
+  --head-title-large-weight: var(--type-emphasis-wght);
+  --head-title-compact-weight: var(--type-emphasis-wght);
+  /* Il segno di caricamento è più grande e più LENTO: la forma a sette lati si
+     legge mentre gira, e un giro veloce la riduce a un frullatore. */
+  --load-shape-size: 48px;
+  --load-shape-duration: 2400ms;
+  --load-shape-color: var(--primary);
+  /* La toolbar della board prende il raggio grande e l'ombra di Material: è la
+     stessa elevazione del chrome di navigazione (M8), applicata alla superficie
+     che contiene i comandi. */
+  --toolbar-radius: 28px;
+  --toolbar-shadow: var(--elevation-nav);
+  --fab-menu-w: 168px;
 }
 
 /* Su schermi STRETTI l'etichetta a 12sp di Material non entra in un quinto di
@@ -1049,6 +1242,114 @@
 @media (max-width: 20rem) {
   [data-platform='ios'] {
     --nav-inset: 0px;
+  }
+}
+
+/* ══ M12f — LA RAIL (23/09/2026) ═════════════════════════════════════════════
+   Sopra i 600dp di larghezza la barra in basso diventa la RAIL di Material: la
+   navigazione è una colonna a sinistra alta quanto la finestra, i cinque
+   destini sono impilati al centro, e le etichette restano visibili (la rail di
+   M3 non le nasconde, come la tab bar di iOS non le nasconde mai).
+
+   PERCHÉ UNA MEDIA QUERY E NON UNA CLASSE DEL COMPONENTE. La scelta dipende
+   dalla FINESTRA, non dalla pagina: la stessa pagina in un telefono ha la barra
+   in basso e in un tablet piegato ha la colonna. Farlo in JS significherebbe un
+   primo disegno con la forma sbagliata, che è esattamente ciò che il design
+   system evita dal 20/09 (la skin la scrive il server, in `data-platform`).
+
+   LE DUE CONDIZIONI. `min-width: 600px` è la soglia delle window size class di
+   Material (sotto è «compact»: la navigation bar). `min-height: 480px` NON è un
+   numero inventato: un telefono in orizzontale è largo 900dp ma alto 412, e lì
+   una rail ruberebbe 80dp di larghezza alla board — che in orizzontale è la
+   vista che conta (M6 le ha dato le safe area laterali proprio per quello).
+   Material stessa avverte di guardare l'altezza, non solo la larghezza.
+
+   PERCHÉ QUI E NON IN UN `@layer`. L'involucro della barra porta `bottom-0
+   left-0 right-0` come utility Tailwind: la forma «colonna» deve cambiare la
+   POSIZIONE, non solo un valore, e una regola non in layer batte qualunque
+   utility (è la stessa ragione per cui i controlli di M4 stanno qui). */
+
+/* Chi tiene la navigazione e chi tiene la pagina. Le due classi esistono in
+   ogni configurazione: `.nav-shell` tiene l'area sicura dell'involucro (sotto
+   la barra in basso, a sinistra della colonna), `.shell-nav` è lo spazio che la
+   pagina lascia alla navigazione (`--nav-space` in fondo, `--nav-start` a
+   sinistra, più le due aree laterali di M6). Fuori dalla rail i valori sono
+   quelli di sempre: zero a sinistra, altezza+area sicura in fondo. */
+.nav-shell { padding-bottom: var(--safe-bottom); }
+.shell-nav {
+  padding-bottom: var(--nav-space);
+  padding-left: calc(var(--safe-left) + var(--nav-start));
+  padding-right: var(--safe-right);
+}
+/* Lo strato del comando flottante (il FAB delle azioni): comincia dove comincia
+   la pagina, non dove comincia la finestra. Sotto la rail è `0px`, cioè il
+   comportamento di prima. */
+.nav-fab-layer { left: var(--nav-start); }
+
+@media (min-width: 600px) and (min-height: 480px) {
+  [data-platform='android'] {
+    --nav-rail-w: 80px;
+    /* L'indicatore della rail è 56×32 (M3), non 64×32 come in basso. */
+    --nav-item-w: 56px;
+    --nav-shell-h: auto;
+    --nav-bar-h: 100%;
+    /* La navigazione non è più in basso: non c'è più spazio da lasciare lì, ma
+       l'area sicura sì (sulla barra gesti c'è sempre, e il contenuto non deve
+       finirci sotto). */
+    --nav-space: var(--safe-bottom);
+    --nav-edge: var(--safe-bottom);
+  }
+
+  [data-platform='android'] .nav-shell {
+    top: 0;
+    right: auto;
+    bottom: 0;
+    left: 0;
+    width: var(--nav-rail-w);
+    padding-bottom: 0;
+    padding-left: var(--safe-left);
+  }
+  /* La superficie: da fascia appoggiata al bordo inferiore a colonna piena, col
+     filo di separazione sul lato DESTRO (il bordo alto della fascia diventa il
+     bordo destro della colonna — è la stessa separazione, vista da dove serve). */
+  [data-platform='android'] .nav-bar {
+    width: 100%;
+    height: 100%;
+    border-top-width: 0;
+    border-right-width: 1px;
+    border-right-color: var(--separator);
+  }
+  [data-platform='android'] .nav-items {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    max-width: none;
+  }
+  [data-platform='android'] .nav-item {
+    flex: 0 0 auto;
+    width: 100%;
+    height: 56px;
+  }
+  /* Il comando flottante resta in basso a DESTRA, ma della finestra: senza
+     questo la banda dei 32rem lo riporterebbe al centro dello schermo. */
+  [data-platform='android'] .nav-fab-layer {
+    max-width: none;
+    margin-inline: 0;
+  }
+  /* LA BOARD IN LARGO. La griglia resta di tre colonne per riga — il modello
+     delle card è `row` × `align`, e allargarlo a quattro colonne sarebbe
+     cambiare la pagina, non la pelle —, ma smette di allungarsi all'infinito: a
+     un metro e mezzo di schermo tre celle larghe 400px non sono una board, sono
+     tre poster. Il limite è una misura di lettura, e la toolbar smette di
+     andare a capo: con tutto quello spazio, «SAB 12 SETTEMBRE 2026» e i tre
+     turni stanno sulla stessa riga. */
+  [data-platform='android'] .board-largo {
+    max-width: 56rem;
+    margin-inline: auto;
+  }
+  [data-platform='android'] .board-toolbar {
+    flex-wrap: nowrap;
+    margin-right: 0;
   }
 }
 
@@ -1098,6 +1399,11 @@
   background: var(--state-layer-press);
   transition-duration: 0ms;
 }
+/* M9 — L'ONDA DIVENTA UNA GLOW (Material 3 Expressive). Il `::before` resta
+   il suolo dell'increspatura per i controlli standard (0.20, l'onda di M3);
+   i controlli espressivi — `[data-gl]`, che <Button> e il FAB si scrivono da
+   soli — la attraversano con la LUCE della specifica (`--gl-spec-opacity`):
+   stessa geometria, stessa origine nel punto del dito, più presenza. */
 [data-platform='android'] [data-slot='button']::before,
 [data-platform='android'] [data-slot='chip']::before {
   content: '';
@@ -1124,6 +1430,18 @@
 @keyframes ripple-m3 {
   0% { transform: translate(-50%, -50%) scale(0); opacity: 0.20; }
   60% { opacity: 0.12; }
+  100% { transform: translate(-50%, -50%) scale(28); opacity: 0; }
+}
+/* La glow: l'onda expressiva. Il browser fotografa l'opacità del fotogramma 0
+   dal SElettore, non dalla keyframe base — quindi qui 0.63 vince davvero su
+   chi non ha l'attributo (è la stessa ragione per cui l'onda base è dentro
+   `ripple-m3` e non in una regola). */
+[data-platform='android'] [data-gl]:active::before {
+  animation: glow-m3-expressive 450ms var(--m3-expressive);
+}
+@keyframes glow-m3-expressive {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: var(--gl-spec-opacity); }
+  60% { opacity: calc(var(--gl-spec-opacity) * 0.6); }
   100% { transform: translate(-50%, -50%) scale(28); opacity: 0; }
 }
 /* M3 non sposta né rimpicciolisce il controllo alla pressione: la classe di
@@ -1305,6 +1623,173 @@ html {
   box-shadow: var(--elevation-nav);
 }
 
+/* ══ M10 — LA PRESSIONE CHE DEFORMA (22/09/2026) ════════════════════════════
+   Material 3 Expressive: alla pressione il controllo non si tinge soltanto,
+   si DEFORMA — si tira verso il dito (scala 0.85) e la forma scappa verso la
+   pillola (raggio 24). Gli attributi li scrive il componente al pointerdown
+   (`data-gl-press='true'`) e li toglie a rilascio/annullamento: la regola è
+   PURA CSS e non conosce React.
+
+   Il raggio del FAB diventa una regola e smette di essere stile in linea:
+   l'in-linea batte SEMPRE i fogli di stile, e una volta che la pressione
+   cambia il raggio da CSS, un `borderRadius` in linea lo vincerebbe — il
+   controllo si scalerebbe senza cambiare forma (il difetto che il primo
+   tentativo avrebbe avuto). Il valore è lo stesso di prima (16dp).
+
+   Su iOS nessuna regola: `[data-gl]` è scritto anche lì, ma i selettori
+   portano `[data-platform='android']` — e la skin di iOS non deforma. */
+[data-platform='android'] [data-gl] {
+  transition: transform 120ms var(--m3-expressive), border-radius 120ms var(--m3-expressive);
+}
+/* Il SEGMENTED espressivo (M9, «button group»): alla pressione la voce si tira
+   verso il dito come ogni controllo `[data-gl]`. I vicini che si spostano e il
+   morph dell'indicatore restano fuori (vedi il piano). */
+[data-platform='android'] [data-turni-switch] a[data-gl-press='true'] {
+  transform: scale(var(--gl-press-scale));
+  border-radius: var(--gl-press-radius);
+}
+/* La geometria del comando sta nel foglio anche sul DESKTOP: era uno stile in
+   linea (`width: var(--fab-size)`), ed è la trappola di M9 — l'in-linea batte i
+   fogli di stile, e il morph `[data-menu-open]` non avrebbe potuto cambiare la
+   larghezza. Su iOS NON si applica: lì il comando è una pillola con
+   l'etichetta, e 48px di larghezza la schiaccerebbero. */
+[data-platform='desktop'] .nav-comando,
+[data-platform='android'] .nav-comando {
+  width: var(--fab-size);
+  height: var(--fab-size);
+  border-radius: var(--fab-radius);
+}
+[data-platform='android'] [data-gl][data-gl-press='true'] {
+  transform: scale(var(--gl-press-scale));
+  border-radius: var(--gl-press-radius);
+}
+[data-platform='android'] [data-gl]:not([data-gl-press='true']) {
+  transition: transform 350ms var(--m3-expressive), border-radius 350ms var(--m3-expressive);
+}
+
+/* ══ M9 — LA SCALA DI TAGLIE, COLLEGATA AL COMPONENTE (23/09/2026) ═══════════
+   Il <Button> scrive `data-size`: così l'altezza è il GRADINO della scala, e
+   non una classe ripetuta in ogni pagina. Le regole stanno FUORI dai layer
+   (come quelle dei controlli di M4) perché devono battere l'utility `h-8`.
+
+   I GRADINI PICCOLI sono legati a `min-height`, non a `height`: sono il pavimento
+   della scala, mai un tetto — un controllo che per scelta si scrive più alto
+   non viene schiacciato dalla regola, e dove la misura coincide con quella di
+   oggi (24/28/32) non cambia un pixel. I due PRIMARI sono legati a `height`
+   perché lì il cambio è voluto (48/56 su Android) e deve vincere. */
+[data-slot='button'][data-size='xs'] { min-height: var(--control-h-xs); }
+[data-slot='button'][data-size='sm'] { min-height: var(--control-h-sm); }
+[data-slot='button'][data-size='default'] { min-height: var(--control-h-md); }
+[data-slot='button'][data-size='lg'] { height: var(--control-h-lg); }
+[data-slot='button'][data-size='xl'] { height: var(--control-h-xl); }
+
+
+/* ══ M9 — IL SEGNO DI CARICAMENTO A SETTE FORME (23/09/2026) ════════════════
+   M3 Expressive non usa un cerchio che gira: la forma CAMBIA mentre gira, in
+   un ciclo continuo. Sul web l'approssimazione onesta è una sequenza di forme
+   uguali per numero di vertici — un `clip-path` con un numero di punti diverso
+   non si interpola, il browser salta — quindi qui i fotogrammi sono sette
+   poligoni da OTTO vertici e il passaggio è a scatti: la curva vera la decide
+   il sistema, come per l'isola di M8 e per il titolo che si riduce di M8b.
+
+   Fuori da Android resta un quadrato arrotondato che gira: il segno c'è, il
+   vocabolario espressivo no. Il movimento NON è nella regola di
+   `prefers-reduced-motion`: il segno di caricamento È l'informazione (dice che
+   qualcosa sta succedendo), non un ornamento — e l'etichetta `role="status"`
+   resta comunque l'annuncio per chi non vede. */
+[data-slot='load-shape'] {
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--load-shape-size);
+  height: var(--load-shape-size);
+  background: var(--load-shape-color);
+  border-radius: 26%;
+  animation: load-shape-spin calc(var(--load-shape-duration) / 1.6) linear infinite;
+}
+[data-platform='android'] [data-slot='load-shape'] {
+  animation:
+    load-shape-spin calc(var(--load-shape-duration) / 1.6) linear infinite,
+    load-shape-morph calc(var(--load-shape-duration) / 4) steps(1, end) infinite;
+}
+@keyframes load-shape-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes load-shape-morph {
+  0%      { clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
+  14.28%  { clip-path: polygon(50% 0, 82% 18%, 100% 50%, 82% 82%, 50% 100%, 18% 82%, 0 50%, 18% 18%); }
+  28.57%  { clip-path: polygon(50% 0, 72% 28%, 100% 50%, 72% 72%, 50% 100%, 28% 72%, 0 50%, 28% 28%); }
+  42.86%  { clip-path: polygon(50% 0, 62% 36%, 100% 50%, 62% 64%, 50% 100%, 38% 64%, 0 50%, 38% 36%); }
+  57.14%  { clip-path: polygon(28% 0, 72% 0, 100% 28%, 100% 72%, 72% 100%, 28% 100%, 0 72%, 0 28%); }
+  71.43%  { clip-path: polygon(0 28%, 28% 0, 72% 0, 100% 28%, 100% 72%, 72% 100%, 28% 100%, 0 72%); }
+  85.71%  { clip-path: polygon(18% 18%, 50% 0, 82% 18%, 100% 50%, 82% 82%, 50% 100%, 18% 82%, 0 50%); }
+}
+
+/* ══ M9 — IL FAB MENU (23/09/2026) ═════════════════════════════════════════
+   Il comando delle Azioni, APERTO, prende la forma ESTESA (la larghezza del
+   menu, con l'etichetta dentro): è il morph compatto ↔ esteso della
+   specifica applicato al comando invece che a una pila di FAB piccoli (vedi
+   il piano: la pila sostituirebbe il foglio che quattro spec pinnano).
+   La geometria sta QUI e non in linea: l'in-linea batte sempre i fogli di
+   stile, e un `width` in linea non sarebbe governabile da `[data-menu-open]`.
+   La transizione è la curva expressive di M9, come per la pressione. */
+[data-platform='android'] .nav-comando {
+  transition: width 200ms var(--m3-expressive), border-radius 200ms var(--m3-expressive);
+}
+[data-platform='android'] .nav-comando[data-menu-open='true'] {
+  width: var(--fab-menu-w);
+  border-radius: 9999px;
+  gap: 8px;
+}
+
+/* IL CONTRASTO DEL VETRO (M10). Con l'arrivo del materiale completo la
+   superficie di un foglio su iOS è traslucida, e «traslucido sopra
+   traslucido» è il buco che il war story M8b ha già pagato (la pillola della
+   barra sopra la barra). La cura della specifica: una riga di LUCE sul bordo
+   alto del foglio — 30% del filo di vetro, smorzata in 28px — che dice dove
+   sta il bordo anche quando la pagina sotto è della stessa tinta. Il
+   `--glass-rim` scende a cascata dal tema (12% del testo) e vive di già
+   nelle due medie d'accessibilità: luce zero quando il vetro è spento,
+   piena quando è rinforzato.
+
+   IL ROSSO DELLA VOCE DISTRUTTIVA (M9, spec M3) sta nello stesso vocabolario:
+   il fondo diventa un COMPOSTO (superficie + riga di rosso semitrasparente
+   al 12% della tinta d'errore) quando il foglio porta `data-danger` — scritto
+   dal componente, che è l'unico che sa le sue azioni. Il rosso è DENTRO il
+   fondo: non fa trasparire il velato. Le regole si compongono per
+   specificità, e su iOS + pericolo entrambe le righe stanno nel fondo. */
+.nav-sheet {
+  background: var(--surface-container-high);
+}
+.nav-sheet[data-danger='true'] {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--destructive) 12%, transparent),
+      color-mix(in srgb, var(--destructive) 12%, transparent)
+    ),
+    var(--surface-container-high);
+}
+[data-platform='ios'] [data-shape='sheet'],
+[data-platform='ios'] .nav-sheet {
+  background:
+    linear-gradient(to bottom, color-mix(in srgb, var(--glass-rim) 30%, transparent), transparent 28px),
+    var(--surface-container-high);
+}
+[data-platform='ios'] .nav-sheet[data-danger='true'] {
+  background:
+    linear-gradient(to bottom, color-mix(in srgb, var(--glass-rim) 30%, transparent), transparent 28px),
+    linear-gradient(
+      color-mix(in srgb, var(--destructive) 12%, transparent),
+      color-mix(in srgb, var(--destructive) 12%, transparent)
+    ),
+    var(--surface-container-high);
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-platform='ios'] [data-shape='sheet'],
+  [data-platform='ios'] .nav-sheet {
+    background: var(--surface-container-high);
+  }
+}
+
 /* ══ M8b — LA TESTATA DI PAGINA (23/09/2026) ═════════════════════════════════
    Regole FUORI da `@layer`, come quelle dei controlli (M4), e per la stessa
    ragione: devono vincere sulle classi che le pagine passano al titolo
@@ -1330,8 +1815,16 @@ html {
   min-width: 0;
 }
 [data-platform='android'] .testata-titolo {
-  letter-spacing: 0;
+  /* M9 — L'ENFASI DEL TITOLO (23/09/2026). M3 Expressive non cambia la MISURA
+     per dare gerarchia: alza il PESO e stringe un filo il tracking. Il PESO
+     arriva dai token di M8b, che sulla skin di Android leggono l'asse
+     `--type-emphasis-*` (vedi il blocco dei token); il tracking lo scrive qui
+     perché è l'unica proprietà che questa regola deve cambiare.
+     Su iOS i due token valgono 400/normal, cioè il peso che l'elemento avrebbe
+     comunque e nessun tracking: l'enfasi non esiste, non è «spenta». */
+  letter-spacing: var(--type-emphasis-tracking);
 }
+
 /* La riga del titolo: dentro `main` la pagina porta già i suoi margini, quindi
    qui serve solo togliere la `min-w-[120px]` che alcune pagine usano per la
    versione desktop (su un telefono stringe senza motivo). */
@@ -1428,6 +1921,16 @@ html {
   [data-platform='android'] {
     --glass-rim: var(--foreground);
     --glass-highlight: none;
+  }
+}
+/* M10: il moto expressivo (deformazione, glow) è movimento NON essenziale —
+   l'azione avviene lo stesso senza. Chi lo toglie riceve l'accadimento,
+   non l'animazione (lo stesso patto delle molle di M7). */
+@media (prefers-reduced-motion: reduce) {
+  [data-platform='android'] [data-gl],
+  [data-platform='android'] [data-gl]:active::before {
+    transition-duration: 0ms;
+    animation-duration: 0ms;
   }
 }
 
@@ -1761,6 +2264,48 @@ html {
   /* Safe area for top (status bar / notch — edge-to-edge) */
   .safe-area-pt { padding-top: var(--safe-top); }
 
+  /* ── M11 — L'AVVISO DI RETE (23/09/2026) ────────────────────────────────────
+     Il banner di `components/providers/offline-bar.tsx`. Vive su una classe e non
+     su due token nuovi perché ciò che cambia fra le skin è la FORMA, non un
+     valore che qualcun altro debba leggere: la geometria sta qui, in due regole
+     di piattaforma, come per `.nav-surface`.
+
+     Descrive un cambio di STATO di sistema: su Android prende la forma di un
+     banner Material (il raggio grande del contenitore, solo in basso, e
+     l'elevazione — la superficie è sollevata SOPRA la pagina, quindi l'ombra
+     guarda in giù: è `--elevation-dialog`, non `--elevation-nav`, che invece
+     punta in su perché sta sotto il contenuto), su iOS resta una fascia
+     appoggiata al bordo con il filo sotto, che è come iOS dice «questo è un
+     avviso del sistema» (HIG: niente raggi su elementi full-bleed). Su desktop
+     il filo di separazione è l'unica cosa che serve. */
+  .avviso-offline {
+    background: var(--surface-container-high);
+    color: var(--on-surface);
+    border-color: var(--separator);
+  }
+  /* ── M12 — «TORNA SU» (23/09/2026) ─────────────────────────────────────────
+     Il pulsante delle liste lunghe (`components/ui/torna-su.tsx`). Sta sopra il
+     contenuto, quindi ha bisogno di una superficie che si stacchi: la tinta del
+     contenitore alto e il filo per iOS, la stessa tinta senza filo con l'ombra che
+     guarda in giù su Android. **Niente vetro**: su iOS il budget dichiarato di M12
+     è di TRE superfici velate (barra, testata, foglio), e questa non è una di
+     quelle — è un comando, e un comando non è un materiale. */
+  .torna-su {
+    background: var(--surface-container-high);
+    color: var(--on-surface);
+    border-color: var(--separator);
+    box-shadow: var(--elevation-dialog);
+  }
+  [data-platform='android'] .torna-su { border-color: transparent; }
+
+  [data-platform='ios'] .avviso-offline { border-radius: 0; box-shadow: none; }
+  [data-platform='android'] .avviso-offline {
+    border-bottom-left-radius: var(--dialog-radius);
+    border-bottom-right-radius: var(--dialog-radius);
+    border-bottom-color: transparent;
+    box-shadow: var(--elevation-dialog);
+  }
+
   /* M6 — i LATI. Fino a ieri non servivano (nessuna schermata si usava in
      orizzontale), ma la board di sala si usa esattamente così: con il notch di
      lato il primo e l'ultimo pezzo di contenuto finivano sotto l'angolo
@@ -1896,6 +2441,34 @@ html {
      (lì l'indicatore è la tinta del testo), quindi la stessa marcatura serve
      entrambe le skin. */
   .nav-indicator { background: var(--nav-indicator); }
+
+  /* M9 — FORMA E OMBRA DELL'INDICATORE EXPRESSIVE. Il ::before ripete il fondo
+     della pillola (inherit: stesso colore, stessa base di raggio) e su Android
+     ne cambia la FORMA: angoli laterali tondi su un rettangolo (`--pill-corners`),
+     l'approssimazione onesta della forma «a plenilunio» della specifica — come
+     per l'isola di M8, la curva vera la decide il sistema. L'ombra di terzo
+     livello sta sullo stesso strato. Su iOS e desktop il fondo della pillola è
+     trasparente: il ::before copia il vuoto e non disegna niente (zero-pixel). */
+  .nav-indicator::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: inherit;
+    pointer-events: none;
+  }
+  [data-platform='android'] .nav-indicator::before {
+    border-radius: var(--pill-corners);
+    box-shadow: var(--nav-indicator-shadow);
+  }
+
+  /* IL POLLICE PILL DELLO SWITCH EXPRESSIVE: acceso, il pollice 24×32 non è un
+     cerchio ma la pillola della specifica. Solo quando è acceso (il pollice
+     spento da 16dp resta il cerchio di M3): è la transizione di FORMA che
+     accompagna la crescita. */
+  [data-platform='android'] [data-slot='switch'][data-checked] [data-slot='switch-thumb'] {
+    border-radius: var(--pill-corners);
+  }
 
   /* IL FOGLIO (M3 del design system, 20/09/2026): la superficie che sale dal
      basso su iOS al posto del dialog centrato. Qui c'è solo quello che è DISEGNO
@@ -2384,4 +2957,5 @@ html[data-vt] [data-slot='pagina'] {
     animation: none;
   }
 }
+
 

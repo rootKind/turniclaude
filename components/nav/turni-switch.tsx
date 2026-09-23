@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -34,6 +35,12 @@ import { TURNI_VIEWS } from './nav-destinations'
  */
 export function TurniSwitch({ className }: { className?: string }) {
   const pathname = usePathname()
+  /* IL SEGMENTED ESPRESSIVO (M9): anche una voce che CAMBIA VISTA è un
+     `[data-gl]`, e alla pressione si tira verso il dito. L'attributo lo scrive
+     il componente (come per il comando delle Azioni) perché `:active` non
+     arriva ai gesti sintetici della suite, e la regola sta in `globals.css`
+     sotto `[data-platform='android']`: la skin di iOS non si muove. */
+  const [premuto, setPremuto] = useState<string | null>(null)
 
   return (
     <nav
@@ -57,6 +64,12 @@ export function TurniSwitch({ className }: { className?: string }) {
             prefetch
             aria-current={attiva ? 'page' : undefined}
             aria-label={vista.ariaLabel}
+            data-gl="true"
+            data-gl-press={premuto === vista.path ? 'true' : undefined}
+            onPointerDown={() => setPremuto(vista.path)}
+            onPointerUp={() => setPremuto(null)}
+            onPointerCancel={() => setPremuto(null)}
+            onPointerLeave={() => setPremuto(null)}
             className={cn(
               'relative inline-flex items-center justify-center px-4 transition-colors',
               attiva

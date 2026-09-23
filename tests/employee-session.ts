@@ -69,8 +69,35 @@ export function employeeLoginEnabled(): boolean {
  * Email + anagrafica del dipendente. `cognome` combacia anche sui cognomi
  * composti; se `nome` è indicato disambigua gli omonimi. Passando una stringa
  * con «@» si intende direttamente l'email.
+ *
+ * LA RICERCA È MEMORIZZATA (23/09/2026), e non è una micro-ottimizzazione: ogni
+ * chiamata sono DUE andate e ritorno fino a Supabase, misurate a ~400 ms in
+ * totale, e una prova la chiama da due a quattro volte (la guardia `test.skip`,
+ * `sessionForEmployee` che la richiama dentro, e i candidati che si provano uno
+ * per uno). Erano ~60 secondi di RETE su ~660 di prove: la parte più facile da
+ * togliere, perché non cambia COSA si verifica — la quinta chiamata allo stesso
+ * cognome interrogava gli stessi due dati di dieci minuti prima.
+ *
+ * Solo i RISULTATI POSITIVI finiscono nella cache: un `null` può essere anche
+ * un'inciampata di rete, e memorizzarlo trasformerebbe un guasto transitorio in
+ * uno skip silenzioso per tutto il run. Si memorizza la PROMESSA e non il valore,
+ * così due prove che chiedono lo stesso cognome nello stesso istante fanno una
+ * sola andata (è il caso vero: le fixture di uno stesso file partono insieme).
  */
+const anagrafiche = new Map<string, Promise<{ id: string; email: string; cognome: string; nome: string } | null>>()
+
 export async function findEmployee(who: Employee | string): Promise<{ id: string; email: string; cognome: string; nome: string } | null> {
+  const chiave = typeof who === 'string' ? who.trim().toUpperCase() : `${who.cognome.trim().toUpperCase()}|${(who.nome ?? '').trim().toUpperCase()}`
+  const memorizzata = anagrafiche.get(chiave)
+  if (memorizzata) return memorizzata
+  const ricerca = cercaEmployee(who)
+  anagrafiche.set(chiave, ricerca)
+  const trovato = await ricerca
+  if (!trovato) anagrafiche.delete(chiave)   // vedi sopra: un `null` non si memorizza
+  return trovato
+}
+
+async function cercaEmployee(who: Employee | string): Promise<{ id: string; email: string; cognome: string; nome: string } | null> {
   const sb = admin()
   if (!sb) return null
   let id: string

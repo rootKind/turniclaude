@@ -70,6 +70,10 @@ export default defineConfig({
       testIgnore: [/auth\.setup\.ts/, /minimi\.spec\.ts/, /perf\.spec\.ts/],
       use: { browserName: 'chromium' },
     },
+    // M12f/M12b (23/09/2026) NON hanno un progetto proprio: girano in `chromium`
+    // (come le altre spec dell'app) e la rail anche in `android`, perché lì
+    // esiste davvero. La spec dell'annulla è della piattaforma neutra —
+    // `localStorage` non ha skin.
     {
       // SALTO IN SALA + BOARD sul motore di iOS (vedi l'intestazione): WebKit con
       // un iPhone emulato. Le stesse spec girano anche in `chromium` — un
@@ -108,6 +112,15 @@ export default defineConfig({
         // col motore (desktop com'era, 12 + ombra su telefono) — l'atteso lo
         // decide il progetto, come per le altre spec di piattaforma.
         /board-piattaforma\.spec\.ts/,
+        // L'APTICA (M10): su iOS la prova è il SILENZIO — il canale non spara
+        // mai, perché la skin decide 0ms. Il vetro contrasto dei fogli è la
+        // skin di iOS: anche quella si prova lì.
+        /aptica-vetro\.spec\.ts/,
+        // M9 CHIUSA (23/09/2026): scala di taglie, segno di attesa a sette
+        // forme, enfasi del titolo, FAB menu, segmented e toolbar. Ogni prova
+        // ha la sua affermazione su «la skin che NON deve muoversi», quindi
+        // gira dove la forma esiste E dove non deve esistere.
+        /m9-completa\.spec\.ts/,
       ],
       // `serviceWorkers: 'block'` NON è un dettaglio: su WebKit il service worker
       // dell'app (quello delle push) prende il controllo della pagina e le sue
@@ -134,6 +147,23 @@ export default defineConfig({
         /overlay-piattaforma\.spec\.ts/,
         /controlli-piattaforma\.spec\.ts/,
         /board-piattaforma\.spec\.ts/,
+        // Le FORME espressive (M9) e la sonda visiva del moto expressivo: sono
+        // la skin Android — su iOS le regole non esistono, e provarle lì
+        // significherebbe pretendere un difetto.
+        /espressivo-sonda\.spec\.ts/,
+        // L'APTICA e il vetro contrasto (M10): il canale spiato funziona su
+        // entrambi i motori (il silenzio di iOS è parte della prova).
+        /aptica-vetro\.spec\.ts/,
+        // M9 chiusa (23/09/2026): Android è la skin che INDOSSA la scala, il
+        // segno a sette forme, l'enfasi, il FAB menu esteso e la toolbar
+        // espressiva — è qui che si pretende la forma.
+        /m9-completa\.spec\.ts/,
+        // LA RAIL (M12f, 23/09/2026): è la forma larga di ANDROID — una colonna a
+        // sinistra sopra i 600dp. Girando anche qui, oltre che in `chromium`
+        // dove la prova controlla che iOS e desktop NON si muovano, la stessa
+        // spec dice le due cose: che la rail esiste dove deve e che non esiste
+        // dove non deve.
+        /m12f-rail\.spec\.ts/,
       ],
       use: { ...devices['Pixel 7'], browserName: 'chromium' },
     },

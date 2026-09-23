@@ -8,6 +8,7 @@ import { useNotificationHistory } from '@/hooks/use-notification-history'
 import { NavBar } from './nav-bar'
 import { NavActionSurface } from './nav-action-surface'
 import { useNavActions } from './use-nav-actions'
+import { avvisoAnnulla } from '@/lib/undo'
 import { activeDestinationId, destinationById, type NavDestination } from './nav-destinations'
 import { useRememberGroupPage, useTurniLastPage } from './use-last-page'
 
@@ -47,7 +48,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
    * qualcosa.
    */
   const [confermaSvuota, setConfermaSvuota] = useState(false)
-  const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
+  const { markAllRead, clearAll, unreadCount, history, ripristina } = useNotificationHistory()
 
   const turni = destinationById('turni')
   const turniLastPage = useTurniLastPage()
@@ -58,7 +59,17 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
     isAdmin,
     isManager,
     notifiche: {
-      markAllRead,
+      // M12 — LE DUE AZIONI REVERSIBILI DELLA CRONOLOGIA (23/09/2026).
+      // Segnare letto e svuotare toccano soltanto la storia LOCALE, quindi
+      // entrambe hanno l'ANNULLA: la conferma resta dove serve (lo svuotamento
+      // distrugge, e il piano vuole la conferma dove l'azione non si può
+      // disfare) ma non è più l'unica rete. L'istantanea si prende qui, prima di
+      // chiamare: dopo, l'elenco è già cambiato.
+      markAllRead: () => {
+        const prima = history
+        markAllRead()
+        avvisoAnnulla('Notifiche segnate come lette', () => ripristina(prima))
+      },
       clearAll: () => setConfermaSvuota(true),
       unreadCount,
       hasHistory: history.length > 0,
@@ -100,7 +111,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
           // L'elenco delle azioni, che invece È modale, esce in un portale a z-60
           // (vedi `nav-action-surface.tsx`): il portale è l'unico modo di
           // scavalcare lo stacking context di questo contenitore.
-          className="pointer-events-none fixed left-0 right-0 z-40 mx-auto max-w-lg"
+          className="nav-fab-layer pointer-events-none fixed left-0 right-0 z-40 mx-auto max-w-lg"
           style={{
             // `--nav-edge` e non l'altezza della barra: da M8 su iPhone la barra è
             // un'isola staccata dal bordo, quindi il suo bordo alto sta un
@@ -108,6 +119,13 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
             // finito DENTRO l'isola — e la spec che pretende «le azioni stanno
             // sopra la barra» l'avrebbe detto. Su Android e desktop il valore è
             // identico a prima.
+            //
+            // M12f: con la rail la navigazione non è più in basso, quindi il
+            // token vale l'area sicura soltanto e il pulsante scende dove
+            // Material lo vuole (in basso a destra, 16dp dal bordo). Il lato
+            // sinistro lo detta la classe `.nav-fab-layer` (`--nav-start`),
+            // perché con la colonna la pagina comincia 80dp più a destra e la
+            // banda dei 32rem non deve riportare il comando al centro.
             bottom: 'calc(var(--nav-edge) + var(--fab-offset))',
           }}
         >
@@ -130,7 +148,11 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
         }
         confirmLabel="Elimina tutte"
         destructive
-        onConfirm={clearAll}
+        onConfirm={() => {
+          const prima = history
+          clearAll()
+          avvisoAnnulla('Cronologia svuotata', () => ripristina(prima))
+        }}
       />
     </>
   )

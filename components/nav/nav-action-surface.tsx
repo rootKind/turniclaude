@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { haptics } from '@/lib/haptics'
 import { usePlatform } from '@/components/providers/platform-provider'
 import { useBackToClose } from '@/hooks/use-back-to-close'
 import { useDragToClose } from '@/hooks/use-drag-to-close'
@@ -57,6 +58,9 @@ export function NavActionSurface({
   const platform = usePlatform()
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  /** La pressione VIVA (M10): dal pointerdown al rilascio/annullamento/uscita.
+   *  Hover NON conta — premere è un dito giù, non un cursore che passa. */
+  const [premuto, setPremuto] = useState(false)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressFired = useRef(false)
 
@@ -91,6 +95,10 @@ export function NavActionSurface({
 
   const primary = actions[0]
   const multiple = actions.length > 1
+  /** C'è una voce distruttiva nell'elenco? Il fondo del foglio tinge via
+   *  `data-danger` (la ricetta del colore sta nella regola CSS di globals.css:
+   *  12% della tinta d'errore, il valore della specifica M3). */
+  const pericolo = actions.some((a) => a.tone === 'danger')
   /** Il tap apre l'elenco invece di eseguire? (più azioni, o l'unica è distruttiva) */
   const tapOpensList = multiple || primary.tone === 'danger'
   const controlName = tapOpensList ? controlLabel : primary.label
@@ -105,10 +113,25 @@ export function NavActionSurface({
 
   function handlePointerDown() {
     longPressFired.current = false
+    setPremuto(true)
+    haptics.tap()
+    /* M10 — L'AVVISO PRIMA DELLA SCELTA PESANTE: la pressione lunga apre il
+       menu, quindi il dito che resta fermo sta per cambiare vista. Il tick
+       (20ms) arriva a metà attesa, NON dopo l'apertura: è il feedback
+       «in anticipo sul movimento» che le guide chiedono per i gesti con
+       soglia. Il timer è lo STESSO slot: azzerarlo qui sovrascrive la sola
+       aptica senza toccare l'attesa reale dei 500ms. */
+    longPressTimer.current = setTimeout(() => haptics.avviso(), 300)
     longPressTimer.current = setTimeout(() => {
       longPressFired.current = true
       setOpen(true)
     }, 500)
+  }
+
+  /** Rilascio, annullamento o uscita: la pressione muore, il gesto pure. */
+  function handlePointerUp() {
+    clearLongPress()
+    setPremuto(false)
   }
 
   function clearLongPress() {
@@ -137,9 +160,19 @@ export function NavActionSurface({
            non con `aria-haspopup`, che è condiviso da qualunque menu — per
            esempio il pulsante dei dev tools di Next, che nei test è presente. */
         data-nav-actions="control"
+        /* M9/M10 — IL COMANDO È UN CONTROLLO EXPRESSIVO (`[data-gl]`). Gli
+           attributi li legge il CSS di `globals.css` (selettori con
+           `[data-platform='android']`): su iOS nessuna regola li tocca, e la
+           `data-gl-press` qui sotto si scrive su ENTRAMBE perché il dito non
+           deve sapere niente di skin. La pressione deformava già via token, ora
+           è il componente a dire quando è premuto — `:active` non arriva ai
+           gesti sintetici della suite. */
+        data-gl="true"
+        data-gl-press={premuto ? 'true' : undefined}
         onPointerDown={handlePointerDown}
-        onPointerUp={clearLongPress}
-        onPointerLeave={clearLongPress}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPointerLeave={handlePointerUp}
         onClick={handleClick}
         onContextMenu={(e) => e.preventDefault()}
         aria-label={open ? 'Chiudi menu' : controlName}
@@ -149,23 +182,26 @@ export function NavActionSurface({
           // `pointer-events-auto`: il contenitore che ci sta attorno è
           // `pointer-events-none` di proposito (è una banda larga quanto lo
           // schermo e non deve mangiare i click: vedi la nota in `bottom-nav.tsx`).
-          'pointer-events-auto flex items-center justify-center shadow-[var(--elevation-dialog)] transition-colors',
+          'nav-comando pointer-events-auto flex items-center justify-center shadow-[var(--elevation-dialog)] transition-colors',
           platform === 'ios'
             ? 'h-11 min-w-11 gap-2 rounded-full bg-primary px-4 text-primary-foreground'
             : 'bg-primary text-primary-foreground',
         )}
-        style={
-          platform === 'ios'
-            ? undefined
-            : { width: 'var(--fab-size)', height: 'var(--fab-size)', borderRadius: 'var(--fab-radius)' }
-        }
+        /* IL FAB MENU (M9): aperto, il comando prende la forma ESTESA — la
+           larghezza del menu e l'etichetta dentro — e la geometria la scrive
+           la regola `[data-menu-open]` in `globals.css` (non più uno stile in
+           linea, che nessuna regola avrebbe potuto governare). Lo stato sta
+           sul DOM come per la pressione: il CSS non conosce React. */
+        data-menu-open={open ? 'true' : undefined}
       >
         {open ? (
           <X size={platform === 'ios' ? 18 : 20} />
         ) : (
           <PrimaryIcon size={platform === 'ios' ? 18 : 22} />
         )}
-        {platform === 'ios' && !open && (
+        {/* Su iOS l'etichetta c'è sempre (chiuso); altrove entra quando il
+            menu è aperto, che è il momento in cui il comando è esteso. */}
+        {(platform === 'ios' ? !open : open) && (
           <span className="text-body font-semibold">{controlName}</span>
         )}
       </button>
@@ -182,22 +218,21 @@ export function NavActionSurface({
           className="pointer-events-auto fixed inset-0 z-[60]"
           onClick={() => setOpen(false)}
           role="presentation"
-        >
-          <div className="nav-scrim absolute inset-0" style={{ background: 'var(--scrim)' }} />
+        >            <div className="nav-scrim absolute inset-0" style={{ background: 'var(--scrim)' }} />
           <div
             ref={foglio}
             role="dialog"
             aria-modal="true"
             aria-label={controlName}
+            /* M9: c'è una voce distruttiva? Il fondo tinge (regola CSS con
+               `data-danger`): è il colore che la specifica dà a quella riga. */
+            data-danger={pericolo ? 'true' : undefined}
             onClick={(e) => e.stopPropagation()}
             className={cn(
               'nav-sheet absolute bottom-0 left-0 right-0 mx-auto max-w-lg overflow-hidden',
               platform === 'ios' ? 'rounded-t-[14px]' : 'rounded-t-[var(--radius-sheet)]',
             )}
-            style={{
-              background: 'var(--surface-container-high)',
-              paddingBottom: 'max(var(--safe-bottom), 8px)',
-            }}
+            style={{ paddingBottom: 'max(var(--safe-bottom), 8px)' }}
           >
             {/* Scriminatura (drag handle): è il segno che dice «questo pannello
                 sale dal basso», e la bottom sheet di Material la mette sempre.
@@ -235,12 +270,18 @@ export function NavActionSurface({
                          le spec raggiungono le voci — `getByLabel("Minimi di
                          persone per card")` è una di quelle. */
                       aria-label={action.label}
-                      onClick={() => run(action)}
+                      onClick={() => {
+                        /* M10: un'azione distruttiva eseguita merita l'accento
+                           «rottura», non il tocco riconosciuto. */
+                        if (action.tone === 'danger') haptics.errore()
+                        run(action)
+                      }}
                       className={cn(
                         'flex w-full items-center gap-3 px-4 text-left transition-colors hover:bg-muted',
                         platform === 'ios' ? 'text-title3' : 'text-body',
                         action.tone === 'danger' ? 'text-destructive' : 'text-foreground',
                       )}
+
                       style={{ minHeight: 'var(--touch-min)' }}
                     >
                       <Icon size={20} aria-hidden className="shrink-0 opacity-80" />

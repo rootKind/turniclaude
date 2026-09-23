@@ -3,21 +3,42 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { BadgeCheck, Download, Smartphone } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { detectPlatformFromUA } from '@/lib/platform'
+import { useSyncExternalStore } from 'react'
+import { usePlatform } from '@/components/providers/platform-provider'
 import { usePwaInstall } from '@/components/providers/pwa-install'
 
-export default function InstallaPage() {
-  const [defaultTab, setDefaultTab] = useState<'ios' | 'android'>('android')
-  const [host, setHost] = useState('')
-  const { canInstall, isInstalled, install } = usePwaInstall()
+/**
+ * L'indirizzo da digitare in Chrome: le istruzioni qui sotto lo mostrano vero
+ * (`questo sito` è solo il ripiego del primo render).
+ *
+ * `location.host` esiste SOLO sul client, e leggerlo dentro un effetto con
+ * `setState` — com'era fino a M11 — è un render in cascata al mount (l'errore
+ * `react-hooks/set-state-in-effect` che questa pagina portava dietro). Con
+ * `useSyncExternalStore` e uno snapshot server vuoto non c'è né la cascata né il
+ * mismatch di idratazione: React sa che il valore definitivo arriva dopo.
+ */
+const hostStore = {
+  // Non cambia mai durante la vita della pagina: nessuno a cui abbonarsi.
+  subscribe: () => () => {},
+  getSnapshot: () => window.location.host,
+  getServerSnapshot: () => '',
+}
 
-  useEffect(() => {
-    // Unica regex di piattaforma dell'app (lib/platform.ts): prima qui c'era una
-    // copia locale senza iPad-as-Mac, ora la decisione vive in un solo posto.
-    setDefaultTab(detectPlatformFromUA(navigator.userAgent) === 'ios' ? 'ios' : 'android')
-    setHost(window.location.host)
-  }, [])
+export default function InstallaPage() {
+  const host = useSyncExternalStore(hostStore.subscribe, hostStore.getSnapshot, hostStore.getServerSnapshot)
+  const { canInstall, isInstalled, install } = usePwaInstall()
+  // M11: le ISTRUZIONI seguono lo User-Agent (parlano del browser che hai in
+  // mano), la riga sulle scorciatoie segue la PIATTAFORMA dell'app
+  // (`usePlatform`, che rispetta anche l'override di QA `?platform=`): un gesto
+  // del sistema operativo nominato per il sistema giusto è l'unica differenza di
+  // testo che questa pagina si permette.
+  const platform = usePlatform()
+  // La scheda predefinita segue la STESSA piattaforma del resto dell'app. Prima
+  // si ricalcolava dallo User-Agent dentro un effetto: era la stessa risposta
+  // (`lib/platform.ts` è la regex unica) letta una seconda volta, con un
+  // `setState` in più al mount — cioè un render in cascata per un valore che il
+  // provider conosceva già.
+  const defaultTab: 'ios' | 'android' = platform === 'ios' ? 'ios' : 'android'
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8">
@@ -46,7 +67,10 @@ export default function InstallaPage() {
             finge un fallback. */}
         {canInstall && !isInstalled && (
           <Button
-            size="lg"
+            // M9: la CTA di pagina intera è il gradino GRANDE della scala — a
+            // 56dp su Android e 44 su iOS/desktop, dalle stesse regole di
+            // `data-size` che governano ogni altro bottone.
+            size="xl"
             className="w-full"
             onClick={() => {
               void install().then((outcome) => {
@@ -91,6 +115,50 @@ export default function InstallaPage() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* M11 — COSA CAMBIA DOPO L'INSTALLAZIONE (23/09/2026).
+            Non è decorazione: sono le voci NUOVE del manifest, cioè le cose che
+            esistono solo da quando l'app è installata — le scorciatoie del menu
+            dell'icona (`shortcuts`) e il modo in cui l'app si comporta senza
+            rete. Prima di M11 l'utente le scopriva per caso; e la terza voce
+            dice una cosa che il manifest NON promette (`screenshots` a parte,
+            l'offline dell'app è dichiarato: niente pagine in cache), perché la
+            cosa peggiore qui è credere che un turno si sia salvato. */}
+        <div className="rounded-lg border p-4 space-y-2" data-install-info="true">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+            Dopo l&apos;installazione
+          </p>
+          <ul className="space-y-2 text-sm">
+            <li className="flex gap-2">
+              <span className="text-muted-foreground shrink-0">•</span>
+              <span>Si apre a tutto schermo, senza la barra del browser</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-muted-foreground shrink-0">•</span>
+              <span>
+                {platform === 'ios'
+                  ? 'Tieni premuta l’icona (Haptic Touch)'
+                  : 'Tieni premuta l’icona di Chrome'}{' '}
+                per le scorciatoie: <strong>Dashboard</strong>, <strong>Il tuo turno</strong>,
+                <strong> Turni di sala</strong>, <strong>Notifiche</strong>
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-muted-foreground shrink-0">•</span>
+              <span>
+                Le notifiche arrivano anche ad app chiusa; quelle ricevute mentre non la stavi
+                guardando restano sul dispositivo finché non la riapri
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-muted-foreground shrink-0">•</span>
+              <span>
+                Senza rete l&apos;app te lo dice con un avviso e <strong>non salva</strong>: le
+                pagine non restano in memoria di proposito, per non mostrarti turni vecchi
+              </span>
+            </li>
+          </ul>
+        </div>
 
         <p className="text-center text-xs text-muted-foreground">
           Questo sito è privato. Solo gli utenti autorizzati possono accedere.

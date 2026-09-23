@@ -33,15 +33,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     feedbackUnread = count ?? 0
   }
 
-  // Il fondo lo detta il token `--nav-space`, non un `4rem` scritto a mano: la
-  // barra iOS è alta 49pt e quella Android 80dp, quindi il contenuto deve chiedere
-  // alla piattaforma quanto spazio lasciare. Da M8 non è più solo l'altezza: sull'
+  // Lo spazio lo dettano i token, non un `4rem` scritto a mano: la barra iOS è
+  // alta 49pt e quella Android 80dp, quindi il contenuto deve chiedere alla
+  // piattaforma quanto spazio lasciare. Da M8 non è più solo l'altezza: sull'
   // iPhone la barra è un'ISOLA staccata dal bordo (8pt sopra, 8 sotto), quindi lo
   // spazio da lasciare è altezza + area sicura + i due distacchi. Sul desktop i
   // distacchi valgono zero e il token vale 64px, cioè esattamente il 4rem di
   // prima: lì non si sposta un pixel.
+  //
+  // M12f: da qui passa anche il LATO. `.shell-nav` legge `--nav-start` (zero con
+  // la barra in basso, la larghezza della rail quando la navigazione diventa una
+  // colonna a sinistra) senza sapere quale delle due sia: è la stessa proprietà
+  // di `--nav-space` in fondo, girata di novanta gradi. Le due aree laterali di
+  // M6 restano nel calcolo, perché in orizzontale coesistono con la colonna.
   return (
-    <div className="min-h-screen safe-area-pt safe-area-px pb-[var(--nav-space)]">
+    <div className="min-h-screen safe-area-pt shell-nav">
       {/* Un solo canale realtime per l'app: invalida le query anagrafiche
           (utenti, albero squadre, mesi tuoturno) sui cambi delle tabelle. */}
       <RealtimeInvalidation />
