@@ -834,4 +834,13 @@ card, `data-catena` sui gruppi. Prove: `tests/ferie-chip.spec.ts` (7 logica + 2 
 calcola dai dati in cache e VERIFICA la validità di ogni giro; su dev nessun DCO ha catene reali — il
 giro possibile passa da un Noni, invisibile in vista DCO — quindi l'E2E CREA le due richieste che
 chiudono la catena e le rimuove in finally).
-4c4586d (ferie: le chip «compatibili» e «a catena» mostrano in lista ciò che il dialog rivela solo pubblicando)
+• Ferie, chip attive anche SENZA richieste pubblicate (25/09/2026): chi non ha mai pubblicato non
+capriva di poter partecipare ai cambi. Ora le due chip usano come punto di vista il periodo ASSEGNATO
+(il box «Il tuo periodo {anno}») come IPOTESI — «se offrissi il tuo P6…»: richiesta sintetica
+{user_id, offered_period: mio, target_periods: tutti tranne il mio} passata allo STESSO
+`gruppiCompatibiliFerie`; un banner sotto le chip lo dice («Ipotesi: il tuo periodo assegnato (P6) —
+pubblica una richiesta per rendere lo scambio reale») e sparisce appena esistono richieste vere.
+Il cuore «Sono interessato» era già aperto a tutti: il percorso dalla scoperta all'azione c'è tutto.
+Le chip restano disabilitate SOLO se non c'è né richiesta né assegnazione. E2E: Piscopo (assegnato P5,
+zero richieste 2027) vede il banner, chip attive, dirette combacianti coi dati.
+

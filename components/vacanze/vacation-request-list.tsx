@@ -12,6 +12,10 @@ import { useCurrentUser } from '@/hooks/use-current-user'
 import { isManager } from '@/types/database'
 import { cn } from '@/lib/utils'
 import type { VacationPeriod } from '@/types/database'
+import type { RichiestaPropria } from '@/lib/vacation-compat-dashboard'
+
+/** Alias locale: il punto di vista è una richiesta propria (vera o ipotetica). */
+type VacationRequestItemPropsLike = RichiestaPropria
 
 interface Props {
   isSecondary: boolean
@@ -42,13 +46,31 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
 
   // Le MIE richieste ferie nell'anno visto: sono il punto di vista del filtro.
   const propri = useMemo(() => requests.filter(r => r.user_id === effectiveUserId), [requests, effectiveUserId])
-  const miaRappresentativa = propri[0] ?? null
+
+  // SENZA richieste pubblicate le chip restano ATTIVE (richiesta 25/09/2026):
+  // usano il periodo ASSEGNATO («Il tuo periodo 2027») come IPOTESI — «se
+  // offrissi il tuo P6…» — così anche chi non ha ancora pubblicato capisce da
+  // cosa potrebbe partire. Un banner lo dice esplicitamente.
+  const ipotesi = propri.length === 0 && myPeriodThisYear !== null
+  const puntoDiVista = useMemo<VacationRequestItemPropsLike[]>(() => {
+    if (propri.length > 0) return propri
+    if (ipotesi && myPeriodThisYear !== null) {
+      return [{
+        user_id: effectiveUserId,
+        offered_period: myPeriodThisYear,
+        // TUTTI i periodi tranne il proprio: chi cerca «qualsiasi periodo»
+        // (5 target) accetta anche il mio; il MIO periodo non lo cerco.
+        target_periods: ([1, 2, 3, 4, 5, 6] as VacationPeriod[]).filter(p => p !== myPeriodThisYear),
+      }]
+    }
+    return []
+  }, [propri, ipotesi, myPeriodThisYear, effectiveUserId])
 
   // Stesso motore del dialog di pubblicazione (findCompatibleVacationRequests
   // + findVacationChains): lista e dialog non possono contraddirsi.
   const compat = useMemo(
-    () => gruppiCompatibiliFerie(requests, propri),
-    [requests, propri],
+    () => gruppiCompatibiliFerie(requests, puntoDiVista),
+    [requests, puntoDiVista],
   )
 
   const filtered = useMemo(() => {
@@ -57,6 +79,10 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
     if (!isManagerView && filtroMio === 'catene') return compat.catene.flatMap(c => c.requests)
     return requests
   }, [requests, isManagerView, compatibleOnly, filtroMio, compat])
+
+  // Le chip personali si toccano SOLO se c'è un punto di vista: richieste
+  // pubblicate OPPURE periodo assegnato (modalità ipotesi).
+  const possoFiltrare = propri.length > 0 || ipotesi
 
   // Conteggi per i contatori sulle chip dei filtri
   const chipCounts = useMemo(() => ({
@@ -112,30 +138,36 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
               </FilterChip>
             </div>
           ) : (
-            <div className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar">
-              <FilterChip
-                disabled={!miaRappresentativa}
-                title={miaRappresentativa ? undefined : 'Pubblica una tua richiesta per vedere le compatibilità'}
-                onClick={() => setFiltroMio(f => (f === 'dirette' ? null : 'dirette'))}
-                selected={filtroMio === 'dirette'}
-                dashed={filtroMio !== 'dirette'}
-                className={!miaRappresentativa ? 'opacity-50 cursor-not-allowed' : undefined}
-                count={chipCounts.mieDirette}
-              >
-                Compatibili
-              </FilterChip>
-              <FilterChip
-                disabled={!miaRappresentativa}
-                title={miaRappresentativa ? undefined : 'Pubblica una tua richiesta per vedere le catene'}
-                onClick={() => setFiltroMio(f => (f === 'catene' ? null : 'catene'))}
-                selected={filtroMio === 'catene'}
-                dashed={filtroMio !== 'catene'}
-                className={!miaRappresentativa ? 'opacity-50 cursor-not-allowed' : undefined}
-                count={chipCounts.mieCatene}
-              >
-                ⛓ A catena
-              </FilterChip>
-            </div>
+            <>
+              {ipotesi && (
+                <p className="mb-2 px-1 text-[11px] leading-snug text-muted-foreground">
+                  Ipotesi: il tuo periodo assegnato ({myPeriodThisYear ? `P${myPeriodThisYear}` : '—'}) —
+                  {' '}pubblica una richiesta per rendere lo scambio reale.
+                </p>
+              )}
+              <div className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar">
+                <FilterChip
+                  disabled={!possoFiltrare}
+                  onClick={() => setFiltroMio(f => (f === 'dirette' ? null : 'dirette'))}
+                  selected={filtroMio === 'dirette'}
+                  dashed={filtroMio !== 'dirette'}
+                  className={!possoFiltrare ? 'opacity-50 cursor-not-allowed' : undefined}
+                  count={chipCounts.mieDirette}
+                >
+                  Compatibili
+                </FilterChip>
+                <FilterChip
+                  disabled={!possoFiltrare}
+                  onClick={() => setFiltroMio(f => (f === 'catene' ? null : 'catene'))}
+                  selected={filtroMio === 'catene'}
+                  dashed={filtroMio !== 'catene'}
+                  className={!possoFiltrare ? 'opacity-50 cursor-not-allowed' : undefined}
+                  count={chipCounts.mieCatene}
+                >
+                  ⛓ A catena
+                </FilterChip>
+              </div>
+            </>
           )}
 
           {/* Catene attive: un gruppo PER catena, con il giro nell'intestazione
