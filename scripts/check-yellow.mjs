@@ -49,11 +49,12 @@ try {
     .replaceAll('@/lib/turni-teorici', './turni-teorici.js')
     .replaceAll('@/lib/shift-tokens', './shift-tokens.js')
     .replaceAll('@/types/database', './types-stub.js'))
-  // sala-month → tutti i sopra.
+  // sala-month → tutti i sopra (+ altri-gruppi, import aggiunto a sala-month).
   put('sala-month.js', transpile(readFileSync('lib/sala-month.ts', 'utf8'))
     .replaceAll('@/lib/shift-tokens', './shift-tokens.js')
     .replaceAll('@/lib/utils', './utils.js')
     .replaceAll('@/lib/person-shift', './person-shift.js')
+    .replaceAll('@/lib/altri-gruppi', './altri-gruppi.js')
     .replaceAll('@/lib/shift-teams-matching', './shift-teams-matching.js')
     .replaceAll('@/types/database', './types-stub.js'))
 

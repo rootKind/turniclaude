@@ -2933,3 +2933,37 @@ Stato (26/09/2026, tarda sera): le tre funzioni sono **su disco, non committate*
 `supabase/migrations/034_notify_vacation_filter.sql` (applicata su dev, NON su produzione) e i tre
 spec nuovi. La colonna su PRODUZIONE va aggiunta prima che il toggle funzioni lì:
 `node scripts/apply-release-migrations.mjs --prod --from 034 --to 034 --apply`.
+
+---
+
+## FIX PARSER v9 + picker mese (24/09/2026) — gialle ereditate dalla riga sbagliata
+
+**Il bug (ottobre 2026, PDF del 23/9):** CIPOLLETTA risultava gialla nei giorni
+[2,7,11,27,28,29] di MININO. Causa GEOMETRICA, non di classificazione: il PDF disegna ALCUNE
+celle gialle in DUE rettangoli impilati (metà alta h≈7.3 + metà bassa h≈7.7, cella intera ≈17.5);
+il centro della metà bassa (cy=270.8) cadeva a **5.2px** dalla riga della persona ADIACENTE
+(Cipolletta @276) dentro la vecchia tolleranza «centro ±6px» di `yellowDaysAtRow` → doppia
+assegnazione. Colpiti anche (verificato col diff su tutti i PDF d'esempio): ROMANO R. g2,
+DI NAPOLI A. g4-6-11, SMERAGLIUOLO g10-18-19 a ottobre; a marzo 11 righe (CAVANNA g11 era di
+IORIO, PISCOPO g15 di VOLPE, FERRIERO g29 di una riga-mod…).
+
+**La cura (in `lib/pdf-parser.ts`, due pezzi):** (1) `mergeStackedYellowCells` fonde i pezzi
+impilati (stessa x/larghezza ±2px, giunto ≤3px) SOLO quando sono mezze celle (h≤10.5): le celle
+interediacenti (h≈17.5, si toccano di ~1px fra righe, es. giorni 30-31) NON si fondono, altrimenti
+una persona perderebbe il giorno; (2) `rowOwnsYellowCell` assegna la cella per SOVRAPPOSIZIONE DI
+BANDA: la riga possiede [y−7.7, y+7.7] e vince quella coperta di più (min 4px). Sulla cella fusa
+di Minino (259.6→274.5) la sua banda è coperta 10.1px contro 5.5 di quella di Cipolletta → vince
+lui. Le righe in contesa sono TUTTE le righe del gruppo (persone + righe-mod).
+
+**Prove:** `scripts/confronta-gialli-v9.mjs` (v8 vs v9 su tutti i 18 PDF d'esempio: ZERO aggiunte,
+solo rimozioni dei falsi positivi); `scripts/verifica-parse-ottobre.mjs` (vero `parsePdfSchedule`
+sull'ottobre reale: Cipolletta=[30], Minino=[2,7,11,27,28,29], codici invariati — PASS).
+`scripts/check-yellow.mjs` (contratto v8) resta verde.
+
+**Picker mese di /turnisala (stesso giorno):** la tendina «Scegli mese» scriveva il `value` dal
+mese della BOARD (`cm-1`) invece che dal mese sfogliato (`pickerMonth`): scegliendo «Ottobre» da
+settembre la griglia passava a ottobre (i giorni cliccati portavano al mese giusto) ma la tendina
+tornava su «Settembre». Ora value = `pickerMonth.getMonth()` e alla riapertura il calendario
+riparte dal mese della board (trigger rimonta il reset esistente su `currentMonth`). Spec di
+regressione: `tests/sala-picker-mese.spec.ts` (usa le fixture del progetto, NON `@playwright/test`
+diretto: senza `browserPronto` il changelog copre la pagina e i click restano appesi).

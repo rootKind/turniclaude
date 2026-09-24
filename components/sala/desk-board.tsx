@@ -1110,7 +1110,14 @@ export function DeskBoard({
         <div className="flex items-center flex-wrap gap-1 sala-toolbar-bg border desk-schedule-border rounded-xl px-3 py-2 mr-14">
           <div className="relative">
             <button
-              onClick={() => setShowDayPicker(v => !v)}
+              onClick={() => {
+                // Alla (ri)apertura il calendario riparte dal mese della board
+                // (fix 24/09/2026): sfogliare mesi senza scegliere un giorno non
+                // deve lasciare la griglia su un mese diverso da quello che il
+                // trigger mostra.
+                if (!showDayPicker) setPickerMonth(new Date(cy, cm - 1))
+                setShowDayPicker(!showDayPicker)
+              }}
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none sala-toolbar-nav-bg sala-toolbar-nav-text"
             >
               {/* STILE OMogeneo (richiesta 12/09/2026): font, misura e colore
@@ -1140,11 +1147,15 @@ export function DeskBoard({
                   <div className="flex gap-1.5 p-2 border-b border-border bg-muted/40">
                     {/* FIX off-by-one (21/09/2026): la tendina scriveva il value
                         1-based dentro new Date(y, month, 1) che attende l'indice
-                        0-based → selezionando «Settembre» compariva Ottobre.
-                        Ora le option portano l'indice 0-based come value e
-                        currentMonth guida direttamente il value del select. */}
+                        0-based → selezionando «Settembre» comparava Ottobre.
+                        Ora le option portano l'indice 0-based come value.
+                        FIX 24/09/2026: il value segue IL MESE SFogliato
+                        (pickerMonth), non il mese della board: prima, scelto
+                        «Ottobre» da Settembre, la tendina tornava su
+                        «Settembre» (value={cm - 1}) anche se la griglia sotto
+                        mostrava già i giorni di Ottobre. */}
                     <select
-                      value={cm - 1}
+                      value={pickerMonth.getMonth()}
                       onChange={e => setPickerMonth(new Date(pickerMonth.getFullYear(), Number(e.target.value), 1))}
                       className="cal-monthsel flex-1 rounded-lg border border-border bg-card px-2 py-1 text-xs font-semibold"
                       aria-label="Scegli mese"
