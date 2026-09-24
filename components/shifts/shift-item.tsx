@@ -63,20 +63,12 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
     return () => clearTimeout(t)
   }, [isHighlighted])
 
-  /* DISPONIBILI «D» (richiesta 25/09/2026): accanto al cuore, «D: N» = quanti
+  /* DISPONIBILI «D» (richiesta 25/09/2026): «DISP: N» sotto la DATA, nella
+     colonna sinistra (richiesta 25/09, spostato dal fianco del cuore) = quanti
      dipendenti dei gruppi contati (noni/terza/seconda/scorte, senza Maternità
      né RIC/ASTER né chi è fuori squadra) hanno il turno D nel giorno del cambio.
-     Scope del viewer (vedi use-disponibili). */
-  const disponibiliBadge = typeof disponibiliCount === 'number'
-    ? (
-      <span
-        className="text-[11px] font-semibold tabular-nums text-muted-foreground"
-        title="Disponibili (turno D) nel giorno del cambio"
-      >
-        D: {disponibiliCount}
-      </span>
-    )
-    : null
+     Scope del viewer (vedi use-disponibili). È un dato del GIORNO: si mostra
+     solo sulla prima card del giorno, non sui cambi successivi («2°», «3°»…). */
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
 
@@ -442,7 +434,12 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
           disabled={verificando}
           aria-busy={verificando}
           aria-label={`Vedi in sala: turno ${shift.offered_shift} del ${day} ${month} di ${displayName}`}
-          className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3 cursor-pointer',
+          className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center cursor-pointer',
+            // (25/09/2026) Con «DISP: N» sotto il mese la data si ALZA un po'
+            // (justify-start + padding minore): il numero del giorno resta
+            // l'ancora visiva, il DISP sta sotto senza spingere il centro giù.
+            // I cambi successivi dello stesso giorno («2°») restano centrati.
+            dateIndex > 0 ? 'justify-center py-3' : 'justify-start py-2',
             verificando && 'opacity-60', dateBgClass,
             // A riposo (25/08/2026) niente separatore nella colonna data: il gruppo di card
             // dello stesso giorno è un blocco unico, nessuna linea identifica la parte compressa.
@@ -458,6 +455,15 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                 {day}
               </span>
               <span className="text-[9px] uppercase tracking-wide text-muted-foreground mt-0.5">{month}</span>
+              {typeof disponibiliCount === 'number' && (
+                // DISP: N — piccolo, sotto la data (richiesta 25/09/2026).
+                <span
+                  className="text-[8px] font-semibold uppercase tracking-wide text-muted-foreground/80 mt-1 tabular-nums"
+                  title="Disponibili (turno D) nel giorno del cambio"
+                >
+                  DISP: {disponibiliCount}
+                </span>
+              )}
             </>
           )}
         </button>
@@ -516,26 +522,21 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                     {shift.shift_interested_users!.length}
                   </span>
                 )}
-                {disponibiliBadge}
               </div>
             ) : isOwn ? (
-              <span className={cn('flex items-center gap-1', hasInterest ? 'text-interest-date' : 'text-muted-foreground')}>
+              <span className={hasInterest ? 'text-interest-date' : 'text-muted-foreground'}>
                 {hasInterest ? `${shift.shift_interested_users!.length} ❤️` : '0 ♡'}
-                {disponibiliBadge}
               </span>
             ) : (
-<span className="flex items-center gap-1 leading-none">
-                <button
-                  className={cn('touch-y inline-block leading-none', isInterested ? 'text-interest-date' : 'text-muted-foreground')}
-                  onClick={handleInterestToggle}
-                  aria-label={isInterested ? 'Rimuovi interesse' : 'Sono interessato'}
-                >
-                  {(shift.shift_interested_users?.length ?? 0) > 0
-                    ? `${shift.shift_interested_users!.filter(i => i.user_id !== currentUserId).length + (isInterested ? 1 : 0)} ${isInterested ? '❤️' : '♡'}`
-                    : `0 ${isInterested ? '❤️' : '♡'}`}
-                </button>
-                {disponibiliBadge}
-              </span>
+<button
+                className={cn('touch-y inline-block leading-none', isInterested ? 'text-interest-date' : 'text-muted-foreground')}
+                onClick={handleInterestToggle}
+                aria-label={isInterested ? 'Rimuovi interesse' : 'Sono interessato'}
+              >
+                {(shift.shift_interested_users?.length ?? 0) > 0
+                  ? `${shift.shift_interested_users!.filter(i => i.user_id !== currentUserId).length + (isInterested ? 1 : 0)} ${isInterested ? '❤️' : '♡'}`
+                  : `0 ${isInterested ? '❤️' : '♡'}`}
+              </button>
             )}
           </div>
         </div>
