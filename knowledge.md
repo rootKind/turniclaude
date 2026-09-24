@@ -769,3 +769,21 @@ casella» fanno esattamente ciò che l'utente chiedeva («una sezione fra due me
 in meno da x a y»): si apre dal NOME della sezione nel pannello minimi → casella M/P/N →
 «+ periodo» con data+turno di inizio e fine (fine INCLUSA), attraversa i mesi, e vince sul
 valore generale. Aggiunta l'istruzione nell'intestazione del pannello.
+
+**DISPONIBILI «D» (25/09/2026):** il token D dei PDF (e dei pattern teorici: Squadra C, squadre
+in seconda…) indica i dipendenti a disposizione. CONTATI: Noni (per PROFILO is_secondary, fuori
+dall'albero), terza (A–D), seconda (arancione/verde/rosa), scorte rilievo e semplici. ESCLUSI:
+Maternità (regola di compare-groups), RIC/ASTER, chi non ha squadra. `lib/disponibili.ts` con
+`nomeCoincide` (confronto a TOKEN: il PDF scrive «ROSSI», «ROSSI M.» o «ROSSI MARIO» per il
+membro «ROSSI MARIO»; gli altri matcher dell'app non coprono full↔full) e scope tutti/dco/noni.
+Scope dei BADGE segue il VIEWER: vista DCO → 'dco' (senza noni), vista Noni → 'noni' (SOLO noni:
+le squadre non contano in quella vista — bug trovato dai test), manager → 'tutti'.
+  • Board /turnisala: sottogruppo «Disponibili:» nella riga altri-presenti (stessa tinta), fuori
+dalle sezioni; i gialli restano esclusi come dagli altri gruppi. Attenzione: `applyTokenToDay`
+SCARTA il token D (né sezione né altro-presente) → nei mesi teorici il conteggio NON può
+leggere lo schedule espanso: usa `conteggioDisponibiliTeorico` (tokenForMember per membro).
+  • Dashboard cambi: «D: N» accanto al cuore interessati (tutte e tre le varianti manager/own/
+gli-altri), alimentato da `hooks/use-disponibili.ts` (select leggera sala_schedule month+schedule,
+cache 6h; mesi senza PDF → teorico). NONI: teorico sempre 0 (non sono nell'albero).
+Prove: `tests/disponibili.spec.ts` (logica, 10) e `tests/sala-disponibili.spec.ts` (board su
+dati reali: ottobre ha 20 persone con D, settembre 1).

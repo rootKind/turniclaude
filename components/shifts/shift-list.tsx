@@ -7,6 +7,7 @@ import { useCurrentUser } from '@/hooks/use-current-user'
 import { useAppSettings } from '@/hooks/use-app-settings'
 import { isDcoPlus as isProfileDcoPlus, isManager } from '@/types/database'
 import { ShiftItem } from './shift-item'
+import { useDisponibiliCount } from '@/hooks/use-disponibili'
 import { EditShiftDialog } from './edit-shift-dialog'
 import { FilterChip } from '@/components/ui/filter-chip'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -121,6 +122,10 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
   }, [baseShifts, isDcoPlus, isOwnOrNoniShift, isMineShift])
   const duplicateCognomi = useDuplicateCognomi(isSecondary, isDcoPlus)
   const showChipBar = months.length > 1 || hasOwnShifts
+  // DISPONIBILI «D» (richiesta 25/09/2026): conteggio per data, scope in base
+  // al viewer (DCO → senza noni; Noni → solo noni; manager → tutti). Una sola
+  // lettura dati condivisa per tutte le card.
+  const disponibiliCount = useDisponibiliCount()
 
   // Show all shifts so the highlighted one is visible
   useEffect(() => {
@@ -296,6 +301,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
                     isHighlighted={highlightShiftId === shift.id}
                     duplicateCognomi={duplicateCognomi}
                     isManagerView={isManagerView}
+                    disponibiliCount={disponibiliCount(`${shift.shift_date}T00:00:00`)}
                   />
                 </motion.div>
               )

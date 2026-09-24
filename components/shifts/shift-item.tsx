@@ -33,9 +33,13 @@ interface Props {
   isHighlighted?: boolean
   duplicateCognomi?: Set<string>
   isManagerView?: boolean
+  /** DISPONIBILI «D» (richiesta 25/09/2026): quanti dipendenti dei gruppi
+   *  contati hanno il turno D nel giorno del cambio (scope del viewer:
+   *  DCO senza noni, noni solo noni, manager tutti). */
+  disponibiliCount?: number
 }
 
-export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isDcoPlus = false, isSameDateAsPrevious = false, isSameDateAsNext = false, dateIndex = 0, onEdit, isHighlighted = false, duplicateCognomi, isManagerView = false }: Props) {
+export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, isDcoPlus = false, isSameDateAsPrevious = false, isSameDateAsNext = false, dateIndex = 0, onEdit, isHighlighted = false, duplicateCognomi, isManagerView = false, disponibiliCount }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showRing, setShowRing] = useState(isHighlighted)
@@ -58,6 +62,21 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
     const t = setTimeout(() => setShowRing(false), 3000)
     return () => clearTimeout(t)
   }, [isHighlighted])
+
+  /* DISPONIBILI «D» (richiesta 25/09/2026): accanto al cuore, «D: N» = quanti
+     dipendenti dei gruppi contati (noni/terza/seconda/scorte, senza Maternità
+     né RIC/ASTER né chi è fuori squadra) hanno il turno D nel giorno del cambio.
+     Scope del viewer (vedi use-disponibili). */
+  const disponibiliBadge = typeof disponibiliCount === 'number'
+    ? (
+      <span
+        className="text-[11px] font-semibold tabular-nums text-muted-foreground"
+        title="Disponibili (turno D) nel giorno del cambio"
+      >
+        D: {disponibiliCount}
+      </span>
+    )
+    : null
   const queryClient = useQueryClient()
   const { profile } = useCurrentUser()
 
@@ -497,21 +516,26 @@ export function ShiftItem({ shift, currentUserId, loggedInUserId, isSecondary, i
                     {shift.shift_interested_users!.length}
                   </span>
                 )}
+                {disponibiliBadge}
               </div>
             ) : isOwn ? (
-              <span className={hasInterest ? 'text-interest-date' : 'text-muted-foreground'}>
+              <span className={cn('flex items-center gap-1', hasInterest ? 'text-interest-date' : 'text-muted-foreground')}>
                 {hasInterest ? `${shift.shift_interested_users!.length} ❤️` : '0 ♡'}
+                {disponibiliBadge}
               </span>
             ) : (
-              <button
-                className={cn('touch-y inline-block leading-none', isInterested ? 'text-interest-date' : 'text-muted-foreground')}
-                onClick={handleInterestToggle}
-                aria-label={isInterested ? 'Rimuovi interesse' : 'Sono interessato'}
-              >
-                {(shift.shift_interested_users?.length ?? 0) > 0
-                  ? `${shift.shift_interested_users!.filter(i => i.user_id !== currentUserId).length + (isInterested ? 1 : 0)} ${isInterested ? '❤️' : '♡'}`
-                  : `0 ${isInterested ? '❤️' : '♡'}`}
-              </button>
+<span className="flex items-center gap-1 leading-none">
+                <button
+                  className={cn('touch-y inline-block leading-none', isInterested ? 'text-interest-date' : 'text-muted-foreground')}
+                  onClick={handleInterestToggle}
+                  aria-label={isInterested ? 'Rimuovi interesse' : 'Sono interessato'}
+                >
+                  {(shift.shift_interested_users?.length ?? 0) > 0
+                    ? `${shift.shift_interested_users!.filter(i => i.user_id !== currentUserId).length + (isInterested ? 1 : 0)} ${isInterested ? '❤️' : '♡'}`
+                    : `0 ${isInterested ? '❤️' : '♡'}`}
+                </button>
+                {disponibiliBadge}
+              </span>
             )}
           </div>
         </div>

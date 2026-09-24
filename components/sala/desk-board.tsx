@@ -8,6 +8,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { toast } from 'sonner'
 import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaMinimoEntry, SalaSchedule, SalaShiftType, ShiftTeamTree } from '@/types/database'
 import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
+import { disponibiliDelGiorno, DISPONIBILI_LABEL, DISPONIBILI_COLOR_CLASS } from '@/lib/disponibili'
 import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
@@ -983,6 +984,27 @@ export function DeskBoard({
     [altriGruppi, isFlashGroupName],
   )
 
+  // DISPONIBILI «D» (richiesta 25/09/2026): sottogruppo dei presenti FUORI sezione
+  // con turno D nel PDF (o nel teorico), contato SOLO su noni + terza + seconda +
+  // scorte (rilievo e semplici) — fuori: nessuna squadra, Maternità, RIC/ASTER.
+  // I gialli restano esclusi come dagli altri gruppi (rappresentati dalla chip).
+  const disponibili = useMemo(() => {
+    if (isEditing || !schedule?.data || !shiftTree) return null
+    const people = decodeSalaMonth(schedule.data)
+    const res = disponibiliDelGiorno(people, selectedDay, shiftTree, usersForNames, 'tutti')
+    const nomi = res.nomi.filter(n => !yellowPeople.has(normName(n)) || isFlashGroupName(n))
+    if (!nomi.length) return null
+    return {
+      key: 'altro' as const,
+      label: DISPONIBILI_LABEL,
+      entries: nomi.map(name => ({
+        name,
+        code: people.find(p => p.name === name)?.days[selectedDay - 1]?.trim() ?? 'D',
+      })),
+      colorClass: DISPONIBILI_COLOR_CLASS,
+    } satisfies AltriGruppo
+  }, [schedule, selectedDay, isEditing, shiftTree, usersForNames, duplicateCognomi, bareOwners, yellowPeople, isFlashGroupName])
+
   // Build grid: rows 1-4, cols left/center/right
   const usedRows: number[] = isEditing
     ? [1, 2, 3, 4, 5]
@@ -1423,7 +1445,7 @@ export function DeskBoard({
           (24/09). In vista teorico≠reale NIENTE riga «Nuovi» separata: la
           provenienza teorica «da <token>» va DIRETTAMENTE sulla pill del
           gruppo dei non-previsti (richiesta 24/09, niente ridondanza). */}
-      {(altriGruppi.length > 0 || assenti.size > 0) && (
+      {(altriGruppi.length > 0 || assenti.size > 0 || !!disponibili) && (
         <div className="flex flex-col gap-1 pt-1 border-t border-border/40">
           {altriGruppi.map(gruppo => (
             <div key={gruppo.key} className="flex flex-wrap items-center gap-1.5">
@@ -1455,6 +1477,32 @@ export function DeskBoard({
               })}
             </div>
           ))}
+          {/* DISPONIBILI (richiesta 25/09/2026): sottogruppo dei presenti
+              fuori sezione con turno D, SOLO tra i gruppi contati (noni +
+              terza + seconda + scorte rilievo/semplici). Stessa tinta delle
+              «Altre attività». */}
+          {disponibili && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-muted-foreground shrink-0">{disponibili.label}:</span>
+              {disponibili.entries.map((e, i) => {
+                const isMe = isOwn(e.name)
+                const flashPill = isFlashGroupName(e.name)
+                return (
+                  <span
+                    key={i}
+                    className={[
+                      'text-xs px-2 py-0.5 rounded-full',
+                      isMe ? 'desk-own-badge desk-own-badge-strong' : disponibili.colorClass,
+                      flashPill ? 'desk-card-flash' : '',
+                    ].filter(Boolean).join(' ')}
+                  >
+                    {displayForPdfName(e.name)}
+                    {e.code && <span className="tabular-nums font-semibold opacity-80"> {e.code}</span>}
+                  </span>
+                )
+              })}
+            </div>
+          )}
           {/* ASSENTI (24/09/2026): sottogruppo singolo che segue la CHIP del
               turno selezionata in testa alla board — mostra solo gli assenti
               (A/AG7/F.E./VS/RI/RC…) attribuiti a QUEL turno teorico (mai
