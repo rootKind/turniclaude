@@ -415,35 +415,45 @@ test.describe('minimi: periodi per casella', () => {
   })
 })
 
-test.describe('scoperto del giorno in corso: la NOTTE dopo le 21 è già un fatto (24/09/2026)', () => {
+test.describe('scoperto e turni FINITI: orari veri M 6–14, P 14–22, N 22–6 (correzione 25/09/2026)', () => {
   // La chip gialla «— scoperto» resta per il presente/futuro; quando il turno è
-  // già finito (o il giorno è passato) la board lo scrive a testo grigio. La
-  // scelta del ramo sta in `giornoPassato` di desk-board: qui si prova il pezzo
-  // di logica che decide, con l'orologio iniettato (deterministico).
+  // già finito (o il giorno è passato) la board lo scrive a testo grigio. Gli
+  // orari VERI (richiesta 25/09): la mattina 6–14, il pomeriggio 14–22 e la
+  // notte di data D corre dalle 22 di D−1 alle 6 DI D → la sua chip diventa
+  // grigia ALLE 6 di D, con l'inizio della mattina. Durante la notte in corso
+  // (fino alle 6) resta gialla: è ancora «adesso».
   const ore = (h: number) => new Date(2026, 8, 24, h, 0, 0) // 24/09/2026, ora locale
 
-  test('mattina e pomeriggio finiscono alle 7 e alle 14', () => {
+  test('mattina finita dalle 14 (quando parte il pomeriggio), pomeriggio dalle 22', () => {
     expect(turnoPassato('M', ore(6))).toBe(false)
-    expect(turnoPassato('M', ore(7))).toBe(true)
-    expect(turnoPassato('P', ore(13))).toBe(false)
-    expect(turnoPassato('P', ore(14))).toBe(true)
+    expect(turnoPassato('M', ore(13))).toBe(false)
+    expect(turnoPassato('M', ore(14))).toBe(true)
+    expect(turnoPassato('P', ore(14))).toBe(false)
+    expect(turnoPassato('P', ore(21))).toBe(false)
+    expect(turnoPassato('P', ore(22))).toBe(true)
   })
 
-  test('la notte del giorno in corso è passata dalle 21 (segnalazione: scoperto 5|N del 24/9 ancora giallo di sera)', () => {
-    expect(turnoPassato('N', ore(20))).toBe(false)
-    expect(turnoPassato('N', ore(21))).toBe(true)
+  test('la NOTTE di data D finisce alle 6 DI D: grigia da lì, gialla prima (era il bug del 24/9)', () => {
+    expect(turnoPassato('N', ore(5))).toBe(false)
+    expect(turnoPassato('N', ore(6))).toBe(true)
+    expect(turnoPassato('N', ore(9))).toBe(true)
+    expect(turnoPassato('N', ore(20))).toBe(true)
     expect(turnoPassato('N', ore(23))).toBe(true)
   })
 
-  test('il vincolo `giornoPassato` della board: il 23 è passato a qualsiasi ora, il 24 solo dopo il proprio turno', () => {
+  test('il vincolo `giornoPassato` della board: la notte di OGGI resta gialla finché è in corso (la sera prima, data di domani)', () => {
     const oggi = '2026-09-24'
     // Replica della condizione di desk-board (giornoPassato):
     const passato = (dayISO: string, shift: 'M' | 'P' | 'N', now: Date) =>
       dayISO < oggi || (dayISO === oggi && turnoPassato(shift, now))
-    expect(passato('2026-09-23', 'N', ore(8))).toBe(true)
-    expect(passato('2026-09-24', 'N', ore(20))).toBe(false)
-    expect(passato('2026-09-24', 'N', ore(21))).toBe(true)
+    // Alle 23 del 24 si guarda la notte del 25 (partita alle 22): in corso → gialla.
     expect(passato('2026-09-25', 'N', ore(23))).toBe(false)
+    // La notte DATATA 24 è finita alle 6 del 24: di pomeriggio è già un fatto.
+    expect(passato('2026-09-24', 'N', ore(20))).toBe(true)
+    // Ieri, a qualsiasi ora: grigia.
+    expect(passato('2026-09-23', 'N', ore(8))).toBe(true)
+    // Il pomeriggio di oggi alle 15 è finito alle 22: ancora giallo.
+    expect(passato('2026-09-24', 'P', ore(15))).toBe(false)
   })
 })
 

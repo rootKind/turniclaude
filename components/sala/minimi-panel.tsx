@@ -218,6 +218,14 @@ export function MinimiPanel({ cards, layout, dayISO, day, shift = 'M', reali, on
             Quante persone ogni card deve avere, per turno. Da questo giorno in poi la board
             segnala «scoperto» sulle card che restano sotto.
           </p>
+          {/* SCOPRIBILITÀ dei PERIODI (25/09/2026): la funzione esisteva dal 16/09 ma
+              era invisibile — l'admin chiedeva «minimi per intervallo di tempo» senza
+              trovarla. Si apre dal NOME della sezione: vale tra mesi qualsiasi. */}
+          <p className="text-[11px] text-muted-foreground/80 mt-0.5">
+            Per un INTERVALLO preciso (es. «dal 15/10 al 30/10 questa sezione ha una persona
+            in meno»), clicca il nome della sezione qui sotto e usa «+ periodo»: funziona
+            anche attraversando due mesi.
+          </p>
           {corrente.from
             ? <p className="text-[11px] text-muted-foreground/80 mt-0.5">
                 In vigore da {corrente.from}{corrente.fromShift && corrente.fromShift !== 'M' ? `, turno ${corrente.fromShift}` : ''}.
