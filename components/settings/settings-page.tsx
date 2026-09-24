@@ -156,13 +156,13 @@ export function SettingsPage() {
         )}
 
         {permission === 'default' && (
-          <Button variant="outline" onClick={requestAndSubscribe} className="w-full">
+          <Button variant="outline" onClick={() => requestAndSubscribe('settings')} className="w-full">
             Abilita notifiche push
           </Button>
         )}
 
         {permission === 'granted' && !isSubscribed && (
-          <Button variant="outline" onClick={requestAndSubscribe} className="w-full">
+          <Button variant="outline" onClick={() => requestAndSubscribe('settings')} className="w-full">
             Attiva notifiche push
           </Button>
         )}

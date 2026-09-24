@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, BarChart3, CalendarPlus, Heart, UserCheck, Users } from 'lucide-react'
+import { ArrowLeft, BarChart3, Bell, CalendarPlus, Heart, UserCheck, Users } from 'lucide-react'
 import type { AdminStats, StatsOverview, StatsShiftMode } from '@/app/api/admin/stats/route'
 import { cn } from '@/lib/utils'
 import { StatsActivityChart } from './stats-activity-chart'
@@ -66,6 +66,10 @@ export function StatsPage() {
         <>
           <OverviewCards overview={data.overview} days={days} />
 
+          {/* NOTIFICHE (richiesta 25/09/2026): quante attivazioni e da dove —
+              la schermata invasiva ('prompt') o le impostazioni ('settings'). */}
+          <PushStatsCard overview={data.overview} />
+
           <section className="rounded-xl border bg-card px-4 py-3">
             <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">Attività nel tempo</h2>
             <StatsActivityChart
@@ -111,6 +115,47 @@ function OverviewCards({ overview, days }: { overview: StatsOverview; days: numb
         </div>
       ))}
     </div>
+  )
+}
+
+/** La barra della schermata invasiva: attivazioni totali e spaccata per sorgente. */
+function PushStatsCard({ overview }: { overview: StatsOverview }) {
+  const total = overview.push_enabled ?? 0
+  const daSchermata = overview.push_enabled_prompt ?? 0
+  const daImpostazioni = overview.push_enabled_settings ?? 0
+  const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
+  return (
+    <section className="rounded-xl border bg-card px-4 py-3">
+      <h2 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-1.5">
+        <Bell size={12} aria-hidden="true" />
+        Notifiche attivate
+      </h2>
+      {total === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-2">
+          Nessuna attivazione nel periodo selezionato.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-2xl font-bold tabular-nums">{total.toLocaleString('it-IT')}</p>
+          <div className="flex h-3 rounded-full overflow-hidden bg-muted" role="img" aria-label={`Attivazioni: ${daSchermata} dalla schermata, ${daImpostazioni} dalle impostazioni`}>
+            <div
+              className="h-full bg-foreground transition-all"
+              style={{ width: `${pct(daSchermata)}%` }}
+              title={`Dalla schermata: ${daSchermata}`}
+            />
+            <div
+              className="h-full bg-muted-foreground/50 transition-all"
+              style={{ width: `${pct(daImpostazioni)}%` }}
+              title={`Dalle impostazioni: ${daImpostazioni}`}
+            />
+          </div>
+          <div className="flex justify-between text-[11px] text-muted-foreground">
+            <span>● {daSchermata.toLocaleString('it-IT')} dalla schermata ({pct(daSchermata)}%)</span>
+            <span>{daImpostazioni.toLocaleString('it-IT')} dalle impostazioni ({pct(daImpostazioni)}%) ●</span>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 

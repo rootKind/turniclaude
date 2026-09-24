@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Bell, BellOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { usePush } from '@/hooks/use-push'
 
 /**
  * PROMEMORIA PERMESSI DI NOTIFICA — VERSIONE MOLTO INVASIVA (25/09/2026).
@@ -37,6 +38,9 @@ const KEY_RIMANDO = 'push-reminder-snoozed-at'
 export function PushPermissionPrompt() {
   const [open, setOpen] = useState(false)
   const [denied, setDenied] = useState(false)
+  // «Attiva» passa dall'hook: oltre a chiedere il permesso fa la SUBSCRIPTION
+  // push e TRACCIA l'evento di attivazione (source 'prompt') per le statistiche.
+  const { requestAndSubscribe } = usePush()
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof Notification === 'undefined') return
@@ -98,7 +102,9 @@ export function PushPermissionPrompt() {
 
   const attiva = async () => {
     setOpen(false)
-    try { await Notification.requestPermission() } catch { /* l'utente ha chiuso */ }
+    // requestAndSubscribe('prompt'): permesso + subscription + evento
+    // 'push_enabled' con source 'prompt' (statistica della schermata).
+    await requestAndSubscribe('prompt')
   }
 
   if (!open) return null

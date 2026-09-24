@@ -9,6 +9,9 @@ export type StatsOverview = {
   access: number
   new_shift: number
   interest: number
+  push_enabled: number
+  push_enabled_prompt: number
+  push_enabled_settings: number
   shifts_total: number
 }
 
@@ -17,6 +20,7 @@ export type StatsActivityPoint = {
   access: number
   new_shift: number
   interest: number
+  push_enabled: number
 }
 
 export type StatsUser = {
@@ -29,7 +33,12 @@ export type StatsUser = {
   access: number
   new_shift: number
   interest: number
+  push_enabled: number
   last_access: string | null
+  /** LA DATA della prima iscrizione push (da push_subscriptions.created_at). */
+  push_first_subscribed_at: string | null
+  /** Quanti dispositivi push ha ora (0 = nessuna notifica arriverà). */
+  push_devices: number
   shifts: number
   mattina: number
   pomeriggio: number

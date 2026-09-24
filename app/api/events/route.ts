@@ -12,7 +12,9 @@ export async function POST(req: Request) {
   }
 
   const { event_type, metadata } = body as Record<string, unknown>
-  if (!event_type || !['access', 'new_shift', 'interest'].includes(event_type as string)) {
+  // 'push_enabled': attivazione notifiche (metadata.source = 'prompt'|'settings',
+  // richiesta 25/09/2026) — la statistica vive nelle admin stats (migration 035).
+  if (!event_type || !['access', 'new_shift', 'interest', 'push_enabled'].includes(event_type as string)) {
     return NextResponse.json({ error: 'Invalid event_type' }, { status: 400 })
   }
 
