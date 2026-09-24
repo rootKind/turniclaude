@@ -689,10 +689,33 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
 
 ## Stato attuale — azioni pendenti
 
-- **M9 è CHIUSA (23/09/2026)**; di M10 resta composito (angoli concentrici, chiusura su un iPhone
+- **M9 è CHIUSA (23/09/2026)**; di M10 resta composito (angoli concentrici, chiusa su un iPhone
   vero) e di M9 le deroghe dichiarate nel piano (vicino che si sposta, FAB menu a pila, scala tonale,
   increspatura su liste e card). Vedi `docs/piano-liquid-glass.md`, «M9 chiusa».
-- **M11 e M12 non sono cominciate**: PWA/chrome di sistema/offline, e adattività + accessibilità +
-  comodità d'uso.
 - Migration 034 `notify_vacation_filter` applicata su produzione (colonna presente e versione
   registrata in `schema_migrations`).
+
+## Verifica visiva duale (24/09/2026) — regole restanti
+
+- **L'AREA DI TOCCO si misura col `::after`**: il box visibile non basta — i `Button` di M6
+  rispondono su 44pt anche quando sono 22px alti, e una sonda che legga il solo `getBoundingClientRect`
+  segnala difetti inesistenti (e ne fa perdere di veri). La lettura giusta: `getComputedStyle(el,'::after')`,
+  area = max(box, after) per asse.
+- **`.touch-y` è la variante per i controlli AFFIANCATI** (segmented, stepper, ♡ nelle righe):
+  espansione solo verticale fino a `--touch-min`, mai in larghezza — allargarsi lateralmente ruberebbe
+  il tocco al vicino, stessa ragione di `.touch-dense`. Se una riga resta «stretta» in una dimensione
+  è una scelta, non un dimenticato: controllare il vicino prima di «sistemare».
+- **Un testo di STATO non va in `truncate`**: su 393px le due righe dell'offline-bar competevano col
+  bottone «Riprova» e l'ellipsis tagliava il senso («finché non t…»). L'ellipsis è per le etichette
+  a riga sola; un messaggio va a capo (banner da 71→89px, overflow resta 0).
+- **Il confronto visivo fra due run è affidabile SOLO a dati fermi**: fra 23:00 e 01:00 la dashboard
+  cambia giorno (e i turni pubblicati cambiano le liste) — il pixel-diff segnalava 20–30% su pagine
+  identiche al 100% ricatturate dopo. Prima di attribuire una differenza al codice, ricatturare:
+  se il diff crolla a 0, era il mondo, non il CSS.
+- **Le basi `toHaveScreenshot` guardano il GUSCIO, non i dati**: l'elenco turni della dashboard è
+  dato (cambia ogni giorno e col numero di righe cambia l'altezza pagina) — si fotografa la testata
+  (clip 140px) o si mascherano le voci. E lo scroll torna a zero PRIMA della fotografia: il reload
+  può ripristinare posizione diverse e far sembrare shiftata tutta la pagina.
+- La suite visiva è `tests/visivi.spec.ts` (5 scenari × ios/android × chiaro/scuro, basi committate);
+  si rigenera con `--update-snapshots`. Gli harness della verifica (matrice, diff, area di tocco)
+  vivono in `tests/.probe-*` (git-ignored) — `node tests/.probe-matrici.mjs <url> <tag> [profilo]`.
