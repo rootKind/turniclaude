@@ -103,7 +103,13 @@ export function SettingsPage() {
           ogni pagina. Il gradino vale per tutta l'app e resta sul dispositivo. */}
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Testo</h2>
-        <div className="flex items-center justify-between">
+        {/* MIN-W-0 sulla riga e WRAP sul gruppo (richiesta 26/09/2026): con la
+            scala «Massimo» (html al 125%) i quattro gradini superano i 372px
+            utili e, senza wrap, la riga flex spingeva il gruppo FUORI dallo
+            schermo (misurato: +40px di overflow). Il gruppo scende sotto la
+            scritta e resta intero; `min-w-0` serve perché una riga flex ha
+            `min-width:auto` e si rifiuterebbe di accorciarsi. */}
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <Label>Dimensione</Label>
           <div
             className="flex items-center rounded-full border p-1 gap-0.5"
