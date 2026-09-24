@@ -3077,18 +3077,17 @@ In 'denied' niente CTA (requestPermission non riapre nulla): istruzioni browser 
 Prove: `tests/push-prompt-invasivo.spec.ts` (3: copertura+testi, snooze→conto→ritorno al capolinea,
 conto attivo sopravvive al reload; per liberare la schermata serve un addInitScript di PAGINA perché
 quello di contesto riscrive lo snooze a ogni load).
-
-• Promemoria notifiche MOLTO INVASIVO (25/09/2026, su richiesta esplicita): PushPermissionPrompt da
-modal-dialog a SCHERMATA INTERA (`fixed inset-0 z-[100]`, role=dialog aria-modal): compare a OGNI
-avvio se il permesso non è 'granted' (tolto lo snooze di 7 giorni per 'denied'), campana animata
-(animate-bounce; BellOff fermo se bloccata), testo «Ti stai perdendo i cambi di turno» con la
-rassicurazione richiesta (ogni tipologia — nuovi turni, interessi, ferie, «novità, aggiornamenti e
-informazioni di sistema» — è un interruttore separato in Impostazioni→Notifiche). «Continua senza
-notifiche (te lo ricordiamo tra 10 minuti)» NON è un'esenzione: scrive `push-reminder-snoozed-at` e un
-interval di 15 s riapre la schermata al capolinea; `push-reminder-dismissed` resta come USCITA RAPIDA
-per i TEST (browser-setup la scrive: con «ogni avvio» non bastava più lo snooze, ora è un no vero).
-In 'denied' niente CTA (requestPermission non riapre nulla): istruzioni browser + link impostazioni.
-Prove: `tests/push-prompt-invasivo.spec.ts` (3: copertura+testi, snooze→conto→ritorno al capolinea,
-conto attivo sopravvive al reload; per liberare la schermata serve un addInitScript di PAGINA perché
-quello di contesto riscrive lo snooze a ogni load).
-
+• Statistiche notifiche (25/09/2026): l'attivazione push viene TRACCIATA — evento `push_enabled` in
+app_events (metadata.source: 'prompt' = schermata invasiva, 'settings' = pagina impostazioni) scritto
+da `hooks/use-push.ts` SOLO se la subscription è riuscita davvero (`subscribe` ora ritorna boolean;
+`requestAndSubscribe(source)`). La schermata invasiva usa `requestAndSubscribe('prompt')` invece del
+`Notification.requestPermission()` diretto (prima l'attivazione non sarebbe stata né tracciata né
+guidata alla subscription). Migration **035** (dev + prod): CHECK di app_events allargato (idempotente)
+e `get_admin_stats` ricreata con blocco overview.push_enabled{,_prompt,_settings}, activity.push_enabled
+e — nel blocco users — `push_first_subscribed_at` (MIN(push_subscriptions.created_at): la DATA VERA
+della prima iscrizione, storia anteriore all'evento) + `push_devices`. UI stats: card «Notifiche
+attivate» (totale + barra spaccata per sorgente) e colonna «Notifiche dal» nella classifica utenti
+con dettaglio nell'espansione. ATTENZIONE: `/api/events` ha la SUA allowlist oltre al CHECK del DB —
+aggiungere il tipo in una sola delle due non basta (l'E2E l'ha beccato: 400 senza il tipo nella route).
+Prove: `tests/push-stats.spec.ts` (2: evento+check+rifiuto sconosciuti; stats con date vere dei
+dispositivi storici).

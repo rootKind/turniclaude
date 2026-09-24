@@ -3,6 +3,24 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
+/**
+ * DA DOVE arriva l'attivazione (richiesta 25/09/2026): la schermata invasiva
+ * del promemoria ('prompt') o la pagina impostazioni ('settings'). Finisce in
+ * app_events come event_type 'push_enabled' e si legge nelle statistiche admin.
+ */
+export type PushSource = 'prompt' | 'settings'
+
+/** Evento di attivazione: best effort, non deve mai bloccare il flusso. */
+async function tracciaAttivazione(source: PushSource) {
+  try {
+    await fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: 'push_enabled', metadata: { source } }),
+    })
+  } catch { /* statistica persa: pazienza, non è critica */ }
+}
+
 export function usePush() {
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [isSubscribed, setIsSubscribed] = useState(false)
@@ -54,7 +72,8 @@ export function usePush() {
     }
   }, [checkSubscription])
 
-  async function subscribe() {
+  /** true se la subscription è stata salvata (serve alla statistica). */
+  async function subscribe(): Promise<boolean> {
     try {
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
       if (!vapidKey) throw new Error('VAPID key non configurata')
@@ -65,7 +84,7 @@ export function usePush() {
       })
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) return false
       const res = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,14 +98,16 @@ export function usePush() {
       if (!res.ok) throw new Error(`Subscribe API failed: ${res.status}`)
       setIsSubscribed(true)
       toast.success('Notifiche attivate')
+      return true
     } catch (err) {
       console.error('[push] subscribe error:', err)
       const msg = err instanceof Error ? err.message : String(err)
       toast.error(`Errore notifiche: ${msg}`)
+      return false
     }
   }
 
-  async function requestAndSubscribe() {
+  async function requestAndSubscribe(source: PushSource = 'settings') {
     if (typeof Notification === 'undefined') {
       toast.error('Le notifiche non sono supportate su questo dispositivo')
       return
@@ -95,8 +116,11 @@ export function usePush() {
       const result = await Notification.requestPermission()
       setPermission(result)
       if (result === 'granted') {
-        await subscribe()
+        const ok = await subscribe()
         await checkSubscription()
+        // Statistica SOLO se la subscription è vera: permesso senza endpoint
+        // non porterebbe nessuna notifica, contarla inganna.
+        if (ok) void tracciaAttivazione(source)
       } else if (result === 'denied') {
         toast.error('Permesso negato — abilitalo nelle impostazioni del dispositivo')
       }

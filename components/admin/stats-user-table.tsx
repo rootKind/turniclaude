@@ -5,7 +5,7 @@ import { ArrowUpDown, Search } from 'lucide-react'
 import type { StatsUser } from '@/app/api/admin/stats/route'
 import { cn } from '@/lib/utils'
 
-type SortKey = 'name' | 'access' | 'shifts' | 'interest' | 'last_access'
+type SortKey = 'name' | 'access' | 'shifts' | 'interest' | 'last_access' | 'push_first'
 type Filter = 'all' | 'dco' | 'noni'
 
 const COLS: { key: SortKey; label: string; numeric?: boolean }[] = [
@@ -13,6 +13,9 @@ const COLS: { key: SortKey; label: string; numeric?: boolean }[] = [
   { key: 'access', label: 'Acc', numeric: true },
   { key: 'shifts', label: 'Turni', numeric: true },
   { key: 'interest', label: 'Int', numeric: true },
+  // LA DATA della prima iscrizione push (push_subscriptions.created_at):
+  // «—» = non ha mai attivato le notifiche su nessun dispositivo.
+  { key: 'push_first', label: 'Notifiche dal', numeric: true },
   { key: 'last_access', label: 'Ultimo accesso', numeric: true },
 ]
 
@@ -70,6 +73,7 @@ export function StatsUserTable({ users }: { users: StatsUser[] }) {
       let cmp = 0
       if (sortKey === 'name') cmp = userName(a).localeCompare(userName(b), 'it')
       else if (sortKey === 'last_access') cmp = (a.last_access ?? '').localeCompare(b.last_access ?? '')
+      else if (sortKey === 'push_first') cmp = (a.push_first_subscribed_at ?? '').localeCompare(b.push_first_subscribed_at ?? '')
       else {
         const ka = sortKey as 'access' | 'shifts' | 'interest'
         cmp = a[ka] - b[ka]
@@ -188,12 +192,24 @@ function FragmentRow({ u, open, onToggle, totalNmp }: {
         <td className="px-2 py-2.5 text-right tabular-nums">{u.shifts.toLocaleString('it-IT')}</td>
         <td className="px-2 py-2.5 text-right tabular-nums">{u.interest.toLocaleString('it-IT')}</td>
         <td className="px-2 py-2.5 text-right tabular-nums text-muted-foreground text-xs whitespace-nowrap">
+          {u.push_first_subscribed_at ? (
+            <span title={`${u.push_devices} dispositiv${u.push_devices === 1 ? 'o' : 'i'} ora`}>
+              {formatLast(u.push_first_subscribed_at)}
+            </span>
+          ) : '—'}
+        </td>
+        <td className="px-2 py-2.5 text-right tabular-nums text-muted-foreground text-xs whitespace-nowrap">
           {formatLast(u.last_access)}
         </td>
       </tr>
       {open && (
         <tr className="bg-muted/40 border-b border-border last:border-b-0">
-          <td colSpan={5} className="px-3 py-3">
+          <td colSpan={6} className="px-3 py-3">
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Notifiche: {u.push_enabled} attivazioni · prima iscrizione{' '}
+              {u.push_first_subscribed_at ? formatLast(u.push_first_subscribed_at) : 'mai'} ·
+              dispositivi ora: {u.push_devices}
+            </p>
             <p className="text-[11px] text-muted-foreground mb-2">Turni per fascia</p>
             <NmpBar label="Mattina" count={u.mattina} total={totalNmp} color="var(--pill-mattina-bg)" />
             <NmpBar label="Pomeriggio" count={u.pomeriggio} total={totalNmp} color="var(--pill-pomeriggio-bg)" />
