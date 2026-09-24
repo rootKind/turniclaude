@@ -3007,3 +3007,16 @@ cache 6h; mesi senza PDF → teorico). NONI: teorico sempre 0 (non sono nell'alb
 Prove: `tests/disponibili.spec.ts` (logica, 10) e `tests/sala-disponibili.spec.ts` (board su
 dati reali: ottobre ha 20 persone con D, settembre 1).
 
+• Dashboard, chip «PER ME» (25/09/2026): la chip che isolava i cambi offerti («Solo miei»/«Solo
+mansioni») ora unisce anche le richieste COMPATIBILI col turno del giorno del viewer — STESSO criterio
+delle notifiche `notify_shift_filter` (turno reale dal PDF del mese, altrimenti teorico; copre se è fra
+i cercati). Nuovi: `lib/shift-compat-dashboard.ts` (puro: `groupShiftsForMe` — il possesso vince SEMPRE,
+nessun doppione fra gruppi, gruppi vuoti inesistenti, giorno IGNOTO non nasconde nulla) e
+`hooks/use-per-me-groups.ts` (cache-first, stesse query di use-disponibili; il manager resta sulla sua
+«Solo compatibili» interessati: per lui zero query nuove). UI: chip «Per me», contatore = unione,
+lista a GRUPPI con intestazioni «Offerti da te( e dai Noni)» / «Compatibili col tuo turno» + conteggio
+(aggancio `data-perme` per i test); `dateIndex` ora è calcolato PER ID (i gruppi possono riunire date
+diverse, la posizione in lista non basta più). Prove: `tests/shift-compat-dashboard.spec.ts` (logica, 8)
+e `tests/per-me-dashboard.spec.ts` (E2E: attesa ricostruita da `/api/shift-compat` — lo stesso motore
+di `getUserShiftOnDate` — più replica dei filtri limite-giorni della dashboard; 2).
+

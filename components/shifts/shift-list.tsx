@@ -8,6 +8,7 @@ import { useAppSettings } from '@/hooks/use-app-settings'
 import { isDcoPlus as isProfileDcoPlus, isManager } from '@/types/database'
 import { ShiftItem } from './shift-item'
 import { useDisponibiliCount } from '@/hooks/use-disponibili'
+import { usePerMeGroups } from '@/hooks/use-per-me-groups'
 import { EditShiftDialog } from './edit-shift-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn, todayRome } from '@/lib/utils'
@@ -90,27 +91,38 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
     [effectiveUserId]
   )
 
+  // GRUPPO «PER ME» (richiesta 25/09/2026): la chip unisce i cambi offerti
+  // dall'utente (DCO+: anche quelli dei Noni) alle richieste COMPATIBILI col
+  // suo turno del giorno — lo stesso criterio delle notifiche «nuovo turno
+  // pubblicato» con `notify_shift_filter` (turno reale dal PDF, altrimenti
+  // teorico; copre se è fra i turni cercati). Il manager resta sulla sua chip
+  // «Solo compatibili» (interessati): per lui qui non c'è nulla.
+  const gruppiPerMe = usePerMeGroups(baseShifts, {
+    possessivo: isDcoPlus ? isOwnOrNoniShift : undefined,
+    titoloMiei: isDcoPlus ? 'Offerti da te e dai Noni' : undefined,
+    compatibilita: !isManagerView,
+    utenteId: effectiveUserId,
+  })
+
   const filtered = useMemo(() => {
-    if (selectedFilter === 'mine') {
-      if (isDcoPlus) return baseShifts.filter(isOwnOrNoniShift)
-      return baseShifts.filter(isMineShift)
-    }
+    // «Per me»: i gruppi in sequenza (offerti → compatibili), già senza doppioni
+    if (selectedFilter === 'mine') return gruppiPerMe.flatMap(g => g.shifts)
     if (selectedFilter === 'compatible') return baseShifts.filter(s => (s.shift_interested_users?.length ?? 0) > 0)
     if (!selectedFilter) return baseShifts
     return baseShifts.filter(s => s.shift_date.startsWith(selectedFilter))
-  }, [baseShifts, selectedFilter, isDcoPlus, isOwnOrNoniShift, isMineShift])
+  }, [baseShifts, selectedFilter, gruppiPerMe])
 
   const hasOwnShifts = useMemo(() => {
-    // DCO+: la chip bar mostra "Solo mansioni" anche se esistono solo cambi dei Noni
-    if (isDcoPlus) return baseShifts.some(isOwnOrNoniShift)
-    return baseShifts.some(isMineShift)
-  }, [baseShifts, isDcoPlus, isOwnOrNoniShift, isMineShift])
+    // Manager (chip «Solo compatibili»): come prima, la barra appare se ha cambi propri
+    if (isManagerView) return isDcoPlus ? baseShifts.some(isOwnOrNoniShift) : baseShifts.some(isMineShift)
+    // «Per me» esiste anche con ZERO cambi propri, se qualcosa è compatibile
+    return gruppiPerMe.length > 0
+  }, [baseShifts, isManagerView, isDcoPlus, isMineShift, isOwnOrNoniShift, gruppiPerMe])
 
-  // Conteggi per i contatori sulle chip dei filtri
+  // Conteggi per i contatori sulle chip dei filtri: «Per me» è l'UNIONE dei
+  // due gruppi (possesso vince sempre, niente doppioni).
   const chipCounts = useMemo(() => {
-    const mine = isDcoPlus
-      ? baseShifts.filter(isOwnOrNoniShift).length
-      : baseShifts.filter(isMineShift).length
+    const mine = gruppiPerMe.reduce((n, g) => n + g.shifts.length, 0)
     const compatible = baseShifts.filter(s => (s.shift_interested_users?.length ?? 0) > 0).length
     const byMonth = new Map<string, number>()
     for (const s of baseShifts) {
@@ -118,7 +130,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
       byMonth.set(m, (byMonth.get(m) ?? 0) + 1)
     }
     return { mine, compatible, byMonth, total: baseShifts.length }
-  }, [baseShifts, isDcoPlus, isOwnOrNoniShift, isMineShift])
+  }, [baseShifts, gruppiPerMe])
   const duplicateCognomi = useDuplicateCognomi(isSecondary, isDcoPlus)
   const showChipBar = months.length > 1 || hasOwnShifts
   // DISPONIBILI «D» (richiesta 25/09/2026): conteggio per data, scope in base
@@ -131,13 +143,17 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
     if (highlightShiftId) setSelectedFilter(null)
   }, [highlightShiftId])
 
-  const dateIndexes = useMemo(() => {
+  // Indice della card DENTRO il suo giorno (0 = prima: data «grande» + DISP);
+  // per id, perché con i gruppi la posizione in `filtered` non è quella visiva.
+  const dateIndexById = useMemo(() => {
     const count = new Map<string, number>()
-    return filtered.map(s => {
+    const out = new Map<number, number>()
+    for (const s of filtered) {
       const idx = count.get(s.shift_date) ?? 0
       count.set(s.shift_date, idx + 1)
-      return idx
-    })
+      out.set(s.id, idx)
+    }
+    return out
   }, [filtered])
 
   function scrollChipIntoView(filter: FilterValue) {
@@ -189,6 +205,39 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
     }
   }
 
+  // Una card cambio, identica in TUTTE le viste. `prev`/`next` sono la card
+  // precedente/successiva DELLA LISTA CHE SI STA RENDERIZZANDO: nei gruppi la
+  // prima card riparte «tonda» e senza margine (lo dà l'intestazione).
+  function renderShiftCard(shift: Shift, index: number, prev?: Shift, next?: Shift) {
+    const isSameDateAsPrevious = !!prev && prev.shift_date === shift.shift_date
+    const isSameDateAsNext = !!next && next.shift_date === shift.shift_date
+    return (
+      <motion.div
+        key={shift.id}
+        className={index === 0 ? 'mt-0' : isSameDateAsPrevious ? 'mt-0' : 'mt-3'}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.15, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
+      >
+        <ShiftItem
+          shift={shift}
+          currentUserId={effectiveUserId}
+          loggedInUserId={loggedInUserId}
+          isSecondary={isSecondary}
+          isDcoPlus={isDcoPlus}
+          isSameDateAsPrevious={isSameDateAsPrevious}
+          isSameDateAsNext={isSameDateAsNext}
+          dateIndex={dateIndexById.get(shift.id) ?? 0}
+          onEdit={setEditingShift}
+          isHighlighted={highlightShiftId === shift.id}
+          duplicateCognomi={duplicateCognomi}
+          isManagerView={isManagerView}
+          disponibiliCount={disponibiliCount(`${shift.shift_date}T00:00:00`)}
+        />
+      </motion.div>
+    )
+  }
+
   if (isLoading) return <ShiftListSkeleton />
   if (!baseShifts.length) return (
     <div className="text-center py-12 text-muted-foreground text-sm">
@@ -202,7 +251,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
       {showChipBar && <div
         className="flex gap-2 overflow-x-auto pb-3 mb-1 no-scrollbar"
       >
-        {/* Solo miei (utenti) / Solo mansioni (DCO+) / Solo compatibili (manager) */}
+        {/* Per me (utenti e DCO+: offerti + compatibili) / Solo compatibili (manager) */}
         {!isManagerView ? (
           <button
             ref={el => { if (el) chipRefs.current.set('mine', el); else chipRefs.current.delete('mine') }}
@@ -215,7 +264,7 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
             )}
           >
             <User className="w-3 h-3" />
-            {isDcoPlus ? 'Solo mansioni' : 'Solo miei'}
+            Per me
             <span className="chip-count" aria-hidden="true">{chipCounts.mine}</span>
           </button>
         ) : (
@@ -289,37 +338,26 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
             transition={{ duration: 0.18, ease: 'easeOut' }}
             className="flex flex-col gap-0"
           >
-            {filtered.map((shift, index) => {
-              const prev = filtered[index - 1]
-              const next = filtered[index + 1]
-              const isSameDateAsPrevious = !!prev && prev.shift_date === shift.shift_date
-              const isSameDateAsNext = !!next && next.shift_date === shift.shift_date
-              return (
-                <motion.div
-                  key={shift.id}
-                  className={index === 0 ? 'mt-0' : isSameDateAsPrevious ? 'mt-0' : 'mt-3'}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.15, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
-                >
-                  <ShiftItem
-                    shift={shift}
-                    currentUserId={effectiveUserId}
-                    loggedInUserId={loggedInUserId}
-                    isSecondary={isSecondary}
-                    isDcoPlus={isDcoPlus}
-                    isSameDateAsPrevious={isSameDateAsPrevious}
-                    isSameDateAsNext={isSameDateAsNext}
-                    dateIndex={dateIndexes[index]}
-                    onEdit={setEditingShift}
-                    isHighlighted={highlightShiftId === shift.id}
-                    duplicateCognomi={duplicateCognomi}
-                    isManagerView={isManagerView}
-                    disponibiliCount={disponibiliCount(`${shift.shift_date}T00:00:00`)}
-                  />
-                </motion.div>
+            {selectedFilter === 'mine' ? (
+              gruppiPerMe.map(gruppo => (
+                <div key={gruppo.titolo} data-perme={gruppo.titolo}>
+                  {/* Intestazione: separa «offerti da te» da «compatibili» */}
+                  <div className="mt-3 first:mt-0 mb-2 flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                      {gruppo.titolo}
+                    </span>
+                    <span className="chip-count" aria-hidden="true">{gruppo.shifts.length}</span>
+                  </div>
+                  {gruppo.shifts.map((shift, i) =>
+                    renderShiftCard(shift, i, gruppo.shifts[i - 1], gruppo.shifts[i + 1])
+                  )}
+                </div>
+              ))
+            ) : (
+              filtered.map((shift, index) =>
+                renderShiftCard(shift, index, filtered[index - 1], filtered[index + 1])
               )
-            })}
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
