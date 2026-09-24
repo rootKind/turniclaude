@@ -77,14 +77,15 @@ test.describe('Forme e pressione espressive (M9/M10)', () => {
           'nav[aria-label="Navigazione principale"] a[aria-current="page"]',
         )!
         const pillola = attiva.querySelector('span')! as HTMLElement
-        const prima = getComputedStyle(pillola, '::before')
+        const s = getComputedStyle(pillola)
         const r = pillola.getBoundingClientRect()
         return {
-          // Il ::before ripete il fondo (inherit): dove il fondo è trasparente
-          // (iOS, desktop) non disegna niente — è il zero-pixel del desktop.
-          formaFondo: prima.backgroundColor,
-          raggioForma: prima.borderRadius,
-          ombraForma: prima.boxShadow,
+          // La capsula è UNA superficie (richiesta 26/09/2026): il fondo sta
+          // sull'elemento e basta. Il vecchio ::before «a plenilunio» sovrapposto
+          // (stesso velo + ombra dentro la capsula) si leggeva come sporco.
+          fondo: s.backgroundColor,
+          raggio: s.borderRadius,
+          ombra: s.boxShadow,
           pillola: `${Math.round(r.width)}x${Math.round(r.height)}`,
         }
       })
@@ -96,19 +97,17 @@ test.describe('Forme e pressione espressive (M9/M10)', () => {
       // l'attesa sbagliata che la corsa della skin mascherava.
       if (piattaforma === 'android') {
         expect(m.pillola, 'la pillola della voce attiva è 32×64').toBe('64x32')
+        expect(m.fondo, 'capsula PIENA di secondo livello: un solo velo, senza strati sovrapposti').not.toBe(
+          'rgba(0, 0, 0, 0)',
+        )
+        expect(m.raggio, 'capsula piena (rounded-full), non la forma «a plenilunio»').toBe('9999px')
+        expect(m.ombra, 'elevazione sottile del secondo livello, LETTA DALLA CAPSULA (non da uno strato dentro)').toContain('rgba(0, 0, 0')
       } else {
         expect(m.pillola, 'solo Material ha la pillola dell’indicatore attivo').not.toBe('64x32')
-      }
-      if (piattaforma === 'android') {
-        expect(m.raggioForma, 'angoli laterali tondi (--pill-corners)').toBe('10px')
-        expect(m.ombraForma, 'ombra di terzo livello della specifica').toContain('rgba(0, 0, 0')
-        expect(m.formaFondo, 'il ::before dipinge (fondo della pillola non trasparente)').not.toBe(
+        expect(m.fondo, 'fuori da Android la capsula non dipinge: zero-pixel').toBe(
           'rgba(0, 0, 0, 0)',
         )
-      } else {
-        expect(m.formaFondo, 'fuori da Android il ::before copia il vuoto: zero-pixel').toBe(
-          'rgba(0, 0, 0, 0)',
-        )
+        expect(m.ombra, 'fuori da Android l’indicatore non ha ombra').toBe('none')
       }
     }
   })
@@ -138,6 +137,7 @@ test.describe('Controlli (M4): la skin la scrivono i token, non il JSX', () => {
         const r = el.getBoundingClientRect()
         const rt = thumb.getBoundingClientRect()
         return {
+          checked: el.hasAttribute('data-checked'),
           tracciaW: Math.round(r.width),
           tracciaH: Math.round(r.height),
           pollice: Math.round(Math.max(rt.width, rt.height)),
@@ -158,7 +158,13 @@ test.describe('Controlli (M4): la skin la scrivono i token, non il JSX', () => {
       } else if (piattaforma === 'android') {
         expect(m.tracciaW, 'M3: traccia 52dp').toBe(52)
         expect(m.tracciaH).toBe(32)
-        expect(m.bordoW, 'M3: la traccia spenta porta il contorno da 2dp').toBe('2px')
+        // Il contorno da 2dp è lo stato SPENTO di M3 (richiesta 26/09/2026:
+        // applicato anche da acceso incorniciava la traccia piena con un anello
+        // sbrindellato dal pollice — lo switch misurato qui può essere in uno
+        // dei due stati, e l'atteso lo segue).
+        expect(m.bordoW, `M3: contorno 2dp solo da spento (switch ${m.checked ? 'acceso' : 'spento'})`).toBe(
+          m.checked ? '0px' : '2px',
+        )
         expect(m.polliceSpento, 'M3: pollice piccolo quando è spento (16)').not.toBe(m.polliceAcceso)
         expect(m.polliceAcceso).toBe('24px')
       } else {

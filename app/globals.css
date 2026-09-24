@@ -1046,12 +1046,16 @@
      «selezionato» di Material, che in tema chiaro e scuro si adatta da sé. */
   --nav-height: 80px;
   --nav-item-label: 12px;
+  /* LA CAPSULA DELL'ATTIVO (richiesta 26/09/2026): M3 a riposo la disegna
+     capsula PIENA di secondo livello — un velo uniforme del 12% di foreground
+     su UNA sola superficie, con l'elevazione sottile LETTA DALL'ELEMENTO
+     (l'ombra non deve stare su uno strato sovrapposto con raggio diverso:
+     era quello l'effetto «sporco» dello screenshot — doppia tinta e ombra
+     tagliata dentro la capsula). La forma «a plenilunio» (::before) è
+     rimossa. Su iOS `none` (la skin non ha ombra sull'indicatore). */
   --nav-indicator: color-mix(in srgb, var(--foreground) 12%, transparent);
   --on-nav-indicator: var(--foreground);
-  /* L'indicatore attivo di M3 sta SOPRA il fondo: la specifica gli dà il terzo
-     livello di elevazione (due ombre, la prima col diffuso largo). Su iOS
-     `none`, come sopra. */
-  --nav-indicator-shadow: 0 1px 3px 1px rgb(0 0 0 / 0.15), 0 1px 2px rgb(0 0 0 / 0.30);
+  --nav-indicator-shadow: 0 1px 2px rgb(0 0 0 / 0.12), 0 1px 3px 1px rgb(0 0 0 / 0.08);
   /* Fondo pieno: il materiale traslucido è una scelta di iOS (vedi sopra), e la
      chiave va dichiarata lo stesso per il contratto. */
   --nav-bg: var(--background);
@@ -2460,27 +2464,15 @@ html {
      cui M3 dice «sei qui». Su iOS il token è trasparente e la pillola non si vede
      (lì l'indicatore è la tinta del testo), quindi la stessa marcatura serve
      entrambe le skin. */
-  .nav-indicator { background: var(--nav-indicator); }
+  .nav-indicator { background: var(--nav-indicator); box-shadow: var(--nav-indicator-shadow); }
 
-  /* M9 — FORMA E OMBRA DELL'INDICATORE EXPRESSIVE. Il ::before ripete il fondo
-     della pillola (inherit: stesso colore, stessa base di raggio) e su Android
-     ne cambia la FORMA: angoli laterali tondi su un rettangolo (`--pill-corners`),
-     l'approssimazione onesta della forma «a plenilunio» della specifica — come
-     per l'isola di M8, la curva vera la decide il sistema. L'ombra di terzo
-     livello sta sullo stesso strato. Su iOS e desktop il fondo della pillola è
-     trasparente: il ::before copia il vuoto e non disegna niente (zero-pixel). */
-  .nav-indicator::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: inherit;
-    pointer-events: none;
-  }
-  [data-platform='android'] .nav-indicator::before {
-    border-radius: var(--pill-corners);
-    box-shadow: var(--nav-indicator-shadow);
-  }
+  /* M9→26/09 — LA FORMA DELL'INDICATORE, CORRETTA. Il ::before «a plenilunio»
+     (angoli laterali su rettangolo) che M9 sovrapponeva alla capsula è stato
+     RIMOSSO su richiesta dell'utente: a schermo si leggeva come sporco — due
+     strati dello stesso velo (12%+12%) con un'ombra che moriva dentro la
+     capsula. La resa è la capsula PIENA di secondo livello di M3 a riposo:
+     un solo strato (`.nav-indicator` qui sopra), niente ombra. Il token
+     `--pill-corners` resta per ciò che lo usa ancora (pollice dello switch). */
 
   /* IL POLLICE PILL DELLO SWITCH EXPRESSIVE: acceso, il pollice 24×32 non è un
      cerchio ma la pillola della specifica. Solo quando è acceso (il pollice
