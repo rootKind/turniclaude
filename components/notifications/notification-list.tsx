@@ -111,7 +111,7 @@ export function NotificationList() {
             board, che è dove i turni accadono. */}
         <Link
           href="/turnisala"
-          className="text-sm font-semibold text-primary underline-offset-4 hover:underline"
+          className="touch-y inline-block text-sm font-semibold text-primary underline-offset-4 hover:underline"
         >
           Vai ai turni di sala
         </Link>

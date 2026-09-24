@@ -459,7 +459,7 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
               onClick={() => setColorPickerOpen(v => !v)}
               aria-label="Imposta i colori dei nomi"
               aria-expanded={colorPickerOpen}
-              className={`p-0.5 rounded transition-colors shrink-0 ${colorPickerOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`touch-expand p-0.5 rounded transition-colors shrink-0 ${colorPickerOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
               title="Imposta colori"
             >
               <Palette size={12} />

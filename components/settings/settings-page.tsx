@@ -70,7 +70,7 @@ export function SettingsPage() {
               onClick={() => setTheme('light')}
               aria-label="Tema chiaro"
               className={cn(
-                'flex items-center justify-center w-8 h-8 rounded-full transition-colors',
+                'touch-expand flex items-center justify-center w-8 h-8 rounded-full transition-colors',
                 resolvedTheme === 'light'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -82,7 +82,7 @@ export function SettingsPage() {
               onClick={() => setTheme('dark')}
               aria-label="Tema scuro"
               className={cn(
-                'flex items-center justify-center w-8 h-8 rounded-full transition-colors',
+                'touch-expand flex items-center justify-center w-8 h-8 rounded-full transition-colors',
                 resolvedTheme === 'dark'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -116,7 +116,7 @@ export function SettingsPage() {
                 onClick={() => cambiaGradino(gradino.id)}
                 aria-pressed={gradinoCorrente === gradino.id}
                 className={cn(
-                  'px-2.5 h-8 rounded-full transition-colors text-xs font-semibold capitalize',
+                  'touch-y px-2.5 h-8 rounded-full transition-colors text-xs font-semibold capitalize',
                   gradinoCorrente === gradino.id
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'

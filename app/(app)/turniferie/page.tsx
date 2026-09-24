@@ -277,8 +277,7 @@ export default function TurniFeriePage() {
         <h1 className="text-lg font-bold flex-1 min-w-[120px]">Turni Ferie</h1>
         {canManage && (
           <button
-            onClick={() => setViewSecondary(v => !v)}
-            className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
+            onClick={() => setViewSecondary(v => !v)}              className="touch-y min-w-[44px] text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
           >
             {viewSecondary ? 'DCO' : 'Noni'}
           </button>
@@ -287,7 +286,7 @@ export default function TurniFeriePage() {
           <button
             onClick={() => setSelectedYear(y => Math.max(minYear, y - 1))}
             disabled={selectedYear <= minYear}
-            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
+            className="touch-y p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
           >
             <ChevronLeft size={18} />
           </button>
@@ -295,7 +294,7 @@ export default function TurniFeriePage() {
           <button
             onClick={() => setSelectedYear(y => Math.min(MAX_YEAR, y + 1))}
             disabled={selectedYear >= MAX_YEAR}
-            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
+            className="touch-y p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
           >
             <ChevronRight size={18} />
           </button>
@@ -318,7 +317,7 @@ export default function TurniFeriePage() {
               <button
                 onClick={() => togglePeriod(period)}
                 disabled={alwaysExpanded}
-                className={`w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default ${isMyPeriod ? 'my-period-header' : 'period-card-header'}`}
+                className={`touch-y w-full flex items-center justify-between px-3 py-2 text-left disabled:cursor-default ${isMyPeriod ? 'my-period-header' : 'period-card-header'}`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {isMyPeriod && (

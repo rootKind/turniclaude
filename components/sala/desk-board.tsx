@@ -1168,7 +1168,7 @@ export function DeskBoard({
                  qualcosa, e `aria-expanded` dice se è aperto. */
               aria-haspopup="dialog"
               aria-expanded={showDayPicker}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none sala-toolbar-nav-bg sala-toolbar-nav-text"
+              className="touch-y flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none sala-toolbar-nav-bg sala-toolbar-nav-text"
             >
               {/* STILE OMogeneo (richiesta 12/09/2026): font, misura e colore
                   identici su tutta la data — «SAB 12 SETT 2026». Nessun override
@@ -1276,7 +1276,7 @@ export function DeskBoard({
                   onClick={() => setSelectedShift(s)}
                   aria-label={TURNO_LABEL[s]}
                   aria-pressed={isSelected}
-                  className={`px-2 py-1.5 transition-colors ${
+                  className={`touch-y px-2 py-1.5 transition-colors ${
                     isSelected
                       ? 'sala-toolbar-chip'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted'

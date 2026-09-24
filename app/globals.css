@@ -1575,6 +1575,26 @@ html {
   height: 100%;
 }
 
+/* 4-bis. L'AREA DI TOCCO SOLO VERTICALE. Variante per i controlli che stanno
+   AFFIANCATI (segmented, stepper, righe compatte): l'area cresce in ALTEZZA
+   fino ai 44pt ma resta dentro la larghezza del controllo, perché allargarsi
+   anche lateralmente ruberebbe il tocco al vicino — la stessa ragione di
+   `.touch-dense`, dichiarata sopra. Utile anche su Android (dove `touch-expand`
+   non esiste: lì la via è la taglia vera) perché il padding verticale c'è
+   senza cambiare il disegno. */
+.touch-y {
+  position: relative;
+}
+.touch-y::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  translate: 0 -50%;
+  height: max(100%, var(--touch-min));
+}
+
 /* 5. LA BARRA: bordo e luce di bordo su iOS, ELEVAZIONE su Android. Qui la
    differenza fra le due piattaforme si vede finalmente: iOS tiene il materiale
    (bordo velato + il filo chiaro sul bordo alto, che è il segnale che la superficie

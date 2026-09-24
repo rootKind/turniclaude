@@ -242,7 +242,7 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
               <button
                 onClick={() => setYear(y => Math.max(minYear, y - 1))}
                 disabled={year <= minYear}
-                className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
+                className="touch-y p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
               >
                 <ChevronLeft size={18} />
               </button>
@@ -250,7 +250,7 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
               <button
                 onClick={() => setYear(y => Math.min(MAX_YEAR, y + 1))}
                 disabled={year >= MAX_YEAR}
-                className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
+                className="touch-y p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
               >
                 <ChevronRight size={18} />
               </button>

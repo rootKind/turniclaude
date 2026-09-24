@@ -146,7 +146,7 @@ function DashboardContent() {
           {profile && canToggleCategory && !isImpersonating && (
             <button
               onClick={() => setViewSecondary(v => !v)}
-              className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
+              className="touch-y min-w-[44px] text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
             >
               {viewSecondary ? 'DCO' : 'Noni'}
             </button>
@@ -162,7 +162,7 @@ function DashboardContent() {
               if (val === '') router.push('/dashboard')
               else router.push(`/dashboard?as=${val}`)
             }}
-            className="text-xs border rounded-lg px-2 py-1 bg-background text-foreground cursor-pointer"
+            className="text-xs border rounded-lg px-2 py-1 bg-background text-foreground cursor-pointer h-11"
           >
             <option value="">Io (admin)</option>
             {allUsers.map(u => (

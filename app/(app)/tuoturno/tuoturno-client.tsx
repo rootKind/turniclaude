@@ -868,7 +868,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
           ) : (
             <button
               onClick={() => { setQuery(''); setPickerOpen(true) }}
-              className="mt-0.5 inline-flex items-center gap-1.5 text-base text-muted-foreground hover:text-foreground transition-colors"
+              className="touch-y mt-0.5 inline-flex items-center gap-1.5 text-base text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Scegli di chi vedere i turni"
             >
               <span className="font-semibold text-foreground">{displayName}</span>
@@ -883,7 +883,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         <button
           onClick={goPrev}
           aria-label="Mese precedente"
-          className="p-2 rounded-xl border border-border/60 hover:bg-muted transition-colors"
+          className="touch-expand p-2 rounded-xl border border-border/60 hover:bg-muted transition-colors"
         >
           <ChevronLeft size={20} />
         </button>
@@ -899,7 +899,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
               onClick={() => setMonthPickerOpen(v => !v)}
               aria-label="Scegli mese e anno"
               aria-expanded={monthPickerOpen}
-              className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold leading-tight text-lg hover:bg-muted active:bg-muted transition-colors"
+              className="touch-y inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold leading-tight text-lg hover:bg-muted active:bg-muted transition-colors"
             >
               {formatMonthLabel(month)}
               <ChevronDown size={16} className={cn('text-muted-foreground transition-transform', monthPickerOpen && 'rotate-180')} />
@@ -922,7 +922,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
         <button
           onClick={goNext}
           aria-label="Mese successivo"
-          className="p-2 rounded-xl border border-border/60 hover:bg-muted transition-colors"
+          className="touch-expand p-2 rounded-xl border border-border/60 hover:bg-muted transition-colors"
         >
           <ChevronRight size={20} />
         </button>

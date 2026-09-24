@@ -71,7 +71,7 @@ export function TurniSwitch({ className }: { className?: string }) {
             onPointerCancel={() => setPremuto(null)}
             onPointerLeave={() => setPremuto(null)}
             className={cn(
-              'relative inline-flex items-center justify-center px-4 transition-colors',
+              'touch-y relative inline-flex items-center justify-center px-4 transition-colors',
               attiva
                 ? 'font-semibold text-[var(--on-surface)]'
                 : 'font-medium text-[var(--on-surface-muted)]',

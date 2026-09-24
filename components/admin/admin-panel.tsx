@@ -105,7 +105,7 @@ export function AdminPanel() {
           onClick={() => router.back()}
           aria-label="Torna indietro"
           title="Torna indietro"
-          className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="touch-expand rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X size={20} />
         </button>
@@ -341,7 +341,7 @@ function YearStepper({ value, disabled, onChange }: {
       <button
         onClick={() => onChange(value - 1)}
         disabled={disabled || value <= 2020}
-        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
+        className="touch-y w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
       >
         <ChevronLeft size={16} />
       </button>
@@ -349,7 +349,7 @@ function YearStepper({ value, disabled, onChange }: {
       <button
         onClick={() => onChange(value + 1)}
         disabled={disabled || value >= 2099}
-        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
+        className="touch-y w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
       >
         <ChevronRight size={16} />
       </button>
@@ -369,7 +369,7 @@ function Toggle({ enabled, disabled, onChange }: {
       disabled={disabled}
       onClick={() => onChange(!enabled)}
       className={cn(
-        'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200',
+        'touch-y relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200',
         'focus:outline-none disabled:opacity-40',
         enabled ? 'bg-primary' : 'bg-muted-foreground/30'
       )}
@@ -394,7 +394,7 @@ function DaysInput({ value, disabled, onChange }: {
       <button
         onClick={() => onChange(Math.max(1, value - 1))}
         disabled={disabled || value <= 1}
-        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
+        className="touch-y w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
       >
         <ChevronLeft size={16} />
       </button>
@@ -421,7 +421,7 @@ function DaysInput({ value, disabled, onChange }: {
       <button
         onClick={() => onChange(Math.min(365, value + 1))}
         disabled={disabled || value >= 365}
-        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
+        className="touch-y w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors"
       >
         <ChevronRight size={16} />
       </button>

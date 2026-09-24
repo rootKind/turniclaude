@@ -152,8 +152,7 @@ function VacanzeContent() {
         <Testata titolo="Ferie Sala C.C.C." className="text-lg font-bold min-w-[120px]" />
         {profile && canToggleCategory && (
           <button
-            onClick={() => setViewSecondary(v => !v)}
-            className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
+            onClick={() => setViewSecondary(v => !v)}              className="touch-y min-w-[44px] text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
           >
             {viewSecondary ? 'DCO' : 'Noni'}
           </button>
@@ -171,7 +170,7 @@ function VacanzeContent() {
         <button
           onClick={() => changeYear(-1)}
           disabled={displayYear <= minYear}
-          className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
+          className="touch-y p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
         >
           <ChevronLeft size={16} className="text-offered-label" />
         </button>
@@ -186,7 +185,7 @@ function VacanzeContent() {
         <button
           onClick={() => changeYear(1)}
           disabled={displayYear >= MAX_YEAR}
-          className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
+          className="touch-y p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
         >
           <ChevronRight size={16} className="text-offered-label" />
         </button>
