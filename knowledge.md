@@ -3039,3 +3039,18 @@ ripreso con la sessione reale di Minino (magic link admin + verifyOtp, modello d
 Dopo la policy: 1 riga eliminata. LEZIONE: quando una cosa funziona in produzione e no in dev,
 confrontare `pg_policies` / `list_migrations` fra i due progetti PRIMA di cercare il difetto nel codice.
 
+• Ferie, chip «COMPATIBILI» e «⛓ A CATENA» nella lista (25/09/2026): prima di pubblicare una richiesta
+non si capiva dalla lista chi potesse accettare il proprio periodo — si scopre solo nel dialog (match
+e catene). Nuovo `lib/vacation-compat-dashboard.ts` (puro: `gruppiCompatibiliFerie` riusa
+`findCompatibleVacationRequests` + `findVacationChains` di lib/queries/vacations, STESSO motore del
+dialog, così lista e dialog non contraddicono mai; dirette deduplicate per id, catene deduplicate per
+sequenza, titoli «⛓ Catena: tu P2 → Di Monda P6 → Sabia P3 → tu»). La lista (dipendenti, NON manager
+che resta sulla sua «Solo compatibili» = con interessi) ha due chip toggle: «Compatibili» (scambio
+diretto a due) e «⛓ A catena» (vista a GRUPPI, un gruppo per catena con il giro nell'intestazione;
+una richiesta in più catene appare in più gruppi). Senza richieste proprie nell'anno le chip sono
+DISABILITATE con title-suggerimento (scelta col richiedente). Agganci test: `data-vac-request` sulle
+card, `data-catena` sui gruppi. Prove: `tests/ferie-chip.spec.ts` (7 logica + 2 E2E: l'attesa si
+calcola dai dati in cache e VERIFICA la validità di ogni giro; su dev nessun DCO ha catene reali — il
+giro possibile passa da un Noni, invisibile in vista DCO — quindi l'E2E CREA le due richieste che
+chiudono la catena e le rimuove in finally).
+
