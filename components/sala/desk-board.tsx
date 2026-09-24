@@ -802,8 +802,9 @@ export function DeskBoard({
     const n = new Date()
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
   }, [])
-  // (24/09/2026) Anche la NOTTE del giorno in corso è già partita alle 21: la sua
-  // scoperta è un fatto, come quella dei giorni passati. Stessa ora per M (7) e P (14).
+  // (25/09/2026, orari veri M 6–14, P 14–22, N 22–6) L'allarme si spegne quando
+  // il turno è FINITO: M dalle 14, P dalle 22 e la NOTTE datata oggi dalle 6
+  // (finisce con l'inizio della mattina). Durante la notte in corso resta gialla.
   const [oggiOra, setOggiOra] = useState(() => new Date().getHours())
   useEffect(() => {
     const t = setInterval(() => setOggiOra(new Date().getHours()), 60_000)
@@ -853,8 +854,9 @@ export function DeskBoard({
   // CARD in cui lo SCOPERTO si scrive come un nome invece che con la chip gialla
   // (richiesta 16/09/2026, sera): nei GIORNI PASSATI — quando l'assenza è ormai
   // un fatto — e dove il minimo in vigore per quella casella è 0, cioè la
-  // sezione è scoperta DA PROGRAMMA. (24/09/2026) vale anche per la NOTTE del
-  // giorno in corso dopo le 21: è già partita, è un fatto come il passato.
+  // sezione è scoperta DA PROGRAMMA. (25/09/2026, orari veri) vale anche per il
+  // turno di OGGI appena finito: M dalle 14, P dalle 22, la notte datata oggi
+  // dalle 6 (la notte 22–6 finisce con la mattina).
   // Con minimo 0 e nessuno mancante non compare niente: il testo esce solo quando
   // una persona manca davvero.
   const scopertoAsText = useMemo(() => {

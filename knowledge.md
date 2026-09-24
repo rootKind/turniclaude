@@ -756,3 +756,16 @@ come chip gialla d'allarme (`turnoPassato` in lib/sala-minimi: M≥7, P≥14, N�
 `giornoPassato` in desk-board include ora il turno finito di oggi; polling dell'ora ogni 60s).
 La riga a testo è grigia PER OGNI posto (prima solo il sussidio era attenuato). Prove: describe
 «scoperto del giorno in corso» della stessa spec.
+
+**Scoperto del turno FINITO (25/09/2026, CORREZIONE degli orari):** orari VERI M 6–14,
+P 14–22, N 22–6. La notte di data D corre dalle 22 di D−1 alle 6 DI D: la sua chip diventa testo
+grigio ALLE 6 DI D (con l'inizio della mattina), non la sera prima — e durante la notte in corso
+(fino alle 6) resta gialla: è ancora «adesso». Prima correzione (24/9) usava M≥7/P≥14/N≥21:
+sbagliata. `turnoPassato` in lib/sala-minimi (FINE_TURNO_ORA), `giornoPassato` in desk-board,
+polling dell'ora ogni 60s. Prove: describe «scoperto e turni FINITI».
+
+**Minimi per INTERVALLO (già esistenti dal 16/09, resi SCOPRIBILI 25/09):** i «periodi per
+casella» fanno esattamente ciò che l'utente chiedeva («una sezione fra due mesi ha una persona
+in meno da x a y»): si apre dal NOME della sezione nel pannello minimi → casella M/P/N →
+«+ periodo» con data+turno di inizio e fine (fine INCLUSA), attraversa i mesi, e vince sul
+valore generale. Aggiunta l'istruzione nell'intestazione del pannello.

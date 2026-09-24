@@ -49,15 +49,19 @@ function shiftIndex(shift: SalaShiftType): number {
 }
 
 /**
- * Il TURNO è già finito in QUESTA giornata? (richiesta 24/09/2026: la notte
- * del giorno in corso è già «un fatto» come i giorni passati — la card scoperta
- * si scrive a testo grigio, non come allarme giallo.) Le ore: M fino alle 7,
- * P fino alle 14, N fino alle 21 — oltre, la notte si avvia e ricomincia
- * l'allarme. Orario locale del dispositivo, come `oggiISO` del pannello.
+ * Il TURNO è già finito? (richiesta 24/09/2026, CORRETTA 25/09 con gli orari
+ * veri: M 6–14, P 14–22, N 22–6.) L'allarme giallo della card scoperta si
+ * spegne quando COMINCIA IL TURNO SUCCESSIVO:
+ *   M finisce alle 14 (quando parte P), P alle 22 (quando parte N) e la NOTTE
+ *   di data D — che nel PDF corre dalle 22 di D−1 alle 6 di D — finisce alle 6
+ *   DI D, con l'inizio della mattina: da lì la chip diventa testo grigio.
+ *   Durante la notte in corso (fino alle 6) resta gialla: è ancora «adesso».
+ * Orario locale del dispositivo, come `oggiISO` del pannello.
  */
+const FINE_TURNO_ORA: Record<SalaShiftType, number> = { M: 14, P: 22, N: 6 }
+
 export function turnoPassato(shift: SalaShiftType, now: Date = new Date()): boolean {
-  const ora = now.getHours()
-  return ora >= (shift === 'M' ? 7 : shift === 'P' ? 14 : 21)
+  return now.getHours() >= FINE_TURNO_ORA[shift]
 }
 
 /** Turno dichiarato da una voce: assente = «M» (vale dall'inizio del giorno). */
