@@ -719,3 +719,22 @@ molle generate, durate derivate), `sala-gialli-mese.mjs` (sonda manuale d'emerge
 - La suite visiva è `tests/visivi.spec.ts` (5 scenari × ios/android × chiaro/scuro, basi committate);
   si rigenera con `--update-snapshots`. Gli harness della verifica (matrice, diff, area di tocco)
   vivono in `tests/.probe-*` (git-ignored) — `node tests/.probe-matrici.mjs <url> <tag> [profilo]`.
+
+## FIX PARSER v9 + picker mese (24/09/2026) — gialle ereditate dalla riga sbagliata
+
+**Il bug (ottobre 2026, PDF del 23/9):** CIPOLLETTA risultava gialla nei giorni
+[2,7,11,27,28,29] di MININO. Causa GEOMETRICA: il PDF disegna alcune celle gialle in DUE
+rettangoli impilati (mezze celle h≈7-9px) e il centro della metà bassa cadeva a ~5px dalla riga
+adiacente, dentro la vecchia tolleranza «centro ±6px» di `yellowDaysAtRow` (a marzo: 11 righe con
+falsi positivi, es. CAVANNA g11 era di IORIO). La cura in `lib/pdf-parser.ts`:
+`mergeStackedYellowCells` fonde i pezzi impilati (SOLO mezze celle: le intere adiacenti si toccano
+di ~1px fra righe) e `rowOwnsYellowCell` assegna la cella alla riga la cui banda [y±7.7] è coperta
+di più. Verificato su 18 PDF d'esempio (`scripts/confronta-gialli-v9.mjs`): nessun giallo NUOVO,
+solo rimozioni; il vero `parsePdfSchedule` sull'ottobre reale
+(`scripts/verifica-parse-ottobre.mjs`) restituisce Cipolletta=[30], Minino=[2,7,11,27,28,29].
+
+**Picker mese di /turnisala:** la tendina scriveva il value dal mese della BOARD (`cm-1`) invece
+che dal mese sfogliato: la griglia passava a ottobre ma la tendina tornava su «Settembre». Ora
+value = `pickerMonth.getMonth()` e alla riapertura il calendario riparte dal mese della board.
+Spec: `tests/sala-picker-mese.spec.ts` (usa le fixture del progetto, NON `@playwright/test`
+diretto: senza `browserPronto` il changelog copre la pagina).

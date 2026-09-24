@@ -174,6 +174,44 @@ const CELL_MAX_W = 80
 const CELL_MIN_H = 3
 const CELL_MAX_H = 40
 
+/**
+ * v9 (24/09/2026): il PDF a volte disegna UNA cella gialla in DUE rettangoli
+ * impilati (metà alta + metà bassa, es. MININO di ottobre 2026: metà h=7.3 +
+ * metà h=7.7 attorno alla sua riga). Lasciati separati rompono l'assegnazione
+ * alla riga (vedi rowOwnsYellowCell): qui si fondono i pezzi con stessa
+ * x/larghezza (±2px) e giunto ≤3px. Fondono SOLO i pezzi Mezza cella
+ * (h ≤ 10.5): le celle intere (h ≈ 17.5) di righe adiacenti si toccano di ~1px
+ * (es. giorni 30-31 di ROMANO N. e DI MONDA, stesso colonna x=768.5) e una
+ * fusione lì farebbe perdere il giorno a una delle due persone. Tetto h ≤ 20
+ * sul risultato: nessuna cella reale è più alta di ~18px.
+ */
+function mergeStackedYellowCells(cells: Rect[]): Rect[] {
+  const HALF_CELL_MAX_H = 10.5
+  const MERGE_MAX_H = 20
+  const sorted = [...cells].sort((a, b) => (a.x - b.x) || (b.y - a.y))
+  const out: Rect[] = []
+  for (const c of sorted) {
+    const prev = out[out.length - 1]
+    if (
+      prev &&
+      prev.h <= HALF_CELL_MAX_H && c.h <= HALF_CELL_MAX_H &&
+      Math.abs(prev.x - c.x) <= 2 &&
+      Math.abs(prev.w - c.w) <= 2 &&
+      prev.y - (c.y + c.h) <= 3
+    ) {
+      const bottom = Math.min(prev.y, c.y)
+      const top = Math.max(prev.y + prev.h, c.y + c.h)
+      const h = top - bottom
+      if (h <= MERGE_MAX_H) {
+        out[out.length - 1] = { x: prev.x, y: bottom, w: prev.w, h }
+        continue
+      }
+    }
+    out.push(c)
+  }
+  return out
+}
+
 function collectYellowCells(
   fnArray: ArrayLike<number>,
   argsArray: ArrayLike<unknown>,
@@ -212,7 +250,7 @@ function collectYellowCells(
       pending = null
     }
   }
-  return cells
+  return mergeStackedYellowCells(cells)
 }
 
 // ─── page processing ──────────────────────────────────────────────────────────
@@ -224,8 +262,39 @@ interface PersonData {
   yellowDays: number[]
 }
 
-/** Giorni marcati in giallo sulla riga con quel y (±6px dal centro della cella). */
-function yellowDaysAtRow(yellowCells: Rect[], rowY: number, headerXMap: Record<number, number>, daysInMonth: number): number[] {
+/**
+ * v9 (24/09/2026): possesso di una cella gialla da parte di una riga persona.
+ * La banda della riga è [y−7.7, y+7.7] (mezzi passi delle righe da ~15.4px);
+ * vince la riga la cui banda è coperta DI PIÙ dal rettangolo (min 4px).
+ *
+ * PERCHÉ NON BASTA IL CENTRO (regola ±6px fino al 23/09): con le celle SPEZZATE
+ * in due metà (vedi mergeStackedYellowCells) il centro della metà bassa cade a
+ * ~5px dalla riga SBAGLIATA — ottobre 2026: le metà dei gialli di MININO
+ * (cy=270.8) cadevano a 5.2px dalla riga di CIPOLLETTA (276) e lei ereditava i
+ * giorni di lui. Sulla cella fusa (259.6→274.5) la banda di Minino è coperta
+ * 10.1px contro 5.5 di quella di Cipolletta: vince quello giusto. Le celle
+ * intere adiacenti (h≈17.5, si sovrappongono di ~1px fra righe) restano alla
+ * loro riga: la propria banda è sempre quella coperta di più (es. DI MONDA
+ * giorno 2: 10.7px propria contro 4.8 della riga sotto).
+ */
+const ROW_BAND = 7.7
+const MIN_CELL_ROW_OVERLAP = 4
+
+function rowOwnsYellowCell(c: Rect, rowY: number, rowYs: number[]): boolean {
+  const top = c.y + c.h
+  const bottom = c.y
+  const overlapOf = (row: number) => Math.min(top, row + ROW_BAND) - Math.max(bottom, row - ROW_BAND)
+  const own = overlapOf(rowY)
+  if (own < MIN_CELL_ROW_OVERLAP) return false
+  for (const other of rowYs) {
+    if (other === rowY) continue
+    if (overlapOf(other) > own) return false
+  }
+  return true
+}
+
+/** Giorni marcati in giallo sulla riga con quel y (v9: possesso per banda, vedi rowOwnsYellowCell). */
+function yellowDaysAtRow(yellowCells: Rect[], rowY: number, headerXMap: Record<number, number>, daysInMonth: number, rowYs: number[]): number[] {
   const days: number[] = []
   // v8b: una cella gialla può essere DOPPIA larghezza (il PDF evidenzia due
   // giorni adiacenti con UN rect, es. colonne 24+25 del cluster BARRA/DI MEO
@@ -237,8 +306,7 @@ function yellowDaysAtRow(yellowCells: Rect[], rowY: number, headerXMap: Record<n
   // (3px di arrotondamento) e le celle singole non sanguinano sulle adiacenti.
   const COL_TOLERANCE = 3
   for (const c of yellowCells) {
-    const cy = c.y + c.h / 2
-    if (Math.abs(cy - rowY) > 6) continue
+    if (!rowOwnsYellowCell(c, rowY, rowYs)) continue
     const x1 = c.x - COL_TOLERANCE
     const x2 = c.x + c.w + COL_TOLERANCE
     for (const [day, hx] of Object.entries(headerXMap)) {
@@ -278,6 +346,10 @@ function processPageRows(
     const groupStart = headerIndices[h] + 2
     const groupEnd = h + 1 < headerIndices.length ? headerIndices[h + 1] : rows.length
     const groupRows = rows.slice(groupStart, groupEnd)
+    // v9: le righe che si CONTENDONO le celle gialle sono tutte le righe del
+    // gruppo (persone + righe di correzione): il possesso per banda deve
+    // confrontarle fra loro (vedi rowOwnsYellowCell).
+    const groupRowYs = groupRows.map(r => r.y)
 
     let pendingMod: typeof rows[0] | null = null
     for (const row of groupRows) {
@@ -287,7 +359,7 @@ function processPageRows(
 
       if (parsed) {
         const modByDay: Record<number, string> = {}
-        const yellowDays = new Set(yellowDaysAtRow(yellowCells, row.y, headerXMap, daysInMonth))
+        const yellowDays = new Set(yellowDaysAtRow(yellowCells, row.y, headerXMap, daysInMonth, groupRowYs))
         if (pendingMod) {
           // Filter DOW labels first, then merge any remaining split codes
           const filtered = pendingMod.items.filter(it => !DOW_LABELS.has(it.str))
@@ -297,7 +369,7 @@ function processPageRows(
           }
           // Le correzioni sono stampate sulla riga sopra il dipendente: se è
           // evidenziata in giallo, il giorno è «da confermare» per lui.
-          for (const d of yellowDaysAtRow(yellowCells, pendingMod.y, headerXMap, daysInMonth)) yellowDays.add(d)
+          for (const d of yellowDaysAtRow(yellowCells, pendingMod.y, headerXMap, daysInMonth, groupRowYs)) yellowDays.add(d)
         }
         results.push({
           name: parsed.name,
