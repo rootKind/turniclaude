@@ -239,17 +239,42 @@ test('E2E: le chip «Compatibili» e «A catena» combaciano con i dati della li
   }
 })
 
-test('E2E: senza richieste proprie le chip sono disabilitate con il suggerimento', async ({ asEmployee }) => {
+test('E2E: senza richieste proprie le chip lavorano sul periodo ASSEGNATO (ipotesi)', async ({ asEmployee }) => {
   test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local')
-  const page = await asEmployee('Piscopo') // DCO senza richieste ferie su dev
+  test.setTimeout(90_000)
+  const page = await asEmployee('Piscopo') // DCO con assegnazione ferie ma ZERO richieste 2027
   await page.goto(`${E2E_BASE_URL}/vacanze?dev=rootkind-dev-2026`)
   await page.waitForFunction(() => {
     const uid = localStorage.getItem('cache:last-user-id')
-    return !!uid && !!localStorage.getItem(`cache:${uid}:user-profile`)
+    return !!uid
+      && !!localStorage.getItem(`cache:${uid}:user-profile`)
+      && !!localStorage.getItem(`cache:${uid}:vacation-requests-false-${2027}`)
   }, undefined, { timeout: 30_000 })
 
+  // Il banner di ipotesi dice il periodo assegnato: da lì il test ricava il
+  // punto di vista (P del periodo) e ricalcola l'attesa dai dati in cache.
+  const banner = page.getByText(/Ipotesi: il tuo periodo assegnato \(P\d\)/)
+  await expect(banner).toBeVisible()
+  const ipotesi = Number((await banner.textContent())?.match(/P(\d)/)?.[1])
+  expect(ipotesi, 'periodo assegnato nel banner').toBeGreaterThanOrEqual(1)
+
+  // Le chip sono ATTIVE (non più disabilitate: c'è il punto di vista ipotetico).
   const chip = page.getByRole('button', { name: /^Compatibili/ })
-  await expect(chip).toBeDisabled()
-  await expect(chip).toHaveAttribute('title', /Pubblica una tua richiesta/)
-  await expect(page.getByRole('button', { name: /A catena/ })).toBeDisabled()
+  await expect(chip).toBeEnabled()
+  await expect(page.getByRole('button', { name: /A catena/ })).toBeEnabled()
+
+  // Attesa dirette: altrui che vogliono il MIO periodo assegnato e offrono
+  // qualcosa che accetterei (qualsiasi periodo tranne il mio).
+  const { mioId, richieste } = await cacheFerie(page)
+  const altrui = richieste.filter(r => r.user_id !== mioId)
+  const diretteAttese = new Set(
+    altrui
+      .filter(r => (r.target_periods as number[]).includes(ipotesi) && r.offered_period !== ipotesi)
+      .map(r => r.id),
+  )
+
+  await chip.click()
+  const viste = await page.locator('[data-vac-request]').evaluateAll(els => els.map(e => Number(e.getAttribute('data-vac-request'))))
+  expect(new Set(viste), 'le dirette dell\'ipotesi combaciano con i dati').toEqual(diretteAttese)
+  expect(page.locator('[data-catena]')).toHaveCount(0)
 })
