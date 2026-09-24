@@ -809,3 +809,13 @@ precedente; il primo resta senza filo. NOTA E2E: i test che entrano come lo stes
 messi in un SOLO worker (`test.describe.configure({ mode: 'default' })`) — in parallelo i magic link
 contemporanei per lo stesso utente ogni tanto prendono il rate limit di Supabase e la pagina finisce
 sul login.
+
+• DEV: «elimina la mia richiesta ferie» non funzionava per Minino (25/09/2026): il progetto dev
+(uokfixddsuqcjddbfkln) era rimasto SENZA la policy DELETE di vacation_requests — le migration 029–033
+non erano nell'elenco `list_migrations` del progetto (029–032 erano però già applicate di fatto: colonna
+notif_template_overrides, publication realtime, pattern Rotondo a 84), e la 033 è stata riapplicata via
+MCP `apply_migration` (stesso SQL del repo). Sintomo: la card dice «Richiesta eliminata» ma la richiesta
+resta in elenco — PostgREST torna error=null con ZERO righe (per questo la card usa `.select('id')`),
+ripreso con la sessione reale di Minino (magic link admin + verifyOtp, modello di tests/employee-session).
+Dopo la policy: 1 riga eliminata. LEZIONE: quando una cosa funziona in produzione e no in dev,
+confrontare `pg_policies` / `list_migrations` fra i due progetti PRIMA di cercare il difetto nel codice.
