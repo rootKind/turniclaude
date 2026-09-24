@@ -844,3 +844,31 @@ Il cuore «Sono interessato» era già aperto a tutti: il percorso dalla scopert
 Le chip restano disabilitate SOLO se non c'è né richiesta né assegnazione. E2E: Piscopo (assegnato P5,
 zero richieste 2027) vede il banner, chip attive, dirette combacianti coi dati.
 
+• Promemoria notifiche MOLTO INVASIVO (25/09/2026, su richiesta esplicita): PushPermissionPrompt da
+modal-dialog a SCHERMATA INTERA (`fixed inset-0 z-[100]`, role=dialog aria-modal): compare a OGNI
+avvio se il permesso non è 'granted' (tolto lo snooze di 7 giorni per 'denied'), campana animata
+(animate-bounce; BellOff fermo se bloccata), testo «Ti stai perdendo i cambi di turno» con la
+rassicurazione richiesta (ogni tipologia — nuovi turni, interessi, ferie, «novità, aggiornamenti e
+informazioni di sistema» — è un interruttore separato in Impostazioni→Notifiche). «Continua senza
+notifiche (te lo ricordiamo tra 10 minuti)» NON è un'esenzione: scrive `push-reminder-snoozed-at` e un
+interval di 15 s riapre la schermata al capolinea; `push-reminder-dismissed` resta come USCITA RAPIDA
+per i TEST (browser-setup la scrive: con «ogni avvio» non bastava più lo snooze, ora è un no vero).
+In 'denied' niente CTA (requestPermission non riapre nulla): istruzioni browser + link impostazioni.
+Prove: `tests/push-prompt-invasivo.spec.ts` (3: copertura+testi, snooze→conto→ritorno al capolinea,
+conto attivo sopravvive al reload; per liberare la schermata serve un addInitScript di PAGINA perché
+quello di contesto riscrive lo snooze a ogni load).
+
+• Promemoria notifiche MOLTO INVASIVO (25/09/2026, su richiesta esplicita): PushPermissionPrompt da
+modal-dialog a SCHERMATA INTERA (`fixed inset-0 z-[100]`, role=dialog aria-modal): compare a OGNI
+avvio se il permesso non è 'granted' (tolto lo snooze di 7 giorni per 'denied'), campana animata
+(animate-bounce; BellOff fermo se bloccata), testo «Ti stai perdendo i cambi di turno» con la
+rassicurazione richiesta (ogni tipologia — nuovi turni, interessi, ferie, «novità, aggiornamenti e
+informazioni di sistema» — è un interruttore separato in Impostazioni→Notifiche). «Continua senza
+notifiche (te lo ricordiamo tra 10 minuti)» NON è un'esenzione: scrive `push-reminder-snoozed-at` e un
+interval di 15 s riapre la schermata al capolinea; `push-reminder-dismissed` resta come USCITA RAPIDA
+per i TEST (browser-setup la scrive: con «ogni avvio» non bastava più lo snooze, ora è un no vero).
+In 'denied' niente CTA (requestPermission non riapre nulla): istruzioni browser + link impostazioni.
+Prove: `tests/push-prompt-invasivo.spec.ts` (3: copertura+testi, snooze→conto→ritorno al capolinea,
+conto attivo sopravvive al reload; per liberare la schermata serve un addInitScript di PAGINA perché
+quello di contesto riscrive lo snooze a ogni load).
+
