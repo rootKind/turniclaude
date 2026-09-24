@@ -129,10 +129,13 @@ export function OfflineBar() {
       <WifiOff size={18} className="shrink-0 text-[color:var(--danger)]" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="text-caption font-semibold">Sei offline</p>
-        <p className="text-caption text-muted-foreground truncate">
+        {/* Niente `truncate` qui (d4a0173): su 393px la riga compete col bottone
+        «Riprova» e l'ellipsis tagliava il senso («finché non t…»). Un testo di
+        stato va a capo; l'ellipsis è per le etichette a riga sola. */}
+        <p className="text-caption text-muted-foreground">
           Le modifiche non si salvano finché non torni in linea.
         </p>
-        <p className="text-caption text-muted-foreground/80 truncate">
+        <p className="text-caption text-muted-foreground/80">
           {cache
             ? `${cache.voci} risorse in cache locale (icone e codice)`
             : 'Cache locale non disponibile'}
