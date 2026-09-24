@@ -46,8 +46,11 @@ function Switch({
         "data-[size=sm]:h-[14px] data-[size=sm]:w-[24px]",
         // Variante DEFAULT: la skin. La traccia spenta di M3 porta il suo
         // contorno da 2dp (`--switch-unchecked-border`: 0 altrove, quindi la
-        // dichiarazione è innocua sulle altre piattaforme).
-        "data-[size=default]:h-[var(--switch-track-h)] data-[size=default]:w-[var(--switch-track-w)] data-[size=default]:border-border data-[size=default]:[border-width:var(--switch-unchecked-border)] data-[size=default]:border-solid",
+        // dichiarazione è innocua sulle altre piattaforme). SOLO DA SPENTO
+        // (richiesta 26/09/2026): il bordo applicato anche da acceso incorniciava
+        // la traccia piena con un anello che il pollice copriva a tratti —
+        // l'effetto «sbrindellato» dello screenshot. Acceso: niente bordo.
+        "data-[size=default]:h-[var(--switch-track-h)] data-[size=default]:w-[var(--switch-track-w)] data-[size=default]:border-border data-[size=default]:data-unchecked:[border-width:var(--switch-unchecked-border)] data-[size=default]:border-solid data-[size=default]:data-checked:border-transparent",
         className
       )}
       {...props}
