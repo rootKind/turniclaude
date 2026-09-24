@@ -48,6 +48,18 @@ export function shiftIndex(shift: SalaShiftType): number {
   return shift === 'M' ? 0 : shift === 'P' ? 1 : 2
 }
 
+/**
+ * Il TURNO è già finito in QUESTA giornata? (richiesta 24/09/2026: la notte
+ * del giorno in corso è già «un fatto» come i giorni passati — la card scoperta
+ * si scrive a testo grigio, non come allarme giallo.) Le ore: M fino alle 7,
+ * P fino alle 14, N fino alle 21 — oltre, la notte si avvia e ricomincia
+ * l'allarme. Orario locale del dispositivo, come `oggiISO` del pannello.
+ */
+export function turnoPassato(shift: SalaShiftType, now: Date = new Date()): boolean {
+  const ora = now.getHours()
+  return ora >= (shift === 'M' ? 7 : shift === 'P' ? 14 : 21)
+}
+
 /** Turno dichiarato da una voce: assente = «M» (vale dall'inizio del giorno). */
 export function entryShift(entry: Pick<SalaMinimoEntry, 'fromShift'>): SalaShiftType {
   return entry.fromShift ?? 'M'

@@ -12,7 +12,7 @@ import { DEFAULT_SALA_LAYOUT_DEFAULTS } from '@/types/database'
 import { createClient } from '@/lib/supabase/client'
 import { getUploadHistory } from '@/lib/queries/sala-schedule'
 import { decodeSalaMonth, scopertiDetailForDay, spiegaCodiceNonMostrato, yellowForDay, type SalaSlotKind, type ScopertoInfo, type YellowEntry } from '@/lib/sala-month'
-import { SALA_SHIFTS, minValuesForDay, withMinimoEntry } from '@/lib/sala-minimi'
+import { SALA_SHIFTS, minValuesForDay, turnoPassato, withMinimoEntry } from '@/lib/sala-minimi'
 import type { SalaMinimoPeriod } from '@/types/database'
 import { NON_SECTION_DUTIES, SALA_FLASH_MS, SALA_SHIFT_LABEL, isPresentNoSection, isShiftWorkCode, parseShiftCode, sectionTurnOf, type SalaFocus } from '@/lib/shift-tokens'
 import { MinimiPanel } from './minimi-panel'
@@ -63,7 +63,9 @@ function DroppableCell({ id, children, isEditing }: { id: string; children: Reac
   )
 }
 
-const KNOWN_SECTIONS = ['1', '2', '3', '4', '5', '6', '7', '8']
+// (24/09/2026) 'J' è la sezione JOLLY nata a ottobre: fissata qui, il picker
+// delle card la propone anche sfogliando mesi che non la contengono ancora.
+const KNOWN_SECTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', 'J']
 
 export const MONTHS_IT = [
   'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -789,7 +791,19 @@ export function DeskBoard({
     const n = new Date()
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
   }, [])
-  const giornoPassato = dayISO < todayISO
+  // (24/09/2026) Anche la NOTTE del giorno in corso è già partita alle 21: la sua
+  // scoperta è un fatto, come quella dei giorni passati. Stessa ora per M (7) e P (14).
+  const [oggiOra, setOggiOra] = useState(() => new Date().getHours())
+  useEffect(() => {
+    const t = setInterval(() => setOggiOra(new Date().getHours()), 60_000)
+    return () => clearInterval(t)
+  }, [])
+  const oraRiferimento = useMemo(() => {
+    const n = new Date()
+    n.setHours(oggiOra)
+    return n
+  }, [oggiOra])
+  const giornoPassato = dayISO < todayISO || (dayISO === todayISO && turnoPassato(selectedShift, oraRiferimento))
 
   // POSTI previsti dalla PIANTINA su ogni card, chiave «sezione|TURNO»: servono a
   // dire QUALE posto è vuoto (titolare o sussidio) quando la causa è il minimo e
@@ -828,8 +842,10 @@ export function DeskBoard({
   // CARD in cui lo SCOPERTO si scrive come un nome invece che con la chip gialla
   // (richiesta 16/09/2026, sera): nei GIORNI PASSATI — quando l'assenza è ormai
   // un fatto — e dove il minimo in vigore per quella casella è 0, cioè la
-  // sezione è scoperta DA PROGRAMMA. Con minimo 0 e nessuno mancante non compare
-  // niente: il testo esce solo quando una persona manca davvero.
+  // sezione è scoperta DA PROGRAMMA. (24/09/2026) vale anche per la NOTTE del
+  // giorno in corso dopo le 21: è già partita, è un fatto come il passato.
+  // Con minimo 0 e nessuno mancante non compare niente: il testo esce solo quando
+  // una persona manca davvero.
   const scopertoAsText = useMemo(() => {
     const out = new Set<string>()
     for (const card of cards) {

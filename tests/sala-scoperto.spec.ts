@@ -10,6 +10,7 @@ import {
   periodCovers,
   periodsForCell,
   snapshotForDay,
+  turnoPassato,
   withMinimoEntry,
   withMinimoPeriod,
   withoutMinimoPeriod,
@@ -411,5 +412,72 @@ test.describe('minimi: periodi per casella', () => {
     expect(info.get('6|P')?.count).toBe(1)
     expect(info.get('6|P')?.slots).toEqual(['S'])
     expect(coveringPeriod(layout.minimumPeriods, '6', 'P', '2026-10-16')?.value).toBe(0)
+  })
+})
+
+test.describe('scoperto del giorno in corso: la NOTTE dopo le 21 è già un fatto (24/09/2026)', () => {
+  // La chip gialla «— scoperto» resta per il presente/futuro; quando il turno è
+  // già finito (o il giorno è passato) la board lo scrive a testo grigio. La
+  // scelta del ramo sta in `giornoPassato` di desk-board: qui si prova il pezzo
+  // di logica che decide, con l'orologio iniettato (deterministico).
+  const ore = (h: number) => new Date(2026, 8, 24, h, 0, 0) // 24/09/2026, ora locale
+
+  test('mattina e pomeriggio finiscono alle 7 e alle 14', () => {
+    expect(turnoPassato('M', ore(6))).toBe(false)
+    expect(turnoPassato('M', ore(7))).toBe(true)
+    expect(turnoPassato('P', ore(13))).toBe(false)
+    expect(turnoPassato('P', ore(14))).toBe(true)
+  })
+
+  test('la notte del giorno in corso è passata dalle 21 (segnalazione: scoperto 5|N del 24/9 ancora giallo di sera)', () => {
+    expect(turnoPassato('N', ore(20))).toBe(false)
+    expect(turnoPassato('N', ore(21))).toBe(true)
+    expect(turnoPassato('N', ore(23))).toBe(true)
+  })
+
+  test('il vincolo `giornoPassato` della board: il 23 è passato a qualsiasi ora, il 24 solo dopo il proprio turno', () => {
+    const oggi = '2026-09-24'
+    // Replica della condizione di desk-board (giornoPassato):
+    const passato = (dayISO: string, shift: 'M' | 'P' | 'N', now: Date) =>
+      dayISO < oggi || (dayISO === oggi && turnoPassato(shift, now))
+    expect(passato('2026-09-23', 'N', ore(8))).toBe(true)
+    expect(passato('2026-09-24', 'N', ore(20))).toBe(false)
+    expect(passato('2026-09-24', 'N', ore(21))).toBe(true)
+    expect(passato('2026-09-25', 'N', ore(23))).toBe(false)
+  })
+})
+
+test.describe('vincolo minimi della sezione J (richiesta 24/09/2026)', () => {
+  // La J nasce a ottobre: prima non doveva esserci NESSUNO, da ottobre in poi
+  // solo 1 persona in M e P, mai di notte. Il modello esistente lo esprime con
+  // DUE voci di storia (la prima porta la regola accesa dal 1/10).
+  const CARDS_J = [{ sectionKey: '5', title: 'DCO 5°', type: 'double' as const }, { sectionKey: 'J', title: 'JOLLY', type: 'single' as const }]
+
+  test('due voci: zero fino al 30/9, poi 1 in M e P e 0 di notte', () => {
+    const layout = {
+      minimums: [
+        { from: '2026-09-24', fromShift: 'M' as const, values: { 'J|M': 0, 'J|P': 0, 'J|N': 0 } },
+        { from: '2026-10-01', fromShift: 'M' as const, values: { 'J|M': 1, 'J|P': 1, 'J|N': 0 } },
+      ],
+    }
+    // Settembre: la J non è presidiata da programma (e non segnala scoperti).
+    expect(minValuesForDay(layout, CARDS_J, '2026-09-24', 'M')?.get('J|M')).toBe(0)
+    expect(minValuesForDay(layout, CARDS_J, '2026-09-30', 'P')?.get('J|P')).toBe(0)
+    // Ottobre: 1 in mattina e pomeriggio, 0 di notte.
+    expect(minValuesForDay(layout, CARDS_J, '2026-10-01', 'M')?.get('J|M')).toBe(1)
+    expect(minValuesForDay(layout, CARDS_J, '2026-10-01', 'P')?.get('J|P')).toBe(1)
+    expect(minValuesForDay(layout, CARDS_J, '2026-10-15', 'N')?.get('J|N')).toBe(0)
+    // La regola è accesa solo dal 1/10: prima il giorno non è coperto da nessuna voce.
+    expect(minValuesForDay(layout, CARDS_J, '2026-09-23', 'M')).toBeNull()
+  })
+
+  test('una persona in J di mattina a ottobre NON è scoperta; zero persone lo è (fino a fine settembre no)', () => {
+    const layout = {
+      minimums: [{ from: '2026-10-01', fromShift: 'M' as const, values: { 'J|M': 1, 'J|P': 1, 'J|N': 0 } }],
+    }
+    const mins = minValuesForDay(layout, CARDS_J, '2026-10-05', 'M')!
+    const personaJ = persona('X', 'MJ', 'MJ')
+    expect(scopertiForDay([personaJ], GIORNO, mins).has('J|M')).toBe(false)
+    expect(scopertiForDay([], GIORNO, mins).get('J|M')).toBe(1)
   })
 })
