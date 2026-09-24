@@ -922,9 +922,10 @@ test('tornando indietro dal salto non esce nessun «non è in sala»', async ({ 
       // IL GESTO DI SISTEMA (iOS): una navigazione di storia all'indietro.
       await page.goBack({ waitUntil: 'domcontentloaded' })
       expect(new URL(page.url()).pathname, 'non si è tornati in dashboard').toBe('/dashboard')
-      // Il tempo in cui un avviso tardivo comparirebbe (o in cui quello già
-      // comparso si vedrebbe ancora: ne vive 4s, qui non ne deve restare nessuno).
-      await page.waitForTimeout(1200)
+      // Le 1,2s fisse sono diventate condizione: un avviso tardivo nasce solo da
+      // una fetch in volo (che networkidle aspetta chiudersi); uno già comparso
+      // si vedrebbe subito, senza aspettare.
+      await page.waitForLoadState('networkidle')
       const comparsi = await page.evaluate(() => (window as unknown as { __avvisiSala?: string[] }).__avvisiSala ?? [])
       expect(
         comparsi.filter(t => /non è in sala/i.test(t)),
@@ -1015,7 +1016,11 @@ test('cambiando turno durante l\'evidenzia non esce nessun «non è in sala»', 
     // questa persona — e con la vecchia regola diceva proprio questo.
     const altro: 'M' | 'P' | 'N' = r.shift === 'N' ? 'M' : 'N'
     await selectShift(page, altro)
-    await page.waitForTimeout(4500)
+    // La vecchia attesa fissa di 4,5 s è diventata CONDIZIONE (26/09/2026): il
+    // pericolo è un verdetto emesso su dati ancora in volo o dal render che
+    // chiude la vista lasciata. Quando l'evidenzia si è spenta (la guardia la    // chiude appena giorno/turno non sono più quelli dell'arrivo) e la rete si    // è sedata, nel mondo regredito il giallo non può più comparire.
+    await expect(page.locator('.desk-card-flash')).toHaveCount(0, { timeout: 10_000 })
+    await page.waitForLoadState('networkidle')
 
     const comparsi = await page.evaluate(() => (window as unknown as { __avvisiSala?: string[] }).__avvisiSala ?? [])
     expect(
@@ -1073,7 +1078,13 @@ test('la board non giudica mentre la pagina è nascosta: lo fa quando torna visi
   await expect(page.locator('.sala-card-bg').first()).toBeVisible({ timeout: 25_000 })
   const avviso = page.locator('[data-sonner-toast]').filter({ hasText: /non è in sala/i })
 
-  // Mese arrivato (≈1,5s) e decisione presa: la pagina è nascosta, quindi muta.
+  // CRONOMETRO VOLOGATO (26/09/2026): qui l'attesa fissa resta, ed è voluta.
+  // Con la pagina nascosta l'app non parla AFFATTO (niente fetch, niente
+  // verdetto): non esiste un evento osservabile che separi «l'app saggia che
+  // tace» da «il difetto che non è mai arrivato». Le 2,2s sono calibrate sul
+  // ritardo artificiale qui sopra (1,5s + giudizio): dopo, nella pagina
+  // scoperta, un verdetto sbagliato sarebbe già a schermo — e l'asserzione qui
+  // sotto è proprio quella.
   await page.waitForTimeout(2200)
   expect(
     await avviso.count(),
@@ -1099,14 +1110,19 @@ test('salto istantaneo: la verifica parte al pointerdown e il click non la rifà
   // altro punto dell'app la fa con quella forma (la board e «il tuo turno»
   // chiedono `month, schedule, …`, cioè una URL diversa).
   const verifiche: string[] = []
+  const risposte: string[] = []
   page.on('request', r => {
     if (/rest\/v1\/sala_schedule\?select=schedule/.test(r.url())) verifiche.push(r.url())
+  })
+  page.on('response', r => {
+    if (/rest\/v1\/sala_schedule\?select=schedule/.test(r.url())) risposte.push(r.url())
   })
 
   const blocco = page.locator('button[aria-label^="Vedi in sala"]').first()
   await blocco.waitFor({ state: 'visible', timeout: 20_000 })
   const etichetta = (await blocco.getAttribute('aria-label')) ?? ''
   const richiestePrima = verifiche.length
+  const rispostePrima = risposte.length
 
   // (1) IL DITO AVVIA LA VERIFICA: nessuna domanda prima del tocco, una dopo.
   await blocco.dispatchEvent('pointerdown')
@@ -1118,9 +1134,11 @@ test('salto istantaneo: la verifica parte al pointerdown e il click non la rifà
     .toBeGreaterThan(richiestePrima)
   const dopoIlDito = verifiche.length
 
-  // Si lascia arrivare la risposta: da qui l'esito è in memoria per quella
-  // persona in quel giorno.
-  await page.waitForTimeout(1200)
+  // Si lascia arrivare la risposta (CONDIZIONE, non cronometro): da qui l'esito
+  // è in memoria per quella persona in quel giorno.
+  await expect
+    .poll(() => risposte.length, { timeout: 8_000, message: 'la risposta del pointerdown non è mai arrivata' })
+    .toBeGreaterThan(rispostePrima)
 
   // (2) IL CLICK NON RIFÀ LA DOMANDA e non mostra attesa: l'esito è già lì.
   // I due esiti possibili (si naviga / resta il messaggio) si aspettano IN
@@ -1159,7 +1177,13 @@ test('salto istantaneo: la verifica parte al pointerdown e il click non la rifà
     if (ritorno && (await ancora.getAttribute('aria-label')) === etichetta) {
       const primaDelRitorno = verifiche.length
       await ancora.click()
-      await page.waitForTimeout(1500)
+      // Le 1,5s fisse sono diventate l'attesa dell'ESITO (navigazione o
+      // messaggio): nella memoria rotta la richiesta duplicata parte PRIMA
+      // dell'esito, quindi al suo arrivo il contatore l'ha già registrata.
+      await Promise.race([
+        page.waitForURL(/\/turnisala\?/, { timeout: 6_000 }).catch(() => 'nav' as const),
+        avviso.waitFor({ state: 'visible', timeout: 6_000 }).catch(() => 'msg' as const),
+      ])
       expect(
         verifiche.length,
         `il secondo tap sulla stessa card (${etichetta}) ha richiesto di nuovo i turni: la memoria non ha retto`,

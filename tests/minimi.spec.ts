@@ -25,6 +25,9 @@ import { readSalaLayout, writeSalaLayout, writeSalaLayoutValue, type LayoutSnaps
  * l'unico spec che SCRIVE sulla piantina condivisa, e `beforeAll`/`afterAll`
  * girano una volta per WORKER — in parallelo copia e ripristino si
  * accavallerebbero (e gli altri spec potrebbero leggere la piantina modificata).
+ * Le due prove di SOLA LETTURA che qui non c'entrano (pannello precompilato,
+ * sborda-320px) vivono da 26/09/2026 in `minimi-sola-lettura.spec.ts`, in
+ * parallelo: la coda seriale resta solo a chi scrive.
  */
 test.describe.configure({ mode: 'serial' })
 
@@ -40,33 +43,6 @@ test.describe('turnisala: minimi per card', () => {
 
   test.beforeAll(async () => { prima = await readSalaLayout() })
   test.afterAll(async () => { if (prima) await writeSalaLayout(prima) })
-
-  test('il mini-Fab admin apre il pannello, precompilato dalla piantina', async ({ asEmployee }) => {
-    const admin = await findEmployee('Minino')
-    test.skip(!admin, 'admin non in anagrafica')
-    const page = await asEmployee('Minino')
-    expect(await openBoard(page, { month: 9, day: 6, shift: 'P' })).toBe(true)
-
-    await openSalaAdminFab(page)
-    const apri = page.getByLabel('Minimi di persone per card')
-    await expect(apri, 'il mini-Fab «Minimi per card» deve essere nel menu admin').toBeVisible()
-    await apri.click()
-
-    await expect(page.getByRole('heading', { name: 'Minimi per card' })).toBeVisible()
-    // M/P dalla piantina: la 6° è doppia → 2, l'8° è singola → 1. Di notte vale
-    // la tabella: l'8° a 0, il 4° a 1, la DCIF a 0.
-    await expect(page.getByLabel('DCO 6° turno P')).toHaveValue('2')
-    await expect(page.getByLabel('DCO  8° turno M')).toHaveValue('1')
-    await expect(page.getByLabel('DCO  8° turno N')).toHaveValue('0')
-    await expect(page.getByLabel('DCO 4° turno N')).toHaveValue('1')
-    await expect(page.getByLabel('DCIF turno N')).toHaveValue('0')
-    await expect(page.getByLabel('DCO 4° turno P')).toHaveValue('2')
-    // La data di efficacia è compilata (oggi) e modificabile.
-    await expect(page.getByLabel('Valido dal')).not.toHaveValue('')
-
-    await page.getByRole('button', { name: 'Annulla' }).click()
-    await expect(page.getByRole('heading', { name: 'Minimi per card' })).toHaveCount(0)
-  })
 
   test('salvando, la card sotto il minimo si segnala (e nel passato si scrive a testo)', async ({ asEmployee }) => {
     test.skip(!prima, 'piantina non leggibile (service-role assente)')
@@ -249,32 +225,5 @@ test.describe('turnisala: minimi per card', () => {
     const dopo = await dcif()
     expect(dopo!.chips.filter(t => t.includes('scoperto')), 'niente più chip: la scopertura è da programma').toEqual([])
     expect(dopo!.names, 'la scopertura si scrive come un nome').toContain('— scoperto')
-  })
-
-  // Il pannello ha 13 righe × 3 caselle: su un telefono deve restare usabile e
-  // non deve spingere la pagina in orizzontale. Qui non si apre il calendario
-  // (a 320px il suo pannello copre lo schermo), quindi si resta sul giorno
-  // corrente: basta il Fab e il pannello.
-  test('il pannello non sborda su uno schermo da 320px', async ({ asEmployee }) => {
-    const admin = await findEmployee('Minino')
-    test.skip(!admin, 'admin non in anagrafica')
-    const page = await asEmployee('Minino')
-    await page.setViewportSize({ width: 320, height: 640 })
-    // Senza `day` si resta sul giorno corrente: qui non serve navigare.
-    expect(await openBoard(page, { month: 9 }), 'board non aperta').toBe(true)
-
-    await openSalaAdminFab(page)
-    await page.getByLabel('Minimi di persone per card').click()
-    await expect(page.getByRole('heading', { name: 'Minimi per card' })).toBeVisible()
-
-    const misure = await page.evaluate(() => ({
-      doc: document.documentElement.scrollWidth,
-      view: document.documentElement.clientWidth,
-      caselle: document.querySelectorAll('input[type="number"]').length,
-    }))
-    expect(misure.caselle, '13 card × 3 turni').toBe(39)
-    expect(misure.doc, 'il pannello non deve allargare la pagina').toBeLessThanOrEqual(misure.view + 1)
-
-    await page.getByRole('button', { name: 'Annulla' }).click()
   })
 })

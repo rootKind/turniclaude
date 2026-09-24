@@ -42,6 +42,10 @@ const authState = 'tests/.auth-state.json'
  * giunta in modo GLOBALE (un minimo «valido dal 17/9» vale anche per i giorni
  * che gli altri spec leggono). Per questo vive in un progetto suo, dichiarato
  * DOPO gli altri: la dipendenza lo fa partire quando il resto ha finito.
+ * Le sue due prove di SOLA LETTURA (pannello precompilato, sborda-320px) non
+ * pagano più quel biglietto: da 26/09/2026 stanno in `minimi-sola-lettura.spec.ts`
+ * e girano in parallelo dentro `chromium` — che finisce prima che i writer
+ * partano, così la precondizione «piantina com'è» regge lo stesso.
  *
  * IL MOTORE DI iOS (25/09/2026): il progetto `ios` rifà su WebKit — il motore di
  * Safari/iPhone — le spec del SALTO IN SALA e della BOARD. Non è pignoleria: su
