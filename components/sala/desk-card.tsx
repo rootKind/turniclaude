@@ -340,11 +340,14 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
   // Il posto vuoto decide lo STILE della riga a testo: sussidio = corsivo e
   // colore attenuato (come uno slot «S» della card), titolare = nome normale.
   const renderScopertoRow = (i: number) => {
-    const testoSussidio = scopertoSlots?.[i] === 'S' ? ' italic text-muted-foreground' : ''
+    // (24/09/2026) La riga a TESTO è sempre GRIGIA — è un fatto, non un allarme:
+    // prima solo il sussidio era attenuato e il titolare restava color testo.
+    // Il sussidio resta anche corsivo, come il suo slot nella card.
+    const corsivoSussidio = scopertoSlots?.[i] === 'S' ? ' italic' : ''
     return (
       <span key={`sc-${i}`} className="flex items-center text-sm leading-tight">
         {scopertoAsText ? (
-          <span className={`whitespace-nowrap leading-tight flex items-center gap-0.5${testoSussidio}`}>
+          <span className={`whitespace-nowrap leading-tight flex items-center gap-0.5 text-muted-foreground${corsivoSussidio}`}>
             <span className="sala-fit-text" style={fitText('— scoperto', 16, 0.62)}>— scoperto</span>
           </span>
         ) : (

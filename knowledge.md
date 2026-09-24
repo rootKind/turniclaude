@@ -738,3 +738,21 @@ che dal mese sfogliato: la griglia passava a ottobre ma la tendina tornava su «
 value = `pickerMonth.getMonth()` e alla riapertura il calendario riparte dal mese della board.
 Spec: `tests/sala-picker-mese.spec.ts` (usa le fixture del progetto, NON `@playwright/test`
 diretto: senza `browserPronto` il changelog copre la pagina).
+
+**Sezione J (24/09/2026):** il PDF di ottobre porta la nuova sezione «J» (token MJ/PJ, nessun NJ):
+parser, /tuoturno, pulizia, teorico e salti la gestivano già (tutto generico via `parseShiftCode`); nel picker delle card di /turnisala «J» ora è nell'elenco fisso (`KNOWN_SECTIONS`).
+
+**Minimi della J (stesso giorno):** il vincolo vero («zero prima di ottobre, poi 1 in M e P, 0
+di notte») si esprime con DUE voci di storia in `SalaLayout.minimums`: «dal 1/10 turno M» con
+J M=1 P=1 N=0 (la voce ACCENDE la regola dal suo `from`, niente voce = niente scoperti: così i
+mesi vecchi non si riempiono di allarmi). L'admin non ci era riuscito solo perché l'«In vigore
+da» del pannello parte da OGGI: la data si può editare e basta metterla al 01/10/2026.
+Applicato anche nei DATI di produzione (sala_layout: voce 24/9 con J=1 azzerata + voce dal
+1/10). Prove in `tests/sala-scoperto.spec.ts` (describe «vincolo minimi della sezione J»). 
+
+**Scoperto della NOTTE del giorno in corso (stesso giorno):** dopo le 21 la notte è già partita:
+la card scoperta si scrive a TESTO GRIGIO («— scoperto» attenuato) come i giorni passati, non
+come chip gialla d'allarme (`turnoPassato` in lib/sala-minimi: M≥7, P≥14, N≥21, orologio iniettato;
+`giornoPassato` in desk-board include ora il turno finito di oggi; polling dell'ora ogni 60s).
+La riga a testo è grigia PER OGNI posto (prima solo il sussidio era attenuato). Prove: describe
+«scoperto del giorno in corso» della stessa spec.
