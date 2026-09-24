@@ -121,6 +121,11 @@ export default defineConfig({
         // ha la sua affermazione su «la skin che NON deve muoversi», quindi
         // gira dove la forma esiste E dove non deve esistere.
         /m9-completa\.spec\.ts/,
+        // L'ASPETTO VISIVO (24/09/2026): le basi `toHaveScreenshot` della skin
+        // iOS — pagine e sheet in chiaro e scuro. Le basi si rigenerano con
+        // `--update-snapshots` e si committano: poi ogni scostamento del guscio
+        // oltre la soglia fallisce qui.
+        /visivi\.spec\.ts/,
       ],
       // `serviceWorkers: 'block'` NON è un dettaglio: su WebKit il service worker
       // dell'app (quello delle push) prende il controllo della pagina e le sue
@@ -158,6 +163,8 @@ export default defineConfig({
         // segno a sette forme, l'enfasi, il FAB menu esteso e la toolbar
         // espressiva — è qui che si pretende la forma.
         /m9-completa\.spec\.ts/,
+        // L'ASPETTO VISIVO (24/09/2026): come sopra, con le basi della skin M3.
+        /visivi\.spec\.ts/,
         // LA RAIL (M12f, 23/09/2026): è la forma larga di ANDROID — una colonna a
         // sinistra sopra i 600dp. Girando anche qui, oltre che in `chromium`
         // dove la prova controlla che iOS e desktop NON si muovano, la stessa
