@@ -3020,3 +3020,12 @@ diverse, la posizione in lista non basta più). Prove: `tests/shift-compat-dashb
 e `tests/per-me-dashboard.spec.ts` (E2E: attesa ricostruita da `/api/shift-compat` — lo stesso motore
 di `getUserShiftOnDate` — più replica dei filtri limite-giorni della dashboard; 2).
 
+• Dashboard, gruppo «PER ME» collassabile (25/09/2026): le intestazioni dei gruppi («Offerti da
+te»/«Compatibili col tuo turno») sono BOTTONI (aria-expanded + aria-controls) che nascondono/rimettono
+le card del gruppo; lo stato `gruppiChiusi` sopravvive al cambio filtro e il contatore resta visibile
+da chiuso. Un FILO (border-t) stacca l'header di ogni gruppo successivo dall'ultima card del
+precedente; il primo resta senza filo. NOTA E2E: i test che entrano come lo stesso dipendente vanno
+messi in un SOLO worker (`test.describe.configure({ mode: 'default' })`) — in parallelo i magic link
+contemporanei per lo stesso utente ogni tanto prendono il rate limit di Supabase e la pagina finisce
+sul login.
+

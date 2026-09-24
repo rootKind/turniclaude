@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { User } from 'lucide-react'
+import { User, ChevronDown, ChevronUp } from 'lucide-react'
 import { useShifts } from '@/hooks/use-shifts'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useAppSettings } from '@/hooks/use-app-settings'
@@ -49,6 +49,18 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
   const appSettings = useAppSettings()
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [selectedFilter, setSelectedFilter] = useState<FilterValue>(null)
+  // Intestazioni dei gruppi «Per me» COLlassabili (richiesta 25/09/2026): il tap
+  // sull'intestazione nasconde/rimostra le card del gruppo; il contatore resta
+  // visibile anche da chiuso. Lo stato sopravvive al cambio di filtro.
+  const [gruppiChiusi, setGruppiChiusi] = useState<Set<string>>(new Set())
+  function toggleGruppo(titolo: string) {
+    setGruppiChiusi(prev => {
+      const next = new Set(prev)
+      if (next.has(titolo)) next.delete(titolo)
+      else next.add(titolo)
+      return next
+    })
+  }
 
   const touchStartX = useRef<number>(0)
   const touchStartY = useRef<number>(0)
@@ -339,20 +351,40 @@ export function ShiftList({ isSecondary: isSecondaryProp, isDcoPlus: isDcoPlusPr
             className="flex flex-col gap-0"
           >
             {selectedFilter === 'mine' ? (
-              gruppiPerMe.map(gruppo => (
+              gruppiPerMe.map((gruppo, gi) => {
+                const aperto = !gruppiChiusi.has(gruppo.titolo)
+                return (
                 <div key={gruppo.titolo} data-perme={gruppo.titolo}>
-                  {/* Intestazione: separa «offerti da te» da «compatibili» */}
-                  <div className="mt-3 first:mt-0 mb-2 flex items-center gap-2">
+                  {/* Intestazione COLLESSABILE: separa «offerti da te» da «compatibili».
+                      Un FILO stacca l'intestazione di ogni gruppo successivo
+                      dall'ultima card del gruppo precedente (richiesta 25/09/2026). */}
+                  <button
+                    type="button"
+                    onClick={() => toggleGruppo(gruppo.titolo)}
+                    aria-expanded={aperto}
+                    aria-controls={`gruppo-perme-${gi}`}
+                    className={cn(
+                      'w-full flex items-center gap-2 text-left',
+                      gi > 0 ? 'mt-4 border-t border-border pt-3' : 'mt-0',
+                      'mb-2',
+                    )}
+                  >
                     <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                       {gruppo.titolo}
                     </span>
                     <span className="chip-count" aria-hidden="true">{gruppo.shifts.length}</span>
+                    {aperto
+                      ? <ChevronUp className="w-3 h-3 ml-auto text-muted-foreground" aria-hidden="true" />
+                      : <ChevronDown className="w-3 h-3 ml-auto text-muted-foreground" aria-hidden="true" />}
+                  </button>
+                  <div id={`gruppo-perme-${gi}`}>
+                    {aperto && gruppo.shifts.map((shift, i) =>
+                      renderShiftCard(shift, i, gruppo.shifts[i - 1], gruppo.shifts[i + 1])
+                    )}
                   </div>
-                  {gruppo.shifts.map((shift, i) =>
-                    renderShiftCard(shift, i, gruppo.shifts[i - 1], gruppo.shifts[i + 1])
-                  )}
                 </div>
-              ))
+                )
+              })
             ) : (
               filtered.map((shift, index) =>
                 renderShiftCard(shift, index, filtered[index - 1], filtered[index + 1])

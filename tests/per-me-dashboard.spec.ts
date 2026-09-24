@@ -22,6 +22,12 @@ import type { Page } from '@playwright/test'
  */
 test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local (vedi tests/README.md)')
 
+// I tre test dello stesso file STANNO IN UN SOLO worker: in parallelo generano
+// tre magic link contemporanei per lo stesso dipendente e Supabase ogni tanto
+// li respinge per limite di frequenza (visto il 25/09/2026).
+
+test.describe.configure({ mode: 'default' })
+
 test.setTimeout(120_000)
 
 /** Il viewer del test: dipendente DCO con richieste proprie nel DB. */
@@ -160,6 +166,43 @@ test('nessun gruppo vuoto e i contatori delle intestazioni combaciano', async ({
     expect(g.titolo, 'titolo gruppo').toMatch(/^Offerti da te|Compatibili col tuo turno$/)
     expect(g.conteggio, `contatore di «${g.titolo}»`).toBe(String(g.card))
   }
-  // I due gruppi, se ci sono entrambi, stanno nell'ordine deciso.
-  if (gruppi.length === 2) expect(gruppi[0].titolo).toBe('Offerti da te')
+  // I due gruppi, se ci sono entrambi, stanno nell'ordine deciso e l'header
+  // del secondo stacca con un FILO dall'ultima card del primo.
+  if (gruppi.length === 2) {
+    expect(gruppi[0].titolo).toBe('Offerti da te')
+    const stacca = await page.evaluate(() => {
+      const els = [...document.querySelectorAll('[data-perme]')]
+      const h2 = els[1]?.querySelector('button')
+      return h2 ? getComputedStyle(h2).borderTopWidth : '0px'
+    })
+    expect(parseFloat(stacca), 'filo sopra «Compatibili col tuo turno»').toBeGreaterThan(0)
+  }
+})
+
+test('le intestazioni dei gruppi si collassano e riaprono', async ({ asEmployee }) => {
+  const page = await asEmployee(VIEWER)
+  await apriDashboard(page)
+  await apriPerMe(page)
+
+  const conteggi = () => page.locator('[data-perme]').evaluateAll(els =>
+    els.map(el => ({
+      titolo: el.getAttribute('data-perme') ?? '',
+      aperto: el.querySelector('button')?.getAttribute('aria-expanded') === 'true',
+      card: el.querySelectorAll('button[aria-label^="Vedi in sala"]').length,
+    })),
+  )
+  const prima = await conteggi()
+  expect(prima.length).toBeGreaterThan(0)
+  expect(prima.every(g => g.aperto), 'tutti aperti all\'inizio').toBe(true)
+
+  // Chiudi il primo gruppo: le sue card spariscono, le altre restano.
+  await page.locator('[data-perme] > button').first().click()
+  const dopo = await conteggi()
+  expect(dopo[0].aperto).toBe(false)
+  expect(dopo[0].card, 'card nascoste da chiuso').toBe(0)
+  if (prima.length > 1) expect(dopo[1].card, 'gli altri gruppi intatti').toBe(prima[1].card)
+
+  // Riapri: tornano le stesse card (ordine incluso).
+  await page.locator('[data-perme] > button').first().click()
+  expect(await conteggi()).toEqual(prima)
 })
