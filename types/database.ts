@@ -116,6 +116,10 @@ export interface VacationRequestInterest {
   created_at: string
   user: Pick<UserProfile, 'id' | 'nome' | 'cognome' | 'is_secondary'>
   period_this_year: VacationPeriod | null   // da vacation_assignments + rotazione; null se l'assegnazione è ignota
+  /** Presente SOLO se l'interesse è al fine di una CATENA: { periods, source }.
+   *  periods = i periodi offerti nell'ordine del giro partendo da chi aderisce
+   *  (il primo è il suo, l'ultimo è quello che gli chiude il ciclo). */
+  chain_context: { periods: number[]; source: 'list' | 'dialog' } | null
 }
 
 export interface VacationRequestWithInterests extends VacationRequest {

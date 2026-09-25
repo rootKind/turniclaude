@@ -871,3 +871,30 @@ con dettaglio nell'espansione. ATTENZIONE: `/api/events` ha la SUA allowlist olt
 aggiungere il tipo in una sola delle due non basta (l'E2E l'ha beccato: 400 senza il tipo nella route).
 Prove: `tests/push-stats.spec.ts` (2: evento+check+rifiuto sconosciuti; stats con date vere dei
 dispositivi storici).
+
+## 2026-09-25 — Catene ferie: esclusioni, contesto «al fine della catena», vista per catena
+
+Richiesta utente (25/09/2026): (1) via la didascalia «Ipotesi: il tuo periodo assegnato…»; (2) la
+lista piatta si raggruppa per PERIODO CEDUTO («Cedendo» + pillola), ordinali su TUTTE le card del
+gruppo; (3) nella vista «A catena» un gruppo per giro con SOLO ordinali, pillola del periodo che
+OTTIENI nell'intestazione (al posto del numero partecipanti) e UN SOLO bottone toggle
+(iscrizione/uscita) via `/api/vacanze/join-chain`; (4) le catene ESCLUDONO chi ha con me uno
+scambio DIRETTO (il diretto rende la catena inutile): implementato in `findVacationChains`
+(lib/queries/vacations.ts) → vale per lista, dialog e notifiche; (5) gli interessi creati per una
+catena portano `chain_context` jsonb (migration **036**, applicata a dev e PRODUZIONE:
+{periods: accettati, source: list|dialog}) e mostrano il badge ⛓ «Interesse al fine della catena
+selezionata» nella lista interessati. Le richieste del dialog `handleJoinChain` passano
+`source: 'dialog'` (la route defaulta a 'list').
+
+Lib/chiavi: `titoloCatena` invariato («⛓ Catena: tu P2 → X P6 → Y P3 → tu»); le catene della
+dashboard portano `ottieni` (l'offerto dell'ultimo nodo) per la pillola colorata `PeriodPill`.
+Vista catena: `data-catena` = chiave id (dedup), `data-titolo` = intestazione leggibile dai test.
+
+Trappola test E2E: la cache localStorage può essere SVUOTATA dall'invalidazione realtime mentre la
+pagina continua a renderizzare dalla memoria — il localStorage non è affidabile come attesa: per
+gli ASSERT usare il DB via service-role e pollare solo il DOM. `Object.entries(VACATION_PERIOD_LABELS)`
+restituisce chiavi STRINGA: `Number(entry[0])` prima dei confronti con array di numeri (bug vero
+trovato dal test). Residui di test di ieri nel DB dev (richieste Piccirillo/Cicia duplicate 40–43
+mai ripulite): rimossi; controllare `vacation_requests` 2027 se i contatori non tornano.
+Prove: `tests/ferie-chip.spec.ts` (9: esclusione diretto-fuori-catena in logica ed E2E, validità
+del giro, ipotesi senza banner leggendo il box «Il tuo periodo 2027»).

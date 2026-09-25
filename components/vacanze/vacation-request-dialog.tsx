@@ -190,7 +190,7 @@ export function VacationRequestDialog({ open, onClose, isSecondary, userId, base
       const res = await fetch('/api/vacanze/join-chain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestIds: chain.map(r => r.id), actorName, year }),
+        body: JSON.stringify({ requestIds: chain.map(r => r.id), actorName, year, source: 'dialog' }),
       })
       if (res.status === 409) {
         toast.success('Sei già interessato a questa catena')
