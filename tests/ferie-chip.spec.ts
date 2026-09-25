@@ -66,7 +66,7 @@ test('la catena a tre chiude il giro e il titolo racconta il percorso', () => {
   )
   expect(dirette).toHaveLength(0)
   expect(catene).toHaveLength(1)
-  expect(catene[0].titolo).toBe('⛓ Catena: tu P2 → Di Monda P6 → Sabia P3 → tu')
+  expect(catene[0].titolo).toBe('Catena a 3: tu P2 → Di Monda P6 → Sabia P3 → tu')
   expect(catene[0].requests.map(r => r.id)).toEqual([2, 3])
 })
 
@@ -109,7 +109,7 @@ test('le mie richieste non finiscono mai nei gruppi (non ci si scambia da soli)'
 })
 
 test('il titolo richiede almeno due nodi intermedi e si chiude con l\'utente', () => {
-  expect(titoloCatena(mia, [req(2, 'u-b', 'Rossi', 6, [2])])).toBe('⛓ Catena: tu P2 → Rossi P6 → tu')
+  expect(titoloCatena(mia, [req(2, 'u-b', 'Rossi', 6, [2])])).toBe('Catena a 2: tu P2 → Rossi P6 → tu')
 })
 
 // ── E2E ───────────────────────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ async function cacheFerie(page: Page): Promise<{ mioId: string; richieste: VacCa
   })
 }
 
-test('E2E: le chip «Scambi a due» e «Cambi a tre o più» combaciano con i dati della lista', async ({ asEmployee }) => {
+test('E2E: le chip «Cambi a 2» e «Cambi a 3 o più» combaciano con i dati della lista', async ({ asEmployee }) => {
   test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local')
   test.setTimeout(90_000)
 
@@ -146,7 +146,7 @@ test('E2E: le chip «Scambi a due» e «Cambi a tre o più» combaciano con i da
   // test la RICREA insieme allo scenario Minino P2→[3]; Piccirillo P6→[2]
   // (vuole il mio, NON diretto); Cicia P3→[6] (chiude il giro); Greco P3→[2]
   // (vuole il mio e offre ciò che cerco → DIRETTO: compare anche nelle catene,
-  // la regola di esclusione è stata ripristinata). Tutte e quattro si
+  // i diretti NON sono esclusi: compare anche nelle catene). Tutte e quattro si
   // RIMUOVONO alla fine: la prova resta ripetibile e il database torna com'era.
   const { createClient } = await import('@supabase/supabase-js')
   const admin = createClient(
@@ -200,19 +200,19 @@ test('E2E: le chip «Scambi a due» e «Cambi a tre o più» combaciano con i da
     )
     expect(diretteAttese.size, 'il nostro scenario crea almeno una diretta').toBeGreaterThan(0)
 
-    // Chip «Scambi a due»: conteggio e card visibili.
-    const chipDirette = page.getByRole('button', { name: /^Scambi a due/ })
+    // Chip «Cambi a 2»: conteggio e card visibili.
+    const chipDirette = page.getByRole('button', { name: /^Cambi a 2/ })
     await chipDirette.click()
     await expect(chipDirette.locator('.chip-count')).toHaveText(String(diretteAttese.size))
     const visteDirette = await page.locator('[data-vac-request]').evaluateAll(els => els.map(e => Number(e.getAttribute('data-vac-request'))))
     expect(new Set(visteDirette)).toEqual(diretteAttese)
     expect(page.locator('[data-catena]')).toHaveCount(0)
 
-    // Chip «⛓ Cambi a tre o più»: un gruppo per catena, e OGNI giro è VALIDO:
+    // Chip «Cambi a 3 o più»: un gruppo per catena, e OGNI giro è VALIDO:
     // il primo nodo riceve il mio periodo, ogni nodo cede al successivo,
     // l'ultimo offre qualcosa che cerco. I diretti NON sono esclusi (25/09/2026:
     // la vista è raggruppata per periodo ottenuto, più giri = più scelta).
-    const chipCatene = page.getByRole('button', { name: /Cambi a tre o più/ })
+    const chipCatene = page.getByRole('button', { name: /Cambi a 3 o più/ })
     await chipCatene.click()
     await expect(page.locator('[data-catena]').first()).toBeAttached({ timeout: 15_000 })
 
@@ -225,7 +225,10 @@ test('E2E: le chip «Scambi a due» e «Cambi a tre o più» combaciano con i da
 
     const nodiVisti = new Set<number>()
     for (const g of gruppi) {
-      expect(g.titolo).toMatch(/^⛓ Catena: tu P\d( → \S+ P\d)+ → tu$/)
+      // «Catena a N»: N = i nodi del giro + chi guarda. Il pattern esclude la
+      // «Catena a 10+» impossibile col max 4 nodi intermedi del BFS.
+      expect(g.titolo).toMatch(/^Catena a [2-5]: tu P\d( → \S+ P\d)+ → tu$/)
+      expect(Number(g.titolo.match(/^Catena a (\d)/)?.[1])).toBe(g.ids.length + 1)
       expect(g.ids.length).toBeGreaterThanOrEqual(2)
       // validità del giro con i dati reali
       expect(mie.some(m => perId.get(g.ids[0])?.target_periods.includes(m.offered_period)), 'il primo nodo vuole il mio periodo').toBe(true)
@@ -278,9 +281,9 @@ test('E2E: senza richieste proprie le chip lavorano sul periodo ASSEGNATO (ipote
   const IPO = Number(ipotesi)
 
   // Le chip sono ATTIVE (non più disabilitate: c'è il punto di vista ipotetico).
-  const chip = page.getByRole('button', { name: /^Scambi a due/ })
+  const chip = page.getByRole('button', { name: /^Cambi a 2/ })
   await expect(chip).toBeEnabled()
-  await expect(page.getByRole('button', { name: /Cambi a tre o più/ })).toBeEnabled()
+  await expect(page.getByRole('button', { name: /Cambi a 3 o più/ })).toBeEnabled()
 
   // Attesa dirette: altrui che vogliono il MIO periodo assegnato (IPO) e
   // offrono qualcosa che accetterei. La fonte di verità è il DB (service-role):

@@ -31,7 +31,7 @@ interface Props {
  * cede, il gruppo contiene tutte le richieste che lo chiedono, ordinate per
  * data di creazione — e TUTTE le card del gruppo portano l'ordinale (1°, 2°…):
  * il periodo è nell'intestazione, la data non è più l'ancora visiva.
- * La vista «⛓ Cambi a tre o più» raggruppa per catena: un gruppo per giro, la pillola
+ * La vista «Cambi a 3 o più» raggruppa per catena: un gruppo per giro, la pillola
  * del periodo che OTTIENI chiudendolo, e UN solo bottone per aderirvi
  * (toggle: il secondo tap ti fa uscire).
  */
@@ -44,8 +44,8 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
   const { profile } = useCurrentUser()
   const isManagerView = profile ? isManager(profile) : false
   const [compatibleOnly, setCompatibleOnly] = useState(false)
-  // Le due chip PERSONALI: «Scambi a due» (l'altro offre ciò che cerco e cerca
-  // ciò che offro) e «⛓ Cambi a tre o più» (giri chiusi da ≥ 3 persone). Un
+  // Le due chip PERSONALI: «Cambi a 2» (l'altro offre ciò che cerco e cerca
+  // ciò che offro) e «Cambi a 3 o più» (giri chiusi da ≥ 3 persone). Un
   // solo filtro attivo per volta; il manager
   // resta sulla sua «Solo compatibili» (richieste con interessi).
   const [filtroMio, setFiltroMio] = useState<'dirette' | 'catene' | null>(null)
@@ -223,7 +223,7 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
                     : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40',
                 )}
               >
-                Scambi a due
+                Cambi a 2
                 <span className="chip-count" aria-hidden="true">{chipCounts.mieDirette}</span>
               </button>
               <button
@@ -238,7 +238,7 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
                     : 'bg-muted text-muted-foreground hover:bg-muted/80 border-dashed border-muted-foreground/40',
                 )}
               >
-                ⛓ Cambi a tre o più
+                Cambi a 3 o più
                 <span className="chip-count" aria-hidden="true">{chipCounts.mieCatene}</span>
               </button>
             </div>
@@ -354,8 +354,8 @@ export function VacationRequestList({ isSecondary, effectiveUserId, loggedInUser
           {!isManagerView && filtroMio && !filtered.length && (
             <div className="text-center py-8 text-muted-foreground text-sm">
               {filtroMio === 'dirette'
-                ? 'Nessuno scambio a due col tuo periodo: offri ciò che qualcuno cerca e viceversa.'
-                : 'Nessun cambio a tre o più col tuo periodo, per ora.'}
+                ? 'Nessun cambio a 2 col tuo periodo: offri ciò che qualcuno cerca e viceversa.'
+                : 'Nessun cambio a 3 o più col tuo periodo, per ora.'}
             </div>
           )}
         </>

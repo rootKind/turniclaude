@@ -29,7 +29,7 @@ export type RichiestaPropria = Pick<
 >
 
 export interface CatenaFerie {
-  /** Intestazione del gruppo: «⛓ Catena: tu P2 → Rossi P6 → Bianchi P3 → tu». */
+  /** Intestazione del gruppo: «Catena a 3: tu P2 → Rossi P6 → Bianchi P3 → tu». */
   titolo: string
   /** I nodi intermedi, nell'ordine del giro (il primo riceve il MIO periodo). */
   requests: VacationRequestWithInterests[]
@@ -44,7 +44,8 @@ export interface CompatFerie {
   catene: CatenaFerie[]
 }
 
-/** «⛓ Catena: tu P2 → Di Monda P6 → Sabia P3 → tu»: ogni nome cede il P che sta dopo di lui. */
+/** «Catena a 3: tu P2 → Di Monda P6 → Sabia P3 → tu»: ogni nome cede il P che sta dopo di lui.
+ *  Il numero è le PERSONE coinvolte (i nodi + chi guarda), come nel dialog. */
 export function titoloCatena(
   propria: RichiestaPropria,
   nodi: VacationRequestWithInterests[],
@@ -54,7 +55,7 @@ export function titoloCatena(
     parti.push(`${nodo.user?.cognome ?? '?'} P${nodo.offered_period}`)
   }
   parti.push('tu')
-  return `⛓ Catena: ${parti.join(' → ')}`
+  return `Catena a ${nodi.length + 1}: ${parti.join(' → ')}`
 }
 
 /**
