@@ -31,6 +31,12 @@ interface Props {
   isHighlighted?: boolean
   duplicateCognomi?: Set<string>
   isManagerView?: boolean
+  /** VISTA A CATENA (richiesta 25/09/2026): niente colonna data (il periodo è
+   *  nell'intestazione del gruppo), sempre ordinale, niente cuore sulla
+   *  singola card — l'iscrizione alla catena è il bottone del gruppo. */
+  isChainView?: boolean
+  /** Mostra un badge ⛓ sull'interesse marcato come «al fine della catena». */
+  mostraBadgeCatena?: boolean
 }
 
 function formatRequestDate(createdAt: string): { day: string; month: string } {
@@ -45,7 +51,8 @@ const PERIOD_PILL_CLASS: Record<number, string> = {
   1: 'p1-pill', 2: 'p2-pill', 3: 'p3-pill', 4: 'p4-pill', 5: 'p5-pill', 6: 'p6-pill',
 }
 
-function PeriodPill({ period }: { period: VacationPeriod | null }) {
+/** La pillola del periodo, condivisa (card ferie e intestazioni dei gruppi). */
+export function PeriodPill({ period }: { period: VacationPeriod | null }) {
   // Il periodo dell'interessato può essere IGNOTO (nessuna assegnazione ferie,
   // o embed non risolto): si DICE, invece di mostrare un periodo finto.
   const label = period == null ? 'Periodo non noto' : VACATION_PERIOD_LABELS[period].label
@@ -69,6 +76,8 @@ export function VacationRequestItem({
   isHighlighted = false,
   duplicateCognomi,
   isManagerView = false,
+  isChainView = false,
+  mostraBadgeCatena = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -308,14 +317,16 @@ export function VacationRequestItem({
           onClick={() => setExpanded(v => !v)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v) } }}
       >
-        {/* Date block */}
+        {/* Date block — in vista CATENA sempre solo l'ordinale (il periodo è
+            nell'intestazione del gruppo); nelle altre viste data alla prima e
+            ordinali alle successive, raggruppate per periodo ceduto. */}
         <div className={cn('relative w-[52px] flex-shrink-0 flex flex-col items-center justify-center py-3', dateBgClass,
           // A riposo (25/08/2026) niente separatore nella colonna data: il gruppo di card
           // dello stesso giorno è un blocco unico, nessuna linea identifica la parte compressa.
         )}>
           {!request.is_pending && isManagerView && hasInterest && <span className="absolute inset-0 confirm-overlay pointer-events-none" />}
           {request.is_pending && <span className="absolute inset-0 pending-overlay pointer-events-none" />}
-          {dateIndex > 0 ? (
+          {isChainView || dateIndex > 0 ? (
             <span className="text-[16px] font-extrabold leading-none text-muted-foreground">{dateIndex + 1}°</span>
           ) : (
             <>
@@ -427,7 +438,12 @@ export function VacationRequestItem({
                           .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                           .map(i => (
                             <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0 gap-2">
-                              <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
+                              <span className="text-[12px] shrink-0">
+                                {formatDisplayName(i.user, duplicateCognomi)}
+                                {mostraBadgeCatena && i.chain_context && (
+                                  <span className="ml-1 text-[9px] font-bold text-chain-node" title="Interesse al fine della catena selezionata">⛓</span>
+                                )}
+                              </span>
                               <PeriodPill period={i.period_this_year} />
                               <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(i.created_at)}</span>
                             </div>
@@ -548,7 +564,12 @@ export function VacationRequestItem({
                           .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                           .map(i => (
                             <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0 gap-2">
-                              <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
+                              <span className="text-[12px] shrink-0">
+                                {formatDisplayName(i.user, duplicateCognomi)}
+                                {mostraBadgeCatena && i.chain_context && (
+                                  <span className="ml-1 text-[9px] font-bold text-chain-node" title="Interesse al fine della catena selezionata">⛓</span>
+                                )}
+                              </span>
                               <PeriodPill period={i.period_this_year} />
                               <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(i.created_at)}</span>
                             </div>
@@ -571,7 +592,12 @@ export function VacationRequestItem({
                           .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                           .map(i => (
                             <div key={i.user_id} className="flex justify-between items-center py-1 border-b border-black/10 dark:border-white/10 last:border-0 gap-2">
-                              <span className="text-[12px] shrink-0">{formatDisplayName(i.user, duplicateCognomi)}</span>
+                              <span className="text-[12px] shrink-0">
+                                {formatDisplayName(i.user, duplicateCognomi)}
+                                {mostraBadgeCatena && i.chain_context && (
+                                  <span className="ml-1 text-[9px] font-bold text-chain-node" title="Interesse al fine della catena selezionata">⛓</span>
+                                )}
+                              </span>
                               <PeriodPill period={i.period_this_year} />
                               <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(i.created_at)}</span>
                             </div>

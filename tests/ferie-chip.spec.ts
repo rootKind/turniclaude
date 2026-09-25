@@ -1,6 +1,7 @@
 import { test, expect, employeeLoginEnabled, E2E_BASE_URL } from './fixtures'
 import type { Page } from '@playwright/test'
 import { gruppiCompatibiliFerie, titoloCatena } from '../lib/vacation-compat-dashboard'
+import { VACATION_PERIOD_LABELS } from '../lib/vacations'
 import type { VacationRequestWithInterests, VacationPeriod } from '../types/database'
 
 /**
@@ -69,14 +70,15 @@ test('la catena a tre chiude il giro e il titolo racconta il percorso', () => {
   expect(catene[0].requests.map(r => r.id)).toEqual([2, 3])
 })
 
-test('una richiesta può stare in una diretta E in una catena (gruppi diversi)', () => {
-  // B è diretta con me; C vuole P3 e offre P3: la catena B→C si chiude.
+test('chi ha uno scambio diretto con me è escluso dalle catene (niente anelli inutili)', () => {
+  // B è diretta con me; C vuole P3 e offre P3: il giro B→C si chiuderebbe,
+  // ma con B basta lo scambio a due — la catena non lo deve nemmeno proporre.
   const { dirette, catene } = gruppiCompatibiliFerie(
     [mia, req(2, 'u-b', 'Rossi', 3, [2]), req(3, 'u-c', 'Bianchi', 3, [3])],
     [mia],
   )
   expect(dirette.map(r => r.id)).toEqual([2])
-  expect(catene[0].requests.map(r => r.id)).toEqual([2, 3])
+  expect(catene).toHaveLength(0)
 })
 
 test('con due richieste proprie nessuna richiesta appare due volte nelle dirette', () => {
@@ -140,10 +142,12 @@ test('E2E: le chip «Compatibili» e «A catena» combaciano con i dati della li
   test.skip(!employeeLoginEnabled(), 'serve SUPABASE_SERVICE_ROLE_KEY in .env.local')
   test.setTimeout(90_000)
 
-  // SU DEV nessun DCO ha oggi catene reali (il giro possibile passa da un Noni,
-  // invisibile nella vista DCO). Il test CREÀ le due richieste che chiudono la
-  // catena Minino P2 → B P6 → C P3 → Minino e le RIMUOVE alla fine: la prova
-  // resta ripetibile e il database torna com'era.
+  // SU DEV Minino ha cancellato la sua richiesta 2027 (dopo il fix RLS): il
+  // test la RICREA insieme allo scenario Minino P2→[3]; Piccirillo P6→[2]
+  // (vuole il mio, NON diretto); Cicia P3→[6] (chiude il giro); Greco P3→[2]
+  // (vuole il mio e offre ciò che cerco → DIRETTO, deve restare FUORI dalle
+  // catene: è la prova reale della regola di esclusione). Tutte e quattro si
+  // RIMUOVONO alla fine: la prova resta ripetibile e il database torna com'era.
   const { createClient } = await import('@supabase/supabase-js')
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -155,12 +159,14 @@ test('E2E: le chip «Compatibili» e «A catena» combaciano con i dati della li
     if (!data) throw new Error(`utente non trovato: ${cognome}`)
     return data.id
   }
-  const [b, c] = await Promise.all([idDi('Piccirillo'), idDi('Cicia')])
+  const [io, b, c, d] = await Promise.all([idDi(VIEWER), idDi('Piccirillo'), idDi('Cicia'), idDi('Greco')])
   const { data: create, error: createErr } = await admin
     .from('vacation_requests')
     .insert([
-      { user_id: b, offered_period: 6, target_periods: [2], year: ANNO },  // vuole il mio P2
-      { user_id: c, offered_period: 3, target_periods: [6], year: ANNO },  // vuole P6 di B
+      { user_id: io, offered_period: 2, target_periods: [3], year: ANNO }, // la mia (ricreata)
+      { user_id: b, offered_period: 6, target_periods: [2], year: ANNO },  // vuole il mio P2, NON diretto
+      { user_id: c, offered_period: 3, target_periods: [6], year: ANNO },  // vuole P6 di B → giro
+      { user_id: d, offered_period: 3, target_periods: [2], year: ANNO },  // DIRETTO con me: fuori dalle catene
     ])
     .select('id')
   expect(createErr, 'inserimento richieste di prova').toBeNull()
@@ -193,6 +199,14 @@ test('E2E: le chip «Compatibili» e «A catena» combaciano con i dati della li
         .map(r => r.id),
     )
     expect(diretteAttese.size, 'il nostro scenario crea almeno una diretta').toBeGreaterThan(0)
+    // La regola nuova, provata sui dati: NESSUN diretto può comparire in una catena.
+    const direttiIds = new Set(
+      altrui
+        .filter(r => mie.some(m =>
+          (r.target_periods as number[]).includes(m.offered_period) &&
+          m.target_periods.includes(r.offered_period)))
+        .map(r => r.user_id),
+    )
 
     // Chip «Compatibili»: conteggio e card visibili.
     const chipDirette = page.getByRole('button', { name: /^Compatibili/ })
@@ -210,7 +224,7 @@ test('E2E: le chip «Compatibili» e «A catena» combaciano con i dati della li
     await expect(page.locator('[data-catena]').first()).toBeAttached({ timeout: 15_000 })
 
     const gruppi = await page.locator('[data-catena]').evaluateAll(els => els.map(el => ({
-      titolo: el.getAttribute('data-catena') ?? '',
+      titolo: el.getAttribute('data-titolo') ?? '',
       ids: [...el.querySelectorAll('[data-vac-request]')].map(e => Number(e.getAttribute('data-vac-request'))),
     })))
     await expect(chipCatene.locator('.chip-count')).toHaveText(String(gruppi.length))
@@ -220,6 +234,9 @@ test('E2E: le chip «Compatibili» e «A catena» combaciano con i dati della li
     for (const g of gruppi) {
       expect(g.titolo).toMatch(/^⛓ Catena: tu P\d( → \S+ P\d)+ → tu$/)
       expect(g.ids.length).toBeGreaterThanOrEqual(2)
+      for (const id of g.ids) {
+        expect(direttiIds.has(perId.get(id)?.user_id ?? ''), `il nodo ${id} non è un mio diretto`).toBe(false)
+      }
       // validità del giro con i dati reali
       expect(mie.some(m => perId.get(g.ids[0])?.target_periods.includes(m.offered_period)), 'il primo nodo vuole il mio periodo').toBe(true)
       for (let i = 0; i < g.ids.length - 1; i++) {
@@ -246,35 +263,63 @@ test('E2E: senza richieste proprie le chip lavorano sul periodo ASSEGNATO (ipote
   await page.goto(`${E2E_BASE_URL}/vacanze?dev=rootkind-dev-2026`)
   await page.waitForFunction(() => {
     const uid = localStorage.getItem('cache:last-user-id')
-    return !!uid
-      && !!localStorage.getItem(`cache:${uid}:user-profile`)
-      && !!localStorage.getItem(`cache:${uid}:vacation-requests-false-${2027}`)
+    if (!uid) return false
+    if (!localStorage.getItem(`cache:${uid}:user-profile`)) return false
+    const raw = localStorage.getItem(`cache:${uid}:vacation-requests-false-${2027}`)
+    // Il payload deve essere POPOLATO: la chiave può esistere ancora vuota
+    // mentre il service worker semina la cache dalla rete.
+    if (!raw) return false
+    const lista = JSON.parse(raw).data as unknown[]
+    return Array.isArray(lista) && lista.length > 0
   }, undefined, { timeout: 30_000 })
 
-  // Il banner di ipotesi dice il periodo assegnato: da lì il test ricava il
-  // punto di vista (P del periodo) e ricalcola l'attesa dai dati in cache.
-  const banner = page.getByText(/Ipotesi: il tuo periodo assegnato \(P\d\)/)
-  await expect(banner).toBeVisible()
-  const ipotesi = Number((await banner.textContent())?.match(/P(\d)/)?.[1])
-  expect(ipotesi, 'periodo assegnato nel banner').toBeGreaterThanOrEqual(1)
+  // Il box «Il tuo periodo 2027» mostra il periodo assegnato (il banner di
+  // ipotesi è stato tolto su richiesta): da lì il test ricava il punto di vista
+  // (P del periodo) e ricalcola l'attesa dai dati in cache.
+  const boxLabel = page.locator('p', { hasText: /^Il tuo periodo 2027$/ }).locator('xpath=following-sibling::p[1]')
+  await expect(boxLabel, 'il box mostra il periodo assegnato').toHaveText(/16–30|01–15/, { timeout: 15_000 })
+  const label = (await boxLabel.textContent())!.trim()
+  const ipotesi = (
+    Object.entries(VACATION_PERIOD_LABELS) as unknown as [VacationPeriod, { label: string }][]
+  ).find(([, m]) => m.label === label)?.[0]
+  expect(ipotesi, `periodo assegnato nel box («${label}»)`).toBeTruthy()
+  // Object.entries rende CHIAVI STRINGA: senza Number() il includes('6') su
+  // array di numeri sarebbe sempre falso (già successo in questo test).
+  const IPO = Number(ipotesi)
 
   // Le chip sono ATTIVE (non più disabilitate: c'è il punto di vista ipotetico).
   const chip = page.getByRole('button', { name: /^Compatibili/ })
   await expect(chip).toBeEnabled()
   await expect(page.getByRole('button', { name: /A catena/ })).toBeEnabled()
 
-  // Attesa dirette: altrui che vogliono il MIO periodo assegnato e offrono
-  // qualcosa che accetterei (qualsiasi periodo tranne il mio).
-  const { mioId, richieste } = await cacheFerie(page)
-  const altrui = richieste.filter(r => r.user_id !== mioId)
-  const diretteAttese = new Set(
-    altrui
-      .filter(r => (r.target_periods as number[]).includes(ipotesi) && r.offered_period !== ipotesi)
-      .map(r => r.id),
+  // Attesa dirette: altrui che vogliono il MIO periodo assegnato (IPO) e
+  // offrono qualcosa che accetterei. La fonte di verità è il DB (service-role):
+  // l'invalidazione realtime può svuotare la cache locale mentre la pagina
+  // continua a renderizzare dalla memoria, quindi il localStorage non è
+  // affidabile per l'attesa — si polla solo il DOM.
+  const { createClient } = await import('@supabase/supabase-js')
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
   )
+  const { data: piscopo } = await admin.from('users').select('id').ilike('cognome', 'Piscopo').maybeSingle()
+  expect(piscopo?.id, 'utente Piscopo su dev').toBeTruthy()
+  const { data: tutte } = await admin.from('vacation_requests').select('id, user_id, offered_period, target_periods').eq('year', ANNO)
+  expect((tutte ?? []).length, 'richieste 2027 su dev').toBeGreaterThan(0)
+  const diretteAttese = new Set(
+    (tutte ?? [])
+      .filter(r => r.user_id !== piscopo!.id)
+      .filter(r => (r.target_periods as number[]).includes(IPO) && r.offered_period !== IPO)
+      .map(r => r.id as number),
+  )
+  expect(diretteAttese.size, 'lo scenario dev offre almeno una diretta a Piscopo').toBeGreaterThan(0)
 
   await chip.click()
-  const viste = await page.locator('[data-vac-request]').evaluateAll(els => els.map(e => Number(e.getAttribute('data-vac-request'))))
-  expect(new Set(viste), 'le dirette dell\'ipotesi combaciano con i dati').toEqual(diretteAttese)
+  await page.waitForFunction(attesi => {
+    const viste = [...document.querySelectorAll('[data-vac-request]')]
+      .map(e => Number(e.getAttribute('data-vac-request')))
+    return viste.length === attesi.length && viste.every(id => attesi.includes(id))
+  }, [...diretteAttese], { timeout: 30_000 })
   expect(page.locator('[data-catena]')).toHaveCount(0)
 })

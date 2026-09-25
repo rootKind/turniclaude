@@ -33,6 +33,8 @@ export interface CatenaFerie {
   titolo: string
   /** I nodi intermedi, nell'ordine del giro (il primo riceve il MIO periodo). */
   requests: VacationRequestWithInterests[]
+  /** Il periodo che OTTIENI chiudendo il giro (l'offerto dall'ultimo nodo). */
+  ottieni: VacationPeriod
 }
 
 export interface CompatFerie {
@@ -84,7 +86,11 @@ export function gruppiCompatibiliFerie(
     )) {
       const chiave = nodi.map(n => n.id).join('-')
       if (!catene.has(chiave)) {
-        catene.set(chiave, { titolo: titoloCatena(propria, nodi), requests: nodi })
+        catene.set(chiave, {
+          titolo: titoloCatena(propria, nodi),
+          requests: nodi,
+          ottieni: nodi[nodi.length - 1].offered_period,
+        })
       }
     }
   }

@@ -92,6 +92,7 @@ export const VACATION_REQUESTS_WITH_INTERESTS_SELECT = `
     request_id,
     user_id,
     created_at,
+    chain_context,
     user:users!vacation_request_interests_user_id_fkey(
       id, nome, cognome, is_secondary,
       vacation_assignments(base_period)
@@ -125,6 +126,7 @@ export function mapVacationRequestsWithInterests(
         request_id:      i.request_id,
         user_id:         i.user_id,
         created_at:      i.created_at,
+        chain_context:   i.chain_context ?? null,
         user:            i.user,
         period_this_year: periodInteressatoThisYear(i, year, overrides),
       })),
@@ -203,6 +205,12 @@ export function findCompatibleVacationRequests(
  *
  * Semantica catena A→B→C→A:
  *   A dà myOffered a B (B la vuole), B dà B.offered a C (C la vuole), C dà C.offered ad A (A la vuole)
+ *
+ * ESCLUSIONE DEI DIRETTI (richiesta 25/09/2026): una catena non contiene MAI,
+ * in alcuna posizione, una persona con cui l'utente ha GIÀ uno scambio diretto
+ * (vuole il mio periodo E offre uno che cerco): con lei lo scambio si fa in due,
+ * e farla passare da altri non aggiunge nulla — toglieva valore alla lista
+ * (il caso Valerio Centomani, diretto di Minino che compariva come anello).
  */
 export function findVacationChains(
   requests: VacationRequestWithInterests[],
@@ -213,11 +221,21 @@ export function findVacationChains(
 ): VacationRequestWithInterests[][] {
   const chains: VacationRequestWithInterests[][] = []
 
+  // I miei DIRETTI: con loro la catena è inutile, non possono essere anelli.
+  const diretti = new Set(
+    requests
+      .filter(r =>
+        r.user_id !== myUserId &&
+        (r.target_periods as VacationPeriod[]).includes(myOffered) &&
+        myTargets.includes(r.offered_period))
+      .map(r => r.user_id),
+  )
+
   type State = { path: VacationRequestWithInterests[]; lastOffered: VacationPeriod }
   const queue: State[] = []
 
   for (const r of requests) {
-    if (r.user_id === myUserId) continue
+    if (r.user_id === myUserId || diretti.has(r.user_id)) continue
     if (!(r.target_periods as VacationPeriod[]).includes(myOffered)) continue
     queue.push({ path: [r], lastOffered: r.offered_period })
   }
@@ -235,7 +253,7 @@ export function findVacationChains(
 
     if (path.length >= maxIntermediateNodes) continue
 
-    const usedIds = new Set([myUserId, ...path.map(r => r.user_id)])
+    const usedIds = new Set([myUserId, ...diretti, ...path.map(r => r.user_id)])
     for (const r of requests) {
       if (usedIds.has(r.user_id)) continue
       if (!(r.target_periods as VacationPeriod[]).includes(lastOffered)) continue

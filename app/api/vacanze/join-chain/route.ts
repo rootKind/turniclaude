@@ -6,6 +6,20 @@ import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
 import { getVacationPeriodForYear, VACATION_PERIOD_LABELS_SHORT } from '@/lib/vacations'
 import type { VacationPeriod } from '@/types/database'
 
+/**
+ * ADERIRE A UNA CATENA (o uscirne, richiesta 25/09/2026).
+ *
+ * POST { requestIds, actorName, year, source? } → iscrizione: un solo interesse
+ * dell'utente su OGNI richiesta del giro, ognuno marcato con `chain_context`
+ * { periods, source } = «interesse al fine della catena selezionata» (nella
+ * lista interessati di ogni card si dice questo, non un semplice «vuole il
+ * mio periodo»). Idempotente: se qualche interesse esiste già, l'upsert lo
+ * completa (23505 gestito dall'unica PK request_id+user_id).
+ *
+ * DELETE { requestIds } → USCITA dalla catena: rimuove SOLO gli interessi
+ * dell'utente che portano QUESTO contesto di catena (gli interessi semplici
+ * — cuore sulla singola card — restano al loro posto).
+ */
 export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,7 +30,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { requestIds, actorName, year } = body as { requestIds: number[]; actorName: string; year: number }
+  const { requestIds, actorName, year, source } = body as {
+    requestIds: number[]; actorName: string; year: number; source?: 'list' | 'dialog'
+  }
   if (!Array.isArray(requestIds) || requestIds.length < 2) {
     return NextResponse.json({ error: 'requestIds must have at least 2 items' }, { status: 400 })
   }
@@ -74,13 +90,23 @@ export async function POST(req: Request) {
     }
   }
 
-  // Atomic multi-row insert — PostgreSQL esegue come singola statement
-  const rows = requestIds.map(id => ({ request_id: id, user_id: user.id }))
-  const { error } = await supabase.from('vacation_request_interests').insert(rows)
-  if (error) {
-    if (error.code === '23505') return NextResponse.json({ error: 'already_interested' }, { status: 409 })
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
+  // Il CONTESTO del giro: i periodi offerti nell'ordine, partendo dal mio
+  // (l'ultimo è quello che mi chiude il ciclo — il periodo che OTTENGO).
+  const periods = [myOffered, ...requestIds.map(id => byId.get(id)!.offered_period as number)]
+  const chainContext = { periods, source: source === 'dialog' ? 'dialog' as const : 'list' as const }
+
+  // Iscrizione: UN interesse per richiesta, tutti marcati col contesto.
+  // Upsert sulla PK (request_id, user_id): se uno dei cuori era già stato
+  // messo a mano, aderendo alla catena viene «promosso» a interesse di catena.
+  const rows = requestIds.map(id => ({
+    request_id: id,
+    user_id: user.id,
+    chain_context: chainContext,
+  }))
+  const { error } = await supabase
+    .from('vacation_request_interests')
+    .upsert(rows, { onConflict: 'request_id,user_id' })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Notifica push agli owner di ogni richiesta (fire-and-forget).
   // pushToUser usa il service role: RLS su push_subscriptions è own-row-only.
@@ -110,6 +136,33 @@ export async function POST(req: Request) {
       requestIds,
     })
   }))
+
+  return NextResponse.json({ ok: true, chain_context: chainContext })
+}
+
+export async function DELETE(req: Request) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  let body: unknown
+  try { body = await req.json() } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+  const { requestIds } = body as { requestIds?: number[] }
+  if (!Array.isArray(requestIds) || requestIds.length < 2) {
+    return NextResponse.json({ error: 'requestIds must have at least 2 items' }, { status: 400 })
+  }
+
+  // Uscita SELETTIVA: solo gli interessi CHE PORTANO il contesto di catena
+  // (un cuore messo a mano sulla singola card non si tocca da qui).
+  const { error } = await supabase
+    .from('vacation_request_interests')
+    .delete()
+    .in('request_id', requestIds)
+    .eq('user_id', user.id)
+    .not('chain_context', 'is', null)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ ok: true })
 }
