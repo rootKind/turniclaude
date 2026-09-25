@@ -221,21 +221,16 @@ export function findVacationChains(
 ): VacationRequestWithInterests[][] {
   const chains: VacationRequestWithInterests[][] = []
 
-  // I miei DIRETTI: con loro la catena è inutile, non possono essere anelli.
-  const diretti = new Set(
-    requests
-      .filter(r =>
-        r.user_id !== myUserId &&
-        (r.target_periods as VacationPeriod[]).includes(myOffered) &&
-        myTargets.includes(r.offered_period))
-      .map(r => r.user_id),
-  )
-
+  // I DIRETTI NON sono esclusi (25/09/2026): la vista raggruppa per periodo
+  // ottenuto, quindi più giri = più scelta; un diretto può stare in mezzo a un
+  // giro senza che questo lo renda peggiore. La versione che li escludeva
+  // rendeva le catene impossibili per chi ha target larghi («qualsiasi
+  // tranne il mio»: ogni candidato diventava subito un diretto).
   type State = { path: VacationRequestWithInterests[]; lastOffered: VacationPeriod }
   const queue: State[] = []
 
   for (const r of requests) {
-    if (r.user_id === myUserId || diretti.has(r.user_id)) continue
+    if (r.user_id === myUserId) continue
     if (!(r.target_periods as VacationPeriod[]).includes(myOffered)) continue
     queue.push({ path: [r], lastOffered: r.offered_period })
   }
@@ -253,7 +248,7 @@ export function findVacationChains(
 
     if (path.length >= maxIntermediateNodes) continue
 
-    const usedIds = new Set([myUserId, ...diretti, ...path.map(r => r.user_id)])
+    const usedIds = new Set([myUserId, ...path.map(r => r.user_id)])
     for (const r of requests) {
       if (usedIds.has(r.user_id)) continue
       if (!(r.target_periods as VacationPeriod[]).includes(lastOffered)) continue
