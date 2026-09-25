@@ -3118,3 +3118,24 @@ trovato dal test). Residui di test di ieri nel DB dev (richieste Piccirillo/Cici
 mai ripulite): rimossi; controllare `vacation_requests` 2027 se i contatori non tornano.
 Prove: `tests/ferie-chip.spec.ts` (9: esclusione diretto-fuori-catena in logica ed E2E, validità
 del giro, ipotesi senza banner leggendo il box «Il tuo periodo 2027»).
+
+## 2026-09-25 — Ripristino: i diretti tornano ammessi nelle catene; chip «Scambi a due» / «Cambi a tre o più»
+
+La regola «escludi i miei diretti dalle catene» (mattina 25/09) è STATA TOLTA su decisione dell'utente:
+dopo l'analisi (script temporaneo su dati dev + 5000 scenari sintetici: con target stretti toglieva
+solo giri con diretti dentro ma toglieva anche 163 giri con periodo finale UNICO; con target LARGHI
+«qualsiasi tranne il mio» — tutte le ipotesi — rendeva le catene matematicamente impossibili, 99.5%
+→ 0%), e soprattutto ora che la vista raggruppa per PERIODO OTTENUTO, più giri = più scelta e un
+diretto in mezzo al giro non è un problema. `findVacationChains` è tornato al pool completo (solo
+self-esclusione). Il costo in elenco: più catene mostrate (nell'esempio Minino: 8 invece di 6).
+
+Rinomina delle chip personali (richiesta esplicita): «Compatibili» → **«Scambi a due»**,
+«⛓ A catena» → **«⛓ Cambi a tre o più»** (i selettori E2E usano i nuovi nomi). Le chip del manager
+restano «Tutti» / «Solo compatibili». Messaggi vuoto aggiornati («Nessuno scambio a due…»,
+«Nessun cambio a tre o più…»).
+
+Trappola str_replace: sostituire il commento della chip («Un solo filtro attivo per volta») duplica
+la riga se l'oldString finisce a metà frase — rileggere dopo le sostituzioni multiple.
+Prove: `tests/ferie-chip.spec.ts` (9, con il test di logica nuovamente «un diretto può stare anche
+in una catena» e l'assert anti-diretti RIMOSSO dall'E2E) + regressione `ferie-compatibili.spec.ts`
+(10) = 19/19.
