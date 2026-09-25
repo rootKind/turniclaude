@@ -919,3 +919,15 @@ la riga se l'oldString finisce a metà frase — rileggere dopo le sostituzioni 
 Prove: `tests/ferie-chip.spec.ts` (9, con il test di logica nuovamente «un diretto può stare anche
 in una catena» e l'assert anti-diretti RIMOSSO dall'E2E) + regressione `ferie-compatibili.spec.ts`
 (10) = 19/19.
+
+## 2026-09-25 — Titolo catena col numero di persone; chip «Cambi a 2» / «Cambi a 3 o più»
+
+Richiesta utente: (1) il titolo di ogni catena porta il NUMERO DI PERSONE coinvolte — nodi + chi
+guarda — nel formato **«Catena a 3: tu P2 → Di Monda P6 → Sabia P3 → tu»** (niente più simbolo ⛓ nel
+titolo; `titoloCatena` in lib/vacation-compat-dashboard.ts); (2) chip rinominate: «Scambi a due» →
+**«Cambi a 2»**, «⛓ Cambi a tre o più» → **«Cambi a 3 o più»** (messaggi vuoto aggiornati). Il
+bottone del gruppo catena e il badge ⛓ nella lista interessati restano invariati (lì il simbolo ha
+significato proprio). Nota semantica: nel dialog esiste già «Catena a N persone» con la stessa
+definizione di N — ora lista e dialog parlano lo stesso linguaggio.
+Prove: `tests/ferie-chip.spec.ts` (9, con il nuovo assert E2E che verifica che N del titolo =
+nodi + 1 e che N stia in [2..5]).
