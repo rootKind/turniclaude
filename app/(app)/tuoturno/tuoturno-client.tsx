@@ -498,7 +498,7 @@ function CompareTable({ rows, chunks, month, todayISO, palette, cellW }: {
   )
 }
 
-export interface UserOption {
+interface UserOption {
   id: string
   nome: string | null
   cognome: string | null

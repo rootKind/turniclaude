@@ -23,7 +23,7 @@ export type TemplateCtx = Record<string, string | null | undefined>
  * (attore, turno, data…). Ritorna il numero di push inviate (0 = nessuna
  * subscription).
  */
-export async function pushTemplateToUser(
+async function pushTemplateToUser(
   overrides: NotifOverrides,
   key: string,
   userId: string,

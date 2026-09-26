@@ -43,7 +43,7 @@ function looksLikeName(token: string): boolean {
  */
 const LEGEND_ARTIFACTS = ['NOTE', 'LEGENDA', 'COLORI', 'SIGLE', 'GIORNI', 'GIORNO', 'NAPOLI', 'RESPONSABILE']
 
-export function isLegendArtifact(name: string): boolean {
+function isLegendArtifact(name: string): boolean {
   const u = name.toUpperCase()
   const first = (u.match(/^[A-Z0-9]+/) ?? [''])[0]
   return LEGEND_ARTIFACTS.includes(first) || u.includes('RESPONSABILE')
@@ -58,7 +58,7 @@ const ALIAS_UTENTI: Record<string, string> = {
   'ESPOSITO A.': 'ESPOSITO AU.',
 }
 
-export function nomeCanonico(name: string): string {
+function nomeCanonico(name: string): string {
   return ALIAS_UTENTI[name.toUpperCase()] ?? name
 }
 

@@ -31,7 +31,7 @@ import type { BoardPlacement } from '@/lib/shift-tokens'
  */
 
 /** Per quanto un esito resta valido (ms). */
-export const SHIFT_LOOKUP_TTL_MS = 60_000
+const SHIFT_LOOKUP_TTL_MS = 60_000
 
 /** Quello che la card deve sapere per decidere: il turno E dove la board mostra
  *  la persona (`UserShiftOnDate` in lib/shift-compat, `BoardPlacement` in
@@ -75,10 +75,6 @@ export function rememberEsito(key: string, esito: EsitoSala, now = Date.now()): 
 }
 
 /** Dimentica un esito (o tutta la memoria, senza chiave). */
-export function forgetEsito(key?: string): void {
-  if (key) remembered.delete(key)
-  else remembered.clear()
-}
 
 /**
  * Lettura passante: risponde dalla memoria se c'è, altrimenti condivide la
@@ -138,6 +134,3 @@ export function boardSectionKeys(supabase: SupabaseClient): Promise<Set<string> 
 }
 
 /** Dimentica la piantina letta (test e cambi di layout nella stessa sessione). */
-export function forgetBoardSectionKeys(): void {
-  sezioniBoard = null
-}

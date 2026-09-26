@@ -21,7 +21,7 @@ export function normalizeHex(input: string): string | null {
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
 
-export function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const h = normalizeHex(hex)
   if (!h) return null
   return {
@@ -32,7 +32,7 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } | nul
 }
 
 /** Componenti 0-255 → `#rrggbb` (i valori fuori scala vengono riportati dentro). */
-export function rgbToHex(r: number, g: number, b: number): string {
+function rgbToHex(r: number, g: number, b: number): string {
   const c = (n: number) => clamp(Math.round(n), 0, 255).toString(16).padStart(2, '0')
   return `#${c(r)}${c(g)}${c(b)}`
 }
@@ -77,7 +77,7 @@ export function hsvToHex(h: number, s: number, v: number): string {
 }
 
 /** Luminanza relativa WCAG 2.1 (0 = nero, 1 = bianco). */
-export function relativeLuminance(hex: string): number {
+function relativeLuminance(hex: string): number {
   const rgb = hexToRgb(hex)
   if (!rgb) return 0
   const lin = (c: number) => {

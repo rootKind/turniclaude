@@ -44,7 +44,7 @@ export interface Employee {
   nome?: string
 }
 
-export interface EmployeeSession {
+interface EmployeeSession {
   email: string
   id: string
   cognome: string

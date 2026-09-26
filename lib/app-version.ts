@@ -23,10 +23,10 @@ export const APP_VERSION = 'V5'
  * che non c'erano le env di Vercel — e dire «v5, ma a partire dalla release di
  * agosto» è più onesto che inventare un commit.
  */
-export const APP_COMMIT_FALLBACK = '6eb0c28'
+const APP_COMMIT_FALLBACK = '6eb0c28'
 
 /** Il momento della release di riferimento, in `gg/mm/aaaa hh:mm` (ora di Roma). */
-export const APP_TIME_FALLBACK = '26/08/2026 13:10'
+const APP_TIME_FALLBACK = '26/08/2026 13:10'
 
 /** Il commit del deploy, breve, come si scrive in una riga di versione. */
 export function commitBreve(sha: string | undefined, fallback: string): string {

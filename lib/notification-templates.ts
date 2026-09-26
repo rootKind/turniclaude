@@ -26,7 +26,7 @@ export type { NotifType }
  * non sta in piedi: era il caso di «{periodo}{anno}», che in anteprima leggeva
  * «16–30 Giu2026» perché lo spazio arrivava dal flusso, non dal testo.
  */
-export interface TemplateVar {
+interface TemplateVar {
   name: string
   description: string
   sample: string

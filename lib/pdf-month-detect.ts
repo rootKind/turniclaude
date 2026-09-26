@@ -15,7 +15,7 @@
 // «marzo» né «mar» come parola intera; (2) un candidato basato sul NOME del
 // mese senza anno nella STESSA riga vale pochissimo (0.5): le intestazioni
 // vere riportano sempre sia il mese che l'anno.
-export const MONTH_NAMES_IT = [
+const MONTH_NAMES_IT = [
   'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
   'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre',
 ] as const
@@ -46,7 +46,7 @@ const YEAR_RE = /\b(20\d{2})\b/
  * «09/2026», «09-2026». I nomi di mese SENZA anno nella riga producono solo
  * un debole segnale (le intestazioni vere hanno sempre anche l'anno).
  */
-export function candidatesFromLine(line: string): Candidate[] {
+function candidatesFromLine(line: string): Candidate[] {
   const out: Candidate[] = []
   const lower = line.toLowerCase()
   // accenti e/o apostrofi tipici delle intestazioni («Settembre», «Luglio»…)

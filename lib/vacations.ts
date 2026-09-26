@@ -2,7 +2,7 @@ import type { VacationPeriod } from '@/types/database'
 
 const ROTATION_SEQ: VacationPeriod[] = [1, 3, 5, 6, 4, 2]
 
-export interface VacationPeriodMeta {
+interface VacationPeriodMeta {
   label: string
   start: string   // MM-DD
   end: string     // MM-DD

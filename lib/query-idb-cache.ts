@@ -13,7 +13,7 @@
 // per non lasciare nulla al prossimo account sullo stesso dispositivo.
 import type { Query, QueryKey } from '@tanstack/react-query'
 
-export const QUERY_CACHE_DB = 'turni-query-cache'
+const QUERY_CACHE_DB = 'turni-query-cache'
 const STORE = 'kv'
 const DB_VERSION = 1
 

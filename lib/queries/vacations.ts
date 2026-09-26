@@ -159,7 +159,7 @@ export async function getVacationRequestsWithInterests(
 
 // ── Write ────────────────────────────────────────────────────────────────────
 
-export interface CreateVacationRequestInput {
+interface CreateVacationRequestInput {
   userId: string
   offeredPeriod: VacationPeriod
   targetPeriods: VacationPeriod[]
