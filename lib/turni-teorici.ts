@@ -55,6 +55,25 @@ export function adjustmentOffset(adjustments: ShiftAdjustment[], teamId: string,
 // ─── token teorico per un membro in una data ─────────────────────────────────
 
 /**
+ * La RIGA di storico in vigore in quella data (migration 037): `null` se il
+ * membro non ha storico e si usa il ciclo di base in colonna.
+ *
+ * Esposta perché il pannello squadre deve poter dire «dal quando vale» senza
+ * duplicare qui dentro la regola che decide quale riga vince.
+ */
+export function cicloInVigore(
+  member: Pick<ShiftTeamMember, 'pattern' | 'patterns'>,
+  dateISO: string,
+): ShiftMemberPattern | null {
+  let inVigore: ShiftMemberPattern | null = null
+  for (const p of member.patterns ?? []) {
+    if (!p?.from_date || p.from_date > dateISO) continue
+    if (!inVigore || p.from_date > inVigore.from_date) inVigore = p
+  }
+  return inVigore
+}
+
+/**
  * Il CICLO del membro in vigore in quella data (migration 037).
  *
  * Un asset può cambiare nel tempo e i pattern ne tengono traccia: la riga con
@@ -70,12 +89,36 @@ export function patternInVigore(
   member: Pick<ShiftTeamMember, 'pattern' | 'patterns'>,
   dateISO: string,
 ): string[] {
-  let inVigore: ShiftMemberPattern | null = null
-  for (const p of member.patterns ?? []) {
-    if (!p?.from_date || p.from_date > dateISO) continue
-    if (!inVigore || p.from_date > inVigore.from_date) inVigore = p
+  return (cicloInVigore(member, dateISO)?.pattern ?? member.pattern ?? []) as string[]
+}
+
+/**
+ * La lunghezza del ciclo che il pannello deve mostrare come riferimento quando
+ * se ne sta EDITANDO UNO, a partire da `dateISO`.
+ *
+ * Non è il `cycle_days` della tipologia, che è solo il default per i membri
+ * nuovi: dal 1° ottobre 2026 i 9 delle scorte di rilievo hanno cicli da 252
+ * token dentro la tipologia «Scorte», che è ancora a 28. Usare il
+ * `cycle_days` faceva comparire «252/28 token» in rosso con il salvataggio
+ * bloccato, cioè membri non editabili.
+ *
+ * Se in quella data c'è già un ciclo, il riferimento è la sua lunghezza
+ * (l'utente lo sta sostituendo e deve restare della stessa lunghezza); se non
+ * c'è, quello del ciclo oggi in vigore; se il membro non ha storico, la colonna.
+ */
+export function lunghezzaCicloInVigore(
+  member: Pick<ShiftTeamMember, 'pattern' | 'patterns'>,
+  dateISO: string,
+  oggiISO: string,
+  fallback = 0,
+): number {
+  const cicli = [cicloInVigore(member, dateISO), cicloInVigore(member, oggiISO)]
+  for (const c of cicli) {
+    // `length || fallback` e non `??`: un pattern vuoto (0 token) non è un
+    // riferimento, e `0 ?? fallback` darebbe 0.
+    if (c?.pattern.length) return c.pattern.length
   }
-  return (inVigore?.pattern ?? member.pattern ?? []) as string[]
+  return member.pattern?.length || fallback
 }
 
 export function tokenForMember(

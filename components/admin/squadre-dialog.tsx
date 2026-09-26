@@ -4,7 +4,7 @@ import { ChevronDown, ChevronUp, Pencil, Plus, Save, Star, Trash2, X } from 'luc
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { fetchShiftCycleTemplates, fetchShiftTeamTree } from '@/lib/queries/shift-teams'
-import { patternInVigore } from '@/lib/turni-teorici'
+import { cicloInVigore, lunghezzaCicloInVigore, patternInVigore } from '@/lib/turni-teorici'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -29,6 +29,12 @@ type Team = ShiftTeamTree['types'][number]['teams'][number]
 function oggiISO(): string {
   const n = new Date()
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+}
+
+/** «2026-10-01» → «01/10/2026»: le date del pannello si leggono all'italiana. */
+function dataBreve(iso: string): string {
+  const [y, m, d] = (iso ?? '').split('-')
+  return y && m && d ? `${d}/${m}/${y}` : iso
 }
 
 /**
@@ -413,7 +419,7 @@ function CyclePicker({ templates, typeId, teamId, cycle, pattern, onApply }: {
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium truncate flex-1">{t.name}</span>
                   {t.pattern.length !== cycle && (
-                    <span className="text-[9px] text-destructive shrink-0">{t.pattern.length} token ≠ ciclo {cycle}</span>
+                    <span className="text-[9px] text-muted-foreground shrink-0">{t.pattern.length} token (ciclo tipo {cycle})</span>
                   )}
                 </div>
                 <PatternPreview pattern={t.pattern} max={14} />
@@ -547,8 +553,17 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
   const [pattern, setPattern] = useState(() => patternInVigore(member, oggiISO()).join(' '))
   const [patternFrom, setPatternFrom] = useState(oggiISO())
   const tokenCount = pattern.trim() ? pattern.trim().split(/\s+/).length : 0
-  const storico = member.patterns ?? []
-  const cicliPassati = storico.filter(p => p.from_date < patternFrom).length
+  // La validità ATTUALE, non quella che risulterebbe dalla data scelta: il
+  // selettore parte da oggi e «prima valeva il ciclo dal …» cambiava a ogni
+  // click, così non si capiva da quale data il ciclo fosse davvero in vigore.
+  const inVigoreDa = cicloInVigore(member, oggiISO())?.from_date ?? null
+  const sostituisce = patternFrom !== (inVigoreDa ?? '')
+  // La lunghezza di riferimento è quella del CICLO CHE SI STA SOSTITUENDO, non il
+  // `cycle_days` della tipologia: dal 1° ottobre 2026 i 9 delle scorte hanno
+  // cicli da 252 token mentre la tipologia Scorte è ancora a 28. Con il
+  // riferimento sbagliato quei membri risultavano «252/28 token» in rosso con
+  // il salvataggio bloccato, cioè non editabili.
+  const atteso = lunghezzaCicloInVigore(member, patternFrom, oggiISO(), cycle)
 
   return (
     <div className="rounded-xl border bg-card px-3 py-2.5 space-y-2">
@@ -556,7 +571,7 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">{member.full_name}</p>
           <p className="text-xs text-muted-foreground">
-            {tokenCount}/{cycle} token · {member.is_active ? 'attivo' : 'inattivo'}
+            {tokenCount}/{atteso} token · {member.is_active ? 'attivo' : 'inattivo'}
             {member.is_lead && ' · caposquadra'}
           </p>
         </div>
@@ -619,14 +634,15 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
               className="h-8 w-[9.5rem] text-xs"
             />
             <span className="text-[11px] text-muted-foreground">
-              {cicliPassati > 0
-                ? `prima valeva il ciclo dal ${storico.filter(p => p.from_date < patternFrom).sort((a, b) => b.from_date.localeCompare(a.from_date))[0].from_date}`
-                : 'cambia anche i mesi passati'}
+              {inVigoreDa
+                ? `oggi in vigore dal ${dataBreve(inVigoreDa)}`
+                : 'oggi in vigore dal ciclo di base'}
+              {sostituisce && ` · salvando dal ${dataBreve(patternFrom)} lo sostituisci`}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className={`text-[11px] ${tokenCount === cycle ? 'text-muted-foreground' : 'text-destructive'}`}>
-              {tokenCount}/{cycle} token
+            <span className={`text-[11px] ${tokenCount === atteso ? 'text-muted-foreground' : 'text-destructive'}`}>
+              {tokenCount}/{atteso} token
             </span>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => {
@@ -639,7 +655,7 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
               </Button>
               <Button
                 size="sm"
-                disabled={tokenCount !== cycle}
+                disabled={tokenCount !== atteso}
                 onClick={() => run(async () => {
                   await api('PUT', {
                     kind: 'member',
@@ -649,7 +665,7 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
                     pattern_from: patternFrom,
                   })
                   setEditing(false)
-                }, patternFrom > oggiISO() ? `Membro aggiornato (dal ${patternFrom})` : 'Membro aggiornato')}
+                }, sostituisce ? `Membro aggiornato (dal ${dataBreve(patternFrom)})` : 'Membro aggiornato')}
               >
                 Salva
               </Button>
@@ -688,17 +704,21 @@ function MemberAdd({ templates, typeId, teamId, cycle, onDone, run }: {
         rows={2}
         value={pattern}
         onChange={e => setPattern(e.target.value)}
-        placeholder={`Pattern di ${cycle} token separati da spazi`}
+        placeholder={`Pattern (di solito ${cycle} token) separati da spazi`}
       />
       <div className="flex items-center justify-between">
-        <span className={`text-[11px] ${tokenCount === cycle ? 'text-muted-foreground' : 'text-destructive'}`}>
-          {tokenCount}/{cycle} token
+        {/* Un membro nuovo può avere un periodo diverso dal `cycle_days` della
+            tipologia — è così che il rilievo ha 9 cicli da 252 dentro una
+            tipologia a 28 — quindi la differenza qui è un'informazione, non un
+            errore: bloccava la creazione dei membri con un ciclo proprio. */}
+        <span className={`text-[11px] ${!tokenCount || tokenCount > 400 ? 'text-destructive' : 'text-muted-foreground'}`}>
+          {tokenCount} token{cycle && tokenCount !== cycle ? ` (ciclo della tipologia: ${cycle})` : ''}
         </span>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={onDone}>Annulla</Button>
           <Button
             size="sm"
-            disabled={!name.trim() || tokenCount !== cycle}
+            disabled={!name.trim() || !tokenCount || tokenCount > 400}
             onClick={() => run(async () => {
               await api('POST', { kind: 'member', team_id: teamId, full_name: name.trim(), pattern: pattern.trim().split(/\s+/) })
               onDone()

@@ -16,6 +16,11 @@ async function requireAdminManager(): Promise<NextResponse | null> {
 
 type Kind = 'type' | 'team' | 'member' | 'template'
 
+/** Tetto di sanità sulla lunghezza di un ciclo. Il periodo di un membro è la
+ *  lunghezza del suo pattern (non il `cycle_days` della tipologia, che è solo il
+ *  default), quindi serve un limite per non salvare cicli da 4000 token. */
+const MAX_CYCLE = 400
+
 interface MutBody {
   kind?: Kind
   id?: string
@@ -85,7 +90,12 @@ export async function POST(req: NextRequest) {
     if (!body.team_id || !body.full_name || !body.pattern?.length) {
       return NextResponse.json({ error: 'team_id, full_name e pattern richiesti' }, { status: 400 })
     }
-    // la lunghezza del pattern deve coincidere col ciclo della tipologia
+    // la lunghezza del pattern NON deve per forza coincidere col ciclo della
+    // tipologia: `cycle_days` è il default (periodo del nuovo membro), ma un
+    // membro può avere un suo ciclo — dal 1° ottobre 2026 i 9 delle scorte hanno
+    // 252 token dentro una tipologia a 28. Il periodo del calcolo è la
+    // lunghezza del pattern (vedi `tokenForMember`). Qui si controlla solo che
+    // non sia vuoto o assurdo.
     const { data: team, error: teamErr } = await supabase
       .from('shift_teams')
       .select('shift_type_id')
@@ -98,9 +108,9 @@ export async function POST(req: NextRequest) {
       .eq('id', team.shift_type_id)
       .single()
     if (typeErr || !type) return NextResponse.json({ error: 'Tipologia non trovata' }, { status: 400 })
-    if (body.pattern.length !== type.cycle_days) {
+    if (body.pattern.length > MAX_CYCLE) {
       return NextResponse.json(
-        { error: `Il pattern deve avere ${type.cycle_days} token (ciclo della tipologia)` },
+        { error: `Il pattern può avere al massimo ${MAX_CYCLE} token` },
         { status: 400 },
       )
     }
@@ -137,9 +147,9 @@ export async function POST(req: NextRequest) {
       .eq('id', body.shift_type_id)
       .single()
     if (!type) return NextResponse.json({ error: 'Tipologia non trovata' }, { status: 400 })
-    if (body.pattern.length !== type.cycle_days) {
+    if (body.pattern.length > MAX_CYCLE) {
       return NextResponse.json(
-        { error: `Il pattern deve avere ${type.cycle_days} token (ciclo della tipologia)` },
+        { error: `Il pattern può avere al massimo ${MAX_CYCLE} token` },
         { status: 400 },
       )
     }
@@ -149,7 +159,9 @@ export async function POST(req: NextRequest) {
       name: body.name,
       description: body.description ?? null,
       pattern: body.pattern,
-      cycle_days: type.cycle_days,
+      // il ciclo del TEMPLATE è la sua lunghezza: un template da 252 token
+      // applicato a un membro da 252 deve restare da 252.
+      cycle_days: body.pattern.length,
       pattern_start: type.pattern_start,
       is_builtin: false,
     })
@@ -253,6 +265,20 @@ export async function PUT(req: NextRequest) {
             : { error: null }
           if (error) return NextResponse.json({ error: error.message }, { status: 400 })
           return NextResponse.json({ ok: true, pattern_dal: da })
+        }
+        // Salvare sul ciclo di base (data <= pattern_start) riscrive tutta la
+        // storia: vanno aggiornate ENTRAMBE le copie. La riga di storico con
+        // from_date = pattern_start l'ha creata il backfill della 037 e, se
+        // resta indietro, `cicloInVigore` la sceglie al posto della colonna:
+        // il salvataggio sembra riuscire e non cambia niente.
+        if (type) {
+          const { error: histErr } = await supabase.from('shift_member_patterns').upsert({
+            member_id: id,
+            from_date: type.pattern_start,
+            pattern: body.pattern,
+            note: body.note ?? 'ciclo di base',
+          }, { onConflict: 'member_id,from_date' })
+          if (histErr) return NextResponse.json({ error: histErr.message }, { status: 400 })
         }
       }
       patch.pattern = body.pattern

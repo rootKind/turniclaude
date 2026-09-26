@@ -7,7 +7,7 @@
 // il nuovo ciclo nella colonna, settembre sarebbe passato dal 98,3% al 81,5%
 // di accordo col suo PDF; con lo storico ogni mese resta col ciclo che valeva.
 import { expect, test } from '@playwright/test'
-import { patternInVigore, tokenForMember } from '../lib/turni-teorici'
+import { lunghezzaCicloInVigore, patternInVigore, tokenForMember } from '../lib/turni-teorici'
 
 const TIPO = { cycle_days: 84, pattern_start: '2026-03-01' }
 const cicloPrima = Array.from({ length: 84 }, (_, i) => (i % 3 === 0 ? 'P5T' : i % 3 === 1 ? 'M5T' : 'RC'))
@@ -64,4 +64,29 @@ test('un secondo scalino più recente vince, e uno più vecchio no', () => {
   expect(patternInVigore(conDue, '2026-09-30')).toEqual(cicloDopo)  // l'unico in vigore
   expect(patternInVigore(conDue, '2026-10-15')).toEqual(cicloDopo)  // dal 01/10
   expect(patternInVigore(conDue, '2026-12-01')).toEqual(cicloPrima)  // dal 01/12
+})
+
+// Il caso reale che ha reso necessaria `lunghezzaCicloInVigore`: le scorte di
+// rilievo hanno 9 membri con cicli da 252 token dentro la tipologia «Scorte»,
+// che ha cycle_days = 28. Il pannello usava quel 28 come riferimento e quindi
+// bloccava il salvataggio di quei membri come se fossero sbagliati.
+const rilievo = {
+  pattern: Array.from({ length: 252 }, (_, i) => `M${(i % 9) + 2}`),
+  patterns: [
+    { from_date: '2026-03-01', pattern: Array.from({ length: 252 }, () => 'M5T') },
+    { from_date: '2026-10-01', pattern: Array.from({ length: 252 }, () => 'MJ') },
+  ],
+}
+
+test('il riferimento del pannello è il ciclo in vigore, non il cycle_days del tipo', () => {
+  // prima del 1° ottobre il ciclo è il 252 col jolly vecchio
+  expect(lunghezzaCicloInVigore(rilievo, '2026-09-26', '2026-09-26', 28)).toBe(252)
+  // dal 1° ottobre quello col jolly nuovo: sempre 252
+  expect(lunghezzaCicloInVigore(rilievo, '2026-10-01', '2026-09-26', 28)).toBe(252)
+  // una data nuova (non c'è ancora un ciclo) prende quello di oggi
+  expect(lunghezzaCicloInVigore(rilievo, '2027-01-01', '2026-10-15', 28)).toBe(252)
+  // il fallback al cycle_days serve solo per un membro senza ciclo
+  expect(lunghezzaCicloInVigore({ pattern: [] }, '2026-10-01', '2026-10-01', 28)).toBe(28)
+  // e un membro senza storico usa la colonna
+  expect(lunghezzaCicloInVigore({ pattern: cicloPrima }, '2026-10-01', '2026-10-01', 28)).toBe(84)
 })
