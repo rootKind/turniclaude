@@ -237,6 +237,26 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   **Regola operativa:** un nuovo asset si scrive con `node scripts/ricava-pattern-ottobre.mjs
   --apply --dal=YYYY-MM-DD` (backup automatico in `scripts/backup-pattern-*.json`, rollback con
   `--annulla=YYYY-MM-DD`), MAI con un UPDATE diretto di `shift_team_members.pattern`.
+  **Due avvertenze, entrambe costate una ora:** (a) il backfill della 037 ha creato per ogni
+  membro una riga `from_date = pattern_start` con il contenuto della colonna, e quella riga
+  **ombreggia** la colonna — se le due divergono vince la riga, quindi ogni correzione del
+  ciclo di base deve aggiornare ENTRAMBE le copie (l'API lo fa: salvare sul ciclo di base,
+  cioè con data ≤ `pattern_start`, aggiorna colonna e riga insieme); (b) il testo «Valido dal»
+  del pannello mostra la validità di **oggi**, non quella relativa alla data scelta.
+- **Il rilievo è un SUPER-CICLO da 252 giorni, e lo era già prima del 01/10/2026:** nei PDF di
+  luglio–settembre il jolly delle scorte è `M5T` (12 celle su 12), non `MJ` — cambia solo il
+  significato del `*` del template, non la struttura. I 9 membri sono 9 slot distanti 7
+  giorni, e **lo slot può cambiare**: COCOZZA sta sullo slot 37 fino al 30/09 e sul 226 da
+  ottobre, gli altri 8 restano; MAROTTA fino al 30/09 ha un ciclo da 28 proprio (100% su
+  luglio–settembre, il 252 non gli arriva oltre il 55%) e prende lo slot 16 solo da ottobre.
+  Il ciclo di base era una **approssimazione da 28** che azzeccava solo settembre; corretta
+  con `scripts/cicli-base-rilievo-252.mjs`, il gruppo è al 100% su tutti e quattro i mesi.
+- **Il PERIODO di un membro è la lunghezza del suo pattern, non il `cycle_days` della
+  tipologia** (scelta deliberata: alcune squadre hanno 84 token dentro tipologie diverse).
+  Quindi `cycle_days` è solo il default per i membri nuovi, e il pannello non deve usarlo
+  come riferimento: `lunghezzaCicloInVigore` (`lib/turni-teorici.ts`) restituisce la
+  lunghezza del ciclo che si sta sostituendo. Prima usava `cycle_days` e i 9 del rilievo
+  risultavano «252/28 token» in rosso con il salvataggio bloccato, cioè non editabili.
 
 ### Turni, ferie e catene
 
