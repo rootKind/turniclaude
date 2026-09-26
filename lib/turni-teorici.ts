@@ -2,6 +2,7 @@ import type {
   DaySchedule,
   SalaSchedule,
   ShiftAdjustment,
+  ShiftMemberPattern,
   ShiftTeamMember,
   ShiftTeamTree,
   ShiftTypeGroup,
@@ -53,23 +54,48 @@ export function adjustmentOffset(adjustments: ShiftAdjustment[], teamId: string,
 
 // ─── token teorico per un membro in una data ─────────────────────────────────
 
+/**
+ * Il CICLO del membro in vigore in quella data (migration 037).
+ *
+ * Un asset può cambiare nel tempo e i pattern ne tengono traccia: la riga con
+ * `from_date` più vicina, non successiva alla data, è quella che vale; se non
+ * ce n'è (membro senza storico) si usa il ciclo di base in colonna.
+ *
+ * È la ragione per cui il cambio di ottobre 2026 (la 5ª sezione diventa la
+ * JOLLY, le scorte passano a un ciclo da 252 giorni) non sporca i mesi già
+ * passati: scrivere il nuovo ciclo nella colonna li avrebbe riscritti tutti,
+ * perché il ciclo è ancorato al `pattern_start` e vale «per sempre».
+ */
+export function patternInVigore(
+  member: Pick<ShiftTeamMember, 'pattern' | 'patterns'>,
+  dateISO: string,
+): string[] {
+  let inVigore: ShiftMemberPattern | null = null
+  for (const p of member.patterns ?? []) {
+    if (!p?.from_date || p.from_date > dateISO) continue
+    if (!inVigore || p.from_date > inVigore.from_date) inVigore = p
+  }
+  return (inVigore?.pattern ?? member.pattern ?? []) as string[]
+}
+
 export function tokenForMember(
   type: Pick<ShiftTypeGroup, 'cycle_days' | 'pattern_start'>,
-  member: Pick<ShiftTeamMember, 'pattern'>,
+  member: Pick<ShiftTeamMember, 'pattern' | 'patterns'>,
   teamId: string,
   adjustments: ShiftAdjustment[],
   dateISO: string,
 ): string {
   const offset = adjustmentOffset(adjustments, teamId, dateISO)
   const anchor = addDays(type.pattern_start, offset)
+  const pattern = patternInVigore(member, dateISO)
   /* Il periodo è la lunghezza del pattern DEL MEMBRO, non cycle_days del tipo:
      dopo il super-ciclo (es. «in terza» 84gg) i membri senza storia PDF hanno
      conservato pattern più corti (28) — indicizzarli con il periodo del tipo
      produce indici fuori pattern (token vuoto = persona che sparisce dai
      mesi teorici). Ogni pattern cicla sulla SUA lunghezza. */
-  const period = Math.max(1, member.pattern.length || type.cycle_days)
+  const period = Math.max(1, pattern.length || type.cycle_days)
   const idx = ((daysBetween(anchor, dateISO) % period) + period) % period
-  return member.pattern[idx] ?? ''
+  return pattern[idx] ?? ''
 }
 
 // ─── generazione di un mese teorico ──────────────────────────────────────────

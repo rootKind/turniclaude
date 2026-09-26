@@ -29,9 +29,13 @@ interface MutBody {
   phase_offset_days?: number
   full_name?: string
   pattern?: string[]
+  /** YYYY-MM-DD: da quale giorno vale il pattern (migration 037). Assente =
+   *  comportamento di sempre, il pattern base in colonna. */
+  pattern_from?: string
   is_lead?: boolean
   user_id?: string | null  // lega il membro all'utente (regola bare-owner per gli omonimi)
   description?: string
+  note?: string
 }
 
 export async function GET() {
@@ -90,7 +94,7 @@ export async function POST(req: NextRequest) {
     if (teamErr || !team) return NextResponse.json({ error: 'Squadra non trovata' }, { status: 400 })
     const { data: type, error: typeErr } = await supabase
       .from('shift_types')
-      .select('cycle_days')
+      .select('cycle_days, pattern_start')
       .eq('id', team.shift_type_id)
       .single()
     if (typeErr || !type) return NextResponse.json({ error: 'Tipologia non trovata' }, { status: 400 })
@@ -100,7 +104,7 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       )
     }
-    const { error } = await supabase.from('shift_team_members').insert({
+    const { data: inserted, error } = await supabase.from('shift_team_members').insert({
       team_id: body.team_id,
       full_name: body.full_name,
       pattern: body.pattern,
@@ -108,9 +112,19 @@ export async function POST(req: NextRequest) {
       is_active: body.is_active ?? true,
       is_lead: body.is_lead ?? false,
       user_id: body.user_id ?? null,
-    })
+    }).select('id').single()
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-    return NextResponse.json({ ok: true })
+    // anche un membro nuovo ha il suo ciclo di base nello storico: senza, la
+    // data di inizio valida sarebbe implicita e i cicli successivi avrebbero
+    // un buco (migration 037).
+    const { error: histErr } = await supabase.from('shift_member_patterns').upsert({
+      member_id: inserted.id,
+      from_date: type.pattern_start,
+      pattern: body.pattern,
+      note: 'ciclo di base',
+    }, { onConflict: 'member_id,from_date' })
+    if (histErr) return NextResponse.json({ error: histErr.message }, { status: 400 })
+    return NextResponse.json({ ok: true, id: inserted.id })
   }
 
   if (kind === 'template') {
@@ -211,6 +225,36 @@ export async function PUT(req: NextRequest) {
     }
     if (body.pattern !== undefined) {
       if (!body.pattern.length) return NextResponse.json({ error: 'Pattern vuoto' }, { status: 400 })
+      const da = body.pattern_from
+      if (da && /^\d{4}-\d{2}-\d{2}$/.test(da)) {
+        // UN NUOVO CICLO IN VIGORE DA UN GIORNO (migration 037): si aggiunge una
+        // riga di storico e NON si tocca la colonna, così i mesi in cui valeva
+        // il ciclo precedente restano corretti. Salvare sul ciclo di base
+        // (data uguale o anteriore al pattern_start) riscrive invece tutto.
+        const { data: team } = await supabase.from('shift_team_members').select('team_id').eq('id', id).single()
+        const { data: t } = team
+          ? await supabase.from('shift_teams').select('shift_type_id').eq('id', team.team_id).single()
+          : { data: null }
+        const { data: type } = t
+          ? await supabase.from('shift_types').select('pattern_start').eq('id', t.shift_type_id).single()
+          : { data: null }
+        if (type && da > type.pattern_start) {
+          const { error: histErr } = await supabase.from('shift_member_patterns').upsert({
+            member_id: id,
+            from_date: da,
+            pattern: body.pattern,
+            note: body.note ?? 'ciclo aggiornato dal pannello',
+          }, { onConflict: 'member_id,from_date' })
+          if (histErr) return NextResponse.json({ error: histErr.message }, { status: 400 })
+          const patch2 = { ...patch }
+          delete patch2.pattern
+          const { error } = patch2 && Object.keys(patch2).length
+            ? await supabase.from('shift_team_members').update(patch2).eq('id', id)
+            : { error: null }
+          if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+          return NextResponse.json({ ok: true, pattern_dal: da })
+        }
+      }
       patch.pattern = body.pattern
     }
     const { error } = await supabase.from('shift_team_members').update(patch).eq('id', id)

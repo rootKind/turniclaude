@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Pencil, Plus, Save, Star, Trash2, X } from 'luc
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { fetchShiftCycleTemplates, fetchShiftTeamTree } from '@/lib/queries/shift-teams'
+import { patternInVigore } from '@/lib/turni-teorici'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -22,6 +23,13 @@ interface Props {
 }
 
 type Team = ShiftTeamTree['types'][number]['teams'][number]
+
+/** Oggi in «YYYY-MM-DD» nel fuso locale: la data di validità è quella che
+ *  l'admin legge sull'orologio (come nel pannello dei minimi). */
+function oggiISO(): string {
+  const n = new Date()
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+}
 
 /**
  * Nome visualizzato della squadra: i cognomi dei capisquadra (membri con is_lead),
@@ -533,8 +541,14 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
 }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(member.full_name)
-  const [pattern, setPattern] = useState(member.pattern.join(' '))
+  // Si parte dal ciclo IN VIGORE oggi, non dalla colonna: dal 01/10/2026 un
+  // membro può avere un ciclo più recente (migration 037) e salvare quello
+  // vecchio sarebbe un falso «corregimi tutto».
+  const [pattern, setPattern] = useState(() => patternInVigore(member, oggiISO()).join(' '))
+  const [patternFrom, setPatternFrom] = useState(oggiISO())
   const tokenCount = pattern.trim() ? pattern.trim().split(/\s+/).length : 0
+  const storico = member.patterns ?? []
+  const cicliPassati = storico.filter(p => p.from_date < patternFrom).length
 
   return (
     <div className="rounded-xl border bg-card px-3 py-2.5 space-y-2">
@@ -593,21 +607,49 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
             onChange={e => setPattern(e.target.value)}
             placeholder="Token separati da spazi (es. M9 N7S RC RI …)"
           />
+          <div className="flex items-center gap-2">
+            <label htmlFor={`dal-${member.id}`} className="text-[11px] text-muted-foreground shrink-0">
+              Valido dal
+            </label>
+            <Input
+              id={`dal-${member.id}`}
+              type="date"
+              value={patternFrom}
+              onChange={e => setPatternFrom(e.target.value)}
+              className="h-8 w-[9.5rem] text-xs"
+            />
+            <span className="text-[11px] text-muted-foreground">
+              {cicliPassati > 0
+                ? `prima valeva il ciclo dal ${storico.filter(p => p.from_date < patternFrom).sort((a, b) => b.from_date.localeCompare(a.from_date))[0].from_date}`
+                : 'cambia anche i mesi passati'}
+            </span>
+          </div>
           <div className="flex items-center justify-between">
             <span className={`text-[11px] ${tokenCount === cycle ? 'text-muted-foreground' : 'text-destructive'}`}>
               {tokenCount}/{cycle} token
             </span>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => { setName(member.full_name); setPattern(member.pattern.join(' ')); setEditing(false) }}>
+              <Button size="sm" variant="outline" onClick={() => {
+                setName(member.full_name)
+                setPattern(patternInVigore(member, oggiISO()).join(' '))
+                setPatternFrom(oggiISO())
+                setEditing(false)
+              }}>
                 <X size={12} /> Annulla
               </Button>
               <Button
                 size="sm"
                 disabled={tokenCount !== cycle}
                 onClick={() => run(async () => {
-                  await api('PUT', { kind: 'member', id: member.id, full_name: name, pattern: pattern.trim().split(/\s+/) })
+                  await api('PUT', {
+                    kind: 'member',
+                    id: member.id,
+                    full_name: name,
+                    pattern: pattern.trim().split(/\s+/),
+                    pattern_from: patternFrom,
+                  })
                   setEditing(false)
-                }, 'Membro aggiornato')}
+                }, patternFrom > oggiISO() ? `Membro aggiornato (dal ${patternFrom})` : 'Membro aggiornato')}
               >
                 Salva
               </Button>

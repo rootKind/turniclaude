@@ -304,10 +304,26 @@ export interface ShiftTeamMember {
   team_id: string
   full_name: string
   user_id: string | null
-  pattern: string[]            // lunghezza = cycle_days della tipologia
+  pattern: string[]            // ciclo di BASE: quello valido dal pattern_start della tipologia
   sort_order: number
   is_active: boolean
   is_lead: boolean             // true = caposquadra (compare nel nome visualizzato della squadra)
+  /** Storico dei cicli (migration 037): se c'è, vale quello in vigore nella
+   *  data richiesta — vedi `patternInVigore` in lib/turni-teorici. Vuoto o
+   *  assente = si usa `pattern`. */
+  patterns?: ShiftMemberPattern[]
+}
+
+/** Un CICLO di un membro, valido dal proprio giorno (migration 037). Un asset
+ *  può cambiare nel tempo (dal 01/10/2026 la 5ª sezione è la JOLLY, le scorte
+ *  passano a un ciclo da 252 giorni): lo storico permette di rappresentarlo
+ *  senza riscrivere i mesi in cui valeva il ciclo precedente. */
+export interface ShiftMemberPattern {
+  id?: string
+  member_id?: string
+  from_date: string            // YYYY-MM-DD: dal giorno X (incluso) vale questo ciclo
+  pattern: string[]
+  note?: string | null
 }
 
 export interface ShiftAdjustment {
