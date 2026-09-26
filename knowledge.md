@@ -221,6 +221,22 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   suo `from` e una con J M=1 P=1 N=0. Nessuna voce = nessuno scoperto, così i mesi vecchi non
   si riempiono di allarmi. L'«In vigore da» del pannello parte da OGGI: va editato.
   Prove: `tests/sala-scoperto.spec.ts`.
+- **I cicli hanno una DATA DI INIZIO VALIDITÀ (migration 037, 26/09/2026):** un asset cambia
+  nel tempo (dal 01/10/2026 la 5ª sezione diventa la JOLLY, quindi `P5T`/`M5T` → `PJ`/`MJ`; le
+  scorte di rilievo passano da un ciclo di 28 a uno di 252 giorni; le tre squadre «in seconda»
+  prendono un ciclo nuovo). Sono cambi di CONTENUTO, non di fase: nessuna rotazione del ciclo
+  precedente li produce, quindi `shift_adjustments` (che sposta solo i giorni) non basta.
+  `shift_member_patterns` è lo STORICO: più righe per membro, ognuna valida dal proprio
+  `from_date`; `patternInVigore` (`lib/turni-teorici.ts`) sceglie la riga in vigore nella data e
+  `shift_team_members.pattern` resta il ciclo di BASE (quello valido dal `pattern_start`).
+  **PERCHÉ ESISTE:** scrivere il nuovo ciclo nella colonna avrebbe riscritto anche luglio,
+  agosto e settembre, che hanno i PDF loro (accordo 98,3% → 81,5% a settembre); con lo storico
+  ottobre è passato dal 77,9% al 98,7% e i mesi passati sono rimasti intatti. Nel pannello
+  squadre il campo «Valido dal» (default oggi) fa esattamente questo: salvare senza data non
+  tocca il passato, salvare sul ciclo di base lo riscrive.
+  **Regola operativa:** un nuovo asset si scrive con `node scripts/ricava-pattern-ottobre.mjs
+  --apply --dal=YYYY-MM-DD` (backup automatico in `scripts/backup-pattern-*.json`, rollback con
+  `--annulla=YYYY-MM-DD`), MAI con un UPDATE diretto di `shift_team_members.pattern`.
 
 ### Turni, ferie e catene
 
@@ -318,3 +334,29 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   risultare identici.
 - **Migration 035/036** (`push_enabled_stats`, `chain_interest_context`) applicate su
   produzione: colonne presenti e versioni registrate in `schema_migrations`.
+- **I TEMPLATE DI CATALOGO sono fermi all'assetto precedente (26/09/2026):** l'assetto di
+  ottobre sta in `shift_member_patterns`, non in `shift_cycle_templates`. Applicare oggi dal
+  pannello un template delle 67 persone significa rimettere il ciclo VECCHIO dalla data di oggi
+  in poi — cioè disfare il lavoro. Prima di toccare il pannello su quelle persone: allineare i
+  template al ciclo in vigore, o segnarne la data.
+- **Asset di ottobre–novembre 2026: applicato su DEV il 26/09/2026, non ancora su main.** I 67
+  cicli sono in vigore dal **2026-10-01** (`shift_member_patterns`), con i due spostamenti
+  decisi dall'utente: DONZELLI da Maternità alla squadra arancione, LONI A. da Rilievo D alla
+  squadra rosa, ROTONDO sulla rosa alla fase 0 (riga 1). Fonti: `teorici.xlsx` →
+  `scripts/dati-template-ottobre.json`; verifica 2637/2666 celle sul PDF di ottobre su main
+  (le 29 mancanti sono ROTONDO, che nel PDF di ottobre è ancora tutto «G»).
+  Per rimettere lo stato precedente: `node scripts/ricava-pattern-ottobre.mjs
+  --annulla=2026-10-01`.
+- **Posto vacante nella squadra verde:** il template è pronto in
+  `piano.postiVacanti` (riga 5 ruotata di 65, 84 token) ma nessun membro lo occupa. Costa 42
+  persone-mancanti in ottobre e 40 in novembre sulle card 4/5/6/7/10 nei turni M e P; compilato
+  resterebbe solo `RIC|P` (vedi sotto).
+- **`RIC|P` scoperta per scelta dell'utente (26/09/2026):** nella squadra RIC solo EBBREZZA e
+  D'ADDONA fanno il pomeriggio (2 giorni su 4), MANNIELLO ha solo turni mattina — è l'anomalia
+  segnalata. Quindi 20 giorni su 61 senza nessuno sulla RIC nel turno P. Verificato che
+  NESSUNA rotazione dei tre pattern lo copre: servirebbe una terza persona che alterni. Si
+  lascia scoperto: è un turno scoperto e i cambi li copre il turnista, e sono già nei PDF reali.
+  Non toccare il minimo `RIC|P = 1` per addolcirlo: serve a farlo lampeggiare.
+- 13 persone del PDF di ottobre non hanno un membro in dev (COPPOLA, TRANI, CASTALDI, GIORDANO,
+  NAPOLITANO, STRINGILE, SARRA, COLUCCI M., SPAGNULO, CEPARANO, GAROFALO, PIROZZI, VENERUSO):
+  fuori dal teorico, da decidere quando entrano.
