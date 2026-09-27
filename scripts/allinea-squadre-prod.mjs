@@ -15,6 +15,12 @@
 //    NUOVO si copiano i valori di dev, con user_id SEMPRE null (un membro è un
 //    nominativo in squadra, non un account: CASTELLONE non ce l'ha e COPPOLA
 //    non lo vuole).
+//  - LA SQUADRA DEL MEMBRO (team_id) sì, ma PER NOME e mai per uuid: le squadre
+//    Rilievo A–D hanno id diversi nei due ambienti (non sono semi deterministici
+//    come Squadra A–D, le Semplici e la Rosa), quindi copiare l'uuid di dev
+//    scriverebbe un riferimento a una squadra che su prod non esiste. Si porta
+//    la squadra solo se il NOME differisce davvero (spostamento deciso: DONZELLI
+//    in arancione, LONI A. nella rosa, MAROTTA fra le rilievo).
 //  - shift_member_patterns: TUTTO lo storico dev ← prod, per (membro, from_date).
 //    È la parte che rende i mesi già chiusi intatti: la riga dal 2026-03-01
 //    vale per luglio–settembre, quella dal 2026-10-01 per ottobre in poi.
@@ -25,7 +31,7 @@
 //    88 per slot; nessuna tabella punta a questi id, quindi non si rompe
 //    niente). I template che esistono solo su prod non si copiano: si
 //    cancellano, e sono nel backup.
-//  - MAI si tocca: `sala_layout` (i minimi per card sono giàthose di master),
+//  - MAI si tocca: `sala_layout` (i minimi per card sono già quelli di master),
 //    `shifts`, `sala_schedule` (i PDF), `shift_adjustments`, gli `user_id`.
 //
 // VERIFICA. Per ogni mese con PDF in v2 (2026-04…2026-10) si calcola il turno
@@ -133,7 +139,7 @@ if (ANNULLA) {
   // appartengono cadono con la cascata); per gli altri si torna al pattern
   // di prima, che è quello che i PDF di luglio–settembre descrivono.
   for (const id of bak.membri_ins ?? []) stmts.push(`delete from shift_team_members where id = ${qVal(id)}`)
-  for (const m of bak.members ?? []) stmts.push(`update shift_team_members set pattern = ${arrPg(m.pattern)} where id = ${qVal(m.id)}`)
+  for (const m of bak.members ?? []) stmts.push(`update shift_team_members set pattern = ${arrPg(m.pattern)}, team_id = ${qArr(m.team_id)} where id = ${qVal(m.id)}`)
   stmts.push(`delete from shift_member_patterns`)
   for (const r of bak.patterns ?? []) {
     stmts.push(`insert into shift_member_patterns (member_id, from_date, pattern, note) values (${qVal(r.member_id)}, ${qVal(r.from_date)}, ${arrPg(r.pattern)}, ${qArr(r.note)})`)
@@ -180,6 +186,8 @@ const prodTeamByName = new Map(prodTeams.map(t => [U(t.name), t]))
 const devTypeByName = new Map(devTypes.map(t => [U(t.name), t]))
 const prodTypeById = new Map(prodTypes.map(t => [t.id, t]))
 const devTypeById = new Map(devTypes.map(t => [t.id, t]))
+const devTeamById = new Map(devTeams.map(t => [t.id, t]))
+const prodTeamById = new Map(prodTeams.map(t => [t.id, t]))
 const squadra = (tid, map) => [...map.values()].find(t => t.id === tid)?.name ?? tid
 
 // ── 2) tipologie ────────────────────────────────────────────────────────────
@@ -200,7 +208,7 @@ const onlyProd = []
 for (const dm of devMembers) {
   const pm = prodMemberById.get(dm.id)
   if (!pm) {
-    const squadraDev = devTeamByName.get(U(squadra(dm.team_id, new Map(devTeams.map(t => [t.id, t])))))
+    const squadraDev = devTeamById.get(dm.team_id)
     const squadraProd = squadraDev ? prodTeamByName.get(U(squadraDev.name)) : null
     if (!squadraProd) { console.log(`⚠ ${dm.full_name} è su dev nella squadra «${squadraDev?.name}», che su prod non c'è: non si può creare il membro`); continue }
     memberInserts.push({ id: dm.id, name: dm.full_name, squadra: squadraProd.name, team_id: squadraProd.id, sort_order: dm.sort_order, is_lead: dm.is_lead, is_active: dm.is_active, hasAccount: !!dm.user_id, patternLen: dm.pattern?.length ?? 0 })
@@ -217,6 +225,34 @@ for (const dm of devMembers) {
 for (const pm of prodMembers) {
   if (devMembers.some(d => d.id === pm.id)) continue
   onlyProd.push(pm)
+}
+
+// ── 3b) SPOSTAMENTI DI SQUADRA ──────────────────────────────────────────────
+// Il confronto è per NOME di squadra, non per uuid: Rilievo A–D hanno id
+// diversi su dev e su produzione (non sono semi deterministici come Squadra
+// A–D, le Semplici o la Rosa), quindi un id diverso NON vuol dire una squadra
+// diversa. Le tre cose che possono capitare, e cosa si fa:
+//  - id diverso, NOME uguale → stessa squadra, id non confrontabili: si lascia
+//    stare (è il caso normale delle Rilievo A–D);
+//  - NOME diverso → spostamento deciso: si scrive l'uuid di PROD della squadra
+//    di dev, mai quello di dev (che su prod non esiste);
+//  - nomi non confrontabili → si segnala e non si tocca niente.
+const teamMoves = []   // {id, name, da, a, teamIdProd}
+const teamStessaSquadra = []
+for (const dm of devMembers) {
+  const pm = prodMemberById.get(dm.id)
+  if (!pm) continue
+  if (dm.team_id === pm.team_id) continue
+  const nomeDev = devTeamById.get(dm.team_id)?.name
+  const nomeProd = prodTeamById.get(pm.team_id)?.name
+  if (!nomeDev || !nomeProd) {
+    console.log(`⚠ ${dm.full_name}: id di squadra diversi e nomi non confrontabili (dev ${dm.team_id} / prod ${pm.team_id})`)
+    continue
+  }
+  if (U(nomeDev) === U(nomeProd)) { teamStessaSquadra.push(dm.full_name); continue }
+  const teamIdProd = prodTeamByName.get(U(nomeDev))?.id
+  if (!teamIdProd) { console.log(`⚠ ${dm.full_name}: la squadra di dev «${nomeDev}» non esiste su prod, niente da fare`); continue }
+  if (selezionato(dm.full_name)) teamMoves.push({ id: pm.id, name: pm.full_name, da: nomeProd, a: nomeDev, teamIdProd })
 }
 
 // ── 4) storico dei pattern ──────────────────────────────────────────────────
@@ -250,7 +286,7 @@ for (const dt of devTemplates) {
   const tipoProd = devTypeById.get(dt.shift_type_id) ? prodTypeById.get(prodTypes.find(t => U(t.name) === U(devTypeById.get(dt.shift_type_id).name))?.id) : null
   const tipoIdProd = tipoProd?.id ?? null
   if (!tipoIdProd) { console.log(`⚠ template «${dt.name}»: il tipo non esiste su prod, saltato`); continue }
-  const teamIdProd = dt.team_id ? (devTeams.find(t => t.id === dt.team_id) ? prodTeamByName.get(U(devTeams.find(t => t.id === dt.team_id).name))?.id ?? null : null) : null
+  const teamIdProd = dt.team_id ? (devTeamById.get(dt.team_id) ? prodTeamByName.get(U(devTeamById.get(dt.team_id).name))?.id ?? null : null) : null
   const live = prodTemplateById.get(dt.id)
   const riga = { id: dt.id, name: dt.name, tipoIdProd, teamIdProd, pattern: dt.pattern, cycle_days: dt.cycle_days, pattern_start: dt.pattern_start, description: dt.description, is_builtin: dt.is_builtin }
   if (!live) { templateIns.push(riga); continue }
@@ -270,6 +306,25 @@ console.log(`\n== MEMBRI da creare (${memberInserts.length}) ==`)
 for (const u of memberInserts) console.log(`  ${u.name} in «${u.squadra}» (ordine ${u.sort_order}, account ${u.hasAccount ? 'PRESENTE → verrà creato NULL' : 'nessuno'})`)
 console.log(`\n== MEMBRI solo su prod (${onlyProd.length}): NON si toccano, la loro fase resta quella di prod ==`)
 for (const m of onlyProd) console.log(`  ${m.full_name} in «${squadra(m.team_id, prodTeamByName)}»`)
+
+console.log(`\n== SPOSTAMENTI DI SQUADRA (${teamMoves.length}) ==`)
+for (const u of teamMoves) console.log(`  ${u.name.padEnd(16)} «${u.da}» → «${u.a}»`)
+if (teamStessaSquadra.length) {
+  console.log(`  (${teamStessaSquadra.length} membri hanno id di squadra diversi fra i due ambienti ma la STESSA squadra — sono le Rilievo A–D, i cui id non sono semi deterministici. Non si toccano.)`)
+}
+const perSquadra = (membri, map) => [...map.values()]
+  .sort((a, b) => a.name.localeCompare(b.name))
+  .map(t => {
+    const inside = membri.filter(m => m.team_id === t.id).map(m => m.full_name)
+    return `  ${t.name.padEnd(18)} ${String(inside.length).padStart(2)}  ${inside.join(', ')}`
+  })
+  .join('\n')
+const membriDopo = prodMembers.map(m => {
+  const mv = teamMoves.find(x => x.id === m.id)
+  return mv ? { ...m, team_id: mv.teamIdProd } : m
+})
+console.log(`\n== A CHI APPARTENGONO, ORA (produzione) ==\n${perSquadra(prodMembers, prodTeamByName)}`)
+console.log(`\n== A CHI APPARTENGONO, DOPO IL PIANO ==\n${perSquadra(membriDopo, prodTeamByName)}`)
 
 console.log(`\n== STORICO DEI CICLI: righe da scrivere (${patternPlan.length}) ==`)
 for (const [data, d] of perData) console.log(`  dal ${data}: ${d.n} membri, lunghezze ${[...d.len].sort((a, b) => a - b).join('/')}`)
@@ -348,7 +403,8 @@ const pre = tasso(prodMembers, prodPatterns, prodTypes, prodTeams, prodAdjust)
 const dopoMembers = [
   ...prodMembers.map(m => {
     const u = memberUpdates.find(x => x.id === m.id)
-    return u ? { ...m, pattern: u.pattern } : m
+    const mv = teamMoves.find(x => x.id === m.id)
+    return { ...m, pattern: u?.pattern ?? m.pattern, team_id: mv?.teamIdProd ?? m.team_id }
   }),
   ...memberInserts.map(u => ({ id: `NUOVO:${u.id}`, team_id: u.team_id, full_name: u.name, pattern: new Array(0) })),
 ]
@@ -403,6 +459,7 @@ console.log(`\nBackup scritto: ${bakPath}`)
 const stmts = []
 for (const u of typeUpdates) stmts.push(`update shift_types set cycle_days = ${u.cycle_days}, pattern_start = ${qVal(u.pattern_start)} where id = ${qVal(u.id)}`)
 for (const u of memberUpdates) stmts.push(`update shift_team_members set pattern = ${arrPg(u.pattern)} where id = ${qVal(u.id)}`)
+for (const u of teamMoves) stmts.push(`update shift_team_members set team_id = ${qVal(u.teamIdProd)} where id = ${qVal(u.id)}`)
 for (const u of memberInserts) {
   // user_id SEMPRE null: un membro è un nominativo in squadra, l'account serve
   // solo per gli omonimi, i cambi e le ferie (e COPPOLA non ce l'ha).
@@ -443,7 +500,7 @@ for (const u of memberInserts) {
 
 // ── 9) verifica POST sul DB vero ────────────────────────────────────────────
 const [postMembers, postPatterns, postTemplates] = await Promise.all([
-  prodQuery(`select id, team_id, full_name, pattern from shift_team_members`),
+  prodQuery(`select m.id, m.team_id, m.full_name, m.pattern, t.name as team_name from shift_team_members m join shift_teams t on t.id = m.team_id`),
   prodQuery(`select member_id, from_date, pattern from shift_member_patterns`),
   prodQuery(`select id, name, pattern from shift_cycle_templates`),
 ])
@@ -455,6 +512,18 @@ console.log(`  membri ${postMembers.length} (dev ${devMembers.length}) · storic
 // allineamento (allinea-rotazione-prod.mjs) li riconosca per id e non per nome.
 const templateOrfani = postTemplates.filter(t => !devTemplates.some(d => d.id === t.id))
 console.log(`  template con id diverso da dev: ${templateOrfani.length}${templateOrfani.length ? ` (${templateOrfani.slice(0, 3).map(t => t.name).join(', ')})` : ''}`)
+// Gli spostamenti di squadra, riletti dal DB: è la cosa che l'utente vede in
+// «turni in seconda» (arancione, verde, rosa).
+const spostamentiOk = teamMoves.every(mv => {
+  const r = postMembers.find(m => m.id === mv.id)
+  return r && r.team_name === mv.a
+})
+if (teamMoves.length) {
+  for (const mv of teamMoves) {
+    const r = postMembers.find(m => m.id === mv.id)
+    console.log(`  ${mv.name.padEnd(16)} «${r?.team_name ?? '?'}» ${r?.team_name === mv.a ? '✓' : `✗ atteso «${mv.a}»`}`)
+  }
+}
 
 const peggio = [...post].filter(([mese, t]) => {
   const d = devPre.get(mese)
@@ -462,7 +531,7 @@ const peggio = [...post].filter(([mese, t]) => {
 })
 const pctPerMese = [...post.values()].filter(t => t.tot >= 20).map(t => (1000 * t.ok) / t.tot)
 const pctMinimo = pctPerMese.length ? Math.min(...pctPerMese) : 100
-if (peggio.length || pctMinimo < SOGLIA) {
+if (peggio.length || pctMinimo < SOGLIA || !spostamentiOk) {
   console.log(`  ⚠ VERIFICA NON SODDISFATTA (minimo ${Math.round(pctMinimo / 10)}%, mesi sotto dev: ${peggio.map(([m]) => m).join(', ') || 'nessuno'}).`)
   console.log(`  rollback: node scripts/allinea-squadre-prod.mjs --annulla`)
   process.exitCode = 2

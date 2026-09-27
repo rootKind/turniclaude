@@ -427,18 +427,25 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   `next.config.ts`, fallback locale). NON reintrodurre un footer hardcoded.
 - **Branch:** sviluppo su `dev`, deploy da `master`.
 - **knowledge.md:** solo regole durevoli + azioni pendenti; la cronaca vive in git.
-- **DEV E PRODUZIONE CONDIVIDONO GLI ID DELLE SQUADRE (27/09/2026):** `shift_types`,
-  `shift_teams` e `shift_team_members` hanno gli stessi uuid nei due ambienti (88 membri,
-  id compresi). È l'invariante che rende possibile allineare produzione a dev per ID e non
-  per nome: quando si crea un membro o un template su dev, si porta lo stesso id su
-  produzione, altrimenti i due elenchi divergono e `allinea-squadre-prod.mjs` non lo vede.
-  I template di `shift_cycle_templates` hanno gli id di dev anche in produzione.
+- **DEV E PRODUZIONE CONDIVIDONO GLI ID DEI MEMBRI E DEI TEMPLATE, NON SEMPRE QUELLI
+  DELLE SQUADRE (27/09/2026):** `shift_types`, `shift_team_members` (88) e
+  `shift_cycle_templates` hanno gli stessi uuid nei due ambienti; le squadre hanno id
+  deterministici (`20000000-…-001` Squadra A, `-015` ASTER…) **tranne Rilievo A–D**, i cui id
+  sono casuali e quindi diversi. Per questo il `team_id` di un membro si confronta e si
+  scrive per NOME di squadra: copiare l'uuid di dev su produzione scriverebbe un riferimento
+  a una squadra che li non esiste. Le tre cose che si vedono sono distinguibili: id diversi
+  con NOME uguale sono le Rilievo A–D (non si toccano), NOME diverso è uno spostamento
+  deciso (DONZELLI in arancione, LONI A. nella rosa, MAROTTA fra le rilievo: allineati il
+  27/09/2026).
 - **Per cambiare squadre e cicli su produzione:** `scripts/allinea-squadre-prod.mjs`
   (dry-run in default, `--apply`, `--annulla [--da=<backup>]`), con
-  `scripts/sonda-dev-prod.mjs` per vedere le differenze. Lo script non tocca mai
-  `user_id`/`is_lead`/`sort_order` dei membri esistenti, né `sala_layout`, `shifts`,
-  `sala_schedule`, `shift_adjustments`; sul membro NUOVO copia i valori di dev con
-  `user_id` sempre NULL. I mesi chiusi si difendono da soli: lo storico in
+  `scripts/sonda-dev-prod.mjs` per vedere le differenze. Lo script allinea `pattern`,
+  storico, template e **squadra del membro**; non tocca mai `user_id`, `is_lead`,
+  `sort_order` dei membri esistenti, né `sala_layout`, `shifts`, `sala_schedule`,
+  `shift_adjustments`; sul membro NUOVO copia i valori di dev con `user_id` sempre NULL.
+  Stampa anche l'elenco dei membri di ogni squadra, prima e dopo: è la verifica che
+  serve quando si tratta di spostamenti (il turno di una persona è lo stesso, cambia la
+  squadra in cui compare). I mesi chiusi si difendono da soli: lo storico in
   `shift_member_patterns` fa valere il ciclo giusto per la data che si chiede.
 
 ## Stato attuale — azioni pendenti
