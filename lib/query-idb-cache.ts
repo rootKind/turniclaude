@@ -65,6 +65,39 @@ async function withStore<T>(
  */
 const PERSISTABLE_PREFIXES: readonly string[] = ['users', 'shift-team-tree']
 
+/**
+ * IL RESTORE NON SOVRASCRIVE UN DATO PIÙ FRESCO (27/09/2026).
+ *
+ * Il bug che ha fatto questo. Ogni voce salvata porta con sé `at`, l'istante in
+ * cui la query era stata scritta, e il restore la rimette in cache con QUELLO
+ * orario: è così che la copia sopravvive alla chiusura dell'app «fresca quanto
+ * era». Ma niente controllava che la copia fosse più recente del dato che il
+ * client ha già in mano, e su /turnisala quel dato esiste ed è gratis: lo
+ * ALBERO SQUADRE lo manda già il server dentro la pagina.
+ *
+ * La conseguenza era una corsa. Il client al mount avvia la fetch dell'albero;
+ * se la risposta arrivava prima della lettura da IndexedDB (che è asincrona),
+ * il restore la buttava via e rimetteva la copia vecchia, riportandone
+ * `dataUpdatedAt` indietro. A quel punto la copia vecchia risultava «fresca»
+ * per tutta la `staleTime` (6 ore) e la board mostrava un asset che non esiste
+ * più: LONI A. ancora con il ciclo da 252 delle scorte di rilievo, mentre dal
+ * 1° ottobre doveva avere quello da 84 della squadra rosa.
+ *
+ * La regola è una sola e non è una scorciatoia: **un dato più vecchio non
+ * sostituisce un dato più nuovo.** Il restore continua a valere quando la
+ * query è vuota (prima visita, un'altra scheda,apertura offline) e quando la
+ * copia è più recente di quello che c'era (l'app è stata chiusa ieri, la
+ * sessione è nuova): il vantaggio dell'apertura a freddo senza attese resta
+ * intero.
+ */
+export function ilRestoreVale(
+  salvatoIl: number,
+  inMano: { data: unknown; dataUpdatedAt: number } | undefined,
+): boolean {
+  if (!inMano || inMano.data === undefined) return true // non c'è niente in mano
+  return inMano.dataUpdatedAt <= salvatoIl
+}
+
 export function isPersistableQuery(query: Query): boolean {
   const [root] = query.queryKey
   return typeof root === 'string' && PERSISTABLE_PREFIXES.includes(root)

@@ -80,6 +80,18 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
 - **Cache user-scoped:** `lib/cache.ts` (chiavi `cache:{userId}:{suffix}`); `AuthCacheGuard`
   pulisce al cambio utente; su logout `clearAllLocalData()` svuota TUTTO DOPO il signOut
   (`notification-history` non è user-scoped ma è copiuta dal logout completo).
+- **Cache react-query su IDB: una copia più VECCHIA non sostituisce un dato più NUOVO
+  (27/09/2026).** `QueryProvider` ripristina `users` e `shift-team-tree` da IndexedDB con
+  il loro `dataUpdatedAt` ORIGINALE, così la copia sopravvive alla chiusura dell'app «fresca
+  quanto era» (staleTime 6 ore). Il restore passa da `ilRestoreVale`: se la query ha già
+  dati più recenti, la copia viene scartata. Senza quella guarda era una CORSA — se la
+  fetch client finiva prima della lettura da IDB, il restore buttava via la risposta fresca
+  e la board mostrava per 6 ore un asset abolito (LONI A. con il ciclo da 252 delle rilievo
+  invece che da 84 della rosa). `/turnisala` semina l'albero del SERVER dentro la cache di
+  react-query al mount, quindi l'apertura a freddo resta senza attese e senza rete: quell'albero
+  l'abbiamo già pagato con la pagina. Nota per il futuro: gli asset si cambiano con gli
+  SCRIPT, fuori dall'app, quindi nessun realtime può invalidare la copia dei browser aperti
+  in quel momento — la freschezza la deve garantire il codice, non l'evento.
 - **Push:** unico path = route Next (`/api/push/notify|send|subscribe`) + `lib/push/send-to-user.ts`
   (service role: RLS own-row-only su `push_subscriptions`). `Notification.requestPermission()`
   in forma Promise (standard). Testi push: registry in `lib/notification-templates.ts` con

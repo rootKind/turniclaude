@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useEffect, useState } from 'react'
 import { GlobalLoadingBar } from '@/components/ui/global-loading-bar'
 import {
+  ilRestoreVale,
   isPersistableQuery,
   queryKeyToIdbKey,
   readAllQueryCache,
@@ -37,6 +38,11 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
         try {
           const key = JSON.parse(e.key) as unknown
           if (!Array.isArray(key)) continue
+          // Una copia più VECCHIA di un dato già in mano non lo sostituisce: su
+          // /turnisala l'albero squadre è già arrivato con la pagina (SSR), e
+          // rimettere su quello la copia di ieri riportava in scena un asset
+          // abolito per tutta la staleTime. Vedi `ilRestoreVale`.
+          if (!ilRestoreVale(e.at, queryClient.getQueryState(key))) continue
           queryClient.setQueryData(key, e.data, { updatedAt: e.at })
         } catch { /* chiave non recuperabile: la rete la ricreerà */ }
       }

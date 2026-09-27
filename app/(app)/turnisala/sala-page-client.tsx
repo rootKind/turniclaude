@@ -8,6 +8,7 @@ function formatMonthShort(month: string): string {
   return `${(MONTHS_IT[m - 1] ?? '').slice(0, 3)} ${y}`
 }
 import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { upsertSalaLayout } from '@/lib/queries/sala-layout'
 import { getSalaSchedule } from '@/lib/queries/sala-schedule'
@@ -104,6 +105,22 @@ export function SalaPageClient({
   // client-side poteva tornare 0 righe (RLS «authenticated» con sessione del
   // browser) lasciando la pagina senza teorico né vista «Teorico ≠ reale».
   const [shiftTree, setShiftTree] = useState<ShiftTeamTree | null>(initialShiftTree)
+  // L'albero che il SERVER ha appena mandato entra nella cache di react-query
+  // (27/09/2026). Motivo: `useShiftTeamTreeData` è persistito su IndexedDB con
+  // la sua `staleTime` di 6 ore, e il restore poteva rimettere la copia di
+  // ieri DOPO la risposta di rete, rovinando un asset appena cambiato (il caso
+  // LONI A.: ciclo da 252 delle rilievo invece che da 84 della rosa per tutto
+  // novembre). Con il seme qui dentro, la copia persistita è più veccola di
+  // quello che il client ha in mano e `ilRestoreVale` la scarta: la prima
+  // apertura resta senza attese e senza rete, perché quell'albero l'abbiamo
+  // già pagato con la pagina. Effetto figlio PRIMA di quello del provider
+  // (React li esegue in questo ordine), quindi il seme è in mano quando arriva
+  // il restore asincrono.
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (initialShiftTree) queryClient.setQueryData(['shift-team-tree'], initialShiftTree)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   // Richieste di cambio già esaudite dai PDF appena caricati: popup di conferma.
   // Upload MULTIPLI (19/09/2026): i candidati di OGNI mese finiscono in coda;
   // il dialog li mostra uno alla volta (shift-cleanup-dialog è per un mese).
