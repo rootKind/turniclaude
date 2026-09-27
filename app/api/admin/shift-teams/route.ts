@@ -236,8 +236,14 @@ export async function PUT(req: NextRequest) {
       patch.user_id = body.user_id
     }
     if (body.pattern !== undefined) {
-      if (!body.pattern.length) return NextResponse.json({ error: 'Pattern vuoto' }, { status: 400 })
       const da = body.pattern_from
+      // Un ciclo VUOTO con una data è l'uscita dalla squadra da quel giorno (o
+      // l'ingresso, se è il primo ciclo di una persona che c'era da allora): chi
+      // non ha più turni semplicemente non compare nei mesi teorici. Un ciclo
+      // vuoto SENZA data invece non ha senso e resta un errore.
+      if (!body.pattern.length && !(da && /^\d{4}-\d{2}-\d{2}$/.test(da))) {
+        return NextResponse.json({ error: 'Pattern vuoto: serve la data di validità (ciclo vuoto = non in squadra da quel giorno)' }, { status: 400 })
+      }
       if (da && /^\d{4}-\d{2}-\d{2}$/.test(da)) {
         // UN NUOVO CICLO IN VIGORE DA UN GIORNO (migration 037): si aggiunge una
         // riga di storico e NON si tocca la colonna, così i mesi in cui valeva

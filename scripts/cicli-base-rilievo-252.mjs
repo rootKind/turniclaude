@@ -77,7 +77,23 @@ for (const i of stelle) console.log(`  posizione ${String(i).padStart(3)}: ${gre
 const SLOT = {
   BOCCHETTI: 233, 'DE GIOVANNI': 9, COCOZZA: 37, CENTOMANI: 247, CORBI: 23,
   MUCCI: 2, GRECO: 30, 'NEVANO P.': 240,
+  // MAROTTA (27/09/2026, decisione dell'utente): anche lui è già nella squadra
+  // in cui sarà ad ottobre, quindi il super-ciclo vale da subito e non solo
+  // dal 1°October. Il suo vecchio ciclo da 28 era suo, ma «oggi il teorico
+  // mostrerebbe già novembre»: due regimi per la stessa persona nella stessa
+  // squadra non ha senso. Costo: i suoi turni di luglio–settembre non
+  // combaciano più con quei PDF, perché la rotazione di allora era un'altra.
+  MAROTTA: 16,
 }
+
+// LONI A. era nelle scorte fino al 30/09 e dal 1° ottobre è nella rosa. Anche
+// il SUO ciclo di base era l'approssimazione da 28: misurando i suoi turni nei
+// PDF di luglio–settembre, lo slot 16 del 252 li riproduce 31/31, 31/31 e 30/30
+// (ed è l'unico dei 252 sfalsamenti che ci arriva), mentre i suoi 28 token in
+// colonna arrivano a 21/31, 23/31 e 28/30. Dal 1° ottobre lo slot 16 passa a
+// MAROTTA, che lo stesso PDF di ottobre conferma al 31/31: lo scambio è
+// avvenuto davvero, non solo sulla carta.
+const SLOT_USCITI = { 'LONI A.': 16 }
 const ruota = (p, o) => Array.from({ length: p.length }, (_, i) => p[(i + o) % p.length])
 const [members, storico] = await Promise.all([
   devRest('shift_team_members', '?select=id,full_name,pattern,team_id'),
@@ -92,7 +108,8 @@ for (const r of storico ?? []) {
 }
 
 const daCorreggere = []
-for (const [nome, slot] of Object.entries(SLOT)) {
+const tuttiSlot = { ...SLOT, ...SLOT_USCITI }
+for (const [nome, slot] of Object.entries(tuttiSlot)) {
   const m = members.find(x => x.full_name === nome)
   if (!m) { console.log(`  ${nome}: non trovato`); continue }
   const nuovo = ruota(T252, slot)
@@ -109,8 +126,6 @@ for (const [nome, slot] of Object.entries(SLOT)) {
   }
   daCorreggere.push({ m, slot, nuovo, haRiga: !!gia })
 }
-const mar = members.find(x => x.full_name === 'MAROTTA')
-if (mar) console.log(`  MAROTTA      resta sul suo ciclo da ${(mar.pattern ?? []).length} token fino al 30/09 (dal 1° ottobre prende lo slot 16, riga già presente): non si tocca`)
 console.log(`\nmembri da correggere: ${daCorreggere.length}`)
 if (!APPLY) {
   console.log('DRY-RUN: niente scritto. Rilancia con --apply (backup automatico).')

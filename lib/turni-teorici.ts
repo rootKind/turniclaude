@@ -105,6 +105,9 @@ export function patternInVigore(
  * Se in quella data c'è già un ciclo, il riferimento è la sua lunghezza
  * (l'utente lo sta sostituendo e deve restare della stessa lunghezza); se non
  * c'è, quello del ciclo oggi in vigore; se il membro non ha storico, la colonna.
+ * Se la colonna è VUOTA il membro non è in squadra e il riferimento è 0: non il
+ * `cycle_days` della tipologia, che farebbe sembrare un ciclo da 84 token a
+ * chi non ne ha nessuno.
  */
 export function lunghezzaCicloInVigore(
   member: Pick<ShiftTeamMember, 'pattern' | 'patterns'>,
@@ -114,11 +117,10 @@ export function lunghezzaCicloInVigore(
 ): number {
   const cicli = [cicloInVigore(member, dateISO), cicloInVigore(member, oggiISO)]
   for (const c of cicli) {
-    // `length || fallback` e non `??`: un pattern vuoto (0 token) non è un
-    // riferimento, e `0 ?? fallback` darebbe 0.
-    if (c?.pattern.length) return c.pattern.length
+    if (c) return c.pattern.length
   }
-  return member.pattern?.length || fallback
+  if (member.pattern !== undefined && member.pattern !== null) return member.pattern.length
+  return fallback
 }
 
 export function tokenForMember(
@@ -131,6 +133,16 @@ export function tokenForMember(
   const offset = adjustmentOffset(adjustments, teamId, dateISO)
   const anchor = addDays(type.pattern_start, offset)
   const pattern = patternInVigore(member, dateISO)
+  /* CICLO VUOTO = NON IN SQUADRA DA QUELLA DATA. È il modo in cui il modello
+     dice «questa persona c'era fino a ieri»: un ciclo con zero token vale per
+     tutte le date da cui è in vigore, e chi non ha un turno in quei giorni non
+     viene nemmeno elencato (in `generateTheoreticalMonth` il token vuoto fa
+     `continue`). Serve al subentro: dal 1°October 2026 COPPOLA prende il posto
+     di CASTELLONE in ASTER, e CASTELLONE esce con un ciclo vuoto da quella
+     data invece di restare come un turno teorico senza riscontro reale.
+     Senza questo caso il ripiego sul `cycle_days` del tipo nasconderebbe la
+     differenza e restituirebbe comunque ''. */
+  if (!pattern.length) return ''
   /* Il periodo è la lunghezza del pattern DEL MEMBRO, non cycle_days del tipo:
      dopo il super-ciclo (es. «in terza» 84gg) i membri senza storia PDF hanno
      conservato pattern più corti (28) — indicizzarli con il periodo del tipo

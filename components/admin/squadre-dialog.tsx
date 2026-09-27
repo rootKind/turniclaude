@@ -564,6 +564,13 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
   // riferimento sbagliato quei membri risultavano «252/28 token» in rosso con
   // il salvataggio bloccato, cioè non editabili.
   const atteso = lunghezzaCicloInVigore(member, patternFrom, oggiISO(), cycle)
+  // Gli altri cicli del membro. Senza questo, aprire MAROTTA (28 token oggi,
+  // 252 dal 1° ottobre) faceva credere che il 252 non ci fosse: il conteggio
+  // mostrava 28/28 e non si capiva che il grosso arriva dopo.
+  const altriCicli = (member.patterns ?? [])
+    .filter(p => p.from_date !== inVigoreDa)
+    .sort((a, b) => a.from_date.localeCompare(b.from_date))
+  const cicliFuturi = altriCicli.filter(p => p.from_date > oggiISO())
 
   return (
     <div className="rounded-xl border bg-card px-3 py-2.5 space-y-2">
@@ -630,19 +637,37 @@ function MemberRow({ member, cycle, templates, typeId, teamId, users, boundUserI
               id={`dal-${member.id}`}
               type="date"
               value={patternFrom}
-              onChange={e => setPatternFrom(e.target.value)}
+              // Cambiare la data cambia QUALE ciclo si sta editando, quindi va
+              // caricato quello di quella data. Prima restava quello di oggi:
+              // scegliendo il 1°Ottobre si vedevano i 28 token del ciclo
+              // precedente e il conteggio li segnalava come sbagliati.
+              onChange={e => {
+                setPatternFrom(e.target.value)
+                if (e.target.value) setPattern(patternInVigore(member, e.target.value).join(' '))
+              }}
               className="h-8 w-[9.5rem] text-xs"
             />
             <span className="text-[11px] text-muted-foreground">
-              {inVigoreDa
-                ? `oggi in vigore dal ${dataBreve(inVigoreDa)}`
-                : 'oggi in vigore dal ciclo di base'}
+              {atteso === 0
+                ? 'nessun ciclo: non è in squadra nelle date fino a qui — metti una data e incolla il suo ciclo per farlo entrare'
+                : inVigoreDa
+                  ? `oggi in vigore dal ${dataBreve(inVigoreDa)}`
+                  : 'oggi in vigore dal ciclo di base'}
               {sostituisce && ` · salvando dal ${dataBreve(patternFrom)} lo sostituisci`}
+              {altriCicli.length > 0 && (
+                <>
+                  {' · '}
+                  {cicliFuturi.length > 0 ? 'poi ' : 'prima '}
+                  {altriCicli
+                    .map(p => `${dataBreve(p.from_date)} ${p.pattern.length} token`)
+                    .join(', ')}
+                </>
+              )}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className={`text-[11px] ${tokenCount === atteso ? 'text-muted-foreground' : 'text-destructive'}`}>
-              {tokenCount}/{atteso} token
+              {atteso === 0 ? `${tokenCount} token · ciclo vuoto` : `${tokenCount}/${atteso} token`}
             </span>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => {
