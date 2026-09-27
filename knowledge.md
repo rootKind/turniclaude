@@ -459,6 +459,14 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   serve quando si tratta di spostamenti (il turno di una persona è lo stesso, cambia la
   squadra in cui compare). I mesi chiusi si difendono da soli: lo storico in
   `shift_member_patterns` fa valere il ciclo giusto per la data che si chiede.
+- **Dopo il 27/09/2026 dev e produzione sono uguali, salvo due numeri (verificato con
+  `scripts/diff-completo-dev-prod.mjs`, che confronta ogni colonna di ogni tabella squadre
+  e va rieseguito dopo ogni allineamento):** `sort_order` di D'ELIA (0 su dev, 1 su prod) e
+  di PASSANNANTI (1 su dev, 2 su prod), entrambi in Squadra A. L'ORDINE delle persone è
+  lo stesso — `sort_order` ordina l'elenco e non entra nei turni — quindi è un residuo del
+  seeding (dev conta da zero, e il 2 mancante è il posto di qualcuno tolto), non un asset.
+  Le 4 squadre Rilievo A–D hanno id diversi fra i due ambienti per costruzione: si
+  confrontano per nome.
 
 ## Stato attuale — azioni pendenti
 
