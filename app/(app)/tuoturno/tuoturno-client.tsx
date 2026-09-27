@@ -1010,90 +1010,98 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
       <Dialog open={colorsOpen} onOpenChange={setColorsOpen}>
         {/* `gap-3` e non il `gap-4` ereditato: qui dentro convivono quattro sezioni
             (contorno, stile, palette pronte, sette righe di colore) e ogni pixel
-            tolto va alla lista dei colori, che è quella che scorre. */}
+            tolto va alla lista dei colori. */}
         <DialogContent className="max-h-[85vh] max-w-sm flex flex-col overflow-hidden gap-3">
           <DialogHeader><DialogTitle>Personalizza le card</DialogTitle></DialogHeader>
-          <p className="text-xs leading-snug text-muted-foreground">
-            Si applicano subito e restano su questo dispositivo. Valgono <strong>solo per il tema
-            {modo === 'dark' ? ' scuro' : ' chiaro'}</strong>: passando all’altro tema la
-            personalizzazione è un’altra, e senza personalizzazione valgono i colori del tema.
-          </p>
-          <div className="rounded-xl border border-border/60 p-2">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Contorno giorni da confermare
+          {/* SCORRE TUTTO IL DIALOG (27/09/2026): prima l'unica cosa che scorreva
+              era la lista delle tipologie, e su schermi bassi le sezioni di sopra
+              (contorno, giorni diversi, palette pronte) restavano fisse senza
+              modo di arrivarci sotto. Ora è un unico contenitore scorrevole, con
+              il titolo fermo in alto. I margini negativi fanno arrivare lo scroll
+              ai bordi del dialog senza toccare il padding (che scrollerebbe via). */}
+          <div className="-mx-4 -mb-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
+            <p className="text-xs leading-snug text-muted-foreground">
+              Si applicano subito e restano su questo dispositivo. Valgono <strong>solo per il tema
+              {modo === 'dark' ? ' scuro' : ' chiaro'}</strong>: passando all’altro tema la
+              personalizzazione è un’altra, e senza personalizzazione valgono i colori del tema.
             </p>
-            <div className="grid grid-cols-4 gap-1">
-              {(
-                [
-                  ['yellow-solid', 'Giallo', 'Cornice gialla continua (predefinita)'],
-                  ['yellow-dashed', 'Tratteggio', 'Cornice gialla tratteggiata'],
-                  ['red-solid', 'Rosso', 'Cornice rossa continua'],
-                  ['red-dashed', 'Rosso tratteggiato', 'Cornice rossa tratteggiata'],
-                ] as const
-              ).map(([value, label, title]) => (
-                <button
-                  key={value}
-                  onClick={() => pendingRingStore.setFor(modo, value)}
-                  title={title}
-                  aria-pressed={pendingRing === value}
-                  className={cn(
-                    'rounded-md px-1 py-1.5 text-[10px] font-semibold leading-tight transition-colors',
-                    pendingRing === value
-                      ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {/* anteprima: mini cornice nello stile della variante */}
-                  <span
+            <div className="rounded-xl border border-border/60 p-2">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Contorno giorni da confermare
+              </p>
+              <div className="grid grid-cols-4 gap-1">
+                {(
+                  [
+                    ['yellow-solid', 'Giallo', 'Cornice gialla continua (predefinita)'],
+                    ['yellow-dashed', 'Tratteggio', 'Cornice gialla tratteggiata'],
+                    ['red-solid', 'Rosso', 'Cornice rossa continua'],
+                    ['red-dashed', 'Rosso tratteggiato', 'Cornice rossa tratteggiata'],
+                  ] as const
+                ).map(([value, label, title]) => (
+                  <button
+                    key={value}
+                    onClick={() => pendingRingStore.setFor(modo, value)}
+                    title={title}
+                    aria-pressed={pendingRing === value}
                     className={cn(
-                      'mx-auto mb-1 block h-4 w-7 rounded-[4px] border-2 bg-muted/50',
-                      value.endsWith('-dashed') ? 'border-dashed' : 'border-solid',
+                      'rounded-md px-1 py-1.5 text-[10px] font-semibold leading-tight transition-colors',
+                      pendingRing === value
+                        ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
+                        : 'text-muted-foreground hover:text-foreground',
                     )}
-                    style={{ borderColor: value.startsWith('red') ? '#dc2626' : 'var(--cell-pend-ring)' }}
-                  />
-                  {label}
-                </button>
-              ))}
+                  >
+                    {/* anteprima: mini cornice nello stile della variante */}
+                    <span
+                      className={cn(
+                        'mx-auto mb-1 block h-4 w-7 rounded-[4px] border-2 bg-muted/50',
+                        value.endsWith('-dashed') ? 'border-dashed' : 'border-solid',
+                      )}
+                      style={{ borderColor: value.startsWith('red') ? '#dc2626' : 'var(--cell-pend-ring)' }}
+                    />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div className="rounded-xl border border-border/60 p-2">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Giorni diversi dal teorico
-            </p>
-            <div className="flex items-center gap-0.5 rounded-lg bg-muted/60 p-0.5">
-              {(
-                [
-                  ['split', 'Card divisa', 'Teorico sbarrato sopra, reale sotto'],
-                  ['strike', 'Teorico barrato', 'Card intera, teorico barrato sopra il codice'],
-                ] as const
-              ).map(([value, label, title]) => (
-                <button
-                  key={value}
-                  onClick={() => mismatchStyleStore.setFor(modo, value)}
-                  title={title}
-                  aria-pressed={mismatchStyle === value}
-                  className={cn(
-                    'flex-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors',
-                    mismatchStyle === value
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="rounded-xl border border-border/60 p-2">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Giorni diversi dal teorico
+              </p>
+              <div className="flex items-center gap-0.5 rounded-lg bg-muted/60 p-0.5">
+                {(
+                  [
+                    ['split', 'Card divisa', 'Teorico sbarrato sopra, reale sotto'],
+                    ['strike', 'Teorico barrato', 'Card intera, teorico barrato sopra il codice'],
+                  ] as const
+                ).map(([value, label, title]) => (
+                  <button
+                    key={value}
+                    onClick={() => mismatchStyleStore.setFor(modo, value)}
+                    title={title}
+                    aria-pressed={mismatchStyle === value}
+                    className={cn(
+                      'flex-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors',
+                      mismatchStyle === value
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
+            {/* Colori: palette pronte + colore singolo (components/sala/card-color-panel.tsx).
+                Il selettore è il NOSTRO (components/ui/color-picker.tsx): prima era
+                `<input type="color">`, cioè quello di sistema (diverso su ogni
+                dispositivo, senza tinte pronte) — richiesta 17/09/2026. */}
+            <CardColorPanel
+              palette={palette}
+              setKind={(kind, colors) => cardPaletteStore.setFor(modo, kind, colors)}
+              applyPreset={colors => cardPaletteStore.applyFor(modo, colors)}
+              resetAll={() => cardPaletteStore.resetFor(modo)}
+            />
           </div>
-          {/* Colori: palette pronte + colore singolo (components/sala/card-color-panel.tsx).
-              Il selettore è il NOSTRO (components/ui/color-picker.tsx): prima era
-              `<input type="color">`, cioè quello di sistema (diverso su ogni
-              dispositivo, senza tinte pronte) — richiesta 17/09/2026. */}
-          <CardColorPanel
-            palette={palette}
-            setKind={(kind, colors) => cardPaletteStore.setFor(modo, kind, colors)}
-            applyPreset={colors => cardPaletteStore.applyFor(modo, colors)}
-            resetAll={() => cardPaletteStore.resetFor(modo)}
-          />
         </DialogContent>
       </Dialog>
 

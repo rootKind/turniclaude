@@ -251,6 +251,81 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   luglio–settembre, il 252 non gli arriva oltre il 55%) e prende lo slot 16 solo da ottobre.
   Il ciclo di base era una **approssimazione da 28** che azzeccava solo settembre; corretta
   con `scripts/cicli-base-rilievo-252.mjs`, il gruppo è al 100% su tutti e quattro i mesi.
+- **LONI A. ↔ MAROTTA, lo scambio del 1° ottobre 2026 (27/09/2026):** LONI lascia le scorte e
+  va nella rosa; MAROTTA, che era in Semplici B, prende il suo posto nelle scorte di rilievo
+  con lo **stesso asset**: lo **slot 16** del super-ciclo. Non è una somiglianza, è lo stesso
+  slot — `scripts/verifica-slot-loni.mjs` mostra che fra i 252 sfalsamenti quello che
+  riproduce i turni di LONI nel PDF di luglio–settembre è **solo** il 16 (31/31, 31/31, 30/30),
+  mentre i suoi 28 token in colonna arrivavano a 21/31, 23/31 e 28/30. Anche il ciclo di base
+  di LONI era quindi quell'approssimazione, ed è stato corretto insieme agli altri otto.
+  Spostare una persona di squadra **non muove i turni** solo perché `shift_adjustments` è
+  vuoto: `tokenForMember` somma gli aggiustamenti della squadra all'indice, e tutte le
+  tipologie condividono `pattern_start = 2026-03-01`. Attenzione però: **l'appartenenza a una
+  squadra non ha una data di validità** (i pattern ce l'hanno, le squadre no), quindi LONI
+  compare nella rosa da subito e MAROTTA in Rilievo D da subito, anche se i turni cambiano
+  solo il 1° ottobre. Spostamento: `scripts/sposta-mariotta-rilievo.mjs` (dry-run, `--apply`,
+  `--annulla`, `--in=<squadra>`).
+- **LA TERZA È 3 TERZETTI × 3 FASI (27/09/2026):** in ogni squadra in terza le 9 persone
+  che ruotano sulle sezioni sono tre terzetti, e dentro ciascun terzetto i tre hanno lo
+  STESSO ciclo (0 token diversi su 84) con la fase sfalsata di **28 e 56 giorni**. Quindi
+  **chi è nella stessa fase fa gli stessi identici turni**: è lui che si mette in
+  sostituzione, e il terzetto è la copertura naturale. I tre terzetti hanno però sequenze
+  diverse fra loro (non sono sfalsamenti di un'unica ruota), quindi il numero del terzetto
+  è una convenzione e prende l'ordine delle righe del PDF. Unica eccezione:
+  **ESPOSITO AL.** è la fase 56 del suo terzetto ma ha `D` il 22/03/2026 dove gli altri
+  due hanno `M8` — è una giornata sua, non un refuso: **il suo ingresso in squadra è
+  ufficiale dal 1°April 2026** (l'utente, 27/09/2026), quindi i turni di marzo sono
+  provvisori. Il suo ciclo combacia con i PDF **da giugno in poi** (29/30, 31/31, 31/31,
+  29/30) e non con aprile e maggio (1/30 e 16/31): nessuna delle 28 fasi del ciclo del
+  terzetto li ricostruisce (meglio 4/30 e 10/31), quindi quei due mesi seguivano un asset
+  diverso. Verifica: `scripts/verifica-terzetti.mjs`, `scripts/verifica-terzetti-ordine.mjs`,
+  `scripts/prove-esp-fasi.mjs`.
+  Le altre due persone di ogni squadra (D'ELIA/PASSANNANTI, DI MONDA/ROMANO N.,
+  ARMENANTE/DI MONACO, COPPETA/LONI G.) non ruotano: hanno posti fissi.
+- **I TEMPLATE SONO PER SLOT, RIFATTI DA ZERO (27/09/2026):** i 82 template di
+  `shift_cycle_templates` erano uno per persona, chiamati «SQUADRA-CAPO · NOME», e
+  contenevano l'assetto VECCOLO: applicarne uno oggi avrebbe rimesso il ciclo di settembre
+  da domani in poi. Ora sono **88**, tutti sull'assetto in vigore dal 1°October 2026, e il
+  nome è **squadra · slot (persona)**: `Rilievo D · slot 16 (MAROTTA)` (lo slot è lo
+  sfalsamento nel ciclo da 252), `Squadra A · terzetto 2 fase 3 (VOLPE)`, `Squadra
+  arancione · riga 4 (ABATE)`, `RIC · post MRIC (MANNIELLO)` (post fissi e caposquadra), più
+  `Squadra verde · riga 5 (vacante)`. Rifatti con `scripts/rifai-template-ottobre.mjs`
+  (dry-run, `--apply`, `--annulla` dal backup) e verificati da
+  `scripts/verifica-template.mjs`, che controlla che nessuno sia rimasto sull'assetto
+  vecchio e che non ci siano nomi duplicati.  I sei template generici da 28 token delle
+  scorte (FUNZIONANTE, Maternità, Semplici A–D) sono stati eliminati: erano il ciclo
+  base senza persona, e un nuovo slot si ottiene  ruotando il template di un vicino.
+  **Il nome porta anche la RIGA DEL PDF** (`Squadra A · terzetto 1 fase 1 · PDF 32 2026-10
+  (CAIAZZO M.)`), perché il bisogno operativo è trovare il template partendo da una riga
+  del PDF. **La riga però non è stabile**: fra il PDF di maggio e quello di giugno
+  ESPOSITO AL. passa dalla riga 67 alla 47 senza che nessuno abbia cambiato squadra, quindi
+  il numero vale per il mese citato nel nome e va ricalcolato se il PDF viene ricaricato
+  con un ordine diverso. Numero del terzetto e della riga di griglia: ordine del PDF,
+  dall'alto verso il basso.
+- **DAL 1°OTTOBRE 2026 COPPOLA PRENDE IL POSTO DI CASTELLONE IN ASTER**
+  (`scripts/subentro-coppola-aster.mjs`, applicato e verificato da
+  `scripts/verifica-subentro.mjs`): il template di quel ciclo è intestato a COPPOLA
+  (`ASTER · post MM3M40/PM3M40 · PDF 76 2026-10 (COPPOLA)`) e la riga nel nome è quella
+  di COPPOLA, non quella di CASTELLONE: chi occupa lo slot è la riga da cercare. Nei PDF
+  CASTELLONE sta fino a settembre (riga 74, 20/20) e COPPOLA compare da settembre
+  (riga 95, 30/30) e ottobre (riga 76, 31/31). In dev: CASTELLONE esce con una riga di
+  storico `from_date = 2026-10-01` a ciclo **VUOTO**, COPPOLA entra come membro ATTIVO
+  senza `user_id` con la colonna vuota e una riga `from_date = 2026-09-01` col ciclo
+  ricavato dai PDF (periodo 7: `RI · · · · · RC`).
+- **UN CICLO VUOTO VUOL DIRE «NON IN SQUADRA DA QUELLA DATA»** (27/09/2026): è il modo in
+  cui il modello dice «questa persona c'era fino a ieri» senza cancellarla, perché
+  cancellare il membro farebbe sparire anche i turni di prima. `tokenForMember` ritorna
+  `''` se il ciclo in vigore ha zero token (prima ripiegava sul `cycle_days` della
+  tipologia e restituiva comunque `''`, ma il pannello mostrava un riferimento di 84
+  token e non si capiva). Nel pannello il salvataggio di un ciclo vuoto è lecito **solo
+  con la data di validità** (senza data non si può sapere da quando vale).
+- **IL TURNO VIAGGIA PER NOME DEL MEMBRO, NON PER `user_id`**: `generateTheoreticalMonth`
+  scrive `member.full_name` nel giorno e il confronto teorico≠reale abbina per cognome
+  (`surnameKey`). Quindi un membro **senza account utente** ha comunque il turno in
+  `/turnisala` e combacia col PDF reale: è il caso di COPPOLA (e degli ~80 membri già
+  presenti, nessuno dei quali è legato a un utente). L'account serve solo per gli
+  omonimi (bare owner), per i cambi turno e per le ferie. Confine inchiodato in
+  `tests/pattern-validita.spec.ts`.
 - **Il PERIODO di un membro è la lunghezza del suo pattern, non il `cycle_days` della
   tipologia** (scelta deliberata: alcune squadre hanno 84 token dentro tipologie diverse).
   Quindi `cycle_days` è solo il default per i membri nuovi, e il pannello non deve usarlo
@@ -309,6 +384,13 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   navigazione; `components/providers/theme-color.tsx` mantiene il meta `theme-color`. NON rimuovere.
 - **Truncate sui codici anche nelle card lg di /tuoturno:** l'ellipsis subentra solo sotto
   ~375px (codici a 4 lettere uscivano dalla card a 320px); a larghezze normali non cambia nulla.
+- **IL DIALOG «PERSONALIZZA LE CARD» SCORRE TUTTO (27/09/2026):** prima scorreva solo la
+  lista delle tipologie (`overflow-y-auto` dentro `CardColorPanel`) e su schermi bassi le
+  sezioni di sopra erano irraggiungibili. Ora il contenitore scorrevole è UNO solo,
+  dentro `DialogContent`, e contiene intro, contorno, giorni diversi, palette e tipologie;
+  il titolo resta fisso in alto. `CardColorPanel` non deve più avere scroll proprio
+  (niente scroll dentro scroll) e resta un FRAGMENT: i suoi figli sono le colonne
+  flesse del contenitore che scorre. Confine in `tests/colori-card.spec.ts`.
 - **Il dev server NON rilegge `globals.css` su pagina già compilata:** dopo una modifica al
   CSS serve `rm -rf .next` e riavvio. Misurare il CSS vecchio è il falso «bug» più frequente.
 
@@ -377,6 +459,7 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   NESSUNA rotazione dei tre pattern lo copre: servirebbe una terza persona che alterni. Si
   lascia scoperto: è un turno scoperto e i cambi li copre il turnista, e sono già nei PDF reali.
   Non toccare il minimo `RIC|P = 1` per addolcirlo: serve a farlo lampeggiare.
-- 13 persone del PDF di ottobre non hanno un membro in dev (COPPOLA, TRANI, CASTALDI, GIORDANO,
+- 12 persone del PDF di ottobre non hanno ancora un membro in dev (TRANI, CASTALDI, GIORDANO,
   NAPOLITANO, STRINGILE, SARRA, COLUCCI M., SPAGNULO, CEPARANO, GAROFALO, PIROZZI, VENERUSO):
-  fuori dal teorico, da decidere quando entrano.
+  fuori dal teorico, da decidere quando entrano. COPPOLA non è più fra queste (entrato in
+  ASTER il 01/09/2026 con `scripts/subentro-coppola-aster.mjs`).

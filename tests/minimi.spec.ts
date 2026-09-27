@@ -119,7 +119,16 @@ test.describe('turnisala: minimi per card', () => {
       'il posto mancante è il sussidio: la riga va in corsivo come uno slot S',
     ).toBe('italic')
 
-    const altre = cards.filter(c => c.title !== 'DCO 6°')
+    /* La JOLLY non è un posto scoperto, è una card che a settembre non esiste:
+       la jolly è la 5ª sezione fino all'1°October (la nuova `J` entra in layout con
+       l'assetto di ottobre), quindi nessuno ci finisce dentro e il minimo di
+       piantina (1 persona per una card singola) la segnala come scoperta. Su
+       master la fotografia del 1°September porta `J|M/N/P = 0` per dirlo a
+       chiavere (scripts/importa-minimi-master.mjs); qui la precondizione del test
+       azzera TUTTI i minimi, quindi la JOLLY torna al default e va esclusa dal
+       confronto: non è il difetto che il test sta provando. */
+    const JOLLY = 'JOLLY'
+    const altre = cards.filter(c => c.title !== 'DCO 6°' && c.title !== JOLLY)
     expect(
       altre.flatMap(c => Array.from({ length: scopertiIn(c) }, () => c.title)),
       'il 6/9 turno P è scoperta solo la DCO 6°',
@@ -129,7 +138,7 @@ test.describe('turnisala: minimi per card', () => {
     expect(await openBoard(page, { month: 9, day: 6, shift: 'N' }), 'board non aperta').toBe(true)
     const notte = await boardCards(page)
     expect(
-      notte.flatMap(c => Array.from({ length: scopertiIn(c) }, () => c.title)),
+      notte.filter(c => c.title !== JOLLY).flatMap(c => Array.from({ length: scopertiIn(c) }, () => c.title)),
       'di notte il 6/9 non manca nessuno',
     ).toEqual([])
   })

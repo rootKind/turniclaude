@@ -75,9 +75,9 @@ export function CardColorPanel({ palette, setKind, applyPreset, resetAll }: Prop
     setEditing(e => (e && e.kind === kind && e.campo === campo ? null : { kind, campo }))
 
   // NIENTE contenitore attorno (fragment): le quattro parti devono essere figlie
-  // DIRETTE della colonna flex del dialog, perché è la lista delle tipologie a
-  // prendersi lo spazio che avanza (`flex-1 min-h-0`). Con un wrapper in mezzo, il
-  // wrapper si prendeva l'altezza e la lista restava schiacciata a 10 px.
+  // DIRETTE della colonna flex del contenitore che scorre nel dialog, così il
+  // pannello non aggiunge un livello di scroll dentro l'altro. Con un wrapper in
+  // mezzo, il wrapper si prendeva l'altezza e la lista restava schiacciata.
   return (
     <>
       {/* ── Palette pronte ─────────────────────────────────────────────────── */}
@@ -143,7 +143,9 @@ export function CardColorPanel({ palette, setKind, applyPreset, resetAll }: Prop
         <span>Riempimento</span>
         <span>Contorno</span>
       </div>
-      <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
+      {/* La lista NON ha più scroll proprio (27/09/2026): scorre tutto il dialog,
+          intro compresa. Qui basta il `-mx-1 px-1` del colore di contorno. */}
+      <div className="-mx-1 px-1">
         {CARD_KINDS.map(({ kind, label, hint }) => {
           const v = palette[kind]
           const debole = !!v && lowContrast(v.bg, v.text)

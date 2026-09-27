@@ -308,3 +308,40 @@ test('colori delle card: in chiaro il default è Tema, in scuro è Notte', async
   })
   if (bordoNotte) expect(bordoNotte.replace(/\s/g, ''), 'tinta riposo del tema scuro (= preset Notte)').toBe('rgb(36,40,46)')
 })
+
+/**
+ * SCORRE TUTTO IL DIALOG, NON SOLO LA SEZIONE COLORI (27/09/2026).
+ *
+ * Prima l'unica cosa che scorreva era la lista delle tipologie: su uno schermo
+ * basso le sezioni di sopra (contorno, giorni diversi, palette pronte) restavano
+ * fisse e la lista si riduceva a una fessia. Adesso è un unico contenitore
+ * scorrevole con il titolo fermo: questo test conta i contenitori che scorrono
+ * in verticale e controlla che dall'alto si veda l'intro e in fondo l'ultima
+ * tipologia.
+ */
+test('il pannello scorre tutto: una sola lista che va dall\'intro all\'ultima tipologia', async ({ asEmployee }) => {
+  test.skip(!(await findEmployee('Di Monda')), 'serve un dipendente (service-role in .env.local)')
+  const page = await asEmployee('Di Monda')
+  await page.goto(`${E2E_BASE_URL}/tuoturno?dev=rootkind-dev-2026`, { waitUntil: 'domcontentloaded' })
+  const dialog = await apriPersonalizza(page)
+
+  // UN solo scroller verticale dentro il dialog (quello che contiene tutto)
+  const scroller = dialog.locator('div.overflow-y-auto')
+  await expect(scroller, 'un solo contenitore scorrevole: tutto il dialog').toHaveCount(1)
+
+  // il contenuto è più alto della finestra → si può davvero scorrere
+  const misura = await scroller.evaluate(el => ({ scroll: el.scrollHeight, visibile: el.clientHeight }))
+  expect(misura.scroll, 'il contenuto del dialog supera l\'altezza disponibile').toBeGreaterThan(misura.visibile)
+
+  // in alto si vede l'intro, in fondo l'ultima tipologia, e sono lo STESSO scroller
+  await expect(scroller.getByText(/Si applicano subito/)).toBeVisible()
+  await scroller.getByText('Senza sezione (Sp, ISp…)').scrollIntoViewIfNeeded()
+  await expect(scroller.getByText('Senza sezione (Sp, ISp…)')).toBeVisible()
+  // riscendo in alto: se la lista avesse uno scroll proprio, l'intro non
+  // cambierebbe nulla — qui torna visibile perché è tornata in campo
+  await scroller.getByText(/Si applicano subito/).scrollIntoViewIfNeeded()
+  await expect(scroller.getByText(/Si applicano subito/)).toBeVisible()
+  // e le sezioni di sopra sono dentro lo scroller, non bloccate fuori
+  await expect(scroller.getByText('Contorno giorni da confermare')).toBeAttached()
+  await expect(scroller.getByText('Giorni diversi dal teorico')).toBeAttached()
+})
