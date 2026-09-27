@@ -459,14 +459,17 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   serve quando si tratta di spostamenti (il turno di una persona è lo stesso, cambia la
   squadra in cui compare). I mesi chiusi si difendono da soli: lo storico in
   `shift_member_patterns` fa valere il ciclo giusto per la data che si chiede.
-- **Dopo il 27/09/2026 dev e produzione sono uguali, salvo due numeri (verificato con
-  `scripts/diff-completo-dev-prod.mjs`, che confronta ogni colonna di ogni tabella squadre
-  e va rieseguito dopo ogni allineamento):** `sort_order` di D'ELIA (0 su dev, 1 su prod) e
-  di PASSANNANTI (1 su dev, 2 su prod), entrambi in Squadra A. L'ORDINE delle persone è
-  lo stesso — `sort_order` ordina l'elenco e non entra nei turni — quindi è un residuo del
-  seeding (dev conta da zero, e il 2 mancante è il posto di qualcuno tolto), non un asset.
-  Le 4 squadre Rilievo A–D hanno id diversi fra i due ambienti per costruzione: si
-  confrontano per nome.
+- **Dopo il 27/09/2026 dev e produzione sono allineati COLONNA per COLONNA** (verificato
+  con `scripts/diff-completo-dev-prod.mjs`, da rilanciare dopo ogni allineamento: 0
+  differenze su shift_types, shift_teams, shift_team_members, shift_member_patterns e
+  shift_cycle_templates). Le 4 squadre Rilievo A–D hanno id diversi fra i due ambienti per
+  costruzione: si confrontano per nome, ed è l'unica cosa che non è allineata per costruzione
+  e non per distrazione. Otto squadre hanno una numerazione `sort_order` non contigua
+  (doppi, buchi: Squadra arancione ha due membri con 1, la rosa salta dal 5 all'8): è
+  UGUALE nei due ambienti e NON si rinumera, perché sono residui di spostamenti passati e
+  `sort_order` ordina l'elenco senza entrare nei turni. Se un giorno serve la pulizia
+  globale è un'altra operazione, da decidere con l'utenza; per allineare solo i due
+  ambienti c'è `scripts/allinea-sort-order.mjs` (riferimento: produzione).
 
 ## Stato attuale — azioni pendenti
 
