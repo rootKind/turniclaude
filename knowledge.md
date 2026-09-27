@@ -427,21 +427,41 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   `next.config.ts`, fallback locale). NON reintrodurre un footer hardcoded.
 - **Branch:** sviluppo su `dev`, deploy da `master`.
 - **knowledge.md:** solo regole durevoli + azioni pendenti; la cronaca vive in git.
+- **DEV E PRODUZIONE CONDIVIDONO GLI ID DELLE SQUADRE (27/09/2026):** `shift_types`,
+  `shift_teams` e `shift_team_members` hanno gli stessi uuid nei due ambienti (88 membri,
+  id compresi). È l'invariante che rende possibile allineare produzione a dev per ID e non
+  per nome: quando si crea un membro o un template su dev, si porta lo stesso id su
+  produzione, altrimenti i due elenchi divergono e `allinea-squadre-prod.mjs` non lo vede.
+  I template di `shift_cycle_templates` hanno gli id di dev anche in produzione.
+- **Per cambiare squadre e cicli su produzione:** `scripts/allinea-squadre-prod.mjs`
+  (dry-run in default, `--apply`, `--annulla [--da=<backup>]`), con
+  `scripts/sonda-dev-prod.mjs` per vedere le differenze. Lo script non tocca mai
+  `user_id`/`is_lead`/`sort_order` dei membri esistenti, né `sala_layout`, `shifts`,
+  `sala_schedule`, `shift_adjustments`; sul membro NUOVO copia i valori di dev con
+  `user_id` sempre NULL. I mesi chiusi si difendono da soli: lo storico in
+  `shift_member_patterns` fa valere il ciclo giusto per la data che si chiede.
 
 ## Stato attuale — azioni pendenti
 
-- **Modello di ROTONDO (`Squadra rosa`):** il turno del membro è corretto (pattern 84gg), ma
-  il **template di catalogo** corrispondente porta ancora il pattern vecchio. Va allineato al
-  membro prima di riapplicare qualcosa dal pannello. Verificare con: i due `pattern` devono
-  risultare identici.
+- **Modello di ROTONDO (`Squadra rosa`):** il turno del membro è corretto (pattern 84gg) e dal
+  27/09/2026 anche il **template di catalogo** corrispondente porta il ciclo in vigore
+  (86 template su 88 identici al ciclo del membro omonimo, su dev e su produzione).
 - **Migration 035/036** (`push_enabled_stats`, `chain_interest_context`) applicate su
   produzione: colonne presenti e versioni registrate in `schema_migrations`.
-- **I TEMPLATE DI CATALOGO sono fermi all'assetto precedente (26/09/2026):** l'assetto di
-  ottobre sta in `shift_member_patterns`, non in `shift_cycle_templates`. Applicare oggi dal
-  pannello un template delle 67 persone significa rimettere il ciclo VECCHIO dalla data di oggi
-  in poi — cioè disfare il lavoro. Prima di toccare il pannello su quelle persone: allineare i
-  template al ciclo in vigore, o segnarne la data.
-- **Asset di ottobre–novembre 2026: applicato su DEV il 26/09/2026, non ancora su main.** I 67
+- **Migration 037** (`shift_member_patterns`) applicata su produzione il 27/09/2026 e
+  registrata in `schema_migrations` (versione 20260925005710): 87 righe di backfill dal
+  2026-03-01, poi allineate a dev (156 righe, come su dev).
+- **IL CATALOGO DEI TEMPLATE È UNO PER SLOT, NON UNO PER PERSONA (27/09/2026):** gli 82
+  template «NOMINOME · RUOLO» sono stati sostituiti dagli 88 per slot ricavati dal PDF di
+  ottobre (`scripts/rifai-template-ottobre.mjs`), su dev e poi su produzione. Un template
+  applicato oggi dal pannello rimette il ciclo di OTTOBRE, non quello di settembre: la riga
+  è stabile, la persona no. Le 86 righe di catalogo hanno lo stesso pattern del ciclo in
+  vigore del membro omonimo; l'unica che non ce l'ha è lo slot di COPPOLA (ciclo suo da 7
+  giorni, template dello slot a 84). Prima di applicare un template a qualcuno, controllare
+  che la `from_date` dello storico copra la data di applicazione.
+- **Asset di ottobre–novembre 2026: applicato su DEV il 26/09/2026 e su PRODUZIONE il
+  27/09/2026** (`dev` è stata merged in `master`; i dati di produzione allineati a dev con
+  `scripts/allinea-squadre-prod.mjs`). I 67
   cicli sono in vigore dal **2026-10-01** (`shift_member_patterns`), con i due spostamenti
   decisi dall'utente: DONZELLI da Maternità alla squadra arancione, LONI A. da Rilievo D alla
   squadra rosa, ROTONDO sulla rosa alla fase 0 (riga 1). Fonti: `teorici.xlsx` →
