@@ -68,6 +68,19 @@ function DroppableCell({ id, children, isEditing }: { id: string; children: Reac
 // delle card la propone anche sfogliando mesi che non la contengono ancora.
 const KNOWN_SECTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', 'J']
 
+/**
+ * Una persona FUORI POSTO nel pannello di fine board (28/09/2026): nome come
+ * lo scrive il PDF, turno TEORICO e stato REALE (sezione di un altro turno,
+ * sigla di assenza, «presente»/«assente»). I due codici insieme dicono la
+ * cosa per esteso: «Semola P5T→M6» = la doveva al pomeriggio alla 5°, sta alla
+ * 6° di mattina.
+ */
+interface FuoriPostoEntry {
+  nome: string
+  teo: string
+  real: string
+}
+
 export const MONTHS_IT = [
   'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
   'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
@@ -738,6 +751,59 @@ export function DeskBoard({
     return m
   }, [theoCompareBySection])
 
+  /* FUORI POSTO DEL GIORNO, per turno (28/09/2026): l'elenco COMPLETO di chi non
+     sta dove il teorico lo mette. Sotto ogni card la view dice solo «questa card
+     è diversa»: per mettere a posto la giornata serve l'elenco, senza leggere
+     14 card una a una. Solo admin, e solo con la view «Teorico ≠ reale» accesa
+     (`theoDiffEnabled`): è la stessa analisi, in un colpo solo.
+     Una persona UNA volta: preferisce la riga (teorico → reale) e, quando c'è
+     solo la provenienza (teorico senza sezione: D, RC, RI, un corso…), quella.
+     Chi il teorico non prevede da nessuna parte non è «fuori posto», è in più:
+     lo dicono già i «Nuovi» sulla card. */
+  const fuoriPostoPerTurno = useMemo(() => {
+    const vuoto: Array<{ turno: string; entries: FuoriPostoEntry[] }> = []
+    if (!theoDiffEnabled) return vuoto
+    /** Turno (M/P/N) di un codice del confronto, '' se non è un turno: le
+     *  siglie di assenza/riposo/disponibilità (A, AG7, F.E., RC, RI, D, Na…) e
+     *  le parole che il confronto scrive al posto di un codice («presente»,
+     *  «assente») NON sono turni. */
+    const turnoDi = (codice: string): string => {
+      const t = (codice ?? '').trim()
+      if (!t || /^(presente|assente|na)$/i.test(t)) return ''
+      const c = t[0].toUpperCase()
+      return c === 'M' || c === 'P' || c === 'N' ? c : ''
+    }
+    const perPersona = new Map<string, FuoriPostoEntry>()
+    for (const [chiave, cmp] of theoCompareBySection) {
+      // Il bucket di gruppo raccoglie le «altre presenze»: hanno già le loro
+      // pill in fondo alla board, con la provenienza scritta dentro.
+      if (chiave === GRUPPO_EXTRA_KEY) continue
+      for (const r of cmp.rows) {
+        const k = normName(r.name)
+        if (!perPersona.has(k)) perPersona.set(k, { nome: r.name, teo: r.theo, real: r.real })
+      }
+      for (const e of cmp.extras) {
+        const k = normName(e.name)
+        if (!e.theo || perPersona.has(k)) continue
+        perPersona.set(k, { nome: e.name, teo: e.theo, real: e.real })
+      }
+    }
+    // Il turno è quello dove la persona si trova DAVVERO (è lì che l'admin la
+    // cerca); se non è in sezione — assente, in disponibilità — quello
+    // teorico, come fa già il blocco «Assenti».
+    const perTurno = new Map<string, FuoriPostoEntry[]>()
+    for (const p of perPersona.values()) {
+      const turno = turnoDi(p.real) || turnoDi(p.teo) || '—'
+      const lista = perTurno.get(turno) ?? []
+      lista.push(p)
+      perTurno.set(turno, lista)
+    }
+    const ordine = [...SALA_SHIFTS, '—']
+    return ordine
+      .filter(t => perTurno.has(t))
+      .map(t => ({ turno: t, entries: perTurno.get(t)!.sort((a, b) => a.nome.localeCompare(b.nome)) }))
+  }, [theoDiffEnabled, theoCompareBySection])
+
   // CELLE GIALLE del PDF (richiesta 24/09/2026 v2): niente blocco a fondo
   // card — ogni giallo viene SPARSO dentro l'elenco persone della card:
   //  - già presente nell'elenco → EVIDENZIATO (testo giallo)
@@ -1375,7 +1441,7 @@ export function DeskBoard({
           (24/09). In vista teorico≠reale NIENTE riga «Nuovi» separata: la
           provenienza teorica «da <token>» va DIRETTAMENTE sulla pill del
           gruppo dei non-previsti (richiesta 24/09, niente ridondanza). */}
-      {(altriGruppi.length > 0 || assenti.size > 0 || !!disponibili) && (
+      {(altriGruppi.length > 0 || assenti.size > 0 || !!disponibili || fuoriPostoPerTurno.length > 0) && (
         <div className="flex flex-col gap-1 pt-1 border-t border-border/40">
           {altriGruppi.map(gruppo => (
             <div key={gruppo.key} className="flex flex-wrap items-center gap-1.5">
@@ -1454,6 +1520,32 @@ export function DeskBoard({
               })}
             </div>
           )}
+          {/* FUORI POSTO, per turno (28/09/2026): l'elenco del giorno intero,
+              solo admin e solo con la view «Teorico ≠ reale» accesa. Ogni chip
+              porta i due codici (teorico→reale) perché qui non c'è la card che
+              dice il turno atteso; la tinta è quella del TURNO in cui la
+              persona si trova davvero, come le celle della giornata. */}
+          {fuoriPostoPerTurno.map(gruppo => (
+            <div key={gruppo.turno} className="flex flex-wrap items-center gap-1.5" data-fuori-posto={gruppo.turno}>
+              <span className="text-xs text-muted-foreground shrink-0">Fuori posto {gruppo.turno}:</span>
+              {gruppo.entries.map((p, i) => {
+                const isMe = isOwn(p.nome)
+                const tinta = gruppo.turno === 'M' ? 'cell-tint-m' : gruppo.turno === 'P' ? 'cell-tint-p' : gruppo.turno === 'N' ? 'cell-tint-n' : 'cell-tint-rest'
+                return (
+                  <span
+                    key={i}
+                    data-persona={p.nome}
+                    data-teorico={p.teo}
+                    data-reale={p.real}
+                    className={`text-xs px-2 py-0.5 rounded-full ${isMe ? 'desk-own-badge desk-own-badge-strong' : tinta}`}
+                  >
+                    {displayForPdfName(p.nome)}
+                    <span className="tabular-nums font-semibold opacity-80"> {p.teo}→{p.real}</span>
+                  </span>
+                )
+              })}
+            </div>
+          ))}
         </div>
       )}
 

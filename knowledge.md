@@ -131,10 +131,33 @@ e i contratti ancora in uso (`check-notif-templates.mjs`, `verify-seed.mjs`).
   motore `theoRealSectionCompare` in `lib/turni-teorici.ts`: una Map per giorno
   `{rows, extras, theoreticalOnly}`; teorico confermato = nessuna riga; il teorico NON si
   riscrive. Matching per chiave cognome (`surnameKey`) con «consumo» dei reali (Set `claimed`).
-  Diff con sezione senza card a schermo non sono visibili. **ATTENZIONE RLS:**
+  Diff con sezione senza card a schermo non sono visibili. **DOVE finisce una riga:**
+  la riga rossa «nome → reale» sta sulla card del turno **teorico**; la card dove la
+  persona è davvero la elenca fra le provenienze «nome da <teorico>» (`claimedConfermato`
+  distingue la posizione confermata — quella non si ripete — dalla posizione presa a prestito
+  da una riga di un'altra sezione, 27/09/2026: Semola teorico P5, reale M6, la DCO 6° del
+  mattino deve dirlo). Le due righe hanno `data-theo-riga` / `data-theo-provenienza` in
+  `desk-card.tsx`: `tests/teorico-reale.spec.ts` ci legge l'invariante. **PANNELLO «Fuori posto»**
+  (28/09/2026, `fuoriPostoPerTurno` in desk-board): stesso `theoDiffEnabled`, quindi solo admin e
+  solo con la view accesa; elenca TUTTE le persone del giorno non al loro posto, raggruppate per
+  turno (M/P/N, più «—»), una riga per gruppo in fondo alla board con chip `cognome teorico→reale`
+  e tinta del turno (`cell-tint-m/p/n`). Il turno è quello dove la persona si trova DAVVERO; se
+  non è in sezione (assente, in disponibilità) quello teorico, come il blocco «Assenti». Una
+  persona una volta sola: la riga wins sulla provenienza; chi il teorico non prevede non c'è
+  (non è fuori posto, è in più: lo dicono i «Nuovi»). Il bucket `@gruppo` è escluso (le altre
+  presenze hanno già le loro pill). `data-fuori-posto` + `data-persona/teorico/reale` per i test.
+  **ATTENZIONE RLS:**
   `fetchShiftTeamTree` dal client può tornare 0 righe — la pagina server passa
   `initialShiftTree` a SalaPageClient; NON ripristinare il solo fetch client. La modalità NON
   si auto-spegne (ricalcolo useMemo: il reset sui cambi contesto la spegneva mentre navigava).
+- **Sonde che calcolano col codice vero:** `scripts/sonda-persona.mjs` (dove sta una persona,
+  reale e teorico, e in quali righe/extra finisce) e `scripts/sonda-giorno.mjs` (cosa scriverebbe
+  la board su un giorno; con il mese solo, elenca le righe INVISIBILI perché la sezione non ha
+  card). Passano dal loader `scripts/_alias-loader.mjs`, che risolve l'alias `@/` così una
+  sonda importa `lib/turni-teorici.ts` vero invece di reimplementarlo. Lettura sola, produzione.
+  **I `sala_schedule` di DEV sono più vecchi di quelli di PRODUZIONE** (settembre: dev 16/09,
+  prod ricaricato dopo): un test E2E di sala gira su dev e può non vedere i casi che si vedono
+  in produzione — per questo quelli di dati veri cercano l'invariante, non la persona.
 - **Highlight card sala:** `.desk-card-highlight` = bordo nel colore + anello `0 0 0 1px`
   dello STESSO colore (mai anelli con opacità ridotta: creano banda grigia fuori dal bordo).
 - **Changelog popup DB-backed:** tabelle `changelog_entries`/`changelog_reads` (migration

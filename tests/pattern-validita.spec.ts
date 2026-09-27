@@ -214,6 +214,9 @@ test('senza account, il PDF reale combacia col turno teorico per cognome', () =>
   // la sezione non compare proprio: la riga è confermata, quindi niente da
   // mostrare sotto la card (la board la mostra già con il suo turno)
   expect(confermato.get('3|M')).toBeUndefined()
+  // e la posizione confermata non può diventare un «Nuovo» da nessuna parte:
+  // è la guardia degli omonimi (l'altro DI NAPOLI non genera una riga falsa)
+  expect([...confermato.values()].flatMap(c => c.extras)).toHaveLength(0)
   // 2) sezione diversa → riga rossa che dice dove sta davvero
   const spostato = theoRealSectionCompare('2026-10', giorno, tree, [], {
     sections: { '1': { M: { surnames: { T: [], S: ['COPPOLA'], noSlot: [] }, tirocinanti: [] }, P: emptyShift(), N: emptyShift() } },
@@ -221,7 +224,13 @@ test('senza account, il PDF reale combacia col turno teorico per cognome', () =>
   })
   const riga = spostato.get('3|M')!.rows.find(r => r.name === 'COPPOLA')
   expect(riga).toEqual({ name: 'COPPOLA', theo: 'M3S', real: 'M1' })
-  // e non viene anche elencato fra i «Nuovi» della sezione dove sta davvero:
-  // la stessa persona è un posto solo, non due righe
-  expect([...spostato.values()].flatMap(c => c.extras).map(e => e.name)).not.toContain('COPPOLA')
+  // e la card dove sta davvero lo elenca fra i «Nuovi», COLLA provenienza
+  // (decisione 27/09/2026: la riga rossa vive sulla card del turno TEORICO,
+  // quindi senza questa riga la card dove la persona è non dice che il suo
+  // turno previsto è un altro — caso Semola 26/09: teorico P5, reale M6)
+  expect(spostato.get('1|M')!.extras.find(e => e.name === 'COPPOLA')).toEqual({
+    name: 'COPPOLA',
+    real: 'M1',
+    theo: 'M3S',
+  })
 })

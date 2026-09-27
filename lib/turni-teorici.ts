@@ -466,6 +466,9 @@ export function theoRealSectionCompare(
   //    poi per le righe restanti si sceglie la posizione NON ancora usata,
   //    preferendo lo stesso turno (chi si sposta resta di solito nel turno).
   const claimed = new Set<RealEntry>()
+  // Posizioni reali prese da un teorico CONFERMATO (stesso turno+sezione): le
+  // uniche che non devono diventare «Nuovi» da nessun'altra parte (omonimi).
+  const claimedConfermato = new Set<RealEntry>()
   for (const tm of theoMembers) {
     const { token, full, cognomeKey } = tm
     if (!isShiftCode(token)) continue
@@ -495,6 +498,7 @@ export function theoRealSectionCompare(
     const confirmed = candidates.find(c => !claimed.has(c) && c.section !== null && c.shift === shift && c.section === section)
     if (confirmed) {
       claimed.add(confirmed)
+      claimedConfermato.add(confirmed)
       continue
     }
     const free = candidates.filter(c => !claimed.has(c))
@@ -529,11 +533,18 @@ export function theoRealSectionCompare(
           // già → nessuna riga rossa «extra» (v3, 24/09/2026).
           if (yellowPeople?.has(normName(name))) continue
           const theoToken = theoByExact.get(normName(name)) ?? theoByCognome.get(key)
-          // Non è un «Nuovi» se una posizione reale di questo cognome con lo
-          // stesso turno+sezione è stata CONSUMATA da un teorico confermato
-          // (omonimi: l'altro DI NAPOLI non genera un extra falso qui).
+          // Non è un «Nuovi» se la posizione reale di questo cognome, in
+          // QUESTO turno e QUESTA sezione, è stata CONSUMATA da un teorico
+          // CONFERMATO (omonimi: l'altro DI NAPOLI non genera un extra falso).
+          // Una persona SPOSTATA invece (teorico in un'altra sezione: la riga
+          // rossa è già scritta su quella card) ha preso a prestito la
+          // posizione reale, e qui viene elencata lo stesso colla provenienza:
+          // senza, sulla card dove la persona è davanti non si legge che il suo
+          // turno teorico è un altro (Semola 26/09: teorico P5, reale M6 — la
+          // riga rossa sta sulla DCO 5° del turno P, la DCO 6° del turno M
+          // diceva solo «Semola», decisione 27/09/2026).
           const consumed = (realByCognome.get(key) ?? []).some(
-            c => claimed.has(c) && c.shift === shift && c.section === section,
+            c => claimedConfermato.has(c) && c.shift === shift && c.section === section,
           )
           if (consumed) continue
           ensure(section, shift).extras.push({ name, real: `${shift}${section}`, theo: theoToken ?? '' })

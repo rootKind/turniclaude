@@ -580,7 +580,16 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
       {!isEditing && theoCompare && (theoCompare.rows.length > 0 || theoCompare.extras.length > 0) && (
         <div className="border-t sala-card-title-sep shrink-0 bg-muted/30">
           {theoCompare.rows.map(r => (
-            <div key={r.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
+            <div
+              key={r.name}
+              /* attributi per i test: la riga e la «provenienza» si devono
+                 poter abbinare (nome + teorico + reale) senza leggere il testo */
+              data-theo-riga=""
+              data-persona={r.name}
+              data-teorico={r.theo}
+              data-reale={r.real}
+              className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight"
+            >
               <span className={`whitespace-nowrap ${isOwn?.(r.name) ? 'font-bold' : 'font-medium'}`}>{rowLabel(r.name, nameDisplay)}</span>
               {/* Il teorico NON si riscrive: la card in cui la riga sta parla
                   già di sezione+turno previsti (es. M 14/9). Solo il REALE —
@@ -589,7 +598,14 @@ export function DeskCard({ card, isEditing, highlighted, flash = false, minWidth
             </div>
  ))}
           {theoCompare.extras.map(e => (
-            <div key={e.name} className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight">
+            <div
+              key={e.name}
+              data-theo-provenienza=""
+              data-persona={e.name}
+              data-teorico={e.theo}
+              data-reale={e.real}
+              className="flex items-center justify-center gap-1 px-2 py-0.5 text-[11px] leading-tight"
+            >
               <span className={`whitespace-nowrap ${isOwn?.(e.name) ? 'font-bold' : 'font-medium'}`}>{rowLabel(e.name, nameDisplay)}</span>
               {e.theo && <span className="tabular-nums text-muted-foreground whitespace-nowrap">da {e.theo}</span>}
             </div>
