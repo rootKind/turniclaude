@@ -168,7 +168,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
         aria-label="Navigazione principale"
         className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)_+_0.75rem)] left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-[30rem] -translate-x-1/2 items-center gap-2"
       >
-        <div className="flex min-w-0 flex-1 items-center justify-around rounded-full border border-border/70 bg-background/90 px-1.5 py-1.5 shadow-[0_10px_32px_rgba(15,23,42,0.18)]">
+        <div className="app-liquid-surface flex min-w-0 flex-1 items-center justify-around rounded-full border border-border/70 px-1.5 py-1.5">
           {destinations.map(({ href, label, icon: Icon, paths }) => {
             const active = paths.includes(pathname)
             const target = active ? activeDestinationHref ?? href : href
@@ -198,7 +198,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen(value => !value)}
             className={cn(
-              'flex size-[3.25rem] shrink-0 items-center justify-center rounded-full border border-border/70 bg-primary text-primary-foreground shadow-[0_10px_32px_rgba(15,23,42,0.22)] transition-transform hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'app-liquid-fab flex size-[3.25rem] shrink-0 items-center justify-center rounded-full border border-border/70 bg-primary text-primary-foreground transition-transform hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               menuOpen && 'rotate-45',
             )}
           >
@@ -208,7 +208,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
           <Link
             href={createRequestHref}
             aria-label={fabLabel}
-            className="flex size-[3.25rem] shrink-0 items-center justify-center rounded-full border border-border/70 bg-primary text-primary-foreground shadow-[0_10px_32px_rgba(15,23,42,0.22)] transition-transform hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="app-liquid-fab flex size-[3.25rem] shrink-0 items-center justify-center rounded-full border border-border/70 bg-primary text-primary-foreground transition-transform hover:scale-[1.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Plus size={22} />
           </Link>
@@ -217,12 +217,12 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
             type="button"
             aria-label={fabLabel}
             onClick={() => router.push(managerNextPage)}
-            className="flex size-[3.25rem] shrink-0 items-center justify-center rounded-full border border-border/70 bg-primary text-primary-foreground shadow-[0_10px_32px_rgba(15,23,42,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="app-liquid-fab flex size-[3.25rem] shrink-0 items-center justify-center rounded-full border border-border/70 bg-primary text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeftRight size={20} />
           </button>
         ) : (
-          <button type="button" aria-label={fabLabel} disabled className="flex size-[3.25rem] shrink-0 items-center justify-center rounded-full border border-border/70 bg-primary text-primary-foreground shadow-[0_10px_32px_rgba(15,23,42,0.22)] opacity-50">
+          <button type="button" aria-label={fabLabel} disabled className="app-liquid-fab flex size-[3.25rem] shrink-0 items-center justify-center rounded-full border border-border/70 bg-primary text-primary-foreground opacity-50">
             <ArrowLeftRight size={20} />
           </button>
         )}

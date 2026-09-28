@@ -471,6 +471,45 @@
 }
 
 @layer components {
+  /* Floating navigation: solida senza blur, traslucida dove backdrop-filter esiste. */
+  .app-liquid-surface {
+    background: rgb(248, 251, 253);
+    border-color: rgba(31, 41, 55, 0.10);
+    box-shadow: 0 10px 32px rgba(15, 23, 42, 0.16);
+  }
+  .app-liquid-fab {
+    background-color: var(--primary) !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.22);
+  }
+  .dark .app-liquid-surface {
+    background: rgb(35, 35, 38);
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.38);
+  }
+  .dark .app-liquid-fab {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
+  }
+  @supports ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
+    .app-liquid-surface {
+      background: rgba(248, 251, 253, 0.72);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      backdrop-filter: blur(20px) saturate(180%);
+    }
+    .app-liquid-fab {
+      background-color: rgba(23, 37, 52, 0.78) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      backdrop-filter: blur(20px) saturate(180%);
+    }
+    .dark .app-liquid-surface {
+      background: rgba(24, 24, 27, 0.72);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.42);
+    }
+    .dark .app-liquid-fab {
+      background-color: rgba(238, 238, 240, 0.84) !important;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+    }
+  }
+
   /* Shift row state classes — used by ShiftItem */
   .shift-state-others       { background: var(--shift-others-bg); border: 1px solid var(--shift-others-border); }
   .shift-state-own-empty    { background: var(--shift-own-empty-bg); border: 1px solid var(--shift-own-empty-border); }
