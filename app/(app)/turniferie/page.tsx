@@ -266,7 +266,7 @@ export default function TurniFeriePage() {
       className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
       style={{ minHeight: 'calc(100dvh - 4rem)' }}
     >
-      <PageHeader group="turni" period={(
+      <PageHeader group="turni" className="mb-2" period={(
         <div className="flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1">
           <button
             type="button"

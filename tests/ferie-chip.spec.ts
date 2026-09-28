@@ -266,12 +266,11 @@ test('E2E: senza richieste proprie le chip lavorano sul periodo ASSEGNATO (ipote
     return Array.isArray(lista) && lista.length > 0
   }, undefined, { timeout: 30_000 })
 
-  // Il box «Il tuo periodo 2027» mostra il periodo assegnato (il banner di
-  // ipotesi è stato tolto su richiesta): da lì il test ricava il punto di vista
-  // (P del periodo) e ricalcola l'attesa dai dati in cache.
-  const boxLabel = page.locator('p', { hasText: /^Il tuo periodo 2027$/ }).locator('xpath=following-sibling::p[1]')
-  await expect(boxLabel, 'il box mostra il periodo assegnato').toHaveText(/16–30|01–15/, { timeout: 15_000 })
-  const label = (await boxLabel.textContent())!.trim()
+  // La chip prima dei filtri mostra il periodo assegnato: da lì si ricava il
+  // punto di vista (P del periodo) e ricalcola l'attesa dai dati in cache.
+  const boxLabel = page.locator('main > header span').filter({ hasText: /16–30|01–15/ }).first()
+  await expect(boxLabel, 'la chip mostra il periodo assegnato').toContainText(/16–30|01–15/, { timeout: 15_000 })
+  const label = (await boxLabel.textContent())!.replace(/\s*·\s*2027\s*$/, '').trim()
   const ipotesi = (
     Object.entries(VACATION_PERIOD_LABELS) as unknown as [VacationPeriod, { label: string }][]
   ).find(([, m]) => m.label === label)?.[0]

@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState, Suspense } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { motion } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -11,6 +10,7 @@ import { getMyVacationAssignment } from '@/lib/queries/vacations'
 import { VACATION_PERIOD_LABELS } from '@/lib/vacations'
 import { useAppSettings } from '@/hooks/use-app-settings'
 import { VacationRequestList } from '@/components/vacanze/vacation-request-list'
+import { cn } from '@/lib/utils'
 import { VacationRequestDialog } from '@/components/vacanze/vacation-request-dialog'
 import { YearGateSkeleton } from '@/components/ui/year-gate-skeleton'
 import { PageHeader } from '@/components/nav/page-header'
@@ -144,45 +144,43 @@ function VacanzeContent() {
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
-      {/* Periodo ferie: intestazione unica con categoria e selettore anno. */}
-      <PageHeader group="cambi" datepicker={(
-        <motion.div
-          key={displayYear}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.15, ease: 'easeOut' }}
-          className="px-3 py-2.5 rounded-xl offered-box border flex items-center gap-2"
-        >
-          <button
-            onClick={() => changeYear(-1)}
-            disabled={displayYear <= minYear}
-            aria-label="Anno precedente"
-            className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
-          >
-            <ChevronLeft size={16} className="text-offered-label" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-offered-label font-medium uppercase tracking-wide mb-0.5">Il tuo periodo {displayYear}</p>
-            <p className="text-[14px] font-semibold text-offered-value">{periodLabelYear === displayYear ? (periodLabel ?? '—') : '—'}</p>
+      <PageHeader group="cambi" className="mb-2" filters={(
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className={cn(
+            'inline-flex h-9 max-w-full items-center gap-0.5 rounded-full border px-1',
+            periodLabelYear === displayYear && myPeriodThisYear != null ? `p${myPeriodThisYear}-pill` : 'offered-box text-offered-label',
+          )}>
+            <button
+              onClick={() => changeYear(-1)}
+              disabled={displayYear <= minYear}
+              aria-label="Anno precedente"
+              className="flex size-7 shrink-0 items-center justify-center rounded-full hover:bg-black/5 disabled:opacity-30 dark:hover:bg-white/10"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="max-w-[12rem] truncate px-1 text-[10px] font-semibold">
+              {periodLabelYear === displayYear ? (periodLabel ?? 'Periodo non noto') : 'Periodo…'} · {displayYear}
+            </span>
+            <button
+              onClick={() => changeYear(1)}
+              disabled={displayYear >= MAX_YEAR}
+              aria-label="Anno successivo"
+              className="flex size-7 shrink-0 items-center justify-center rounded-full hover:bg-black/5 disabled:opacity-30 dark:hover:bg-white/10"
+            >
+              <ChevronRight size={14} />
+            </button>
           </div>
-          <button
-            onClick={() => changeYear(1)}
-            disabled={displayYear >= MAX_YEAR}
-            aria-label="Anno successivo"
-            className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
-          >
-            <ChevronRight size={16} className="text-offered-label" />
-          </button>
-        </motion.div>
-      )} filters={profile && canToggleCategory ? (
-        <button
-          onClick={() => setViewSecondary(v => !v)}
-          className="text-xs font-medium px-3 py-2 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
-          aria-label="Cambia gruppo turni"
-        >
-          {viewSecondary ? 'DCO' : 'Noni'}
-        </button>
-      ) : undefined} />
+          {profile && canToggleCategory && (
+            <button
+              onClick={() => setViewSecondary(v => !v)}
+              className="text-xs font-medium px-3 py-2 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
+              aria-label="Cambia gruppo turni"
+            >
+              {viewSecondary ? 'DCO' : 'Noni'}
+            </button>
+          )}
+        </div>
+      )} />
 
       <VacationRequestList
         isSecondary={effectiveIsSecondary}

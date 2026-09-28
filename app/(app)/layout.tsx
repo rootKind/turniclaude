@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/nav/bottom-nav'
-import { NotificationBell } from '@/components/notifications/notification-bell'
 import { isAdmin } from '@/types/database'
 import { PageTransitionWrapper } from '@/components/providers/page-transition'
 import { ChangelogDialog } from '@/components/providers/changelog-dialog'
@@ -38,7 +37,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           (utenti, albero squadre, mesi tuoturno) sui cambi delle tabelle. */}
       <RealtimeInvalidation />
       <PageTransitionWrapper>{children}</PageTransitionWrapper>
-      <NotificationBell />
       <ChangelogDialog />
       {/* Promemoria permessi notifica (richiesta 16/09/2026): fuori dal server
           component (ha bisogno di Notification API) ma nel layout, così vale per

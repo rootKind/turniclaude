@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { PageSwitcher } from '@/components/nav/page-switcher'
 
 type PageHeaderProps = {
   group?: 'cambi' | 'turni'
@@ -17,11 +16,7 @@ type PageHeaderProps = {
 export function PageHeader({ group, period, datepicker, filters, actions, children, className }: PageHeaderProps) {
   return (
     <header className={cn('mb-4 flex flex-col gap-3', className)}>
-      {group && (
-        <div className="flex min-h-11 items-center justify-center px-12">
-          <PageSwitcher group={group} className="w-full max-w-sm" />
-        </div>
-      )}
+      {group && <div aria-hidden="true" className="h-10" />}
       {(period || actions) && (
         <div className="flex min-w-0 items-center justify-between gap-2">
           {period && <div className="min-w-0 flex-1">{period}</div>}

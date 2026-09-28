@@ -1,22 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   ArrowLeftRight,
+  Bell,
   CalendarDays,
   CheckCheck,
   GitCompareArrows,
   History,
   LayoutGrid,
   Palette,
+  Palmtree,
   Pencil,
   Plus,
   Settings,
   Trash2,
   Upload,
-  UserRound,
   UserCog,
   Users,
   X,
@@ -24,7 +25,8 @@ import {
 import { cn } from '@/lib/utils'
 import { FeedbackDialog } from '@/components/settings/feedback-dialog'
 import { useNotificationHistory } from '@/hooks/use-notification-history'
-import { useCurrentUser } from '@/hooks/use-current-user'
+import { NotificationBadge } from '@/components/ui/notification-badge'
+import { PageSwitcher } from '@/components/nav/page-switcher'
 
 interface Props {
   feedbackUnread?: number
@@ -33,6 +35,24 @@ interface Props {
 }
 
 const MANAGER_CYCLE = ['/dashboard', '/vacanze', '/turnisala', '/turniferie']
+
+function subscribeToCompare(callback: () => void) {
+  document.addEventListener('tuoturno-compare-state', callback)
+  return () => document.removeEventListener('tuoturno-compare-state', callback)
+}
+
+function getCompareSnapshot() {
+  return typeof window !== 'undefined' && (window as { __tuoturnoCompareActive?: boolean }).__tuoturnoCompareActive === true
+}
+
+function subscribeToHeaderTitle(callback: () => void) {
+  document.addEventListener('tuoturno-header-state', callback)
+  return () => document.removeEventListener('tuoturno-header-state', callback)
+}
+
+function getHeaderTitleSnapshot() {
+  return typeof window !== 'undefined' ? (window as { __tuoturnoHeaderText?: string }).__tuoturnoHeaderText ?? '' : ''
+}
 
 const destinations = [
   { href: '/tuoturno', label: 'Il tuo turno', icon: CalendarDays, paths: ['/tuoturno'] },
@@ -46,20 +66,17 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
   const [menuOpen, setMenuOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
-  const [comparing, setComparing] = useState(false)
-  const { profile } = useCurrentUser()
+  const comparing = useSyncExternalStore(subscribeToCompare, getCompareSnapshot, () => false)
+  const tuoTurnoTitle = useSyncExternalStore(subscribeToHeaderTitle, getHeaderTitleSnapshot, () => '')
   const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
   const isTuoTurno = pathname === '/tuoturno'
+  const switcherGroup = pathname === '/dashboard' || pathname === '/vacanze' ? 'cambi'
+    : pathname === '/turnisala' || pathname === '/turniferie' ? 'turni'
+      : null
   const canManageSala = isAdmin || isManager
 
-  useEffect(() => {
-    const update = () => setComparing(
-      typeof window !== 'undefined' && (window as { __tuoturnoCompareActive?: boolean }).__tuoturnoCompareActive === true,
-    )
-    update()
-    document.addEventListener('tuoturno-compare-state', update)
-    return () => document.removeEventListener('tuoturno-compare-state', update)
-  }, [])
+  const showComparing = isTuoTurno && comparing
+  const visibleTitle = isTuoTurno ? tuoTurnoTitle : ''
 
   const activeDestinationHref = pathname === '/vacanze' || pathname === '/turniferie' || pathname === '/turnisala' || pathname === '/dashboard'
     ? pathname
@@ -71,6 +88,13 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
   }
 
   function renderActions() {
+    if (pathname === '/dashboard') {
+      return <>
+        {!isManager || isAdmin ? <Action onClick={() => { router.push('/dashboard?new=1'); setMenuOpen(false) }} icon={Plus} label="Nuovo turno" /> : null}
+        {isManager && !isAdmin && <Action onClick={() => { router.push(MANAGER_CYCLE[(MANAGER_CYCLE.indexOf(pathname) + 1) % MANAGER_CYCLE.length]); setMenuOpen(false) }} icon={ArrowLeftRight} label="Pagina successiva" />}
+        <Action onClick={() => runPageAction('dashboard-open-congedo')} icon={Palmtree} label="Chiedi congedo" primary />
+      </>
+    }
     if (isTuoTurno) {
       return <>
         <Action onClick={() => runPageAction(comparing ? 'tuoturno-exit-compare' : 'tuoturno-open-confronta')} icon={Users} label={comparing ? 'Il tuo turno' : 'Confronta i turni di più dipendenti'} />
@@ -104,15 +128,15 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
   }
 
   const actions = renderActions()
-  const createRequestHref = isManager && !isAdmin
+  const createRequestHref = (pathname === '/dashboard' && !isManager) || (isManager && !isAdmin)
     ? null
-    : pathname === '/dashboard' || pathname === '/turnisala' ? '/dashboard?new=1'
+    : pathname === '/turnisala' ? '/dashboard?new=1'
       : pathname === '/vacanze' || pathname === '/turniferie' ? '/vacanze?new=1'
         : null
   const managerNextPage = isManager && !isAdmin
     ? MANAGER_CYCLE[(MANAGER_CYCLE.indexOf(pathname) + 1) % MANAGER_CYCLE.length]
     : null
-  const fabLabel = pathname === '/dashboard' ? 'Nuovo turno'
+  const fabLabel = pathname === '/dashboard' ? 'Azioni cambi'
     : pathname === '/vacanze' ? 'Nuova richiesta ferie'
       : pathname === '/turnisala' ? (canManageSala ? 'Azioni turni sala' : 'Nuovo turno')
         : pathname === '/turniferie' ? (canManageSala ? 'Azioni turni ferie' : 'Nuova richiesta ferie')
@@ -123,22 +147,43 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
 
   return (
     <>
-      <div className="fixed left-4 top-[calc(env(safe-area-inset-top,0px)_+_0.75rem)] z-40">
+      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[calc(env(safe-area-inset-top,0px)_+_4rem)] bg-gradient-to-b from-background/95 via-background/70 to-transparent backdrop-blur-[3px]" />
+      <div className="fixed inset-x-4 top-[calc(env(safe-area-inset-top,0px)_+_0.75rem)] z-40 flex h-10 items-center justify-between">
         <button
           type="button"
           onClick={() => setAccountOpen(value => !value)}
           aria-label="Apri menu account e impostazioni"
           aria-expanded={accountOpen}
-          className="flex size-10 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="app-liquid-surface flex size-10 shrink-0 items-center justify-center rounded-full border border-border/70 text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {profile?.nome || profile?.cognome ? (
-            <span aria-hidden="true" className="text-xs font-semibold">
-              {(profile.nome?.[0] ?? profile.cognome?.[0])?.toLocaleUpperCase('it')}
-            </span>
-          ) : (
-            <UserRound size={18} aria-hidden="true" />
-          )}
+          <Settings size={19} strokeWidth={1.8} aria-hidden="true" />
         </button>
+        <div className="pointer-events-none absolute left-1/2 top-0 flex h-10 max-w-[calc(100vw-7rem)] -translate-x-1/2 items-center justify-center">
+          {isTuoTurno ? (
+            <button
+              type="button"
+              onClick={() => { if (!showComparing) document.dispatchEvent(new CustomEvent('tuoturno-open-user-picker')) }}
+              aria-label={showComparing ? visibleTitle || 'Confronto fra dipendenti' : 'Scegli di chi vedere i turni'}
+              className="app-liquid-surface pointer-events-auto flex h-10 max-w-full items-center justify-center gap-1.5 rounded-full border border-border/70 px-3 text-sm shadow-sm"
+            >
+              <span className="min-w-0 truncate font-semibold">{visibleTitle || 'Il tuo turno'}</span>
+              {!showComparing && <span aria-hidden="true" className="text-muted-foreground">⌄</span>}
+            </button>
+          ) : switcherGroup ? (
+            <PageSwitcher group={switcherGroup} className="pointer-events-auto max-w-full" />
+          ) : null}
+        </div>
+        <Link
+          href="/notifiche"
+          prefetch
+          aria-label={unreadCount > 0 ? `${unreadCount} notifiche non lette` : 'Notifiche'}
+          className="app-liquid-surface flex size-10 shrink-0 items-center justify-center rounded-full border border-border/70 text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="relative">
+            <Bell size={19} strokeWidth={1.8} />
+            {unreadCount > 0 && <NotificationBadge count={unreadCount} className="absolute -right-1 -top-1" />}
+          </span>
+        </Link>
         {accountOpen && (
           <>
             <button type="button" aria-label="Chiudi menu account" className="fixed inset-0 -z-10 cursor-default" onClick={() => setAccountOpen(false)} />
@@ -191,7 +236,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
           })}
         </div>
 
-        {actions ? (
+        {actions !== null ? (
           <button
             type="button"
             aria-label={menuOpen ? 'Chiudi menu' : fabLabel}

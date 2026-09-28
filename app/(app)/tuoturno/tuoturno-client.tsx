@@ -533,13 +533,8 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   // quella che si sta compilando nel popup.
   const [compareOpen, setCompareOpen] = useState(false)
   const [compareIds, setCompareIds] = useState<string[]>([])
-  // Stato confronto → bottom-nav (per la voce mini-Fab «Tuo turno»): l'evento
-  // dice alla navbar di rileggere lo stato condiviso (detail é compatibilità).
-  useEffect(() => {
-    const w = window as unknown as { __tuoturnoCompareActive?: boolean }
-    w.__tuoturnoCompareActive = compareIds.length >= 2
-    document.dispatchEvent(new CustomEvent('tuoturno-compare-state', { detail: { active: compareIds.length >= 2 } }))
-  }, [compareIds])
+  const comparing = compareIds.length >= 2
+
   const [compareDraft, setCompareDraft] = useState<string[]>([])
   // Pannello «Personalizza» + palette e stile delle modifiche (persistiti in locale).
   const [colorsOpen, setColorsOpen] = useState(false)
@@ -699,12 +694,11 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     // del viewport al fondo della nav mese) + SOTTO (dal top della bottom nav al
     // fondo del viewport; se la nav copre l'ultimo pixel, la tabella finirebbe sotto).
     const top = monthNavRef.current?.getBoundingClientRect().bottom ?? 0
-    const nav = document.querySelector('nav')
+    const nav = document.querySelector('nav[aria-label="Navigazione principale"]')
     const bottom = nav ? Math.max(0, window.innerHeight - nav.getBoundingClientRect().top) : 0
     const next = Math.round(top + bottom)
     setChromePx(prev => (prev === next ? prev : next))
   }, [])
-  const comparing = compareIds.length >= 2
   useEffect(() => {
     if (!comparing) return
     let raf = requestAnimationFrame(measureChrome)
@@ -716,6 +710,30 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
     () => compareIds.map(id => users.find(u => u.id === id)).filter((u): u is UserOption => !!u),
     [compareIds, users],
   )
+  const topBarTitle = comparing ? `Confronto fra ${comparePeople.length} dipendenti` : displayName
+
+  useEffect(() => {
+    const w = window as unknown as { __tuoturnoCompareActive?: boolean; __tuoturnoHeaderText?: string }
+    w.__tuoturnoCompareActive = comparing
+    w.__tuoturnoHeaderText = topBarTitle
+    document.dispatchEvent(new CustomEvent('tuoturno-compare-state', { detail: { active: comparing } }))
+    document.dispatchEvent(new CustomEvent('tuoturno-header-state', { detail: { text: topBarTitle } }))
+  }, [comparing, topBarTitle])
+
+  useEffect(() => () => {
+    const w = window as unknown as { __tuoturnoCompareActive?: boolean; __tuoturnoHeaderText?: string }
+    w.__tuoturnoCompareActive = false
+    w.__tuoturnoHeaderText = ''
+    document.dispatchEvent(new CustomEvent('tuoturno-compare-state', { detail: { active: false } }))
+    document.dispatchEvent(new CustomEvent('tuoturno-header-state', { detail: { text: '' } }))
+  }, [])
+
+  useEffect(() => {
+    const openPicker = () => { setQuery(''); setPickerOpen(true) }
+    document.addEventListener('tuoturno-open-user-picker', openPicker)
+    return () => document.removeEventListener('tuoturno-open-user-picker', openPicker)
+  }, [])
+
   const compareRows = useMemo<CompareRow[]>(() => {
     if (!comparing) return []
     return comparePeople.map(u => {
@@ -855,20 +873,8 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   }
 
   return (
-    <main data-pending-ring={pendingRing} className="max-w-lg mx-auto px-3 pt-6 pb-4">
+    <main data-pending-ring={pendingRing} className="max-w-lg mx-auto px-3 pt-20 pb-4">
       <PageHeader
-        period={<div className="min-w-0">{comparing ? (
-          <p className="truncate text-sm text-muted-foreground"><span className="font-semibold text-foreground">Confronto fra {comparePeople.length}</span> dipendenti</p>
-        ) : (
-          <button
-            onClick={() => { setQuery(''); setPickerOpen(true) }}
-            className="inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-lg px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Scegli di chi vedere i turni"
-          >
-            <span className="truncate font-semibold text-foreground">{displayName}</span>
-            <ChevronDown size={16} className="shrink-0" />
-          </button>
-        )}</div>}
         datepicker={<div ref={monthNavRef} className="flex items-center justify-between gap-1">
           <button onClick={goPrev} aria-label="Mese precedente" className="p-2 rounded-xl border border-border/60 hover:bg-muted transition-colors"><ChevronLeft size={20} /></button>
           <div className="text-center">

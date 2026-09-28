@@ -35,7 +35,7 @@ export function PageSwitcher({ group, className }: PageSwitcherProps) {
     <nav
       aria-label={activeGroup === 'cambi' ? 'Tipo di cambi' : 'Tipo di turni'}
       className={cn(
-        'inline-flex max-w-full items-center rounded-full border border-border/80 bg-muted/70 p-1 shadow-sm',
+        'app-liquid-surface inline-flex h-10 max-w-full items-center rounded-full border border-border/70 p-0 shadow-sm',
         className,
       )}
     >
@@ -48,15 +48,14 @@ export function PageSwitcher({ group, className }: PageSwitcherProps) {
             prefetch
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'min-h-10 flex-1 whitespace-nowrap rounded-full px-3 text-center text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'flex h-10 min-w-0 items-center justify-center whitespace-nowrap rounded-full px-3 text-center text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               active
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            <span className="flex h-full items-center justify-center">              <span className="sm:hidden">{option.shortLabel}</span>
-              <span className="hidden sm:inline">{option.label}</span>
-</span>
+            <span className="sm:hidden">{option.shortLabel}</span>
+            <span className="hidden sm:inline">{option.label}</span>
           </Link>
         )
       })}

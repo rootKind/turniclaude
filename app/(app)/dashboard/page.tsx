@@ -6,7 +6,7 @@ import { ShiftDialog } from '@/components/shifts/shift-dialog'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { usePush } from '@/hooks/use-push'
 import { isAdmin, isManager } from '@/types/database'
-import { X, Palmtree } from 'lucide-react'
+import { X } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/nav/page-header'
@@ -79,6 +79,12 @@ function DashboardContent() {
     return () => clearTimeout(t)
   }, [highlightShiftId, router, searchParams])
 
+  useEffect(() => {
+    const openCongedo = () => setCongedoOpen(true)
+    document.addEventListener('dashboard-open-congedo', openCongedo)
+    return () => document.removeEventListener('dashboard-open-congedo', openCongedo)
+  }, [])
+
   // Track app access once per session (skip when admin is impersonating)
   useEffect(() => {
     if (!profile?.id || isImpersonating) return
@@ -109,6 +115,7 @@ function DashboardContent() {
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
+      <PageHeader group="cambi" className="mb-0" />
       {/* Impersonation banner */}
       {isImpersonating && displayName && (
         <div className="flex items-center justify-between banner-impersonate rounded-xl px-3 py-2 mb-4 text-sm font-medium">
@@ -123,22 +130,8 @@ function DashboardContent() {
         </div>
       )}
 
-      <PageHeader group="cambi" />
       <div className="flex items-center justify-between mb-4 pr-12 gap-y-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
-          {/* Richiesta congedo (modulo esterno) — stesso stile del tasto Esci (destructive + bordo).
-              La scritta "Chiedi congedo" è SEMPRE visibile (non interrotta da breakpoint):
-              se manca spazio la riga dell'header va a capo (flex-wrap sul contenitore), senza
-              mai nascondere la scritta — c'è spazio ben oltre le viewport strette del telefono. */}
-          <Button
-            variant="destructive"
-            onClick={() => setCongedoOpen(true)}
-            aria-label="Chiedi congedo"
-            className="flex-shrink-0 gap-1.5 px-3 rounded-full border-destructive/40"
-          >
-            <Palmtree size={16} strokeWidth={1.8} />
-            <span className="whitespace-nowrap">Chiedi congedo</span>
-          </Button>
           {/* Category toggle — hidden when impersonating (category is from impersonated user) */}
           {profile && canToggleCategory && !isImpersonating && (
             <button
