@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { YearGateSkeleton } from '@/components/ui/year-gate-skeleton'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
@@ -43,6 +43,7 @@ export default function TurniFeriePage() {
   const [yearOverrides, setYearOverrides] = useState<Map<string, VacationPeriod>>(new Map())
 
   const [swapOpen, setSwapOpen] = useState(false)
+  const swapSheetSwipeStart = useRef<number | null>(null)
   const [swapMode, setSwapMode] = useState<'move' | 'switch'>('move')
   const [swapUserId, setSwapUserId] = useState('')
   const [swapTargetPeriod, setSwapTargetPeriod] = useState<VacationPeriod>(1)
@@ -365,8 +366,27 @@ export default function TurniFeriePage() {
         })}
       </div>
       {swapOpen && canManage && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 pb-20 px-4">
-          <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 px-2 backdrop-blur-sm sm:items-center sm:px-4"
+          onClick={event => { if (event.target === event.currentTarget) setSwapOpen(false) }}
+        >
+          <div className="w-full max-w-sm max-h-[88dvh] overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-card pb-[calc(1rem_+_env(safe-area-inset-bottom,0px))] shadow-2xl sm:rounded-3xl">
+            <button
+              type="button"
+              aria-label="Chiudi pannello"
+              className="mx-auto flex h-8 w-14 touch-none items-center justify-center"
+              onPointerDown={event => {
+                swapSheetSwipeStart.current = event.clientY
+                event.currentTarget.setPointerCapture(event.pointerId)
+              }}
+              onPointerUp={event => {
+                if (swapSheetSwipeStart.current !== null && event.clientY - swapSheetSwipeStart.current > 56) setSwapOpen(false)
+                swapSheetSwipeStart.current = null
+              }}
+              onPointerCancel={() => { swapSheetSwipeStart.current = null }}
+            >
+              <span aria-hidden="true" className="h-1 w-10 rounded-full bg-muted-foreground/35" />
+            </button>
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <span className="font-semibold text-sm">Gestisci periodi</span>
               <button onClick={() => setSwapOpen(false)} className="p-1 hover:bg-muted rounded-lg transition-colors">
