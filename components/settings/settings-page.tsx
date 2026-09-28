@@ -53,8 +53,6 @@ export function SettingsPage() {
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4 space-y-6">
-      <h1 className="text-lg font-bold">Impostazioni</h1>
-
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tema</h2>
         <div className="flex items-center justify-between">

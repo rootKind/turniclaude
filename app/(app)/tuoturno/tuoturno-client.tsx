@@ -855,13 +855,12 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 
   return (
     <main data-pending-ring={pendingRing} className="max-w-lg mx-auto px-3 pt-6 pb-4">
-      {/* Intestazione: tocca il nome per cambiare persona; le azioni (confronto,
-          personalizzazione) vivono nel Fab in basso a destra, con mini-Fab che spuntano */}
+      {/* Il nome selezionabile identifica la persona; in confronto resta il contesto
+          della vista. Il titolo statico è già nella navigazione in basso. */}
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold leading-snug">Il tuo turno</h1>
           {comparing ? (
-            <p className="mt-0.5 truncate text-base text-muted-foreground">
+            <p className="truncate text-base text-muted-foreground">
               <span className="font-semibold text-foreground">Confronto fra {comparePeople.length}</span> dipendenti
             </p>
           ) : (

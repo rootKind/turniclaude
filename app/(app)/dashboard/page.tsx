@@ -124,7 +124,6 @@ function DashboardContent() {
 
       <div className="flex items-center justify-between mb-4 pr-12 gap-y-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <h1 className="text-lg font-bold leading-snug">Turni Sala C.C.C.</h1>
           {/* Richiesta congedo (modulo esterno) — stesso stile del tasto Esci (destructive + bordo).
               La scritta "Chiedi congedo" è SEMPRE visibile (non interrotta da breakpoint):
               se manca spazio la riga dell'header va a capo (flex-wrap sul contenitore), senza
