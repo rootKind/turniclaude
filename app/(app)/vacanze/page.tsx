@@ -114,16 +114,21 @@ function VacanzeContent() {
   }
 
   useEffect(() => {
-    let startX = 0
-    let startY = 0
+    let touchStart: { x: number; y: number } | null = null
     function onTouchStart(e: TouchEvent) {
-      startX = e.touches[0].clientX
-      startY = e.touches[0].clientY
+      if (e.target instanceof Element && e.target.closest('[data-page-swipe-nav]')) {
+        touchStart = null
+        return
+      }
+      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }
     }
     function onTouchEnd(e: TouchEvent) {
+      const start = touchStart
+      touchStart = null
+      if (!start || (e.target instanceof Element && e.target.closest('[data-page-swipe-nav]'))) return
       if (minYear === null) return
-      const dx = e.changedTouches[0].clientX - startX
-      const dy = e.changedTouches[0].clientY - startY
+      const dx = e.changedTouches[0].clientX - start.x
+      const dy = e.changedTouches[0].clientY - start.y
       if (Math.abs(dx) <= 50 || Math.abs(dy) > Math.abs(dx)) return
       setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear, y + (dx > 0 ? -1 : 1))))
     }

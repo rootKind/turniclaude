@@ -471,41 +471,41 @@
 }
 
 @layer components {
-  /* Floating navigation: solida senza blur, traslucida dove backdrop-filter esiste. */
+  /* Floating navigation: superfici leggere, con il contenuto sottostante visibile. */
   .app-liquid-surface {
-    background: rgb(248, 251, 253);
-    border-color: rgba(31, 41, 55, 0.10);
-    box-shadow: 0 10px 32px rgba(15, 23, 42, 0.16);
+    background: rgba(248, 251, 253, 0.32);
+    border-color: rgba(31, 41, 55, 0.09);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10);
   }
   .app-liquid-fab {
     background-color: var(--primary) !important;
     box-shadow: 0 10px 28px rgba(15, 23, 42, 0.22);
   }
   .dark .app-liquid-surface {
-    background: rgb(35, 35, 38);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.38);
+    background: rgba(35, 35, 38, 0.36);
+    border-color: rgba(255, 255, 255, 0.10);
+    box-shadow: 0 9px 28px rgba(0, 0, 0, 0.24);
   }
   .dark .app-liquid-fab {
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
   }
   @supports ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
     .app-liquid-surface {
-      background: rgba(248, 251, 253, 0.72);
+      background: rgba(248, 251, 253, 0.32);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
       backdrop-filter: blur(20px) saturate(180%);
     }
     .app-liquid-fab {
-      background-color: rgba(23, 37, 52, 0.78) !important;
+      background-color: rgba(23, 37, 52, 0.68) !important;
       -webkit-backdrop-filter: blur(20px) saturate(180%);
       backdrop-filter: blur(20px) saturate(180%);
     }
     .dark .app-liquid-surface {
-      background: rgba(24, 24, 27, 0.72);
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.42);
+      background: rgba(24, 24, 27, 0.36);
+      box-shadow: 0 9px 28px rgba(0, 0, 0, 0.28);
     }
     .dark .app-liquid-fab {
-      background-color: rgba(238, 238, 240, 0.84) !important;
+      background-color: rgba(238, 238, 240, 0.72) !important;
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
     }
   }

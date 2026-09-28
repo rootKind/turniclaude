@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useSyncExternalStore } from 'react'
+import { useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -66,6 +66,8 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
   const [menuOpen, setMenuOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const navSwipeStart = useRef<{ x: number; y: number } | null>(null)
+  const suppressNavClick = useRef(false)
   const comparing = useSyncExternalStore(subscribeToCompare, getCompareSnapshot, () => false)
   const tuoTurnoTitle = useSyncExternalStore(subscribeToHeaderTitle, getHeaderTitleSnapshot, () => '')
   const { markAllRead, clearAll, unreadCount, history } = useNotificationHistory()
@@ -74,6 +76,8 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
     : pathname === '/turnisala' || pathname === '/turniferie' ? 'turni'
       : null
   const canManageSala = isAdmin || isManager
+  const topBarVisible = pathname !== '/impostazioni' && pathname !== '/notifiche'
+  const currentDestinationIndex = destinations.findIndex(destination => destination.paths.includes(pathname))
 
   const showComparing = isTuoTurno && comparing
   const visibleTitle = isTuoTurno ? tuoTurnoTitle : ''
@@ -85,6 +89,35 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
   function runPageAction(eventName: string) {
     document.dispatchEvent(new CustomEvent(eventName))
     setMenuOpen(false)
+  }
+
+  function startNavSwipe(event: React.TouchEvent<HTMLElement>) {
+    event.stopPropagation()
+    const touch = event.touches[0]
+    navSwipeStart.current = { x: touch.clientX, y: touch.clientY }
+  }
+
+  function finishNavSwipe(event: React.TouchEvent<HTMLElement>) {
+    event.stopPropagation()
+    const start = navSwipeStart.current
+    navSwipeStart.current = null
+    if (!start || currentDestinationIndex < 0) return
+    const touch = event.changedTouches[0]
+    const dx = touch.clientX - start.x
+    const dy = touch.clientY - start.y
+    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy)) return
+    suppressNavClick.current = true
+    window.setTimeout(() => { suppressNavClick.current = false }, 500)
+    const nextIndex = Math.max(0, Math.min(destinations.length - 1, currentDestinationIndex + (dx < 0 ? 1 : -1)))
+    if (nextIndex === currentDestinationIndex) return
+    router.push(destinations[nextIndex].href)
+  }
+
+  function cancelNavClick(event: React.MouseEvent<HTMLElement>) {
+    if (!suppressNavClick.current) return
+    event.preventDefault()
+    event.stopPropagation()
+    suppressNavClick.current = false
   }
 
   function renderActions() {
@@ -147,8 +180,8 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
 
   return (
     <>
-      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[calc(env(safe-area-inset-top,0px)_+_4rem)] bg-gradient-to-b from-background/95 via-background/70 to-transparent backdrop-blur-[3px]" />
-      <div className="fixed inset-x-4 top-[calc(env(safe-area-inset-top,0px)_+_0.75rem)] z-40 flex h-10 items-center justify-between">
+      {topBarVisible && <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[calc(env(safe-area-inset-top,0px)_+_4rem)] bg-gradient-to-b from-background/45 via-background/15 to-transparent backdrop-blur-[3px]" />}
+      {topBarVisible && <div className="fixed inset-x-4 top-[calc(env(safe-area-inset-top,0px)_+_0.75rem)] z-40 flex h-10 items-center justify-between">
         <button
           type="button"
           onClick={() => setAccountOpen(value => !value)}
@@ -196,7 +229,7 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
             </div>
           </>
         )}
-      </div>
+      </div>}
 
       {menuOpen && actions && (
         <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)}>
@@ -211,9 +244,20 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
 
       <nav
         aria-label="Navigazione principale"
+        onClickCapture={cancelNavClick}
+        data-page-swipe-nav
         className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)_+_0.75rem)] left-1/2 z-50 flex w-[calc(100%-2rem)] max-w-[30rem] -translate-x-1/2 items-center gap-2"
       >
-        <div className="app-liquid-surface flex min-w-0 flex-1 items-center justify-around rounded-full border border-border/70 px-1.5 py-1.5">
+        <div
+          className="app-liquid-surface relative flex min-w-0 flex-1 items-center justify-around rounded-full border border-border/70 px-1.5 py-1.5"
+          onTouchStart={startNavSwipe}
+          onTouchMove={event => event.stopPropagation()}
+          onTouchEnd={finishNavSwipe}
+          onTouchCancel={event => { event.stopPropagation(); navSwipeStart.current = null }}
+        >
+          <span aria-hidden="true" className="pointer-events-none absolute inset-y-1.5 left-1.5 right-1.5">
+            {currentDestinationIndex >= 0 && <span className="absolute inset-y-0 left-0 block w-1/3 rounded-full bg-foreground/10 transition-transform duration-300 ease-out" style={{ transform: `translateX(${currentDestinationIndex * 100}%)` }} />}
+          </span>
           {destinations.map(({ href, label, icon: Icon, paths }) => {
             const active = paths.includes(pathname)
             const target = active ? activeDestinationHref ?? href : href
@@ -221,11 +265,12 @@ export function BottomNav({ feedbackUnread = 0, isAdmin = false, isManager = fal
               <Link
                 key={href}
                 href={target}
+                onClick={cancelNavClick}
                 prefetch
                 aria-current={active ? 'page' : undefined}
                 aria-label={label === 'Cambi turno' ? 'Cambi' : label}
                 className={cn(
-                  'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1.5 text-[10px] font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1.5 text-[10px] font-medium leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
                 )}
               >

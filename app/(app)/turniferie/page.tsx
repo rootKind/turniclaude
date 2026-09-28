@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { YearGateSkeleton } from '@/components/ui/year-gate-skeleton'
 import { PageHeader } from '@/components/nav/page-header'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronRight, X } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useDuplicateCognomi } from '@/hooks/use-users'
 import { formatDisplayName } from '@/lib/utils'
@@ -150,15 +150,20 @@ export default function TurniFeriePage() {
     : null
 
   useEffect(() => {
-    let startX = 0
-    let startY = 0
+    let touchStart: { x: number; y: number } | null = null
     function onTouchStart(e: TouchEvent) {
-      startX = e.touches[0].clientX
-      startY = e.touches[0].clientY
+      if (e.target instanceof Element && e.target.closest('[data-page-swipe-nav]')) {
+        touchStart = null
+        return
+      }
+      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }
     }
     function onTouchEnd(e: TouchEvent) {
-      const dx = e.changedTouches[0].clientX - startX
-      const dy = e.changedTouches[0].clientY - startY
+      const start = touchStart
+      touchStart = null
+      if (!start || (e.target instanceof Element && e.target.closest('[data-page-swipe-nav]'))) return
+      const dx = e.changedTouches[0].clientX - start.x
+      const dy = e.changedTouches[0].clientY - start.y
       if (Math.abs(dx) <= 50 || Math.abs(dy) > Math.abs(dx)) return
       setSelectedYear(y => Math.min(MAX_YEAR, Math.max(minYear, y + (dx > 0 ? -1 : 1))))
     }
@@ -263,32 +268,10 @@ export default function TurniFeriePage() {
   // visivo è identico (il contenuto entra e il min non supera il viewport).
   return (
     <main
-      className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
+      className="mx-auto min-h-[calc(100dvh-4rem)] max-w-2xl px-3 pb-2 pt-5 flex flex-col"
       style={{ minHeight: 'calc(100dvh - 4rem)' }}
     >
-      <PageHeader group="turni" className="mb-2" period={(
-        <div className="flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1">
-          <button
-            type="button"
-            onClick={() => setSelectedYear(y => Math.max(minYear, y - 1))}
-            disabled={selectedYear <= minYear}
-            aria-label="Anno precedente"
-            className="flex size-10 items-center justify-center rounded-full hover:bg-muted disabled:opacity-30"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <span className="min-w-14 text-center text-sm font-semibold tabular-nums">{selectedYear}</span>
-          <button
-            type="button"
-            onClick={() => setSelectedYear(y => Math.min(MAX_YEAR, y + 1))}
-            disabled={selectedYear >= MAX_YEAR}
-            aria-label="Anno successivo"
-            className="flex size-10 items-center justify-center rounded-full hover:bg-muted disabled:opacity-30"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-      )} filters={canManage ? (
+      <PageHeader group="turni" className="mb-2" filters={canManage ? (
         <button
           onClick={() => setViewSecondary(v => !v)}
           className="text-xs font-medium px-3 py-2 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
@@ -370,6 +353,9 @@ export default function TurniFeriePage() {
           )
         })}
       </div>
+      <footer className="mt-auto pt-3 pb-[calc(6rem_+_env(safe-area-inset-bottom,0px))] text-center text-[11px] text-muted-foreground/60" aria-label={`Anno ${selectedYear}`}>
+        {selectedYear}
+      </footer>
       {swapOpen && canManage && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 px-2 backdrop-blur-sm sm:items-center sm:px-4"

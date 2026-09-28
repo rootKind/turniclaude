@@ -6,7 +6,7 @@ import { browserPreparato } from './browser-setup'
 
 const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre']
 
-/** Il bottone della data nella toolbar (testo «GIO 25 SETTEMBRE 2026»). */
+/** Il bottone data compatto della toolbar (es. «LUN 28/09/26»). */
 const TRIGGER_DATA = 'button:has(svg.lucide-chevron-down)'
 
 /** Prime tre lettere dei mesi, come le mostra il trigger (maiuscole, 3 lettere). */
@@ -28,6 +28,8 @@ export async function riposa(page: Page): Promise<void> {
 async function dataMostrata(page: Page): Promise<{ mese: number; anno: number } | null> {
   const testo = await page.locator(TRIGGER_DATA).first().innerText().catch(() => '')
   const maiuscolo = testo.toUpperCase()
+  const compatta = maiuscolo.match(/\b\d{1,2}\/(\d{2})\/(\d{2})\b/)
+  if (compatta) return { mese: Number(compatta[1]), anno: 2000 + Number(compatta[2]) }
   const anno = maiuscolo.match(/\b(20\d{2})\b/)
   const mese = MESI_BREVI.findIndex(m => maiuscolo.includes(m))
   if (!anno || mese < 0) return null
@@ -211,16 +213,14 @@ export async function openBoard(page: Page, target: BoardTarget, baseUrl = E2E_B
       await chiudiDayPicker(page)
     } else {
       await giorno.click()
-      // Conferma del cambio giorno: il trigger della data scrive «GIO 25
-      // SETTEMBRE 2026». Era un'attesa fissa di 1,3 s a ogni navigazione.
+      // Conferma del cambio giorno dal valore aggiornato del trigger.
       await expect
         .poll(() => page.locator(TRIGGER_DATA).first().innerText(), {
           timeout: 5000,
-          message: `il trigger della data non è passato al ${target.day} ${MESI[target.month - 1]} ${anno}`,
+          message: `il trigger della data non è passato al ${String(target.day).padStart(2, '0')}/${String(target.month).padStart(2, '0')}/${String(anno).slice(-2)}`,
         })
         // `\s*` tollera il testo reso con a capo fra i pezzi («VEN 25 SETTEMBRE»)
-        // e quello incollato di `textContent` («VEN25SETTEMBRE»).
-        .toMatch(new RegExp(`${target.day}\\s*${MESI_BREVI[target.month - 1]}`, 'i'))
+        .toMatch(new RegExp(`\\b${String(target.day).padStart(2, '0')}/${String(target.month).padStart(2, '0')}/${String(anno).slice(-2)}\\b`))
     }
     if (ricarica) await Promise.race([ricarica, page.waitForTimeout(400)])
     await riposa(page)

@@ -168,10 +168,10 @@ function personaInBoard(cards: Awaited<ReturnType<typeof boardCards>>, cognome: 
  */
 async function giornoTurnoBoard(page: import('@playwright/test').Page) {
   const testo = (await page.locator('button:has(svg.lucide-chevron-down)').first().innerText()).replace(/\s+/g, ' ').toUpperCase()
-  const data = testo.match(/\b(\d{1,2})\s+([A-Z]{3})\s+(20\d{2})\b/)
+  const data = testo.match(/\b(\d{1,2})\/(\d{2})\/(\d{2})\b/)
   const giorno = Number(data?.[1] ?? testo.match(/\b(\d{1,2})\b/)?.[1])
-  const anno = Number(data?.[3] ?? testo.match(/\b(20\d{2})\b/)?.[1])
-  const mese = data ? MESI_BREVI.indexOf(data[2]) + 1 : MESI_BREVI.findIndex(m => testo.includes(m)) + 1
+  const anno = data ? 2000 + Number(data[3]) : Number(testo.match(/\b(20\d{2})\b/)?.[1])
+  const mese = data ? Number(data[2]) : MESI_BREVI.findIndex(m => testo.includes(m)) + 1
   const turno = (await page.locator('button.sala-toolbar-chip').first().innerText()).trim() as 'M' | 'P' | 'N'
   return { mese, giorno, anno, turno }
 }

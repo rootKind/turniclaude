@@ -339,15 +339,23 @@ export function DeskBoard({
      navigare ovunque, anche oltre i mesi caricati. */
 
   const weekdayLabel = format(new Date(cy, cm - 1, selectedDay), 'EEE', { locale: it }).replace('.', '').toUpperCase().slice(0, 3)
+  const compactDateLabel = `${weekdayLabel} ${String(selectedDay).padStart(2, '0')}/${String(cm).padStart(2, '0')}/${String(cy).slice(-2)}`
 
   const SHIFT_ORDER: SalaShiftType[] = ['N', 'M', 'P']
 
   useEffect(() => {
     const onTouchStart = (e: TouchEvent) => {
-      if (isEditingRef.current) return
+      if (isEditingRef.current || (e.target instanceof Element && e.target.closest('[data-page-swipe-nav]'))) {
+        touchStartX.current = null
+        return
+      }
       touchStartX.current = e.touches[0].clientX
     }
     const onTouchEnd = (e: TouchEvent) => {
+      if (e.target instanceof Element && e.target.closest('[data-page-swipe-nav]')) {
+        touchStartX.current = null
+        return
+      }
       if (isEditingRef.current || touchStartX.current === null) return
       const dx = e.changedTouches[0].clientX - touchStartX.current
       touchStartX.current = null
@@ -1215,41 +1223,25 @@ export function DeskBoard({
       <PageHeader group="turni" className="mb-0" />
       {/* Schedule header — hidden during layout edit */}
       {!isEditing && (
-        <div className="flex items-center flex-wrap gap-1 sala-toolbar-bg border desk-schedule-border rounded-xl px-3 py-2 mr-14">
-          <div className="relative">
-            <button
-              onClick={() => {
-                // Alla (ri)apertura il calendario riparte dal mese della board
-                // (fix 24/09/2026): sfogliare mesi senza scegliere un giorno non
-                // deve lasciare la griglia su un mese diverso da quello che il
-                // trigger mostra.
-                if (!showDayPicker) setPickerMonth(new Date(cy, cm - 1))
-                setShowDayPicker(!showDayPicker)
-              }}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors select-none sala-toolbar-nav-bg sala-toolbar-nav-text"
-            >
-              {/* STILE OMogeneo (richiesta 12/09/2026): font, misura e colore
-                  identici su tutta la data — «SAB 12 SETT 2026». Nessun override
-                  di colore: tutti gli span ereditano il tinta-bottone della nav.
-                  Mese ESTESO solo se c'è spazio (≥ sm) per stare sulla riga dei
-                  P M N; sotto quel limite si abbrevia a 3 lettere. */}
-              <span className="text-sm font-semibold uppercase leading-none">{weekdayLabel}</span>
-              <span className="text-sm font-semibold tabular-nums leading-none">{selectedDay}</span>
-              {/* Mese e anno nel trigger solo a picker CHIUSO: a pannello aperto
-                  le tendine in testa al calendario dicono già mese e anno — il
-                  trigger si riduce a «GIO 11» per non ripeterli sotto. */}
-              {!showDayPicker && (
+        <div className="w-full rounded-lg border border-border/60 sala-card-title-sep sala-card-title">
+          <div className="flex h-7 items-center justify-between gap-2 px-2">
+            <div className="relative min-w-0 flex-1">
+              <button
+                type="button"
+                aria-label="Scegli giorno"
+                onClick={() => {
+                  if (!showDayPicker) setPickerMonth(new Date(cy, cm - 1))
+                  setShowDayPicker(!showDayPicker)
+                }}
+                className="flex h-7 min-w-0 items-center gap-1 rounded-md px-1 text-xs font-semibold tabular-nums hover:bg-black/5 dark:hover:bg-white/10"
+              >
+                <span className="truncate">{compactDateLabel}</span>
+                <ChevronDown size={12} className={`shrink-0 text-muted-foreground transition-transform ${showDayPicker ? 'rotate-180' : ''}`} />
+              </button>
+              {showDayPicker && (
                 <>
-                  <span className="text-sm font-semibold uppercase leading-none hidden sm:inline">{MONTHS_IT[cm - 1]}</span>
-                  <span className="text-sm font-semibold uppercase leading-none sm:hidden">{MONTHS_IT[cm - 1].slice(0, 3)}</span>
-                  <span className="text-sm font-semibold tabular-nums leading-none">{cy}</span>
-                </>
-              )}
-              <ChevronDown size={12} className={`text-muted-foreground transition-transform ${showDayPicker ? 'rotate-180' : ''}`} />
-            </button>
-            {showDayPicker && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowDayPicker(false)} />                <div className="absolute top-full left-0 z-50 mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden cal-panel">
+                  <div className="fixed inset-0 z-40" onClick={() => setShowDayPicker(false)} />
+                  <div className="absolute left-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border bg-card shadow-xl cal-panel">
                   {/* Selettori MESE e ANNO in testa (come «Il tuo turno»): il teorico
                       si calcola per qualsiasi mese, quindi l'anno copre il millennio. */}
                   <div className="flex gap-1.5 p-2 border-b border-border bg-muted/40">
@@ -1313,28 +1305,28 @@ export function DeskBoard({
                 </div>
               </>
             )}
-          </div>
-
-          <div className="flex-1 min-w-1" />
-
-          <div className="flex rounded-lg overflow-hidden border sala-toolbar-nav-border text-xs font-semibold shrink-0">
-            {SHIFT_ORDER.map((s, i) => {
-              const isSelected = selectedShift === s
-              const prevNotSelected = i === 0 || selectedShift !== SHIFT_ORDER[i - 1]
-              return (
-                <button
-                  key={s}
-                  onClick={() => setSelectedShift(s)}
-                  className={`px-2 py-1.5 transition-colors ${
-                    isSelected
-                      ? 'sala-toolbar-chip'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  } ${i > 0 && !isSelected && prevNotSelected ? 'sala-toolbar-sep' : ''}`}
-                >
-                  {s}
-                </button>
-              )
-            })}
+            </div>
+            <div className="flex h-7 shrink-0 overflow-hidden rounded-md border border-border/60 text-xs font-semibold">
+              {SHIFT_ORDER.map((s, i) => {
+                const isSelected = selectedShift === s
+                const prevNotSelected = i === 0 || selectedShift !== SHIFT_ORDER[i - 1]
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => setSelectedShift(s)}
+                    className={`min-h-7 px-2 transition-colors ${
+                      isSelected
+                        ? 'sala-toolbar-chip'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    } ${i > 0 && !isSelected && prevNotSelected ? 'sala-toolbar-sep' : ''}`}
+                  >
+                    {s}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           {canUpload && (

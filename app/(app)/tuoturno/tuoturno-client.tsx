@@ -815,7 +815,7 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
   useEffect(() => {
     const skip = (t: EventTarget | null) =>
       t instanceof Element &&
-      !!t.closest('.month-pop, [role="dialog"], [data-radix-popper-content-wrapper]')
+      !!t.closest('.month-pop, [role="dialog"], [data-radix-popper-content-wrapper], [data-page-swipe-nav]')
     const onTouchStart = (e: TouchEvent) => {
       if (skip(e.target)) { touchStart.current = null; return }
       touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
