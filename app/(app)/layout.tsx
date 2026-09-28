@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { BottomNav } from '@/components/nav/bottom-nav'
+import { PageSwitcher } from '@/components/nav/page-switcher'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import { isAdmin } from '@/types/database'
 import { PageTransitionWrapper } from '@/components/providers/page-transition'
@@ -33,10 +34,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen safe-area-pt pb-[calc(4rem_+_env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen safe-area-pt pb-[calc(6rem_+_env(safe-area-inset-bottom,0px))]">
       {/* Un solo canale realtime per l'app: invalida le query anagrafiche
           (utenti, albero squadre, mesi tuoturno) sui cambi delle tabelle. */}
       <RealtimeInvalidation />
+      <PageSwitcher className="fixed left-1/2 top-[calc(env(safe-area-inset-top,0px)_+_0.75rem)] z-40 -translate-x-1/2" />
       <PageTransitionWrapper>{children}</PageTransitionWrapper>
       <NotificationBell />
       <ChangelogDialog />
