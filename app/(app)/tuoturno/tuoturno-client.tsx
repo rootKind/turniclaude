@@ -25,6 +25,7 @@ import {
   type SalaCodeKind,
 } from '@/lib/sala-month'
 import { CardColorPanel } from '@/components/sala/card-color-panel'
+import { PageHeader } from '@/components/nav/page-header'
 import {
   cardPaletteStore,
   CARD_TINT_CLASS,
@@ -855,77 +856,37 @@ export function TuoTurnoClient({ currentUserId, profile, users, uploadedMonths, 
 
   return (
     <main data-pending-ring={pendingRing} className="max-w-lg mx-auto px-3 pt-6 pb-4">
-      {/* Il nome selezionabile identifica la persona; in confronto resta il contesto
-          della vista. Il titolo statico è già nella navigazione in basso. */}
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          {comparing ? (
-            <p className="truncate text-base text-muted-foreground">
-              <span className="font-semibold text-foreground">Confronto fra {comparePeople.length}</span> dipendenti
+      <PageHeader
+        period={<div className="min-w-0">{comparing ? (
+          <p className="truncate text-sm text-muted-foreground"><span className="font-semibold text-foreground">Confronto fra {comparePeople.length}</span> dipendenti</p>
+        ) : (
+          <button
+            onClick={() => { setQuery(''); setPickerOpen(true) }}
+            className="inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-lg px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Scegli di chi vedere i turni"
+          >
+            <span className="truncate font-semibold text-foreground">{displayName}</span>
+            <ChevronDown size={16} className="shrink-0" />
+          </button>
+        )}</div>}
+        datepicker={<div ref={monthNavRef} className="flex items-center justify-between gap-1">
+          <button onClick={goPrev} aria-label="Mese precedente" className="p-2 rounded-xl border border-border/60 hover:bg-muted transition-colors"><ChevronLeft size={20} /></button>
+          <div className="text-center">
+            <div className="relative inline-block">
+              <button type="button" onClick={() => setMonthPickerOpen(v => !v)} aria-label="Scegli mese e anno" aria-expanded={monthPickerOpen} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold leading-tight text-lg hover:bg-muted active:bg-muted transition-colors">
+                {formatMonthLabel(month)}
+                <ChevronDown size={16} className={cn('text-muted-foreground transition-transform', monthPickerOpen && 'rotate-180')} />
+              </button>
+              {monthPickerOpen && <MonthYearPicker month={month} uploadedMonths={uploadedMonths} onPick={m => { setMonth(m); setMonthPickerOpen(false) }} onClose={() => setMonthPickerOpen(false)} />}
+            </div>
+            <p className={cn('text-[11px] leading-tight', isRealMonth ? 'text-primary' : 'text-muted-foreground')}>
+              {isRealMonth ? (loadingReal ? 'caricamento…' : 'turni reali (PDF)') : 'turni teorici'}
             </p>
-          ) : (
-            <button
-              onClick={() => { setQuery(''); setPickerOpen(true) }}
-              className="mt-0.5 inline-flex items-center gap-1.5 text-base text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Scegli di chi vedere i turni"
-            >
-              <span className="font-semibold text-foreground">{displayName}</span>
-              <ChevronDown size={16} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Navigazione mese */}
-      <div ref={monthNavRef} className="flex items-center justify-between mb-3">
-        <button
-          onClick={goPrev}
-          aria-label="Mese precedente"
-          className="p-2 rounded-xl border border-border/60 hover:bg-muted transition-colors"
-        >
-          <ChevronLeft size={20} />
-        </button>
-        <div className="text-center">
-          {/* Mese e anno SELEZIONABILI: tap etichetta o frecce → menù di scelta rapida.
-              Il menù è ancorato al bottone (lo «span» mese anno): parte da lì, non
-              dalla caption sotto. */}
-          <div className="relative inline-block">
-            {/* Nessun bordo: l'affordance è il CHEVRON (segnale universale di
-                menù a tendina, come il trigger di turnisala) + il feedback hover. */}
-            <button
-              type="button"
-              onClick={() => setMonthPickerOpen(v => !v)}
-              aria-label="Scegli mese e anno"
-              aria-expanded={monthPickerOpen}
-              className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold leading-tight text-lg hover:bg-muted active:bg-muted transition-colors"
-            >
-              {formatMonthLabel(month)}
-              <ChevronDown size={16} className={cn('text-muted-foreground transition-transform', monthPickerOpen && 'rotate-180')} />
-            </button>
-            {monthPickerOpen && (
-              <MonthYearPicker
-                month={month}
-                uploadedMonths={uploadedMonths}
-                onPick={m => { setMonth(m); setMonthPickerOpen(false) }}
-                onClose={() => setMonthPickerOpen(false)}
-              />
-            )}
           </div>
-          <p className={cn('text-[11px] leading-tight', isRealMonth ? 'text-primary' : 'text-muted-foreground')}>
-            {isRealMonth
-              ? (loadingReal ? 'caricamento…' : 'turni reali (PDF)')
-              : 'turni teorici'}
-          </p>
-        </div>
-        <button
-          onClick={goNext}
-          aria-label="Mese successivo"
-          className="p-2 rounded-xl border border-border/60 hover:bg-muted transition-colors"
-        >
-          <ChevronRight size={20} />
-        </button>
-      </div>
-
+          <button onClick={goNext} aria-label="Mese successivo" className="p-2 rounded-xl border border-border/60 hover:bg-muted transition-colors"><ChevronRight size={20} /></button>
+        </div>}
+        className="mb-3"
+      />
       {comparing ? (
         loadingReal ? (
           // Il PDF del mese sta arrivando: righe skeleton, come le altre pagine.

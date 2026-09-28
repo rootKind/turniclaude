@@ -9,6 +9,7 @@ import { isAdmin, isManager } from '@/types/database'
 import { X, Palmtree } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { PageHeader } from '@/components/nav/page-header'
 
 const CONGEDO_FORM_URL = 'https://forms.office.com/e/aQWL0B86kC'
 
@@ -122,6 +123,7 @@ function DashboardContent() {
         </div>
       )}
 
+      <PageHeader group="cambi" />
       <div className="flex items-center justify-between mb-4 pr-12 gap-y-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           {/* Richiesta congedo (modulo esterno) — stesso stile del tasto Esci (destructive + bordo).

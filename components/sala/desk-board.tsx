@@ -5,6 +5,7 @@ import { X, ChevronDown } from 'lucide-react'
 import { it } from 'date-fns/locale'
 import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
+import { PageHeader } from '@/components/nav/page-header'
 import { toast } from 'sonner'
 import type { DeskCard as DeskCardType, SalaLayout, SalaLayoutDefaults, SalaMinimoEntry, SalaSchedule, SalaShiftType, ShiftTeamTree } from '@/types/database'
 import { groupAltriPresenti, type AltriGruppo } from '@/lib/altri-gruppi'
@@ -1211,6 +1212,7 @@ export function DeskBoard({
 
   return (
     <div className="flex flex-col gap-2 p-4">
+      <PageHeader group="turni" className="mb-0" />
       {/* Schedule header — hidden during layout edit */}
       {!isEditing && (
         <div className="flex items-center flex-wrap gap-1 sala-toolbar-bg border desk-schedule-border rounded-xl px-3 py-2 mr-14">

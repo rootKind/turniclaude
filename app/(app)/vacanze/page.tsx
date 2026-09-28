@@ -13,6 +13,7 @@ import { useAppSettings } from '@/hooks/use-app-settings'
 import { VacationRequestList } from '@/components/vacanze/vacation-request-list'
 import { VacationRequestDialog } from '@/components/vacanze/vacation-request-dialog'
 import { YearGateSkeleton } from '@/components/ui/year-gate-skeleton'
+import { PageHeader } from '@/components/nav/page-header'
 import type { VacationPeriod } from '@/types/database'
 
 const MAX_YEAR = 2099
@@ -143,48 +144,45 @@ function VacanzeContent() {
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 pb-4">
-      {profile && canToggleCategory && (
-        <div className="flex items-center flex-wrap gap-2 mb-3 pr-12">
+      {/* Periodo ferie: intestazione unica con categoria e selettore anno. */}
+      <PageHeader group="cambi" datepicker={(
+        <motion.div
+          key={displayYear}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="px-3 py-2.5 rounded-xl offered-box border flex items-center gap-2"
+        >
           <button
-            onClick={() => setViewSecondary(v => !v)}
-            className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
+            onClick={() => changeYear(-1)}
+            disabled={displayYear <= minYear}
+            aria-label="Anno precedente"
+            className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
           >
-            {viewSecondary ? 'DCO' : 'Noni'}
+            <ChevronLeft size={16} className="text-offered-label" />
           </button>
-        </div>
-      )}
-
-      {/* Periodo ferie con navigazione anno */}
-      <motion.div
-        key={displayYear}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.15, ease: 'easeOut' }}
-        className="mb-4 px-3 py-2.5 rounded-xl offered-box border flex items-center gap-2"
-      >
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] text-offered-label font-medium uppercase tracking-wide mb-0.5">Il tuo periodo {displayYear}</p>
+            <p className="text-[14px] font-semibold text-offered-value">{periodLabelYear === displayYear ? (periodLabel ?? '—') : '—'}</p>
+          </div>
+          <button
+            onClick={() => changeYear(1)}
+            disabled={displayYear >= MAX_YEAR}
+            aria-label="Anno successivo"
+            className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
+          >
+            <ChevronRight size={16} className="text-offered-label" />
+          </button>
+        </motion.div>
+      )} filters={profile && canToggleCategory ? (
         <button
-          onClick={() => changeYear(-1)}
-          disabled={displayYear <= minYear}
-          className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
+          onClick={() => setViewSecondary(v => !v)}
+          className="text-xs font-medium px-3 py-2 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
+          aria-label="Cambia gruppo turni"
         >
-          <ChevronLeft size={16} className="text-offered-label" />
+          {viewSecondary ? 'DCO' : 'Noni'}
         </button>
-        <div className="flex-1 min-w-0">
-          <p className="text-[11px] text-offered-label font-medium uppercase tracking-wide mb-0.5">
-            Il tuo periodo {displayYear}
-          </p>
-          <p className="text-[14px] font-semibold text-offered-value">
-            {periodLabelYear === displayYear ? (periodLabel ?? '—') : '—'}
-          </p>
-        </div>
-        <button
-          onClick={() => changeYear(1)}
-          disabled={displayYear >= MAX_YEAR}
-          className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors flex-shrink-0"
-        >
-          <ChevronRight size={16} className="text-offered-label" />
-        </button>
-      </motion.div>
+      ) : undefined} />
 
       <VacationRequestList
         isSecondary={effectiveIsSecondary}

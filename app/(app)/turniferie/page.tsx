@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { YearGateSkeleton } from '@/components/ui/year-gate-skeleton'
+import { PageHeader } from '@/components/nav/page-header'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useDuplicateCognomi } from '@/hooks/use-users'
@@ -265,33 +266,37 @@ export default function TurniFeriePage() {
       className="mx-auto px-3 pt-5 max-w-2xl flex flex-col"
       style={{ minHeight: 'calc(100dvh - 4rem)' }}
     >
-      <div className="flex items-center justify-between flex-wrap gap-2 mb-3 bg-card border border-border rounded-xl px-3 py-2 mr-14">
-        {canManage && (
+      <PageHeader group="turni" period={(
+        <div className="flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1">
           <button
-            onClick={() => setViewSecondary(v => !v)}
-            className="text-xs font-medium px-2 py-0.5 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
-          >
-            {viewSecondary ? 'DCO' : 'Noni'}
-          </button>
-        )}
-        <div className="ml-auto flex items-center gap-1">
-          <button
+            type="button"
             onClick={() => setSelectedYear(y => Math.max(minYear, y - 1))}
             disabled={selectedYear <= minYear}
-            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
+            aria-label="Anno precedente"
+            className="flex size-10 items-center justify-center rounded-full hover:bg-muted disabled:opacity-30"
           >
             <ChevronLeft size={18} />
           </button>
-          <span className="text-sm font-semibold tabular-nums w-14 text-center">{selectedYear}</span>
+          <span className="min-w-14 text-center text-sm font-semibold tabular-nums">{selectedYear}</span>
           <button
+            type="button"
             onClick={() => setSelectedYear(y => Math.min(MAX_YEAR, y + 1))}
             disabled={selectedYear >= MAX_YEAR}
-            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors"
+            aria-label="Anno successivo"
+            className="flex size-10 items-center justify-center rounded-full hover:bg-muted disabled:opacity-30"
           >
             <ChevronRight size={18} />
           </button>
         </div>
-      </div>
+      )} filters={canManage ? (
+        <button
+          onClick={() => setViewSecondary(v => !v)}
+          className="text-xs font-medium px-3 py-2 rounded-full border border-current text-primary hover:bg-primary/10 transition-colors"
+          aria-label="Cambia gruppo turni"
+        >
+          {viewSecondary ? 'DCO' : 'Noni'}
+        </button>
+      ) : undefined} />
 
       <div className="grid grid-cols-2 gap-2" style={{ gridTemplateRows: 'repeat(3, auto)' }}>
         {grouped.map(({ period, meta, users }, index) => {
