@@ -8,11 +8,10 @@ import { clearAllLocalData } from '@/lib/cache'
 import { usePush } from '@/hooks/use-push'
 import { updateUserProfile } from '@/lib/queries/users'
 import { useQueryClient } from '@tanstack/react-query'
-import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Sun, Moon } from 'lucide-react'
+import { Sun, Moon, Palette, BellRing, UserRound, Info, LockKeyhole, MessageSquareWarning, LogOut, Sparkles } from 'lucide-react'
 import { FeedbackDialog } from './feedback-dialog'
 import { CHANGELOG_SHOW_ALL_EVENT } from '@/components/providers/changelog-dialog'
 import { versioneTesto } from '@/lib/app-version'
@@ -52,11 +51,11 @@ export function SettingsPage() {
   }
 
   return (
-    <main className="max-w-lg mx-auto px-4 pt-6 pb-4 space-y-6">
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tema</h2>
-        <div className="flex items-center justify-between">
-          <Label>Aspetto</Label>
+    <main className="max-w-lg mx-auto px-4 pt-6 pb-4 space-y-7">
+      <section className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm">
+        <SectionHeading icon={Palette} title="Aspetto" />
+        <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/60 px-3 py-2">
+          <Label>Tema</Label>
           <div className="flex items-center rounded-full border p-1 gap-0.5">
             <button
               onClick={() => setTheme('light')}
@@ -86,10 +85,8 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <Separator />
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Notifiche</h2>
+      <section className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm">
+        <SectionHeading icon={BellRing} title="Notifiche" />
 
         {permission === 'denied' && (
           <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 space-y-2">
@@ -120,7 +117,7 @@ export function SettingsPage() {
             {/* Gruppo generale: toggle master attivo/disattivo */}
             <div className="space-y-3">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Generali</p>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-background/60 px-3 py-2">
                 <Label htmlFor="notif-enabled">Notifiche attive</Label>
                 <Switch
                   id="notif-enabled"
@@ -134,8 +131,8 @@ export function SettingsPage() {
             <div className="space-y-3">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Turni</p>
               {!isManagerUser && (
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="notif-interest">Qualcuno è interessato al mio turno</Label>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
+                <Label htmlFor="notif-interest">Qualcuno è interessato al mio turno</Label>
                   <Switch
                     id="notif-interest"
                     checked={profile?.notify_on_interest ?? true}
@@ -144,7 +141,7 @@ export function SettingsPage() {
                   />
                 </div>
               )}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
                 <Label htmlFor="notif-new">Nuovo turno pubblicato</Label>
                 <Switch
                   id="notif-new"
@@ -174,7 +171,7 @@ export function SettingsPage() {
               </div>
               {/* DCO+ e Noni ricevono notifiche dei turni dell'altro gruppo (mansioni superiori) */}
               {(profile?.is_dco_plus || profile?.is_secondary) && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
                   <Label htmlFor="notif-cross">Nuovo turno pubblicato mansioni superiori</Label>
                   <Switch
                     id="notif-cross"
@@ -190,8 +187,8 @@ export function SettingsPage() {
             <div className="space-y-3">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Ferie</p>
               {!isManagerUser && (
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="notif-vacation-interest">Qualcuno è interessato al mio cambio ferie</Label>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
+                <Label htmlFor="notif-vacation-interest">Qualcuno è interessato al mio cambio ferie</Label>
                   <Switch
                     id="notif-vacation-interest"
                     checked={profile?.notify_on_vacation_interest ?? true}
@@ -200,7 +197,7 @@ export function SettingsPage() {
                   />
                 </div>
               )}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2">
                 <Label htmlFor="notif-vacation-new">Nuovo cambio ferie disponibile</Label>
                 <Switch
                   id="notif-vacation-new"
@@ -235,32 +232,16 @@ export function SettingsPage() {
         )}
       </section>
 
-      <Separator />
-
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Account</h2>
-        <Button variant="outline" className="w-full" onClick={() => router.push('/update-password')}>
-          Cambia password
-        </Button>
-        <Button variant="outline" className="w-full" onClick={() => setFeedbackOpen(true)}>
-          Invia segnalazione
-        </Button>
-        <Button variant="destructive" className="w-full border-destructive/40" onClick={handleLogout}>
-          Esci
-        </Button>
+      <section className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm">
+        <SectionHeading icon={UserRound} title="Account" />
+        <SettingsRow icon={LockKeyhole} label="Cambia password" onClick={() => router.push('/update-password')} />
+        <SettingsRow icon={MessageSquareWarning} label="Invia segnalazione" onClick={() => setFeedbackOpen(true)} />
+        <SettingsRow icon={LogOut} label="Esci" onClick={handleLogout} destructive />
       </section>
 
-      <Separator />
-
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Info app</h2>
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => window.dispatchEvent(new Event(CHANGELOG_SHOW_ALL_EVENT))}
-        >
-          Novità
-        </Button>
+      <section className="space-y-3 rounded-2xl border border-border/70 bg-card/70 p-4 shadow-sm">
+        <SectionHeading icon={Info} title="Info app" />
+        <SettingsRow icon={Sparkles} label="Novità" onClick={() => window.dispatchEvent(new Event(CHANGELOG_SHOW_ALL_EVENT))} />
         {/* `suppressHydrationWarning`: la data è formattata con l'ora di Roma da
             un valore cotto alla build, e il formato può differire di un soffio fra
             l'HTML del server e il browser. È informazione, non stato. */}
@@ -272,5 +253,36 @@ export function SettingsPage() {
       <NotificationHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </main>
+  )
+}
+
+function SectionHeading({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+  return (
+    <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+      <Icon size={15} strokeWidth={1.8} />
+      {title}
+    </h2>
+  )
+}
+
+function SettingsRow({ icon: Icon, label, onClick, destructive = false }: {
+  icon: React.ElementType
+  label: string
+  onClick: () => void
+  destructive?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex min-h-12 w-full items-center gap-3 rounded-xl border border-border/60 bg-background/60 px-3 text-left text-sm font-medium transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        destructive && 'text-destructive',
+      )}
+    >
+      <Icon size={18} strokeWidth={1.8} className="shrink-0 text-muted-foreground" />
+      <span className="flex-1">{label}</span>
+      <span aria-hidden="true" className="text-lg text-muted-foreground">›</span>
+    </button>
   )
 }
