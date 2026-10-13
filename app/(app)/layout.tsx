@@ -1,48 +1,23 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import { BottomNav } from '@/components/nav/bottom-nav'
-import { isAdmin } from '@/types/database'
-import { PageTransitionWrapper } from '@/components/providers/page-transition'
-import { ChangelogDialog } from '@/components/providers/changelog-dialog'
-import { PushPermissionPrompt } from '@/components/providers/push-permission-prompt'
-import { RealtimeInvalidation } from '@/components/providers/realtime-invalidation'
+import { AppChrome } from '@/components/providers/app-chrome'
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const admin = isAdmin(user.id)
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('is_manager')
-    .eq('id', user.id)
-    .single()
-  const manager = profile?.is_manager ?? false
-
-  // Count unread feedback for admin badge (only fetched server-side for admin)
-  let feedbackUnread = 0
-  if (admin) {
-    const { count } = await supabase
-      .from('feedback')
-      .select('*', { count: 'exact', head: true })
-      .eq('read', false)
-    feedbackUnread = count ?? 0
-  }
-
-  return (
-    <div className="min-h-screen safe-area-pt pb-[calc(6rem_+_env(safe-area-inset-bottom,0px))]">
-      {/* Un solo canale realtime per l'app: invalida le query anagrafiche
-          (utenti, albero squadre, mesi tuoturno) sui cambi delle tabelle. */}
-      <RealtimeInvalidation />
-      <PageTransitionWrapper>{children}</PageTransitionWrapper>
-      <ChangelogDialog />
-      {/* Promemoria permessi notifica (richiesta 16/09/2026): fuori dal server
-          component (ha bisogno di Notification API) ma nel layout, così vale per
-          tutte le pagine autenticate. */}
-      <PushPermissionPrompt />
-      <BottomNav feedbackUnread={feedbackUnread} isAdmin={admin} isManager={manager} />
-    </div>
-  )
+/**
+ * LAYOUT DELLE PAGINE AUTENTICATE — deliberatamente SENZA lavoro server.
+ *
+ * Prima era un server component `async` che a ogni render faceva
+ * `supabase.auth.getUser()`, un `select` su `users` e (per l'admin) un `count` su
+ * `feedback`. Bastava questo a rendere DINAMICHE tutte le rotte sotto `(app)`,
+ * quindi ogni prefetch della barra di navigazione era un render completo.
+ *
+ * Il modo di fare di Next non è gratis: è la lettura dei cookie (`createClient`,
+ * `cookies()`) a dichiarare la pagina "dynamic". Senza, le pagine che non
+ * chiedono dati al server vengono prerenderizzate e il prefetch le serve già
+ * pronte.
+ *
+ * La guardia d'accesso non si perde: sta in `proxy.ts` (middleware), che copre
+ * ogni prefisso protetto — /dashboard, /turnisala, /turniferie, /vacanze,
+ * /tuoturno, /impostazioni, /notifiche, /admin — e rimanda a /login chi non ha
+ * sessione. La chrome per-utente (admin/manager/badge) è client: app-chrome.tsx.
+ */
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return <AppChrome>{children}</AppChrome>
 }

@@ -49,6 +49,26 @@ export const test = base.extend<{
       // STESSO nome di cookie: senza clear, chi vince dipende dall'ordine).
       await context.clearCookies()
       await context.addCookies(asPlaywrightCookies(session))
+      // I COOKIE NON SONO TUTTO: l'app si identifica anche dal CLIENT e tiene il
+      // profilo in localStorage (`cache:{userId}:user-profile`, con
+      // `cache:last-user-id` a dire qual è). Sostituendo solo i cookie, la pagina
+      // disegna col profilo del dipendente PRECEDENTE — la pillola «SEI TU» di
+      // Cosenza sulla board di Di Monda — finché la guardia
+      // (components/providers/auth-cache-guard.tsx) non se ne accorge. Nella vita
+      // vera quel cambio passa da un login, che svuota le cache (clearUserCaches):
+      // qui lo fa il fixture. SOLO le chiavi `cache:*`: i bypass del contesto di
+      // test (tests/browser-setup.ts) vivono in altre chiavi e restano.
+      const svuotaCache = () => {
+        try {
+          const keys: string[] = []
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i)
+            if (k && k.startsWith('cache:')) keys.push(k)
+          }
+          keys.forEach(k => localStorage.removeItem(k))
+        } catch { /* storage negato: la pagina riparte comunque dal DB */ }
+      }
+      await page.evaluate(svuotaCache).catch(() => { /* pagina non ancora navigata */ })
       return page
     })
   },
