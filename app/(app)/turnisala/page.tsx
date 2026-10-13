@@ -1,62 +1,34 @@
 import { Suspense } from 'react'
-import { createClient } from '@/lib/supabase/server'
-import { isAdmin } from '@/types/database'
-
-import { getSalaLayout } from '@/lib/queries/sala-layout'
-import { getSalaSchedule, listScheduleMonths } from '@/lib/queries/sala-schedule'
-import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
-import { generateTheoreticalMonth, theoreticalMonthList } from '@/lib/turni-teorici'
 import { SalaPageClient } from './sala-page-client'
+import TurniSalaLoading from './loading'
 
-export default async function TurniSalaPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const admin = user ? isAdmin(user.id) : false
-
-  const now = new Date()
-  const todayMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
-  const [layout, scheduleMonths, userProfile, shiftTree] = await Promise.all([
-    getSalaLayout(supabase),
-    listScheduleMonths(supabase),
-    user
-      ? supabase.from('users').select('cognome, nome, is_manager').eq('id', user.id).maybeSingle().then(r => r.data)
-      : Promise.resolve(null),
-    fetchShiftTeamTree(supabase),
-  ])
-
-  const manager = userProfile?.is_manager ?? false
-
-  // Mesi non caricati a mano, riempiti coi turni teorici (rotazione attuale).
-  const theoreticalMonths = theoreticalMonthList(scheduleMonths)
-
-  const initialMonth = scheduleMonths.includes(todayMonth) ? todayMonth : (scheduleMonths[0] ?? todayMonth)
-  const initialIsTheoretical = !scheduleMonths.includes(initialMonth)
-  const initialSchedule = initialIsTheoretical
-    ? generateTheoreticalMonth(initialMonth, shiftTree, shiftTree.adjustments)
-    : scheduleMonths.length > 0
-      ? await getSalaSchedule(supabase, initialMonth)
-      : null
-
+/**
+ * /turnisala — la board della sala (piantina, mese reale dal PDF o teorico,
+ * «Teorico ≠ reale», upload dei PDF, minimi).
+ *
+ * PAGINA STATICA (13/10/2026): qui non si legge più niente dal server. Piantina,
+ * elenco dei mesi, mese a schermo, profilo (admin/manager) e albero squadre
+ * arrivano dalle vie cache-first del client (hooks/use-sala-data +
+ * hooks/use-users + lib/sala-schedule-cache). Prima erano un server component
+ * `async` che a ogni render — compresi i prefetch che la barra di navigazione fa
+ * da sola — pagava sessione, piantina, mesi, anagrafica e albero per produrre un
+ * HTML che era comunque il placeholder del `PwaGuard`: la board la disegna il
+ * client. Le render che restavano al server erano TUTTE prefetch di questa pagina
+ * e di /tuoturno (scripts/count-server-requests.mjs).
+ *
+ * La guardia d'accesso resta nel middleware (proxy.ts); il mese a schermo si
+ * legge prima dalla cache IndexedDB e poi dalla rete, come già faceva ogni cambio
+ * mese.
+ */
+export default function TurniSalaPage() {
   return (
     // Suspense: SalaPageClient legge i parametri della URL (arrivo da una card di
     // cambio, «vengo da qui»). Senza confine, una pagina con useSearchParams non
-    // può essere prerenderizzata (stesso schema della dashboard).
-    <Suspense fallback={null}>
-      <SalaPageClient
-        layout={layout}
-        isAdmin={admin}
-        isManager={manager}
-        userId={user?.id ?? ''}
-        userCognome={userProfile?.cognome ?? undefined}
-        userNome={userProfile?.nome ?? undefined}
-        initialSchedule={initialSchedule}
-        initialMonth={initialMonth}
-        scheduleMonths={scheduleMonths}
-        theoreticalMonths={theoreticalMonths}
-        initialShiftTree={shiftTree}
-      />
+    // può essere prerenderizzata (stesso schema della dashboard). Il fallback è lo
+    // skeleton di rotta: con un confine Suspense l'HTML statico ha qualcosa da
+    // mostrare mentre i parametri si risolvono.
+    <Suspense fallback={<TurniSalaLoading />}>
+      <SalaPageClient />
     </Suspense>
   )
-}
+}

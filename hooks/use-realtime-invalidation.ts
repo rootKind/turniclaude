@@ -4,9 +4,12 @@
 // tabelle anagrafiche cambiano, così la cache lunga (staleTime 6h) resta
 // corretta. Push, non polling: zero traffico quando nulla cambia.
 //
-// NB sala_schedule NON è qui: la pagina /turnisala ha la sua sottoscrizione
-// dedicata (espande il jsonb v2 e scrive la cache IDB); /tuoturno rilegge i
-// mesi cache-first a ogni switch, quindi la sua copia locale si sana da sé.
+// NB il MESE a schermo di /turnisala (jsonb espanso + cache IDB) NON passa da
+// qui: quella pagina ha la sua sottoscrizione dedicata. Ma l'ELENCO dei mesi e
+// la storia dei PDF sì (13/10/2026): da quando le due pagine li leggono dal
+// client, chi ha l'app aperta deve sapere che è stato caricato o cancellato un
+// PDF senza ricaricare — altrimenti /tuoturno terrebbe un predittore vecchio
+// finché la query non scade (5 minuti) e /turnisala un elenco mesi stantìo.
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
@@ -24,6 +27,11 @@ const TABLE_TO_PREFIX: ReadonlyArray<{ table: string; prefix: string[] }> = [
   { table: 'shift_teams', prefix: ['shift-team-tree'] },
   { table: 'shift_team_members', prefix: ['shift-team-tree'] },
   { table: 'shift_adjustments', prefix: ['shift-team-tree'] },
+  // Mesi caricati a mano: l'elenco (quali mesi sono «reali») e la storia da cui
+  // /tuoturno deduce il teorico. Il predittore si ricalcola da sé quando la
+  // storia cambia, perché è un useMemo sugli stessi dati (use-sala-data.ts).
+  { table: 'sala_schedule', prefix: ['sala-months'] },
+  { table: 'sala_schedule', prefix: ['tuoturno-months'] },
 ]
 
 export function useRealtimeInvalidation(): void {

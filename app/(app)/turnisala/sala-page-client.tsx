@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 /** «2026-09» → «set 2026» per i toast del batch (etichetta breve). */
@@ -18,14 +18,23 @@ import {
   readCachedSchedule,
   writeCachedSchedule,
 } from '@/lib/sala-schedule-cache'
-import { generateTheoreticalMonth } from '@/lib/turni-teorici'
+import { generateTheoreticalMonth, theoreticalMonthList } from '@/lib/turni-teorici'
 import { useShiftTeamTreeData } from '@/hooks/use-users'
+import { useCurrentUser } from '@/hooks/use-current-user'
+import { SALA_LAYOUT_KEY, SALA_MONTHS_KEY, useSalaLayout, useScheduleMonths } from '@/hooks/use-sala-data'
+import TurniSalaLoading from './loading'
 import { buildScheduleFromMonthData, isSalaMonthData } from '@/lib/sala-month'
 import { SALA_FLASH_MS, parseSalaFocus, type SalaFocus } from '@/lib/shift-tokens'
 import { DeskBoard, MONTHS_IT } from '@/components/sala/desk-board'
 import { ShiftCleanupDialog } from '@/components/admin/shift-cleanup-dialog'
 import type { ShiftCleanupCandidate } from '@/lib/queries/shift-cleanup'
-import type { SalaLayout, SalaSchedule, ShiftTeamTree } from '@/types/database'
+import { isAdmin as isAdminUser, type SalaLayout, type SalaSchedule, type ShiftTeamTree } from '@/types/database'
+
+/** Il mese corrente come «2026-10»: la forma delle chiavi di sala_schedule. */
+function oggiMese(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
 
 function useLandscapeLock() {
   useEffect(() => {
@@ -37,38 +46,29 @@ function useLandscapeLock() {
   }, [])
 }
 
-interface Props {
-  layout: SalaLayout
-  isAdmin: boolean
-  isManager?: boolean
-  userId: string
-  userCognome?: string
-  userNome?: string
-  initialSchedule: SalaSchedule | null
-  initialMonth: string
-  scheduleMonths: string[]
-  theoreticalMonths: string[]
-  /** Albero squadre precaricato dal SERVER (15/09/2026): il fetch client-side
-   *  (fetchShiftTeamTree con la sessione del browser) può tornare 0 righe anche
-   *  autenticato — il server lo vede invece sempre. Serve alla vista
-   *  «Teorico ≠ reale» e ai mesi teorici. */
-  initialShiftTree: ShiftTeamTree
-}
-
-export function SalaPageClient({
-  layout,
-  isAdmin,
-  isManager = false,
-  userId,
-  userCognome,
-  userNome,
-  initialSchedule,
-  initialMonth,
-  scheduleMonths: initialMonths,
-  theoreticalMonths,
-  initialShiftTree,
-}: Props) {
+export function SalaPageClient() {
   useLandscapeLock()
+
+  // PROFILO E PERMESSI DAL CLIENT (13/10/2026): prima arrivavano come prop della
+  // pagina server (`getUser` + `select` su users a ogni render). `useCurrentUser`
+  // legge lo stesso profilo dalla cache — localStorage, react-query, IndexedDB —
+  // ed è la fonte su cui la chrome dell'app già decide barra e badge. `isAdmin` è
+  // una funzione pura dell'id (types/database), quindi non serve il server.
+  const { profile, isLoading: profiloInArrivo } = useCurrentUser()
+  const userId = profile?.id ?? ''
+  const isAdmin = !!profile && isAdminUser(profile.id)
+  const isManager = profile?.is_manager ?? false
+  const userCognome = profile?.cognome ?? undefined
+  const userNome = profile?.nome ?? undefined
+
+  // PIANTINA E MESI, le due query del client (hooks/use-sala-data). La piantina
+  // si richiede a OGNI apertura — è il documento condiviso che porta le card e i
+  // minimi in vigore; l'elenco dei mesi decide quali mesi sono «reali» (PDF) e
+  // quali teorici.
+  const layoutQuery = useSalaLayout()
+  const layout = layoutQuery.data
+  const monthsQuery = useScheduleMonths()
+  const queryClient = useQueryClient()
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -81,7 +81,7 @@ export function SalaPageClient({
     localStorage.setItem('turni-last-page', '/turnisala')
   }, [])
 
-  const [schedule, setSchedule] = useState<SalaSchedule | null>(initialSchedule)
+  const [schedule, setSchedule] = useState<SalaSchedule | null>(null)
   /* IL MESE A SCHERMO È CONFERMATO? (19/09/2026 — il caso del collega che vedeva
      «non è in sala» su persone che c'erano). La board disegna SUBITO la copia in
      IndexedDB e riconvalida in background: se quella copia è più vecchia del PDF
@@ -95,32 +95,39 @@ export function SalaPageClient({
     setScheduleFresco(fresco)
     setSchedule(m)
   }
-  const [currentMonth, setCurrentMonth] = useState(initialMonth)
-  const [availableMonths, setAvailableMonths] = useState(initialMonths)
-  // Cache-first (20/09/2026): il server renderizza il primo mese e IDB copre
-  // TUTTI i cambi mese successivi. I mesi teorici restano fuori dalla cache:
-  // si generano al volo dal tree (zero rete, già così).
-  // L'albero arriva GIÀ dal server (initialShiftTree): il refetch client è solo
-  // un fallback/correzione. Prima del 15/09/2026 si partiva da null e il fetch
-  // client-side poteva tornare 0 righe (RLS «authenticated» con sessione del
-  // browser) lasciando la pagina senza teorico né vista «Teorico ≠ reale».
-  const [shiftTree, setShiftTree] = useState<ShiftTeamTree | null>(initialShiftTree)
-  // L'albero che il SERVER ha appena mandato entra nella cache di react-query
-  // (27/09/2026). Motivo: `useShiftTeamTreeData` è persistito su IndexedDB con
-  // la sua `staleTime` di 6 ore, e il restore poteva rimettere la copia di
-  // ieri DOPO la risposta di rete, rovinando un asset appena cambiato (il caso
-  // LONI A.: ciclo da 252 delle rilievo invece che da 84 della rosa per tutto
-  // novembre). Con il seme qui dentro, la copia persistita è più veccola di
-  // quello che il client ha in mano e `ilRestoreVale` la scarta: la prima
-  // apertura resta senza attese e senza rete, perché quell'albero l'abbiamo
-  // già pagato con la pagina. Effetto figlio PRIMA di quello del provider
-  // (React li esegue in questo ordine), quindi il seme è in mano quando arriva
-  // il restore asincrono.
-  const queryClient = useQueryClient()
-  useEffect(() => {
-    if (initialShiftTree) queryClient.setQueryData(['shift-team-tree'], initialShiftTree)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const [currentMonth, setCurrentMonth] = useState<string>(oggiMese())
+  /* L'ELENCO DEI MESI È UNA COSA SOLA: la query (13/10/2026).
+
+     Prima era copiato in uno stato locale sincronizzato da un effetto, e quella
+     copia nel primo render è VUOTA: chi caricava un mese in quel giro — l'arrivo
+     con «vengo da qui», che parte appena la URL è leggibile — lo trovava fuori
+     dall'elenco, lo scambiava per un mese TEORICO e non lo chiedeva al DB. Board
+     senza persone su un mese che nel PDF c'era (visto dai test della board:
+     chip gialle, flash della card, pill «SEI TU»). Ora upload, delete e realtime
+     scrivono nella cache della query: chi legge vede sempre la stessa lista. */
+  const availableMonths = useMemo(() => monthsQuery.data ?? [], [monthsQuery.data])
+  /** L'elenco dei mesi è arrivato (cache o rete)? Finché no non si può dire che
+   *  un mese è teorico: lo dice il DB, con `getSalaSchedule` che torna null. */
+  const mesiNoti = monthsQuery.data !== undefined
+  // `useCallback`: upload e realtime scrivono nella cache della QUERY (sotto
+  // `availableMonths`), e la sottoscrizione realtime ha `aggiornaMesi` fra le sue
+  // dipendenze — ricrearla a ogni render la farebbe risottoscrivere a vuoto.
+  const aggiornaMesi = useCallback((updater: (prev: string[]) => string[]) => {
+    queryClient.setQueryData<string[]>(SALA_MONTHS_KEY, prev => updater(prev ?? []))
+  }, [queryClient])
+  // I mesi NON caricati si generano dal tree: stessa funzione che la pagina
+  // server applicava all'elenco dei mesi.
+  const theoreticalMonths = useMemo(() => theoreticalMonthList(availableMonths), [availableMonths])
+  // ALBERO SQUADRE CACHE-FIRST. Fino al 13/10/2026 partìva da un seme mandato dal
+  // server dentro la pagina (e il seme serviva anche a vincere il restore su
+  // IndexedDB, vedi `ilRestoreVale`: il ciclo «LONI A.» da 252 invece che da 84).
+  // Senza pagina server il seme non esiste più e vale la regola del progetto per
+  // i dati anagrafici: copia su IndexedDB (fino a 6 ore, poi riconvalida) chiusa
+  // subito da un evento realtime. Non è una regressione di QUESTA pagina: è il
+  // contratto con cui le altre pagine leggono già lo stesso albero.
+  const [shiftTree, setShiftTree] = useState<ShiftTeamTree | null>(null)
+  /** Un caricamento di mese è già partito (apre la pagina o cambio mese). */
+  const caricamentoMeseAvviato = useRef(false)
   // Richieste di cambio già esaudite dai PDF appena caricati: popup di conferma.
   // Upload MULTIPLI (19/09/2026): i candidati di OGNI mese finiscono in coda;
   // il dialog li mostra uno alla volta (shift-cleanup-dialog è per un mese).
@@ -136,26 +143,25 @@ export function SalaPageClient({
   // Mirror per i callback realtime (sottoscrizione montata una volta sola).
   const shiftTreeRef = useRef(shiftTree)
   shiftTreeRef.current = shiftTree
-  // Cache-first: se il primo mese arriva già dalla rete SSR, la sua copia in
-  // IDB va aggiornata una volta, qui al mount (evita un refetch inutile).
-  // SOLO se è un mese caricato: i mesi teorici non vanno in cache (si
-  // rigenerano dal tree, zero rete) — inizialeSchedule teorico = skip.
+  /* IL MESE SI SCEGLIE UNA VOLTA (apertura della pagina): finché non è stato
+     scelto, NESSUN altro effetto può inventare un mese (vedi l'effetto del tree:
+     senza questa guardia disegnava il teorico di oggi su un mese che un PDF ce
+     l'ha, e l'arrivo «vengo da qui» lampeggiava lì). Il ref sta qui e non accanto
+     all'effetto che lo accende perché l'effetto del tree lo legge prima. */
+  const apertura = useRef(false)
+  // Cleanup dei mesi rimasti in cache oltre la finestra di mantenimento: si fa
+  // quando l'elenco dei mesi è noto, perché è lui a dire quali tenere. Prima ci
+  // pensava il mount, con l'elenco nelle prop della pagina server.
   useEffect(() => {
-    if (initialSchedule && userId && initialSchedule.data) {
-      writeCachedSchedule(userId, initialSchedule)
-    }
-    // Cleanup di mesi rimasti in cache oltre la finestra di mantenimento.
-    if (userId) pruneSalaScheduleCache(userId, initialMonths)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (userId && monthsQuery.data) void pruneSalaScheduleCache(userId, monthsQuery.data)
+  }, [userId, monthsQuery.data])
 
-  // Albero squadre CACHE-FIRST (20/09/2026): parte dall'SSR, poi l'hook lo
-  // idrata/riconvalida (IDB + staleTime 6h) e il realtime lo tiene aggiornato
-  // quando un admin modifica squadre/cicli — prima il client NON ricaricava
-  // MAI l'albero dopo il mount.
-  // Il restore da IDB può essere leggermente meno fresco dell'SSR solo se un
-  // ALTRO dispositivo ha modificato le squadre mentre l'app era chiusa: la
-  // finestra è ≤6h (poi riconvalida) e guarisce al primo evento realtime.
+  // Albero squadre CACHE-FIRST: l'hook lo prende dalla copia su IndexedDB — o
+  // dalla rete, se scaduta — e il realtime lo tiene aggiornato quando un admin
+  // modifica squadre/cicli. Fino al 13/10/2026 il seme lo mandava il server
+  // dentro la pagina; senza pagina server la finestra di scostamento è quella
+  // del progetto per i dati anagrafici (≤6h, chiusa da un evento realtime): la
+  // stessa con cui la dashboard legge già lo stesso albero.
   const isTheoretical = (month: string) => theoreticalMonths.includes(month)
   // Mese caricato a mano nel DB (PDF): per questi ha senso interrogare la tabella.
   // TUTTI gli altri (anche fuori dalla lista finita theoreticalMonths, che copre
@@ -167,32 +173,56 @@ export function SalaPageClient({
   useEffect(() => {
     if (!refreshedTree) return
     setShiftTree(refreshedTree)
-    // Il mese corrente è teorico e non è ancora stato generato: rigenera ora.
-    // SOLO se il mese NON è caricato (è il caso per cui questo effetto esiste):
-    // per un mese con PDF questa era una copia PREVISTA messa a schermo mentre la
-    // vera stava ancora arrivando — e la board ci GIUDICAVA SOPRA: l'avviso «non è
-    // in sala» su una persona che nel PDF c'è (riprodotto su 2026-03: pillola
-    // accesa e avviso insieme). La copia locale già non decide (scheduleFresco);
-    // una copia INVENTATA non deve decidere ancora di più.
+    /* DUE GUARDIE, e servono entrambe.
+
+       (1) `apertura`: il mese si sceglie una volta sola, e finché non è scelto
+       `currentMonth` è solo «oggi» — un valore di partenza, non una decisione.
+       Questo effetto disegnava il TEORICO DI OGGI su un mese che un PDF ce l'ha,
+       e la board ci GIUDICA SOPRA: arrivando da una card («m=2026-08») il flash
+       si accendeva su una griglia teorica, con la persona in una sezione che nel
+       PDF non esiste, e un istante dopo atterrava il mese vero (visto su iOS,
+       WebKit, 4 worker: la stessa spec passava da sola).
+
+       (2) `mesiNoti`: senza l'elenco dei mesi `isUploaded` dice «no» di un mese
+       che un PDF ce l'ha, e qui sotto nascerebbe di nuovo un mese inventato.
+       `handleMonthChange` aspetta l'elenco prima di dire «teorico»: anche questa
+       via deve aspettarlo, o l'attesa dell'altra non serve a niente.
+
+       Resta il caso per cui l'effetto esiste: il mese è DAVVERO teorico e il
+       tree arriva dopo l'apertura — lì si rigenera, ed è quello che l'utente
+       deve vedere. */
+    if (!apertura.current || !mesiNoti) return
     if (!scheduleRef.current && !isUploaded(currentMonthRef.current)) {
       mettiMese(generateTheoreticalMonth(currentMonthRef.current, refreshedTree, refreshedTree.adjustments))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshedTree])
+  }, [refreshedTree, mesiNoti, availableMonths])
 
   const handleSaveLayout = async (updated: SalaLayout) => {
     const supabase = createClient()
     await upsertSalaLayout(supabase, updated, userId)
+    // Chi salva è il primo che deve vederlo: la cache della piantina si aggiorna
+    // qui, senza aspettare il prossimo refetch. `sala_layout` non è nel
+    // publication realtime, quindi agli ALTRI dispositivi il salvataggio arriva
+    // alla loro prossima apertura — come avveniva col render del server.
+    queryClient.setQueryData(SALA_LAYOUT_KEY, updated)
   }
 
   const handleMonthChange = async (month: string) => {
+    // «Un mese è già stato chiesto»: serve all'apertura della pagina, che non
+    // deve rimettere sopra il mese di oggi un mese arrivato da un'altra strada
+    // (l'arrivo con «vengo da qui» ha i suoi parametri nella URL).
+    caricamentoMeseAvviato.current = true
     setCurrentMonth(month)
-    if (!isUploaded(month)) {
+    if (mesiNoti && !isUploaded(month)) {
       // Mese teorico: si genera al volo. Se l'albero squadre non è ancora
       // arrivato, l'effetto di caricamento iniziale rigenera appena arriva.
       mettiMese(shiftTree ? generateTheoreticalMonth(month, shiftTree, shiftTree.adjustments) : null)
       return
     }
+    // Elenco dei mesi non ancora noto: NON si tira a indovinare. Si chiede il
+    // mese al DB — è lui a dire se esiste — e se non c'è si ricade sul teorico
+    // (più sotto), che è esattamente il caso «mese mai caricato».
     // Cache-first: disegna SUBITO il mese da IndexedDB, poi riconvalida in
     // background. A caldo zero attese; se la cache non c'è la rete decide.
     let cached: SalaSchedule | null = null
@@ -209,8 +239,12 @@ export function SalaPageClient({
       // in volo: non sovrascrivere il mese attualmente a schermo.
       if (currentMonthRef.current !== month) return
       if (data) {
+        // La copia in cache si scrive PRIMA di mettere il mese a schermo: così
+        // «il mese che vedi» e «il mese in cache» sono la stessa cosa nello
+        // stesso istante, e non esiste una finestra in cui la board mostra il
+        // PDF e la cache è ancora quella vecchia (o vuota).
+        if (userId) await writeCachedSchedule(userId, data)
         mettiMese(data)
-        if (userId) writeCachedSchedule(userId, data)
       } else if (!cached && shiftTree) {
         // Mese rimosso dal DB ma non più in cache: fallback teorico.
         // NON confermato (`false`): è una PREVISIONE su un mese che il DB dà per
@@ -225,15 +259,40 @@ export function SalaPageClient({
     }
   }
 
+  /* APERTURA DELLA PAGINA (13/10/2026): il mese a schermo non arriva più dal
+     server insieme all'HTML. Appena l'elenco dei mesi è noto si applica la
+     stessa regola di prima — il mese di oggi se un PDF ce l'ha, altrimenti il
+     più recente, altrimenti oggi (mese teorico) — e si carica il mese per la via
+     cache-first che la pagina usa già per OGNI cambio mese: IndexedDB subito,
+     rete in background, teorico dal tree se il mese non è caricato. Lo scatto è
+     unico (`apertura`): da lì in poi decide l'utente. */
+  useEffect(() => {
+    /* Si aspetta di sapere CHI siamo: le chiavi della cache locale dei mesi sono
+       per utente, e senza `userId` il mese si caricherebbe senza salvarsi (o
+       senza leggersi) — su un dispositivo nuovo l'apertura non lascerebbe nulla
+       in cache. Il profilo è in cache su localStorage: a un utente che torna non
+       costa nessuna attesa. */
+    if (apertura.current || profiloInArrivo || caricamentoMeseAvviato.current || !monthsQuery.isSuccess) return
+    apertura.current = true
+    const months = monthsQuery.data ?? []
+    const today = oggiMese()
+    // Il mese di «vengo da qui» vince: è quello per cui l'utente ha toccato la
+    // card in dashboard (stessa precedenza che dava la pagina server al primo
+    // mese, che ora si sceglie qui).
+    const month = focus?.month ?? (months.includes(today) ? today : (months[0] ?? today))
+    void handleMonthChange(month)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profiloInArrivo, monthsQuery.isSuccess, monthsQuery.data, focus])
+
   /* Mese di destinazione di «vengo da qui»: se la card viene da un altro mese,
      la pagina lo carica (dal DB, dalla cache o generandolo se teorico). La board
      applica giorno/turno da sé: qui si sistema SOLO il mese. */
   useEffect(() => {
-    if (!focus) return
+    if (!focus || profiloInArrivo) return
     if (focus.month === currentMonthRef.current) return
     handleMonthChange(focus.month)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focus])
+  }, [focus, profiloInArrivo])
 
   /* Pulizia della URL un attimo DOPO l'evidenzia: chi ricarica o torna indietro
      non deve ritrovarsi l'arrivo da dashboard (senza il flash sarebbe una
@@ -265,7 +324,7 @@ export function SalaPageClient({
         if (eventType === 'DELETE') {
           const month = (payload.old as { month?: string }).month
           if (!month) return
-          setAvailableMonths(prev => prev.filter(m => m !== month))
+          aggiornaMesi(prev => prev.filter(m => m !== month))
           if (userId) deleteCachedSchedule(userId, month)
           if (currentMonthRef.current === month) {
             const tree = shiftTreeRef.current
@@ -275,7 +334,7 @@ export function SalaPageClient({
         }
         const row = payload.new as { month?: string; schedule?: unknown; uploaded_at?: string; colored_persons?: SalaSchedule['coloredPersons'] } | null
         if (!row?.month || !row.schedule) return
-        setAvailableMonths(prev => (prev.includes(row.month!) ? prev : [...prev, row.month!].sort((a, b) => b.localeCompare(a))))
+        aggiornaMesi(prev => (prev.includes(row.month!) ? prev : [...prev, row.month!].sort((a, b) => b.localeCompare(a))))
 
         // Normalizzazione identica a getSalaSchedule (v2 compatta → espansa).
         const raw = row.schedule as unknown
@@ -294,7 +353,7 @@ export function SalaPageClient({
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [userId])
+  }, [userId, aggiornaMesi])
 
   const uploadOne = async (file: File, month: string) => {
     const fd = new FormData()
@@ -335,7 +394,7 @@ export function SalaPageClient({
       }
     }
     if (months.length > 0) {
-      setAvailableMonths(prev =>
+      aggiornaMesi(prev =>
         [...new Set([...months, ...prev])].sort((a, b) => b.localeCompare(a)),
       )
       const first = months.sort((a, b) => a.localeCompare(b))[0]
@@ -392,7 +451,7 @@ export function SalaPageClient({
     // La copia locale non deve sopravvivere al mese eliminato (il realtime
     // copre gli ALTRI dispositivi; questo qui è l'origine dell'azione).
     if (userId) await deleteCachedSchedule(userId, month)
-    setAvailableMonths(prev => {
+    aggiornaMesi(prev => {
       const next = prev.filter(m => m !== month)
       if (currentMonth === month) {
         const fallback = next[0] ?? null
@@ -411,6 +470,13 @@ export function SalaPageClient({
       return next
     })
   }
+
+  // La piantina non è ancora arrivata (apertura a freddo): si mostra lo skeleton
+  // di rotta invece di una board SENZA card — una piantina vuota direbbe che la
+  // sala non ha sezioni, e DeskBoard legge `layout` una volta sola, al mount.
+  // Stesso motivo per il profilo: senza sapere chi siamo la board non può
+  // leggere né scrivere la sua copia locale del mese né marcare «sei tu».
+  if (!layout || profiloInArrivo) return <TurniSalaLoading />
 
   return (
     <main className="flex flex-col min-h-[60vh]">

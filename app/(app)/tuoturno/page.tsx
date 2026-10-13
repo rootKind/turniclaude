@@ -1,11 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
-import { listScheduleMonths } from '@/lib/queries/sala-schedule'
-import { fetchShiftTeamTree } from '@/lib/queries/shift-teams'
-import { buildDuplicateCognomi } from '@/lib/utils'
-import { buildBareOwners } from '@/lib/shift-teams-matching'
-import { buildPersonTheoretical, type PersonTheoretical } from '@/lib/person-cycle'
-import type { SalaMonthData } from '@/types/database'
-import { TuoTurnoClient } from './tuoturno-client'
+import { TuoturnoBoot } from './tuoturno-boot'
 
 /**
  * /tuoturno — «Il tuo turno»: calendario mensile personale con il turno reale
@@ -15,62 +8,17 @@ import { TuoTurnoClient } from './tuoturno-client'
  *  2. predizione dalla STORIA dei PDF (ciclo rigido o rotazione a blocchi);
  *  3. rotazione delle squadre del DB (solo ultimo fallback: il seed tronca i
  *     cicli > 28gg e non coincide con i PDF reali).
- * Qui si precomputa il predittore (2) per ogni utente a partire dai mesi PDF
- * già caricati: resta piccolo e viaggia serializzato al client.
+ *
+ * PAGINA STATICA (13/10/2026): qui non si legge più niente dal server. La storia
+ * dei PDF e il predittore (2) li prepara il CLIENT dalla cache (tuoturno-boot.tsx
+ * → hooks/use-sala-data → lib/queries/tuoturno). Prima erano un server component
+ * `async` che, a ogni render — e a ogni prefetch che la barra di navigazione fa da
+ * sola — pagava sessione, anagrafica, albero squadre e il giro completo dei mesi
+ * per produrre un HTML che era comunque il placeholder del `PwaGuard`: la pagina
+ * la disegna il client. Con la pagina statica il prefetch serve HTML
+ * prerenderizzato e il server smette di renderizzare ciò che il browser può
+ * chiedere da sé.
  */
-export default async function TuoTurnoPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const [profileRes, usersRes, uploadedMonths, tree, schedulesRes] = await Promise.all([
-    user
-      ? supabase.from('users').select('id, nome, cognome').eq('id', user.id).maybeSingle()
-      : Promise.resolve({ data: null }),
-    supabase.from('users').select('id, nome, cognome, is_secondary, is_manager, show_in_compare').order('cognome'),
-    listScheduleMonths(supabase),
-    fetchShiftTeamTree(supabase),
-    supabase.from('sala_schedule').select('month, schedule'),
-  ])
-
-  const users = usersRes.data ?? []
-  const duplicateCognomi = buildDuplicateCognomi(users)
-  // Omonimi e righe NUDE (caso NEVANO P./G.): di chi è il solo cognome lo decide
-  // il ROSTER — l'unico collega IN TURNO con quel cognome (chi è fuori dai turni
-  // non rende ambiguo il cognome di chi ci sta). Il membro legato serve per
-  // l'iniziale; l'identità basta quando l'iniziale non c'è.
-  const bareOwners = buildBareOwners(tree, duplicateCognomi, users)
-
-  // Mesi PDF in forma compatta v2: servono le righe «teorico» del parser.
-  const pdfMonths = new Map<string, SalaMonthData>()
-  for (const row of schedulesRes.data ?? []) {
-    const raw = row.schedule as unknown
-    if (raw && typeof raw === 'object' && (raw as { v?: unknown }).v === 2) {
-      pdfMonths.set(row.month, raw as SalaMonthData)
-    }
-  }
-
-  // Predittore del teorico per ogni utente (dalla storia dei PDF).
-  const personTheoretical: Record<string, PersonTheoretical> = {}
-  if (pdfMonths.size > 0) {
-    for (const u of users) {
-      const src = buildPersonTheoretical(pdfMonths, u, duplicateCognomi, bareOwners)
-      if (src) personTheoretical[u.id] = src
-    }
-  }
-
-  const now = new Date()
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
-  return (
-    <TuoTurnoClient
-      currentUserId={user?.id ?? ''}
-      profile={profileRes.data}
-      users={users}
-      uploadedMonths={uploadedMonths}
-      tree={tree}
-      personTheoretical={personTheoretical}
-      initialMonth={currentMonth}
-      bareOwners={[...bareOwners.entries()]}
-    />
-  )
+export default function TuoTurnoPage() {
+  return <TuoturnoBoot />
 }
