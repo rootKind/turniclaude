@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, sessionUser } from '@/lib/supabase/server'
 import { isAdmin } from '@/types/database'
 
 export const runtime = 'nodejs'
 
 async function requireAdminManager(): Promise<NextResponse | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (isAdmin(user.id)) return null
   const { data: profile } = await supabase.from('users').select('is_manager').eq('id', user.id).single()
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'effective_date richiesta (YYYY-MM-DD)' }, { status: 400 })
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   const { error } = await supabase.from('shift_adjustments').insert({
     effective_date: date,
     delta_days: delta,

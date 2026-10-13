@@ -1,6 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+/**
+ * La VERIFICA della sessione sta in lib/supabase/local-session.ts (un'unica
+ * porta per il middleware e per le route /api). Da qui si ri-esporta perché ogni
+ * chiamante abbia un solo import:
+ *
+ *   import { createClient, sessionUser } from '@/lib/supabase/server'
+ */
+export { sessionUser, type SessionUser } from './local-session'
+
 export async function createClient() {
   const cookieStore = await cookies()
   return createServerClient(

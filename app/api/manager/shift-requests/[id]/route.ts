@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createClient as createServerClient, sessionUser } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { pushToUser } from '@/lib/push/send-to-user'
 import { loadNotifOverrides, messageFor } from '@/lib/push/send-with-template'
@@ -12,7 +12,7 @@ import { formatDateShort } from '@/lib/utils'
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: callerProfile } = await supabase

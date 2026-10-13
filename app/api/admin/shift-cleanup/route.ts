@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, sessionUser } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { isAdmin } from '@/types/database'
 import type { SalaShiftType, ShiftType } from '@/types/database'
@@ -38,7 +38,7 @@ interface ShiftRow {
  */
 async function canManage(): Promise<boolean> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user) return false
   if (isAdmin(user.id)) return true
   const { data: profile } = await supabase.from('users').select('is_manager').eq('id', user.id).single()

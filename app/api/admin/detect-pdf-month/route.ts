@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, sessionUser } from '@/lib/supabase/server'
 import { isAdmin } from '@/types/database'
 import { detectMonthFromText } from '@/lib/pdf-month-detect'
 
@@ -17,7 +17,7 @@ export const maxDuration = 60
  */
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   if (!isAdmin(user.id)) {
     const { data: profile } = await supabase.from('users').select('is_manager').eq('id', user.id).single()

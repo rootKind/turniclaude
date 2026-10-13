@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createClient as createServerClient, sessionUser } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ADMIN_ID } from '@/types/database'
 import type { VacationPeriod } from '@/types/database'
 
 export async function POST(req: Request) {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user || user.id !== ADMIN_ID) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, sessionUser } from '@/lib/supabase/server'
 import { isAdmin } from '@/types/database'
 import { parsePdfSchedule } from '@/lib/pdf-parser'
 import { upsertSalaSchedule, saveUploadHistory } from '@/lib/queries/sala-schedule'
@@ -10,7 +10,7 @@ export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })

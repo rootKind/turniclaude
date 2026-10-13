@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createClient as createServerClient, sessionUser } from '@/lib/supabase/server'
 
 // POST /api/changelog/read — marca la versione `version` come vista dall'utente
 // (upsert della riga own-row in changelog_reads).
 export async function POST(req: Request) {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
