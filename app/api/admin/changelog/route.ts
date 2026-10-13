@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createClient as createServerClient, sessionUser } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ADMIN_ID } from '@/types/database'
 import { loadNotifOverrides, pushTemplateToUsers } from '@/lib/push/send-with-template'
@@ -19,7 +19,7 @@ function isAdminId(id: string) {
 // GET /api/admin/changelog — tutte le entry (editor admin).
 export async function GET() {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user || !isAdminId(user.id)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -39,7 +39,7 @@ export async function GET() {
 // - con { forceNew: true }: crea una nuova entry con version = max + 1 e contenuto di default
 export async function POST(req: Request) {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user || !isAdminId(user.id)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -128,7 +128,7 @@ export async function POST(req: Request) {
 // DELETE /api/admin/changelog?version=N — elimina l'entry con quella version.
 export async function DELETE(req: Request) {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user || !isAdminId(user.id)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

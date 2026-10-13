@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, sessionUser } from '@/lib/supabase/server'
 import { getUserShiftOnDate, ownShiftMatchesOffer } from '@/lib/shift-compat'
 import type { ShiftType } from '@/types/database'
 
@@ -17,7 +17,7 @@ const SHIFT_TYPES: ShiftType[] = ['Mattina', 'Pomeriggio', 'Notte']
  */
 export async function GET(req: Request) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const url = new URL(req.url)

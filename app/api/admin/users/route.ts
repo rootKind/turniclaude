@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createClient as createServerClient, sessionUser } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ADMIN_ID } from '@/types/database'
 export async function GET() {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user || user.id !== ADMIN_ID) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
@@ -20,7 +20,7 @@ export async function GET() {
 /** Aggiornamento di massa della visibilità nel Confronto (editor di massa admin). */
 export async function PATCH(req: Request) {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user || user.id !== ADMIN_ID) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

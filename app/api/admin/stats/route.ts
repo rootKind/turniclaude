@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createClient as createServerClient, sessionUser } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { ADMIN_ID } from '@/types/database'
 
@@ -58,7 +58,7 @@ export type AdminStats = {
 // via REST verrebbe troncato a 1000 da db-max-rows (bug storico delle stats).
 export async function GET(req: Request) {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user || user.id !== ADMIN_ID) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

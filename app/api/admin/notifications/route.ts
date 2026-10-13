@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, sessionUser } from '@/lib/supabase/server'
 import { createAdminSupabase } from '@/lib/supabase/admin'
 import { isAdmin } from '@/types/database'
 import { fetchNotifOverrides } from '@/lib/queries/app-settings'
@@ -12,7 +12,7 @@ export const runtime = 'nodejs'
 
 async function requireAdmin(): Promise<NextResponse | null> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   if (isAdmin(user.id)) return null
   const { data: profile } = await supabase.from('users').select('is_manager').eq('id', user.id).single()

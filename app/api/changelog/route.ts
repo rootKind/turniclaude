@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createClient as createServerClient, sessionUser } from '@/lib/supabase/server'
 
 // GET /api/changelog — entry del changelog + ultima versione vista dall'utente.
 // Autenticato (RLS: le entry sono leggibili da tutti gli autenticati, la riga
 // di lettura è own-row).
 export async function GET() {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await sessionUser(supabase)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
